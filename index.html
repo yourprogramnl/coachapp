@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoachApp</title>
 <style>
-:root{--bg:#0b0e13;--panel:#141923;--panel2:#1b212d;--line:#262e3b;--txt:#e7ebf2;--muted:#8a94a6;--accent:#4f8bff;--accent2:#2dd4a7;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
+:root{--bg:#f4f6fa;--panel:#ffffff;--panel2:#ffffff;--line:#e3e7ef;--txt:#1b2330;--muted:#73808f;--accent:#2f6df6;--accent2:#15a36b;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 700px at 70% -10%,#15203a 0%,var(--bg) 55%);color:var(--txt);min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
 .wrap{max-width:100%;margin:0 auto;padding:20px 26px 70px}
 .logo{font-weight:800;font-size:22px;letter-spacing:1px}.logo b{color:var(--accent)}
 .muted{color:var(--muted)} .hidden{display:none!important}
@@ -16,13 +16,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .btn.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
 .btn.sm{padding:6px 11px;font-size:12px}
 .btn:disabled{opacity:.5;cursor:default}
-input,select,textarea{width:100%;background:#0f141d;border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--txt);font-size:14px;font-family:inherit}
+input,select,textarea{width:100%;background:#ffffff;border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--txt);font-size:14px;font-family:inherit}
 textarea{min-height:54px;resize:vertical}
 label{font-size:13px;font-weight:600;color:var(--muted)}
 .field{margin-bottom:13px}
 #login{max-width:380px;margin:8vh auto 0}#login .card{padding:26px}
 .tabs{display:flex;gap:6px;margin-bottom:16px}
-.tabs button{flex:1;padding:9px;border-radius:9px;background:#0f141d;border:1px solid var(--line);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit}
+.tabs button{flex:1;padding:9px;border-radius:9px;background:#f1f4f8;border:1px solid var(--line);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit}
 .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .msg{font-size:13px;margin-top:10px;min-height:18px}.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
 .topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
@@ -35,11 +35,11 @@ label{font-size:13px;font-weight:600;color:var(--muted)}
 .row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:none}.row.click{cursor:pointer}.row.click:hover{background:rgba(79,139,255,.06)}
 .row .nm{font-weight:600;font-size:14px}.row .sub{font-size:12px;color:var(--muted)}
-.tag{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+.tag{font-size:11px;padding:3px 9px;border-radius:999px;background:#f1f4f8;border:1px solid var(--line);color:var(--muted)}
 h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .note{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}
 .back{font-size:13px;color:var(--accent);cursor:pointer;display:inline-block;margin-bottom:10px}
-.block{background:#0f141d;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px}
+.block{background:#f1f4f8;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px}
 .block .bh{display:flex;align-items:center;gap:9px;margin-bottom:4px}
 .badge{min-width:30px;height:26px;padding:0 6px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .presc{font-size:13px;color:var(--muted);margin-left:39px}
@@ -73,7 +73,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .dnum{font-size:13px;font-weight:700;margin-bottom:6px;color:var(--txt)}
 .addnew{font-size:12px;color:var(--accent);cursor:pointer;text-align:center;padding:6px;border:1px dashed var(--line);border-radius:8px;margin-bottom:7px}
 .addnew:hover{background:rgba(79,139,255,.06)}
-.wo{background:#0f141d;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:7px;margin-bottom:6px;cursor:pointer}
+.wo{background:#f1f4f8;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:7px;margin-bottom:6px;cursor:pointer}
 .wo:hover{border-color:var(--accent)}
 .wo .t{font-weight:700;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
 .wo .t .wtt{color:var(--accent)}
@@ -82,15 +82,15 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .wo-comments{font-size:10px;color:var(--muted);margin-top:5px;border-top:1px solid var(--line);padding-top:4px}
 .delwo{color:var(--muted);cursor:pointer;font-size:13px}
 /* builder popover (zoals CoachRx-kaart) */
-.builderin{background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:11px;margin-bottom:6px}
-.bp-sec{background:#0f141d;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
+.builderin{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:11px;margin-bottom:6px;box-shadow:0 8px 24px rgba(20,40,90,.10)}
+.bp-sec{background:#f1f4f8;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
 .titlerow{display:flex;align-items:center;gap:8px}
 .titlerow .ibt{flex:1;font-weight:700;font-size:14px}
 .iconbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:2px}
 .iconbtn:hover{color:var(--txt)}
 .bp-sec .ibs{margin-top:8px;font-size:13px}
 .demolink{font-size:11px;color:var(--accent);cursor:pointer;margin-top:7px}
-.exrow{background:#0f141d;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:9px}
+.exrow{background:#f1f4f8;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:9px}
 .exrow.linked{border-left:3px solid var(--accent2)}
 .exr-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}.exr-tools{display:none;gap:2px;align-items:center}.exrow:hover .exr-tools{display:flex}.hist{flex-shrink:0}
 .lbl-badge{color:var(--accent);font-weight:800;font-size:13px;flex-shrink:0}.lbl-badge::after{content:")"}
@@ -145,7 +145,7 @@ try{
   if(typeof supabase==="undefined"||!supabase.createClient) throw new Error("lib");
   db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 }catch(e){
-  document.body.innerHTML='<div style="max-width:460px;margin:14vh auto;font-family:sans-serif;color:#e7ebf2;text-align:center;padding:24px"><h2 style="color:#4f8bff">Open in een gewone browser</h2><p style="color:#8a94a6;line-height:1.6">Deze app werkt niet in een klein voorbeeldvenster. Open de link in Chrome of Edge.</p></div>';
+  document.body.innerHTML='<div style="max-width:460px;margin:14vh auto;font-family:sans-serif;color:#1b2330;text-align:center;padding:24px"><h2 style="color:#4f8bff">Open in een gewone browser</h2><p style="color:#8a94a6;line-height:1.6">Deze app werkt niet in een klein voorbeeldvenster. Open de link in Chrome of Edge.</p></div>';
 }
 const ROLE_NL={platform_admin:"Platform-admin",eigenaar:"Eigenaar",coach:"Coach",lid:"Lid"};
 const DAGEN=["MA","DI","WO","DO","VR","ZA","ZO"];
