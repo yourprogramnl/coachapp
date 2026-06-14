@@ -69,7 +69,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .daycell{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:8px;min-height:132px;display:flex;flex-direction:column}
 .daycell.today{border-color:var(--accent)}
 .daycell.dim{opacity:.45}
-.daycell.editing{border-color:var(--accent);z-index:40}
+.daycell.editing{border-color:var(--accent)}
 .dnum{font-size:13px;font-weight:700;margin-bottom:6px;color:var(--txt)}
 .addnew{font-size:12px;color:var(--accent);cursor:pointer;text-align:center;padding:6px;border:1px dashed var(--line);border-radius:8px;margin-bottom:7px}
 .addnew:hover{background:rgba(79,139,255,.06)}
@@ -82,8 +82,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .wo-comments{font-size:10px;color:var(--muted);margin-top:5px;border-top:1px solid var(--line);padding-top:4px}
 .delwo{color:var(--muted);cursor:pointer;font-size:13px}
 /* builder popover (zoals CoachRx-kaart) */
-.builderpop{position:absolute;top:6px;z-index:60;width:432px;max-width:90vw;max-height:80vh;overflow:auto;background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:13px;box-shadow:0 24px 70px rgba(0,0,0,.65)}
-.builderpop.left{left:6px}.builderpop.right{right:6px}
+.builderin{background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:11px;margin-bottom:6px}
 .bp-sec{background:#0f141d;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
 .titlerow{display:flex;align-items:center;gap:8px}
 .titlerow .ibt{flex:1;font-weight:700;font-size:14px}
@@ -98,12 +97,11 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .exrow .exn{flex:1;font-size:13px;padding:7px 8px}
 .ic-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 3px;line-height:1;font-family:inherit}
 .ic-btn:hover{color:var(--txt)}.ic-btn.on{color:var(--accent2)}
-.exr-grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.exr-grid4 input{font-size:12px;padding:7px 6px}
+.f-presc{font-size:12px;padding:7px 8px}
 .f-desc{font-size:12px;padding:7px 8px;min-height:46px}
 .bprow{display:flex;gap:8px;align-items:center;margin:6px 0}
 .addbtn{flex:1;justify-content:center}
-@media(max-width:820px){.clientwrap{flex-direction:column}.cside{width:100%}.cside.collapsed{width:100%}.calhead,.weekrow{min-width:1100px}.calscroll{overflow-x:auto}.builderpop{width:300px}}
+@media(max-width:820px){.clientwrap{flex-direction:column}.cside{width:100%}.cside.collapsed{width:100%}.calhead,.weekrow{min-width:1100px}.calscroll{overflow-x:auto}.builderin{padding:9px}}
 </style>
 </head>
 <body>
@@ -162,6 +160,7 @@ let ME={user:null,profile:null};
 
 function composePresc(b){
   if(b.kind==="conditioning")return b.notes||"";
+  if(b.prescription)return b.prescription;
   const segs=[];const sr=[b.sets,b.reps].filter(Boolean).join(" x ");
   if(sr)segs.push(sr);if(b.tempo)segs.push("@ "+b.tempo);
   let s=segs.join(" ");if(b.rest)s+=(s?" · ":"")+"rust "+b.rest;return s;
@@ -255,9 +254,9 @@ function prevMonth(){editDay=null;editWid=null;calRef=new Date(calRef.getFullYea
 function nextMonth(){editDay=null;editWid=null;calRef=new Date(calRef.getFullYear(),calRef.getMonth()+1,1);renderMonth();}
 function thisMonth(){editDay=null;editWid=null;calRef=new Date();renderMonth();}
 
-function exRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-ctrl"><span class="lbl-badge">A</span><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><input class="exn" list="exlist" placeholder="Exercise Name" value="'+esc(b.exercise||"")+'"><button class="ic-btn" title="History" onclick="return false">🕘</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></div><div class="exr-grid4"><input class="f-tempo" placeholder="Tempo" value="'+esc(b.tempo||"")+'"><input class="f-reps" placeholder="Reps" value="'+esc(b.reps||"")+'"><input class="f-sets" placeholder="Sets" value="'+esc(b.sets||"")+'"><input class="f-rest" placeholder="Rest" value="'+esc(b.rest||"")+'"></div></div>';}
+function exRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-ctrl"><span class="lbl-badge">A</span><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><input class="exn" list="exlist" placeholder="Exercise Name" value="'+esc(b.exercise||"")+'"><button class="ic-btn" title="History" onclick="return false">🕘</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></div><input class="f-presc" placeholder="Tempo, Reps, Sets, Rest" value="'+esc(b.prescription||composePresc(b))+'"></div>';}
 function condRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-ctrl"><span class="lbl-badge">D</span><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><input class="exn" placeholder="Conditioning titel (bv. 10 min AMRAP)" value="'+esc(b.exercise||"")+'"><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></div><textarea class="f-desc" placeholder="Conditioning description, notes, etc">'+esc(b.notes||"")+'</textarea></div>';}
-function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();if(kind==="conditioning")return{kind,linked,exercise,notes:(r.querySelector(".f-desc").value||"").trim()};return{kind:"exercise",linked,exercise,tempo:r.querySelector(".f-tempo").value.trim(),reps:r.querySelector(".f-reps").value.trim(),sets:r.querySelector(".f-sets").value.trim(),rest:r.querySelector(".f-rest").value.trim()};}
+function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();if(kind==="conditioning")return{kind,linked,exercise,notes:(r.querySelector(".f-desc").value||"").trim()};return{kind:"exercise",linked,exercise,prescription:r.querySelector(".f-presc").value.trim()};}
 function relabel(){
   const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length)return;
   rows[0].dataset.linked="0";rows[0].classList.remove("linked");
@@ -312,8 +311,7 @@ async function renderMonth(){
       let inner='<div class="dnum">'+d.getDate()+'</div>';
       if(editing){
         inner+=dayWos.filter(w=>w.id!==editWid).map(woCell).join("");
-        const side=i<=3?'left':'right';
-        inner+='<div class="builderpop '+side+'">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
+        inner+='<div class="builderin">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else{
         inner+='<div class="addnew" onclick="startEdit(\''+ds+'\','+i+')">+ Add New</div>';
         inner+=dayWos.map(woCell).join("");
@@ -336,7 +334,7 @@ async function saveWorkout(){
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   g("saveW").disabled=true;
   const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
-  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,tempo:b.tempo||null,reps:b.reps||null,sets:b.sets||null,rest:b.rest||null,notes:b.notes||null,sort:b.sort}));
+  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort}));
   try{
     if(editWid){
       const{error:ue}=await db.from("workouts").update(wf).eq("id",editWid);if(ue)throw ue;
