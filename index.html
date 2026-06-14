@@ -92,8 +92,8 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .demolink{font-size:11px;color:var(--accent);cursor:pointer;margin-top:7px}
 .exrow{background:#0f141d;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:9px}
 .exrow.linked{border-left:3px solid var(--accent2)}
-.exr-ctrl{display:flex;align-items:center;gap:4px;margin-bottom:8px}
-.lbl-badge{background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:700;padding:3px 7px;min-width:30px;text-align:center}
+.exr-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}.exr-tools{display:none;gap:2px;align-items:center}.exrow:hover .exr-tools{display:flex}.hist{flex-shrink:0}
+.lbl-badge{color:var(--accent);font-weight:800;font-size:13px;flex-shrink:0}.lbl-badge::after{content:")"}
 .exrow .exn{flex:1;font-size:13px;padding:7px 8px}
 .ic-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 3px;line-height:1;font-family:inherit}
 .ic-btn:hover{color:var(--txt)}.ic-btn.on{color:var(--accent2)}
@@ -254,8 +254,8 @@ function prevMonth(){editDay=null;editWid=null;calRef=new Date(calRef.getFullYea
 function nextMonth(){editDay=null;editWid=null;calRef=new Date(calRef.getFullYear(),calRef.getMonth()+1,1);renderMonth();}
 function thisMonth(){editDay=null;editWid=null;calRef=new Date();renderMonth();}
 
-function exRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-ctrl"><span class="lbl-badge">A</span><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><input class="exn" list="exlist" placeholder="Exercise Name" value="'+esc(b.exercise||"")+'"><button class="ic-btn" title="History" onclick="return false">🕘</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></div><input class="f-presc" placeholder="Tempo, Reps, Sets, Rest" value="'+esc(b.prescription||composePresc(b))+'"></div>';}
-function condRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-ctrl"><span class="lbl-badge">D</span><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><input class="exn" placeholder="Conditioning titel (bv. 10 min AMRAP)" value="'+esc(b.exercise||"")+'"><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></div><textarea class="f-desc" placeholder="Conditioning description, notes, etc">'+esc(b.notes||"")+'</textarea></div>';}
+function exRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-head"><span class="lbl-badge">A</span><input class="exn" list="exlist" placeholder="Exercise Name" value="'+esc(b.exercise||"")+'"><span class="exr-tools"><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></span><button class="ic-btn hist" title="History" onclick="return false">🕘</button></div><input class="f-presc" placeholder="Tempo, Reps, Sets, Rest" value="'+esc(b.prescription||composePresc(b))+'"></div>';}
+function condRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'"><div class="exr-head"><span class="lbl-badge">D</span><input class="exn" placeholder="Conditioning Name" value="'+esc(b.exercise||"")+'"><span class="exr-tools"><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></span><button class="ic-btn hist" title="History" onclick="return false">🕘</button></div><textarea class="f-desc" placeholder="Conditioning description, notes, etc">'+esc(b.notes||"")+'</textarea></div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();if(kind==="conditioning")return{kind,linked,exercise,notes:(r.querySelector(".f-desc").value||"").trim()};return{kind:"exercise",linked,exercise,prescription:r.querySelector(".f-presc").value.trim()};}
 function relabel(){
   const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length)return;
@@ -263,7 +263,7 @@ function relabel(){
   let groups=[];
   rows.forEach((r,i)=>{if(i>0&&r.dataset.linked==="1"){groups[groups.length-1].push(r);}else{groups.push([r]);}});
   groups.forEach((g,gi)=>{const L=String.fromCharCode(65+gi);g.forEach((r,pos)=>{const bd=r.querySelector(".lbl-badge");if(bd)bd.textContent=g.length>1?L+(pos+1):L;});});
-  rows.forEach((r,i)=>{const lb=r.querySelector(".lnkb");if(lb){lb.style.visibility=i===0?"hidden":"visible";lb.classList.toggle("on",r.dataset.linked==="1");}});
+  rows.forEach((r,i)=>{const lb=r.querySelector(".lnkb");if(lb){lb.style.display=i===0?"none":"";lb.classList.toggle("on",r.dataset.linked==="1");}});
 }
 function toggleLink(btn){const r=btn.closest(".exrow");const on=r.dataset.linked!=="1";r.dataset.linked=on?"1":"0";r.classList.toggle("linked",on);relabel();}
 function moveRow(btn,dir){const r=btn.closest(".exrow");if(dir<0){const p=r.previousElementSibling;if(p)r.parentNode.insertBefore(r,p);}else{const n=r.nextElementSibling;if(n)r.parentNode.insertBefore(n,r);}relabel();}
@@ -293,7 +293,7 @@ function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wi
 function cancelEdit(){editWid=null;editDay=null;renderMonth();}
 
 function woCell(w){
-  const bl=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>'<div class="bl"><span class="bb">'+esc(b.label||"")+'</span> '+esc(b.exercise||"")+'</div>').join("");
+  const bl=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>'<div class="bl"><span class="bb">'+esc(b.label||"")+') </span>'+esc(b.exercise||"")+'</div>').join("");
   return '<div class="wo" onclick="editWorkout(\''+w.id+'\','+w._idx+')"><div class="t"><span class="wtt">'+esc(w.title||"Workout")+'</span><span class="delwo" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')">×</span></div>'+(bl||'<div class="bl muted">geen blokken</div>')+'<div class="wo-comments">💬 Comments</div></div>';
 }
 async function renderMonth(){
