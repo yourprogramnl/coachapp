@@ -8,7 +8,7 @@
 :root{--bg:#0b0e13;--panel:#141923;--panel2:#1b212d;--line:#262e3b;--txt:#e7ebf2;--muted:#8a94a6;--accent:#4f8bff;--accent2:#2dd4a7;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 700px at 70% -10%,#15203a 0%,var(--bg) 55%);color:var(--txt);min-height:100vh}
-.wrap{max-width:980px;margin:0 auto;padding:22px 18px 70px}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 18px 70px}
 .logo{font-weight:800;font-size:22px;letter-spacing:1px}.logo b{color:var(--accent)}
 .muted{color:var(--muted)} .hidden{display:none!important}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:16px}
@@ -40,12 +40,29 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .back{font-size:13px;color:var(--accent);cursor:pointer;display:inline-block;margin-bottom:10px}
 .block{background:#0f141d;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px}
 .block .bh{display:flex;align-items:center;gap:9px;margin-bottom:4px}
-.badge{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.badge{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .presc{font-size:13px;color:var(--muted);margin-left:33px}
 .blockrow{display:grid;grid-template-columns:50px 1fr 1.4fr 30px;gap:8px;margin-bottom:8px;align-items:center}
 .blockrow input{padding:9px 10px;font-size:13px}
 .x{cursor:pointer;color:var(--muted);text-align:center;font-size:18px}
 .spin{color:var(--muted);font-size:13px;padding:20px;text-align:center}
+/* kalender */
+.calnav{display:flex;align-items:center;gap:10px;margin:14px 0}
+.calnav .rng{font-weight:600;font-size:15px;min-width:210px;text-align:center}
+.navbtn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 12px;cursor:pointer;font-size:14px;font-family:inherit}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(150px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px}
+.daycell{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px;min-height:170px;display:flex;flex-direction:column}
+.daycell.today{border-color:var(--accent)}
+.dayhdr{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.dayhdr b{font-size:15px;color:var(--txt)}
+.wo{background:#0f141d;border:1px solid var(--line);border-radius:9px;padding:8px;margin-bottom:7px}
+.wo .t{font-weight:600;font-size:12px;margin-bottom:5px;display:flex;justify-content:space-between;gap:6px}
+.wo .bl{font-size:11px;color:var(--muted);line-height:1.5}
+.wo .bl .bb{color:var(--accent);font-weight:700}
+.addday{margin-top:auto;font-size:12px;color:var(--accent);cursor:pointer;text-align:center;padding:7px;border:1px dashed var(--line);border-radius:8px}
+.addday:hover{background:rgba(79,139,255,.06)}
+.delwo{color:var(--muted);cursor:pointer;font-size:13px}
+@media(max-width:760px){.cal{grid-template-columns:repeat(7,minmax(150px,1fr))}}
 </style>
 </head>
 <body>
@@ -91,8 +108,14 @@ try{
   document.body.innerHTML='<div style="max-width:460px;margin:14vh auto;font-family:sans-serif;color:#e7ebf2;text-align:center;padding:24px"><h2 style="color:#4f8bff">Open in een gewone browser</h2><p style="color:#8a94a6;line-height:1.6">Deze app werkt niet in een klein voorbeeldvenster. Open de link in Chrome of Edge.</p></div>';
 }
 const ROLE_NL={platform_admin:"Platform-admin",eigenaar:"Eigenaar",coach:"Coach",lid:"Lid"};
+const DAGEN=["MA","DI","WO","DO","VR","ZA","ZO"];
+const MAAND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const todayStr=()=>ymd(new Date());
+const mondayOf=d=>{const x=new Date(d);const k=(x.getDay()+6)%7;x.setDate(x.getDate()-k);x.setHours(0,0,0,0);return x;};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 let ME={user:null,profile:null};
 
 let mode="in";
@@ -128,15 +151,15 @@ async function loadApp(){
   else if(role==="coach")renderCoach();
   else renderLid();
 }
-
 function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
+const naamVan=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
 
 // ---------- PLATFORM ADMIN ----------
 async function renderAdmin(){
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:companies}=await db.from("companies").select("*").order("created_at");
   let rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc(co.name.slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
-  c.innerHTML=header("Welkom, "+(ME.user.email),"Platform-admin — bedrijven die het product gebruiken")+
+  c.innerHTML=header("Welkom, "+ME.user.email,"Platform-admin — bedrijven die het product gebruiken")+
     '<div class="stats"><div class="stat"><div class="n acc">'+(companies||[]).length+'</div><div class="l">Bedrijven</div></div></div>'+
     '<h3>Bedrijven</h3><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
 }
@@ -147,11 +170,10 @@ async function renderEigenaar(){
   const{data:people}=await db.from("profiles").select("*").eq("company_id",ME.profile.company_id);
   const coaches=(people||[]).filter(p=>p.role==="coach"||p.role==="eigenaar");
   const leden=(people||[]).filter(p=>p.role==="lid");
-  const naam=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
   c.innerHTML=header("Eigenaar-overzicht","Alle coaches en leden van je bedrijf")+
     '<div class="stats"><div class="stat"><div class="n acc">'+coaches.length+'</div><div class="l">Coaches</div></div><div class="stat"><div class="n">'+leden.length+'</div><div class="l">Leden</div></div></div>'+
-    '<h3>Coaches</h3><div class="card">'+(coaches.map(p=>'<div class="row"><div class="av">'+naam(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naam(p)+'</div><div class="sub">'+ROLE_NL[p.role]+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen coaches.</span></div>')+'</div>'+
-    '<h3>Leden</h3><div class="card">'+(leden.map(p=>'<div class="row"><div class="av">'+naam(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naam(p)+'</div><div class="sub">'+esc(p.membership_type||"")+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen leden.</span></div>')+'</div>';
+    '<h3>Coaches</h3><div class="card">'+(coaches.map(p=>'<div class="row"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+ROLE_NL[p.role]+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen coaches.</span></div>')+'</div>'+
+    '<h3>Leden</h3><div class="card">'+(leden.map(p=>'<div class="row"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.membership_type||"")+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen leden.</span></div>')+'</div>';
 }
 
 // ---------- COACH ----------
@@ -160,59 +182,69 @@ async function renderCoach(){
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:clients}=await db.from("profiles").select("*").eq("coach_id",ME.user.id).eq("role","lid");
   coachClients=clients||[];
-  const naam=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
-  let rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naam(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naam(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">openen ›</span></div>').join("");
+  let rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">programmeren ›</span></div>').join("");
   c.innerHTML=header("Welkom, "+(ME.profile.first_name||ME.user.email),"Coach-dashboard")+
     '<div class="stats"><div class="stat"><div class="n acc">'+coachClients.length+'</div><div class="l">Mijn klanten</div></div></div>'+
     '<h3>Mijn klanten</h3><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div>';
 }
 
-async function openClient(id){
-  const p=coachClients.find(x=>x.id===id);if(!p)return;
-  const naam=esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
+let calClient=null,calRef=new Date();
+function openClient(id){calClient=id;calRef=new Date();renderWeek();}
+function prevWeek(){calRef=addDays(mondayOf(calRef),-7);renderWeek();}
+function nextWeek(){calRef=addDays(mondayOf(calRef),7);renderWeek();}
+function thisWeek(){calRef=new Date();renderWeek();}
+
+async function renderWeek(){
+  const id=calClient,p=coachClients.find(x=>x.id===id);if(!p)return renderCoach();
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
-  const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).order("workout_date",{ascending:false});
-  let wlist=(workouts||[]).map(w=>{
-    const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div><div class="presc">'+esc(b.prescription||"")+(b.notes?' · <i>'+esc(b.notes)+'</i>':'')+'</div></div>').join("");
-    return '<div class="card" style="padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">'+esc(w.workout_date)+'</span></div>'+(bl||'<div class="muted" style="font-size:13px">Geen blokken.</div>')+'</div>';
-  }).join("");
-  c.innerHTML='<span class="back" onclick="renderCoach()">‹ Terug naar klanten</span>'+header(naam,"Workouts en programma")+
-    '<div style="margin:14px 0"><button class="btn" onclick="newWorkoutForm(\''+id+'\')">+ Nieuwe workout</button></div>'+
-    '<div id="wlist">'+(wlist||'<div class="muted">Nog geen workouts voor deze klant.</div>')+'</div>';
+  const mon=mondayOf(calRef),sun=addDays(mon,6);
+  const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(mon)).lte("workout_date",ymd(sun)).order("workout_date");
+  const byDate={};(workouts||[]).forEach(w=>{(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
+  const rng=mon.getDate()+" "+MAAND[mon.getMonth()]+" – "+sun.getDate()+" "+MAAND[sun.getMonth()]+" "+sun.getFullYear();
+  let cells="";
+  for(let i=0;i<7;i++){
+    const d=addDays(mon,i),ds=ymd(d),isToday=ds===todayStr();
+    const wos=(byDate[ds]||[]).map(w=>{
+      const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="bl"><span class="bb">'+esc(b.label||"")+'</span> '+esc(b.exercise||"")+'</div>').join("");
+      return '<div class="wo"><div class="t"><span>'+esc(w.title||"Workout")+'</span><span class="delwo" title="Verwijderen" onclick="delWorkout(\''+w.id+'\')">×</span></div>'+(bl||'<div class="bl muted">geen blokken</div>')+'</div>';
+    }).join("");
+    cells+='<div class="daycell'+(isToday?' today':'')+'"><div class="dayhdr"><span>'+DAGEN[i]+'</span><b>'+d.getDate()+'</b></div>'+wos+'<div class="addday" onclick="newWorkoutForm(\''+id+'\',\''+ds+'\')">+ workout</div></div>';
+  }
+  c.innerHTML='<span class="back" onclick="renderCoach()">‹ Terug naar klanten</span>'+header(naamVan(p),"Programma — weekoverzicht")+
+    '<div class="calnav"><button class="navbtn" onclick="prevWeek()">‹</button><button class="navbtn" onclick="thisWeek()">Vandaag</button><button class="navbtn" onclick="nextWeek()">›</button><span class="rng">'+rng+'</span></div>'+
+    '<div class="cal">'+cells+'</div>';
 }
 
-function blockRowHtml(){
-  return '<div class="blockrow"><input placeholder="A" maxlength="2"><input placeholder="Oefening"><input placeholder="bv. 5 x 5 @ 30X1 - rust 2 min"><div class="x" onclick="this.parentElement.remove()">×</div></div>';
+async function delWorkout(wid){
+  if(!confirm("Deze workout verwijderen?"))return;
+  await db.from("workouts").delete().eq("id",wid);
+  renderWeek();
 }
-function newWorkoutForm(clientId){
+
+function blockRowHtml(){return '<div class="blockrow"><input placeholder="A" maxlength="2"><input placeholder="Oefening"><input placeholder="bv. 5 x 5 @ 30X1 - rust 2 min"><div class="x" onclick="this.parentElement.remove()">×</div></div>';}
+function newWorkoutForm(clientId,dateStr){
   const c=document.getElementById("content");
-  c.innerHTML='<span class="back" onclick="openClient(\''+clientId+'\')">‹ Terug</span>'+header("Nieuwe workout","")+
+  c.innerHTML='<span class="back" onclick="renderWeek()">‹ Terug naar kalender</span>'+header("Nieuwe workout","")+
     '<div class="card" style="padding:16px;max-width:680px">'+
     '<div class="field"><label>Titel van de dag</label><input id="w_title" placeholder="bv. Lower body kracht"></div>'+
-    '<div class="field"><label>Datum</label><input id="w_date" type="date" value="'+todayStr()+'"></div>'+
+    '<div class="field"><label>Datum</label><input id="w_date" type="date" value="'+(dateStr||todayStr())+'"></div>'+
     '<label>Blokken</label><div id="blocks">'+blockRowHtml()+blockRowHtml()+blockRowHtml()+'</div>'+
     '<button class="btn ghost sm" onclick="document.getElementById(\'blocks\').insertAdjacentHTML(\'beforeend\',blockRowHtml())">+ Blok</button>'+
-    '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn" id="saveW" onclick="saveWorkout(\''+clientId+'\')">Opslaan & toewijzen</button><button class="btn ghost" onclick="openClient(\''+clientId+'\')">Annuleren</button></div>'+
+    '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn" id="saveW" onclick="saveWorkout(\''+clientId+'\')">Opslaan & toewijzen</button><button class="btn ghost" onclick="renderWeek()">Annuleren</button></div>'+
     '<div class="msg" id="wmsg"></div></div>';
 }
 async function saveWorkout(clientId){
   const title=document.getElementById("w_title").value.trim();
   const date=document.getElementById("w_date").value||todayStr();
-  const rows=[...document.querySelectorAll("#blocks .blockrow")].map((r,i)=>{
-    const inp=r.querySelectorAll("input");
-    return{label:inp[0].value.trim(),exercise:inp[1].value.trim(),prescription:inp[2].value.trim(),sort:i+1};
-  }).filter(b=>b.exercise);
+  const rows=[...document.querySelectorAll("#blocks .blockrow")].map((r,i)=>{const inp=r.querySelectorAll("input");return{label:inp[0].value.trim(),exercise:inp[1].value.trim(),prescription:inp[2].value.trim(),sort:i+1};}).filter(b=>b.exercise);
   const wm=document.getElementById("wmsg");
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   document.getElementById("saveW").disabled=true;
   try{
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:clientId,workout_date:date,title}).select().single();
     if(error)throw error;
-    if(rows.length){
-      const{error:be}=await db.from("blocks").insert(rows.map(b=>({workout_id:w.id,label:b.label,exercise:b.exercise,prescription:b.prescription,sort:b.sort})));
-      if(be)throw be;
-    }
-    openClient(clientId);
+    if(rows.length){const{error:be}=await db.from("blocks").insert(rows.map(b=>({workout_id:w.id,label:b.label,exercise:b.exercise,prescription:b.prescription,sort:b.sort})));if(be)throw be;}
+    renderWeek();
   }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";document.getElementById("saveW").disabled=false;}
 }
 
@@ -220,14 +252,11 @@ async function saveWorkout(clientId){
 async function renderLid(){
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:today}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).eq("workout_date",todayStr());
-  const w=(today||[])[0];
-  let body;
+  const w=(today||[])[0];let body;
   if(w){
     const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div><div class="presc">'+esc(b.prescription||"")+(b.notes?' · <i>'+esc(b.notes)+'</i>':'')+'</div></div>').join("");
     body='<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">vandaag</span></div>'+(bl||'<div class="muted">Geen blokken.</div>')+'</div><p class="note">Scores invullen en video uploaden komt in de volgende stap (Fase 3).</p>';
-  }else{
-    body='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';
-  }
+  }else{body='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';}
   c.innerHTML=header("Welkom, "+(ME.profile.first_name||ME.user.email),"Jouw workout van vandaag")+body;
 }
 
