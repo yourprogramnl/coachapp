@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoachApp</title>
+<style>
+:root{--bg:#0b0e13;--panel:#141923;--panel2:#1b212d;--line:#262e3b;--txt:#e7ebf2;--muted:#8a94a6;--accent:#4f8bff;--accent2:#2dd4a7;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 700px at 70% -10%,#15203a 0%,var(--bg) 55%);color:var(--txt);min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:24px 18px 60px}
+.logo{font-weight:800;font-size:22px;letter-spacing:1px}.logo b{color:var(--accent)}
+.muted{color:var(--muted)} .hidden{display:none!important}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:20px}
+.btn{background:var(--accent);color:#fff;border:none;padding:11px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+.btn:disabled{opacity:.5;cursor:default}
+input{width:100%;background:#0f141d;border:1px solid var(--line);border-radius:10px;padding:12px 13px;color:var(--txt);font-size:14px;font-family:inherit;margin-top:6px}
+label{font-size:13px;font-weight:600;color:var(--muted)}
+.field{margin-bottom:14px}
+/* login */
+#login{max-width:380px;margin:8vh auto 0}
+#login .card{padding:26px}
+.tabs{display:flex;gap:6px;margin-bottom:16px}
+.tabs button{flex:1;padding:9px;border-radius:9px;background:#0f141d;border:1px solid var(--line);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.msg{font-size:13px;margin-top:10px;min-height:18px}
+.msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
+/* app */
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.rolepill{font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:rgba(79,139,255,.16);color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:linear-gradient(135deg,#3a4a6b,#2a3550)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px}
+.stat .n{font-size:26px;font-weight:800}.stat .n.acc{color:var(--accent)}.stat .n.ok{color:var(--ok)}
+.stat .l{font-size:12px;color:var(--muted);margin-top:3px}
+.row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .nm{font-weight:600;font-size:14px}.row .sub{font-size:12px;color:var(--muted)}
+.tag{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
+.note{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <div id="login">
+    <div style="text-align:center;margin-bottom:18px"><span class="logo">COACH<b>APP</b></span><div class="muted" style="font-size:13px;margin-top:4px">Coaching-platform · werkversie</div></div>
+    <div class="card">
+      <div class="tabs">
+        <button id="tab-in" class="on" onclick="setMode('in')">Inloggen</button>
+        <button id="tab-up" onclick="setMode('up')">Account maken</button>
+      </div>
+      <div class="field"><label>E-mailadres</label><input id="email" type="email" placeholder="naam@voorbeeld.nl"></div>
+      <div class="field"><label>Wachtwoord</label><input id="pw" type="password" placeholder="••••••••"></div>
+      <button class="btn" id="go" style="width:100%" onclick="submit()">Inloggen</button>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="note" style="text-align:center;max-width:340px;margin:14px auto 0">Testaccount staat klaar — vraag de inloggegevens als je ze niet bij de hand hebt.</div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <div class="topbar">
+      <span class="logo">COACH<b>APP</b></span>
+      <span class="rolepill" id="roleLabel">…</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <div class="av" id="avatar">?</div>
+        <button class="btn ghost" onclick="signOut()">Uitloggen</button>
+      </div>
+    </div>
+    <h2 id="hello">Welkom</h2>
+    <div class="muted" id="sub"></div>
+    <div id="content"></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
+let db = null;
+try {
+  if (typeof supabase === "undefined" || !supabase.createClient) throw new Error("lib");
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+} catch (e) {
+  document.body.innerHTML = '<div style=\'max-width:460px;margin:14vh auto;font-family:sans-serif;color:#e7ebf2;text-align:center;padding:24px\'><h2 style=\'color:#4f8bff\'>Open in een gewone browser</h2><p style=\'color:#8a94a6;line-height:1.6\'>Deze app werkt niet in een klein voorbeeldvenster. Zoek het bestand <b>index.html</b> in je map en open het met Chrome of Edge (rechtsklik &rarr; Openen met).</p></div>';
+}
+
+let mode = 'in';
+function setMode(m){ mode=m;
+  document.getElementById('tab-in').classList.toggle('on', m==='in');
+  document.getElementById('tab-up').classList.toggle('on', m==='up');
+  document.getElementById('go').textContent = m==='in' ? 'Inloggen' : 'Account maken';
+  setMsg('');
+}
+function setMsg(t,kind){ const e=document.getElementById('msg'); e.textContent=t||''; e.className='msg '+(kind||''); }
+
+async function submit(){
+  const email=document.getElementById('email').value.trim();
+  const pw=document.getElementById('pw').value;
+  if(!email||!pw){ setMsg('Vul e-mail en wachtwoord in.','err'); return; }
+  document.getElementById('go').disabled=true;
+  try{
+    if(mode==='in'){
+      const {error}=await db.auth.signInWithPassword({email,password:pw});
+      if(error) throw error;
+    }else{
+      const {error}=await db.auth.signUp({email,password:pw});
+      if(error) throw error;
+      setMsg('Account gemaakt. Mogelijk moet je je e-mail bevestigen, log daarna in.','ok');
+      document.getElementById('go').disabled=false; setMode('in'); return;
+    }
+    await loadApp();
+  }catch(e){ setMsg(e.message||'Er ging iets mis.','err'); }
+  document.getElementById('go').disabled=false;
+}
+
+const ROLE_NL={platform_admin:'Platform-admin',eigenaar:'Eigenaar',coach:'Coach',lid:'Lid'};
+
+async function loadApp(){
+  const {data:{user}}=await db.auth.getUser();
+  if(!user){ show('login'); return; }
+  const {data:profile}=await db.from('profiles').select('*').eq('id',user.id).single();
+  const role=(profile&&profile.role)||'lid';
+  const naam=[profile&&profile.first_name,profile&&profile.last_name].filter(Boolean).join(' ')||user.email;
+  document.getElementById('roleLabel').textContent=ROLE_NL[role]||role;
+  document.getElementById('avatar').textContent=(user.email||'?').slice(0,1).toUpperCase();
+  document.getElementById('hello').textContent='Welkom, '+naam;
+  document.getElementById('sub').textContent='Je bent ingelogd als '+(ROLE_NL[role]||role)+' ('+user.email+').';
+  await renderRole(role);
+  show('app');
+}
+
+async function renderRole(role){
+  const c=document.getElementById('content');
+  if(role==='platform_admin'){
+    const {data:companies,error}=await db.from('companies').select('*').order('created_at');
+    let rows=(companies||[]).map(co=>`<div class="row"><div class="av">${co.name.slice(0,2).toUpperCase()}</div><div style="flex:1"><div class="nm">${co.name}</div><div class="sub">Plan: ${co.plan}</div></div><span class="tag">${co.status}</span></div>`).join('');
+    c.innerHTML=`<div class="stats">
+        <div class="stat"><div class="n acc">${(companies||[]).length}</div><div class="l">Bedrijven</div></div>
+        <div class="stat"><div class="n">—</div><div class="l">Coaches totaal</div></div>
+        <div class="stat"><div class="n">—</div><div class="l">Leden totaal</div></div>
+      </div>
+      <h3>Bedrijven die het product gebruiken</h3>
+      <div class="card" style="padding:0">${rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>'}</div>
+      ${error?'<div class="note" style="color:var(--bad)">Kon bedrijven niet laden: '+error.message+'</div>':''}
+      <p class="note">Dit is de platform-kant (wij als aanbieder). Hier komen straks de bedrijven die de app afnemen, met hun plan en gebruik.</p>`;
+  } else if(role==='eigenaar'){
+    c.innerHTML=`<h3>Jouw bedrijf</h3><div class="card"><p class="note">Hier zie je straks alle coaches en leden van je bedrijf, de cijfers over het geheel en de facturatie. (Volgende bouwstap.)</p></div>`;
+  } else if(role==='coach'){
+    c.innerHTML=`<h3>Coach-dashboard</h3><div class="card"><p class="note">Hier komen je klanten, programma's bouwen, video's beoordelen en berichten. (Volgende bouwstap.)</p></div>`;
+  } else {
+    c.innerHTML=`<h3>Jouw training</h3><div class="card"><p class="note">Hier komt je workout van vandaag, je scores loggen met history en video's, en de community. (Volgende bouwstap.)</p></div>`;
+  }
+}
+
+function show(which){
+  document.getElementById('login').classList.toggle('hidden', which!=='login');
+  document.getElementById('app').classList.toggle('hidden', which!=='app');
+}
+async function signOut(){ await db.auth.signOut(); document.getElementById('pw').value=''; show('login'); }
+
+// auto-login als er al een sessie is
+(async()=>{ const {data:{session}}=await db.auth.getSession(); if(session){ await loadApp(); } else { show('login'); } })();
+</script>
+</body>
+</html>
