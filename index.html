@@ -8,44 +8,49 @@
 :root{--bg:#0b0e13;--panel:#141923;--panel2:#1b212d;--line:#262e3b;--txt:#e7ebf2;--muted:#8a94a6;--accent:#4f8bff;--accent2:#2dd4a7;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 700px at 70% -10%,#15203a 0%,var(--bg) 55%);color:var(--txt);min-height:100vh}
-.wrap{max-width:960px;margin:0 auto;padding:24px 18px 60px}
+.wrap{max-width:980px;margin:0 auto;padding:22px 18px 70px}
 .logo{font-weight:800;font-size:22px;letter-spacing:1px}.logo b{color:var(--accent)}
 .muted{color:var(--muted)} .hidden{display:none!important}
-.card{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:20px}
-.btn{background:var(--accent);color:#fff;border:none;padding:11px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:16px}
+.btn{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
 .btn.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+.btn.sm{padding:7px 12px;font-size:13px}
 .btn:disabled{opacity:.5;cursor:default}
-input{width:100%;background:#0f141d;border:1px solid var(--line);border-radius:10px;padding:12px 13px;color:var(--txt);font-size:14px;font-family:inherit;margin-top:6px}
+input,select,textarea{width:100%;background:#0f141d;border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--txt);font-size:14px;font-family:inherit}
 label{font-size:13px;font-weight:600;color:var(--muted)}
-.field{margin-bottom:14px}
-/* login */
-#login{max-width:380px;margin:8vh auto 0}
-#login .card{padding:26px}
+.field{margin-bottom:13px}
+#login{max-width:380px;margin:8vh auto 0}#login .card{padding:26px}
 .tabs{display:flex;gap:6px;margin-bottom:16px}
 .tabs button{flex:1;padding:9px;border-radius:9px;background:#0f141d;border:1px solid var(--line);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit}
 .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-.msg{font-size:13px;margin-top:10px;min-height:18px}
-.msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
-/* app */
-.topbar{display:flex;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.msg{font-size:13px;margin-top:10px;min-height:18px}.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
 .rolepill{font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:rgba(79,139,255,.16);color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
-.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:linear-gradient(135deg,#3a4a6b,#2a3550)}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
-.stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px}
-.stat .n{font-size:26px;font-weight:800}.stat .n.acc{color:var(--accent)}.stat .n.ok{color:var(--ok)}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:linear-gradient(135deg,#3a4a6b,#2a3550);flex-shrink:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:15px}
+.stat .n{font-size:24px;font-weight:800}.stat .n.acc{color:var(--accent)}.stat .n.ok{color:var(--ok)}
 .stat .l{font-size:12px;color:var(--muted);margin-top:3px}
 .row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
-.row:last-child{border-bottom:none}
+.row:last-child{border-bottom:none}.row.click{cursor:pointer}.row.click:hover{background:rgba(79,139,255,.06)}
 .row .nm{font-weight:600;font-size:14px}.row .sub{font-size:12px;color:var(--muted)}
 .tag{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
 h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .note{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}
+.back{font-size:13px;color:var(--accent);cursor:pointer;display:inline-block;margin-bottom:10px}
+.block{background:#0f141d;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px}
+.block .bh{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.badge{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.presc{font-size:13px;color:var(--muted);margin-left:33px}
+.blockrow{display:grid;grid-template-columns:50px 1fr 1.4fr 30px;gap:8px;margin-bottom:8px;align-items:center}
+.blockrow input{padding:9px 10px;font-size:13px}
+.x{cursor:pointer;color:var(--muted);text-align:center;font-size:18px}
+.spin{color:var(--muted);font-size:13px;padding:20px;text-align:center}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- LOGIN -->
   <div id="login">
     <div style="text-align:center;margin-bottom:18px"><span class="logo">COACH<b>APP</b></span><div class="muted" style="font-size:13px;margin-top:4px">Coaching-platform · werkversie</div></div>
     <div class="card">
@@ -55,117 +60,178 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
       </div>
       <div class="field"><label>E-mailadres</label><input id="email" type="email" placeholder="naam@voorbeeld.nl"></div>
       <div class="field"><label>Wachtwoord</label><input id="pw" type="password" placeholder="••••••••"></div>
-      <button class="btn" id="go" style="width:100%" onclick="submit()">Inloggen</button>
+      <button class="btn" id="go" style="width:100%" onclick="submitAuth()">Inloggen</button>
       <div class="msg" id="msg"></div>
     </div>
-    <div class="note" style="text-align:center;max-width:340px;margin:14px auto 0">Testaccount staat klaar — vraag de inloggegevens als je ze niet bij de hand hebt.</div>
   </div>
 
-  <!-- APP -->
   <div id="app" class="hidden">
     <div class="topbar">
       <span class="logo">COACH<b>APP</b></span>
       <span class="rolepill" id="roleLabel">…</span>
       <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
         <div class="av" id="avatar">?</div>
-        <button class="btn ghost" onclick="signOut()">Uitloggen</button>
+        <button class="btn ghost sm" onclick="signOut()">Uitloggen</button>
       </div>
     </div>
-    <h2 id="hello">Welkom</h2>
-    <div class="muted" id="sub"></div>
-    <div id="content"></div>
+    <div id="content"><div class="spin">Laden…</div></div>
   </div>
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = "https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
-const SUPABASE_KEY = "sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
-let db = null;
-try {
-  if (typeof supabase === "undefined" || !supabase.createClient) throw new Error("lib");
-  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
-} catch (e) {
-  document.body.innerHTML = '<div style=\'max-width:460px;margin:14vh auto;font-family:sans-serif;color:#e7ebf2;text-align:center;padding:24px\'><h2 style=\'color:#4f8bff\'>Open in een gewone browser</h2><p style=\'color:#8a94a6;line-height:1.6\'>Deze app werkt niet in een klein voorbeeldvenster. Zoek het bestand <b>index.html</b> in je map en open het met Chrome of Edge (rechtsklik &rarr; Openen met).</p></div>';
+const SUPABASE_URL="https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
+const SUPABASE_KEY="sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
+let db=null;
+try{
+  if(typeof supabase==="undefined"||!supabase.createClient) throw new Error("lib");
+  db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+}catch(e){
+  document.body.innerHTML='<div style="max-width:460px;margin:14vh auto;font-family:sans-serif;color:#e7ebf2;text-align:center;padding:24px"><h2 style="color:#4f8bff">Open in een gewone browser</h2><p style="color:#8a94a6;line-height:1.6">Deze app werkt niet in een klein voorbeeldvenster. Open de link in Chrome of Edge.</p></div>';
 }
+const ROLE_NL={platform_admin:"Platform-admin",eigenaar:"Eigenaar",coach:"Coach",lid:"Lid"};
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+let ME={user:null,profile:null};
 
-let mode = 'in';
-function setMode(m){ mode=m;
-  document.getElementById('tab-in').classList.toggle('on', m==='in');
-  document.getElementById('tab-up').classList.toggle('on', m==='up');
-  document.getElementById('go').textContent = m==='in' ? 'Inloggen' : 'Account maken';
-  setMsg('');
-}
-function setMsg(t,kind){ const e=document.getElementById('msg'); e.textContent=t||''; e.className='msg '+(kind||''); }
+let mode="in";
+function setMode(m){mode=m;document.getElementById("tab-in").classList.toggle("on",m==="in");document.getElementById("tab-up").classList.toggle("on",m==="up");document.getElementById("go").textContent=m==="in"?"Inloggen":"Account maken";setMsg("");}
+function setMsg(t,k){const e=document.getElementById("msg");e.textContent=t||"";e.className="msg "+(k||"");}
 
-async function submit(){
-  const email=document.getElementById('email').value.trim();
-  const pw=document.getElementById('pw').value;
-  if(!email||!pw){ setMsg('Vul e-mail en wachtwoord in.','err'); return; }
-  document.getElementById('go').disabled=true;
+async function submitAuth(){
+  const email=document.getElementById("email").value.trim(),pw=document.getElementById("pw").value;
+  if(!email||!pw){setMsg("Vul e-mail en wachtwoord in.","err");return;}
+  document.getElementById("go").disabled=true;
   try{
-    if(mode==='in'){
-      const {error}=await db.auth.signInWithPassword({email,password:pw});
-      if(error) throw error;
-    }else{
-      const {error}=await db.auth.signUp({email,password:pw});
-      if(error) throw error;
-      setMsg('Account gemaakt. Mogelijk moet je je e-mail bevestigen, log daarna in.','ok');
-      document.getElementById('go').disabled=false; setMode('in'); return;
-    }
+    if(mode==="in"){const{error}=await db.auth.signInWithPassword({email,password:pw});if(error)throw error;}
+    else{const{error}=await db.auth.signUp({email,password:pw});if(error)throw error;setMsg("Account gemaakt. Mogelijk e-mail bevestigen, log daarna in.","ok");document.getElementById("go").disabled=false;setMode("in");return;}
     await loadApp();
-  }catch(e){ setMsg(e.message||'Er ging iets mis.','err'); }
-  document.getElementById('go').disabled=false;
+  }catch(e){setMsg(e.message||"Er ging iets mis.","err");}
+  document.getElementById("go").disabled=false;
 }
 
-const ROLE_NL={platform_admin:'Platform-admin',eigenaar:'Eigenaar',coach:'Coach',lid:'Lid'};
+function show(which){document.getElementById("login").classList.toggle("hidden",which!=="login");document.getElementById("app").classList.toggle("hidden",which!=="app");}
+async function signOut(){await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
 async function loadApp(){
-  const {data:{user}}=await db.auth.getUser();
-  if(!user){ show('login'); return; }
-  const {data:profile}=await db.from('profiles').select('*').eq('id',user.id).single();
-  const role=(profile&&profile.role)||'lid';
-  const naam=[profile&&profile.first_name,profile&&profile.last_name].filter(Boolean).join(' ')||user.email;
-  document.getElementById('roleLabel').textContent=ROLE_NL[role]||role;
-  document.getElementById('avatar').textContent=(user.email||'?').slice(0,1).toUpperCase();
-  document.getElementById('hello').textContent='Welkom, '+naam;
-  document.getElementById('sub').textContent='Je bent ingelogd als '+(ROLE_NL[role]||role)+' ('+user.email+').';
-  await renderRole(role);
-  show('app');
+  const{data:{user}}=await db.auth.getUser();
+  if(!user){show("login");return;}
+  const{data:profile}=await db.from("profiles").select("*").eq("id",user.id).single();
+  ME={user,profile:profile||{role:"lid"}};
+  const role=ME.profile.role||"lid";
+  document.getElementById("roleLabel").textContent=ROLE_NL[role]||role;
+  document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();
+  show("app");
+  if(role==="platform_admin")renderAdmin();
+  else if(role==="eigenaar")renderEigenaar();
+  else if(role==="coach")renderCoach();
+  else renderLid();
 }
 
-async function renderRole(role){
-  const c=document.getElementById('content');
-  if(role==='platform_admin'){
-    const {data:companies,error}=await db.from('companies').select('*').order('created_at');
-    let rows=(companies||[]).map(co=>`<div class="row"><div class="av">${co.name.slice(0,2).toUpperCase()}</div><div style="flex:1"><div class="nm">${co.name}</div><div class="sub">Plan: ${co.plan}</div></div><span class="tag">${co.status}</span></div>`).join('');
-    c.innerHTML=`<div class="stats">
-        <div class="stat"><div class="n acc">${(companies||[]).length}</div><div class="l">Bedrijven</div></div>
-        <div class="stat"><div class="n">—</div><div class="l">Coaches totaal</div></div>
-        <div class="stat"><div class="n">—</div><div class="l">Leden totaal</div></div>
-      </div>
-      <h3>Bedrijven die het product gebruiken</h3>
-      <div class="card" style="padding:0">${rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>'}</div>
-      ${error?'<div class="note" style="color:var(--bad)">Kon bedrijven niet laden: '+error.message+'</div>':''}
-      <p class="note">Dit is de platform-kant (wij als aanbieder). Hier komen straks de bedrijven die de app afnemen, met hun plan en gebruik.</p>`;
-  } else if(role==='eigenaar'){
-    c.innerHTML=`<h3>Jouw bedrijf</h3><div class="card"><p class="note">Hier zie je straks alle coaches en leden van je bedrijf, de cijfers over het geheel en de facturatie. (Volgende bouwstap.)</p></div>`;
-  } else if(role==='coach'){
-    c.innerHTML=`<h3>Coach-dashboard</h3><div class="card"><p class="note">Hier komen je klanten, programma's bouwen, video's beoordelen en berichten. (Volgende bouwstap.)</p></div>`;
-  } else {
-    c.innerHTML=`<h3>Jouw training</h3><div class="card"><p class="note">Hier komt je workout van vandaag, je scores loggen met history en video's, en de community. (Volgende bouwstap.)</p></div>`;
+function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
+
+// ---------- PLATFORM ADMIN ----------
+async function renderAdmin(){
+  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
+  const{data:companies}=await db.from("companies").select("*").order("created_at");
+  let rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc(co.name.slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
+  c.innerHTML=header("Welkom, "+(ME.user.email),"Platform-admin — bedrijven die het product gebruiken")+
+    '<div class="stats"><div class="stat"><div class="n acc">'+(companies||[]).length+'</div><div class="l">Bedrijven</div></div></div>'+
+    '<h3>Bedrijven</h3><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
+}
+
+// ---------- EIGENAAR ----------
+async function renderEigenaar(){
+  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
+  const{data:people}=await db.from("profiles").select("*").eq("company_id",ME.profile.company_id);
+  const coaches=(people||[]).filter(p=>p.role==="coach"||p.role==="eigenaar");
+  const leden=(people||[]).filter(p=>p.role==="lid");
+  const naam=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
+  c.innerHTML=header("Eigenaar-overzicht","Alle coaches en leden van je bedrijf")+
+    '<div class="stats"><div class="stat"><div class="n acc">'+coaches.length+'</div><div class="l">Coaches</div></div><div class="stat"><div class="n">'+leden.length+'</div><div class="l">Leden</div></div></div>'+
+    '<h3>Coaches</h3><div class="card">'+(coaches.map(p=>'<div class="row"><div class="av">'+naam(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naam(p)+'</div><div class="sub">'+ROLE_NL[p.role]+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen coaches.</span></div>')+'</div>'+
+    '<h3>Leden</h3><div class="card">'+(leden.map(p=>'<div class="row"><div class="av">'+naam(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naam(p)+'</div><div class="sub">'+esc(p.membership_type||"")+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen leden.</span></div>')+'</div>';
+}
+
+// ---------- COACH ----------
+let coachClients=[];
+async function renderCoach(){
+  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
+  const{data:clients}=await db.from("profiles").select("*").eq("coach_id",ME.user.id).eq("role","lid");
+  coachClients=clients||[];
+  const naam=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
+  let rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naam(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naam(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">openen ›</span></div>').join("");
+  c.innerHTML=header("Welkom, "+(ME.profile.first_name||ME.user.email),"Coach-dashboard")+
+    '<div class="stats"><div class="stat"><div class="n acc">'+coachClients.length+'</div><div class="l">Mijn klanten</div></div></div>'+
+    '<h3>Mijn klanten</h3><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div>';
+}
+
+async function openClient(id){
+  const p=coachClients.find(x=>x.id===id);if(!p)return;
+  const naam=esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
+  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
+  const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).order("workout_date",{ascending:false});
+  let wlist=(workouts||[]).map(w=>{
+    const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div><div class="presc">'+esc(b.prescription||"")+(b.notes?' · <i>'+esc(b.notes)+'</i>':'')+'</div></div>').join("");
+    return '<div class="card" style="padding:14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">'+esc(w.workout_date)+'</span></div>'+(bl||'<div class="muted" style="font-size:13px">Geen blokken.</div>')+'</div>';
+  }).join("");
+  c.innerHTML='<span class="back" onclick="renderCoach()">‹ Terug naar klanten</span>'+header(naam,"Workouts en programma")+
+    '<div style="margin:14px 0"><button class="btn" onclick="newWorkoutForm(\''+id+'\')">+ Nieuwe workout</button></div>'+
+    '<div id="wlist">'+(wlist||'<div class="muted">Nog geen workouts voor deze klant.</div>')+'</div>';
+}
+
+function blockRowHtml(){
+  return '<div class="blockrow"><input placeholder="A" maxlength="2"><input placeholder="Oefening"><input placeholder="bv. 5 x 5 @ 30X1 - rust 2 min"><div class="x" onclick="this.parentElement.remove()">×</div></div>';
+}
+function newWorkoutForm(clientId){
+  const c=document.getElementById("content");
+  c.innerHTML='<span class="back" onclick="openClient(\''+clientId+'\')">‹ Terug</span>'+header("Nieuwe workout","")+
+    '<div class="card" style="padding:16px;max-width:680px">'+
+    '<div class="field"><label>Titel van de dag</label><input id="w_title" placeholder="bv. Lower body kracht"></div>'+
+    '<div class="field"><label>Datum</label><input id="w_date" type="date" value="'+todayStr()+'"></div>'+
+    '<label>Blokken</label><div id="blocks">'+blockRowHtml()+blockRowHtml()+blockRowHtml()+'</div>'+
+    '<button class="btn ghost sm" onclick="document.getElementById(\'blocks\').insertAdjacentHTML(\'beforeend\',blockRowHtml())">+ Blok</button>'+
+    '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn" id="saveW" onclick="saveWorkout(\''+clientId+'\')">Opslaan & toewijzen</button><button class="btn ghost" onclick="openClient(\''+clientId+'\')">Annuleren</button></div>'+
+    '<div class="msg" id="wmsg"></div></div>';
+}
+async function saveWorkout(clientId){
+  const title=document.getElementById("w_title").value.trim();
+  const date=document.getElementById("w_date").value||todayStr();
+  const rows=[...document.querySelectorAll("#blocks .blockrow")].map((r,i)=>{
+    const inp=r.querySelectorAll("input");
+    return{label:inp[0].value.trim(),exercise:inp[1].value.trim(),prescription:inp[2].value.trim(),sort:i+1};
+  }).filter(b=>b.exercise);
+  const wm=document.getElementById("wmsg");
+  if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
+  document.getElementById("saveW").disabled=true;
+  try{
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:clientId,workout_date:date,title}).select().single();
+    if(error)throw error;
+    if(rows.length){
+      const{error:be}=await db.from("blocks").insert(rows.map(b=>({workout_id:w.id,label:b.label,exercise:b.exercise,prescription:b.prescription,sort:b.sort})));
+      if(be)throw be;
+    }
+    openClient(clientId);
+  }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";document.getElementById("saveW").disabled=false;}
+}
+
+// ---------- LID ----------
+async function renderLid(){
+  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
+  const{data:today}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).eq("workout_date",todayStr());
+  const w=(today||[])[0];
+  let body;
+  if(w){
+    const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div><div class="presc">'+esc(b.prescription||"")+(b.notes?' · <i>'+esc(b.notes)+'</i>':'')+'</div></div>').join("");
+    body='<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">vandaag</span></div>'+(bl||'<div class="muted">Geen blokken.</div>')+'</div><p class="note">Scores invullen en video uploaden komt in de volgende stap (Fase 3).</p>';
+  }else{
+    body='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';
   }
+  c.innerHTML=header("Welkom, "+(ME.profile.first_name||ME.user.email),"Jouw workout van vandaag")+body;
 }
 
-function show(which){
-  document.getElementById('login').classList.toggle('hidden', which!=='login');
-  document.getElementById('app').classList.toggle('hidden', which!=='app');
-}
-async function signOut(){ await db.auth.signOut(); document.getElementById('pw').value=''; show('login'); }
-
-// auto-login als er al een sessie is
-(async()=>{ const {data:{session}}=await db.auth.getSession(); if(session){ await loadApp(); } else { show('login'); } })();
+(async()=>{const{data:{session}}=await db.auth.getSession();if(session)await loadApp();else show("login");})();
 </script>
 </body>
 </html>
