@@ -8,7 +8,7 @@
 :root{--bg:#0b0e13;--panel:#141923;--panel2:#1b212d;--line:#262e3b;--txt:#e7ebf2;--muted:#8a94a6;--accent:#4f8bff;--accent2:#2dd4a7;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 700px at 70% -10%,#15203a 0%,var(--bg) 55%);color:var(--txt);min-height:100vh}
-.wrap{max-width:1240px;margin:0 auto;padding:22px 18px 70px}
+.wrap{max-width:100%;margin:0 auto;padding:20px 26px 70px}
 .logo{font-weight:800;font-size:22px;letter-spacing:1px}.logo b{color:var(--accent)}
 .muted{color:var(--muted)} .hidden{display:none!important}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:16px}
@@ -17,6 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .btn.sm{padding:7px 12px;font-size:13px}
 .btn:disabled{opacity:.5;cursor:default}
 input,select,textarea{width:100%;background:#0f141d;border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--txt);font-size:14px;font-family:inherit}
+textarea{min-height:60px;resize:vertical}
 label{font-size:13px;font-weight:600;color:var(--muted)}
 .field{margin-bottom:13px}
 #login{max-width:380px;margin:8vh auto 0}#login .card{padding:26px}
@@ -24,7 +25,7 @@ label{font-size:13px;font-weight:600;color:var(--muted)}
 .tabs button{flex:1;padding:9px;border-radius:9px;background:#0f141d;border:1px solid var(--line);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit}
 .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .msg{font-size:13px;margin-top:10px;min-height:18px}.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
-.topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
 .rolepill{font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:rgba(79,139,255,.16);color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
 .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:linear-gradient(135deg,#3a4a6b,#2a3550);flex-shrink:0}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
@@ -40,13 +41,11 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .back{font-size:13px;color:var(--accent);cursor:pointer;display:inline-block;margin-bottom:10px}
 .block{background:#0f141d;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px}
 .block .bh{display:flex;align-items:center;gap:9px;margin-bottom:4px}
-.badge{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
-.presc{font-size:13px;color:var(--muted);margin-left:33px}
-.blockrow{display:grid;grid-template-columns:50px 1fr 1.4fr 30px;gap:8px;margin-bottom:8px;align-items:center}
-.blockrow input{padding:9px 10px;font-size:13px}
+.badge{width:26px;height:26px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.presc{font-size:13px;color:var(--muted);margin-left:35px}
 .x{cursor:pointer;color:var(--muted);text-align:center;font-size:18px}
 .spin{color:var(--muted);font-size:13px;padding:20px;text-align:center}
-/* client view: sidebar + main */
+/* client view */
 .clientwrap{display:flex;gap:16px;align-items:flex-start}
 .cside{width:212px;flex-shrink:0;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
 .cside .cinfo{display:flex;gap:10px;align-items:center;padding:4px 4px 12px;border-bottom:1px solid var(--line);margin-bottom:8px}
@@ -60,23 +59,33 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .calnav{display:flex;align-items:center;gap:10px;margin:4px 0 14px;flex-wrap:wrap}
 .calnav .rng{font-weight:700;font-size:16px;min-width:150px}
 .navbtn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 12px;cursor:pointer;font-size:14px;font-family:inherit}
-.calscroll{overflow-x:auto}
-.calhead,.weekrow{display:grid;grid-template-columns:repeat(7,minmax(140px,1fr));gap:6px;min-width:980px}
+.calhead,.weekrow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .calhead{margin-bottom:6px}
 .calhead div{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 6px}
 .weekrow{margin-bottom:6px}
-.daycell{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:8px;min-height:128px;display:flex;flex-direction:column}
+.daycell{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:8px;min-height:130px;display:flex;flex-direction:column}
 .daycell.today{border-color:var(--accent)}
 .daycell.dim{opacity:.4}
 .dnum{font-size:13px;font-weight:700;margin-bottom:6px;color:var(--txt)}
 .wo{background:#0f141d;border:1px solid var(--line);border-radius:9px;padding:7px;margin-bottom:6px}
 .wo .t{font-weight:600;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
-.wo .bl{font-size:11px;color:var(--muted);line-height:1.5}
+.wo .bl{font-size:11px;color:var(--muted);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wo .bl .bb{color:var(--accent);font-weight:700}
 .addday{margin-top:auto;font-size:12px;color:var(--accent);cursor:pointer;text-align:center;padding:6px;border:1px dashed var(--line);border-radius:8px}
 .addday:hover{background:rgba(79,139,255,.06)}
 .delwo{color:var(--muted);cursor:pointer;font-size:13px}
-@media(max-width:820px){.clientwrap{flex-direction:column}.cside{width:100%}}
+/* builder */
+.builder{max-width:780px}
+.builder .bhead{background:var(--accent);color:#fff;font-weight:700;border-radius:11px 11px 0 0;padding:11px 14px}
+.builder .bbody{background:var(--panel2);border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:16px}
+.exrow{background:#0f141d;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.exr-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.exr-top .lbl{width:56px;text-align:center;font-weight:700}
+.exr-top .exn{flex:1}
+.exr-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.exr-fields input{padding:8px 9px;font-size:13px}
+.addbtns{display:flex;gap:8px;margin:10px 0 4px;flex-wrap:wrap}
+@media(max-width:820px){.clientwrap{flex-direction:column}.cside{width:100%}.calhead,.weekrow{min-width:920px}.calscroll{overflow-x:auto}.exr-fields{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -97,6 +106,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
   </div>
 
   <div id="app" class="hidden">
+    <datalist id="exlist"></datalist>
     <div class="topbar">
       <span class="logo">COACH<b>APP</b></span>
       <span class="rolepill" id="roleLabel">…</span>
@@ -123,7 +133,6 @@ try{
 }
 const ROLE_NL={platform_admin:"Platform-admin",eigenaar:"Eigenaar",coach:"Coach",lid:"Lid"};
 const DAGEN=["MA","DI","WO","DO","VR","ZA","ZO"];
-const MAAND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const MAANDVOL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pad=n=>String(n).padStart(2,"0");
@@ -133,10 +142,20 @@ const mondayOf=d=>{const x=new Date(d);const k=(x.getDay()+6)%7;x.setDate(x.getD
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 let ME={user:null,profile:null};
 
+function composePresc(b){
+  if(b.kind==="conditioning")return b.notes||"";
+  const segs=[];
+  const sr=[b.sets,b.reps].filter(Boolean).join(" x ");
+  if(sr)segs.push(sr);
+  if(b.tempo)segs.push("@ "+b.tempo);
+  let s=segs.join(" ");
+  if(b.rest)s+=(s?" · ":"")+"rust "+b.rest;
+  return s;
+}
+
 let mode="in";
 function setMode(m){mode=m;document.getElementById("tab-in").classList.toggle("on",m==="in");document.getElementById("tab-up").classList.toggle("on",m==="up");document.getElementById("go").textContent=m==="in"?"Inloggen":"Account maken";setMsg("");}
 function setMsg(t,k){const e=document.getElementById("msg");e.textContent=t||"";e.className="msg "+(k||"");}
-
 async function submitAuth(){
   const email=document.getElementById("email").value.trim(),pw=document.getElementById("pw").value;
   if(!email||!pw){setMsg("Vul e-mail en wachtwoord in.","err");return;}
@@ -168,7 +187,6 @@ async function loadApp(){
 function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
 const naamVan=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
 
-// ---------- PLATFORM ADMIN ----------
 async function renderAdmin(){
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:companies}=await db.from("companies").select("*").order("created_at");
@@ -177,8 +195,6 @@ async function renderAdmin(){
     '<div class="stats"><div class="stat"><div class="n acc">'+(companies||[]).length+'</div><div class="l">Bedrijven</div></div></div>'+
     '<h3>Bedrijven</h3><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
 }
-
-// ---------- EIGENAAR ----------
 async function renderEigenaar(){
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:people}=await db.from("profiles").select("*").eq("company_id",ME.profile.company_id);
@@ -191,11 +207,14 @@ async function renderEigenaar(){
 }
 
 // ---------- COACH ----------
-let coachClients=[];
+let coachClients=[],coachExercises=[];
 async function renderCoach(){
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:clients}=await db.from("profiles").select("*").eq("coach_id",ME.user.id).eq("role","lid");
   coachClients=clients||[];
+  const{data:exs}=await db.from("exercises").select("name").order("name");
+  coachExercises=exs||[];
+  const dl=document.getElementById("exlist");if(dl)dl.innerHTML=coachExercises.map(e=>'<option value="'+esc(e.name)+'">').join("");
   let rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">programmeren ›</span></div>').join("");
   c.innerHTML=header("Welkom, "+(ME.profile.first_name||ME.user.email),"Coach-dashboard")+
     '<div class="stats"><div class="stat"><div class="n acc">'+coachClients.length+'</div><div class="l">Mijn klanten</div></div></div>'+
@@ -203,12 +222,7 @@ async function renderCoach(){
 }
 
 let calClient=null,calRef=new Date(),activePanel="kalender";
-const SIDE=[
-  ["kalender","🗓","Kalender",false],["berichten","💬","Berichten",true],["assessment","📋","Assessment",true],
-  ["metrics","📊","Metrics / 1RM's",true],["doelen","🎯","Doelen",true],["checkins","✅","Check-ins",true],
-  ["lifestyle","🌙","Lifestyle",true],["notities","📝","Notities",true],["schema","🗂","Trainingsschema",true],
-  ["materiaal","🏋","Materiaal",true],["profiel","👤","Profiel",true]
-];
+const SIDE=[["kalender","🗓","Kalender",false],["berichten","💬","Berichten",true],["assessment","📋","Assessment",true],["metrics","📊","Metrics / 1RM's",true],["doelen","🎯","Doelen",true],["checkins","✅","Check-ins",true],["lifestyle","🌙","Lifestyle",true],["notities","📝","Notities",true],["schema","🗂","Trainingsschema",true],["materiaal","🏋","Materiaal",true],["profiel","👤","Profiel",true]];
 function openClient(id){calClient=id;calRef=new Date();renderClient("kalender");}
 function renderClient(panel){
   activePanel=panel;
@@ -219,24 +233,18 @@ function renderClient(panel){
     '<div class="clientwrap"><div class="cside"><div class="cinfo"><div class="av">'+naamVan(p).slice(0,1)+'</div><div><div class="nm">'+naamVan(p)+'</div><div class="sub" style="font-size:11px">'+esc(p.email)+'</div></div></div>'+side+'</div>'+
     '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>';
   if(panel==="kalender")renderMonth();
-  else{
-    const lbl=(SIDE.find(s=>s[0]===panel)||[])[2]||"Onderdeel";
-    document.getElementById("cmain").innerHTML='<h2>'+esc(lbl)+'</h2><div class="card" style="padding:24px;margin-top:10px"><div class="muted" style="line-height:1.6">Dit onderdeel komt later. We bouwen eerst de kalender en het programmeren helemaal af. Daarna voegen we '+esc(lbl.toLowerCase())+' toe — net als in CoachRx.</div></div>';
-  }
+  else{const lbl=(SIDE.find(s=>s[0]===panel)||[])[2]||"Onderdeel";document.getElementById("cmain").innerHTML='<h2>'+esc(lbl)+'</h2><div class="card" style="padding:24px;margin-top:10px"><div class="muted" style="line-height:1.6">Dit onderdeel komt later. We bouwen eerst de kalender en het programmeren helemaal af. Daarna voegen we '+esc(lbl.toLowerCase())+' toe — net als in CoachRx.</div></div>';}
 }
 function prevMonth(){calRef=new Date(calRef.getFullYear(),calRef.getMonth()-1,1);renderMonth();}
 function nextMonth(){calRef=new Date(calRef.getFullYear(),calRef.getMonth()+1,1);renderMonth();}
 function thisMonth(){calRef=new Date();renderMonth();}
-
 async function renderMonth(){
-  const id=calClient;
-  const m=document.getElementById("cmain");if(!m)return;m.innerHTML='<div class="spin">Laden…</div>';
+  const id=calClient;const m=document.getElementById("cmain");if(!m)return;m.innerHTML='<div class="spin">Laden…</div>';
   const ref=calRef,first=new Date(ref.getFullYear(),ref.getMonth(),1);
   const gridStart=mondayOf(first),gridEnd=addDays(gridStart,41);
   const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
   const byDate={};(workouts||[]).forEach(w=>{(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
-  let head=DAGEN.map(d=>'<div>'+d+'</div>').join("");
-  let weeks="";
+  let head=DAGEN.map(d=>'<div>'+d+'</div>').join(""),weeks="";
   for(let wk=0;wk<6;wk++){
     let cells="";
     for(let i=0;i<7;i++){
@@ -245,41 +253,56 @@ async function renderMonth(){
         const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="bl"><span class="bb">'+esc(b.label||"")+'</span> '+esc(b.exercise||"")+'</div>').join("");
         return '<div class="wo"><div class="t"><span>'+esc(w.title||"Workout")+'</span><span class="delwo" onclick="delWorkout(\''+w.id+'\')">×</span></div>'+(bl||'<div class="bl muted">geen blokken</div>')+'</div>';
       }).join("");
-      cells+='<div class="daycell'+(isToday?' today':'')+(dim?' dim':'')+'"><div class="dnum">'+d.getDate()+'</div>'+wos+'<div class="addday" onclick="newWorkoutForm(\''+id+'\',\''+ds+'\')">+ workout</div></div>';
+      cells+='<div class="daycell'+(isToday?' today':'')+(dim?' dim':'')+'"><div class="dnum">'+d.getDate()+'</div>'+wos+'<div class="addday" onclick="builder(\''+id+'\',\''+ds+'\')">+ workout</div></div>';
     }
     weeks+='<div class="weekrow">'+cells+'</div>';
   }
   m.innerHTML='<div class="calnav"><span class="rng">'+MAANDVOL[ref.getMonth()]+' '+ref.getFullYear()+'</span><button class="navbtn" onclick="prevMonth()">‹</button><button class="navbtn" onclick="thisMonth()">Vandaag</button><button class="navbtn" onclick="nextMonth()">›</button></div>'+
     '<div class="calscroll"><div class="calhead">'+head+'</div>'+weeks+'</div>';
 }
-
 async function delWorkout(wid){if(!confirm("Deze workout verwijderen?"))return;await db.from("workouts").delete().eq("id",wid);renderMonth();}
 
-function blockRowHtml(){return '<div class="blockrow"><input placeholder="A" maxlength="2"><input placeholder="Oefening"><input placeholder="bv. 5 x 5 @ 30X1 - rust 2 min"><div class="x" onclick="this.parentElement.remove()">×</div></div>';}
-function newWorkoutForm(clientId,dateStr){
+// ----- BUILDER (zoals CoachRx) -----
+function exRowHtml(label){
+  return '<div class="exrow" data-kind="exercise"><div class="exr-top"><input class="lbl" value="'+(label||"")+'" placeholder="A" maxlength="3"><input class="exn" list="exlist" placeholder="Oefening (typ om te zoeken)"><span class="x" onclick="this.closest(\'.exrow\').remove()">×</span></div><div class="exr-fields"><input class="f-tempo" placeholder="Tempo (bv. 30X1)"><input class="f-reps" placeholder="Reps (bv. 5)"><input class="f-sets" placeholder="Sets (bv. 5)"><input class="f-rest" placeholder="Rust (bv. 2 min)"></div></div>';
+}
+function condRowHtml(label){
+  return '<div class="exrow" data-kind="conditioning"><div class="exr-top"><input class="lbl" value="'+(label||"")+'" placeholder="D" maxlength="3"><input class="exn" placeholder="Titel (bv. 10 min AMRAP)"><span class="x" onclick="this.closest(\'.exrow\').remove()">×</span></div><textarea class="f-desc" placeholder="Beschrijving (bv. 200m roeien / 10 box step-ups / 8 burpees)"></textarea></div>';
+}
+function addEx(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRowHtml(String.fromCharCode(65+document.querySelectorAll("#exrows .exrow").length)));}
+function addCond(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRowHtml(""));}
+function builder(clientId,dateStr){
   const m=document.getElementById("cmain");
-  m.innerHTML='<span class="back" onclick="renderMonth()">‹ Terug naar kalender</span>'+header("Nieuwe workout","Voor "+(dateStr||todayStr()))+
-    '<div class="card" style="padding:16px;max-width:680px;margin-top:8px">'+
-    '<div class="field"><label>Titel van de dag</label><input id="w_title" placeholder="bv. Lower body kracht"></div>'+
+  m.innerHTML='<span class="back" onclick="renderMonth()">‹ Terug naar kalender</span>'+
+    '<div class="builder"><div class="bhead"><input id="w_title" placeholder="Titel van de dag (bv. Lower body kracht)" style="background:transparent;border:none;color:#fff;font-weight:700;padding:0"></div>'+
+    '<div class="bbody">'+
     '<div class="field"><label>Datum</label><input id="w_date" type="date" value="'+(dateStr||todayStr())+'"></div>'+
-    '<label>Blokken</label><div id="blocks">'+blockRowHtml()+blockRowHtml()+blockRowHtml()+'</div>'+
-    '<button class="btn ghost sm" onclick="document.getElementById(\'blocks\').insertAdjacentHTML(\'beforeend\',blockRowHtml())">+ Blok</button>'+
-    '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn" id="saveW" onclick="saveWorkout(\''+clientId+'\')">Opslaan & toewijzen</button><button class="btn ghost" onclick="renderMonth()">Annuleren</button></div>'+
-    '<div class="msg" id="wmsg"></div></div>';
+    '<div class="field"><label>Coach\'s notes</label><textarea id="w_notes" placeholder="Notitie voor deze dag (optioneel)"></textarea></div>'+
+    '<div class="field"><label>Warming-up</label><textarea id="w_warmup" placeholder="bv. 10 min: 20 cal row, 10 inchworms, mobility (optioneel)"></textarea></div>'+
+    '<label>Blokken</label><div id="exrows">'+exRowHtml("A")+exRowHtml("B")+exRowHtml("C")+'</div>'+
+    '<div class="addbtns"><button class="btn ghost sm" onclick="addEx()">+ Exercise</button><button class="btn ghost sm" onclick="addCond()">+ Conditioning</button></div>'+
+    '<div class="field" style="margin-top:10px"><label>Cooldown</label><textarea id="w_cooldown" placeholder="bv. 5 min stretchen (optioneel)"></textarea></div>'+
+    '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="saveW" onclick="saveWorkout(\''+clientId+'\')">Save Workout</button><button class="btn ghost" onclick="renderMonth()">Annuleren</button></div>'+
+    '<div class="msg" id="wmsg"></div>'+
+    '</div></div>';
 }
 async function saveWorkout(clientId){
-  const title=document.getElementById("w_title").value.trim();
-  const date=document.getElementById("w_date").value||todayStr();
-  const rows=[...document.querySelectorAll("#blocks .blockrow")].map((r,i)=>{const inp=r.querySelectorAll("input");return{label:inp[0].value.trim(),exercise:inp[1].value.trim(),prescription:inp[2].value.trim(),sort:i+1};}).filter(b=>b.exercise);
-  const wm=document.getElementById("wmsg");
+  const g=id=>document.getElementById(id);
+  const title=g("w_title").value.trim(),date=g("w_date").value||todayStr();
+  const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{
+    const kind=r.dataset.kind,lbl=r.querySelector(".lbl").value.trim(),exn=r.querySelector(".exn").value.trim();
+    if(kind==="conditioning")return{kind,label:lbl,exercise:exn,notes:(r.querySelector(".f-desc").value||"").trim(),sort:i+1};
+    return{kind:"exercise",label:lbl,exercise:exn,tempo:r.querySelector(".f-tempo").value.trim(),reps:r.querySelector(".f-reps").value.trim(),sets:r.querySelector(".f-sets").value.trim(),rest:r.querySelector(".f-rest").value.trim(),sort:i+1};
+  }).filter(b=>b.exercise);
+  const wm=g("wmsg");
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
-  document.getElementById("saveW").disabled=true;
+  g("saveW").disabled=true;
   try{
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:clientId,workout_date:date,title}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:clientId,workout_date:date,title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null}).select().single();
     if(error)throw error;
-    if(rows.length){const{error:be}=await db.from("blocks").insert(rows.map(b=>({workout_id:w.id,label:b.label,exercise:b.exercise,prescription:b.prescription,sort:b.sort})));if(be)throw be;}
+    if(rows.length){const{error:be}=await db.from("blocks").insert(rows.map(b=>({workout_id:w.id,kind:b.kind,label:b.label,exercise:b.exercise,tempo:b.tempo||null,reps:b.reps||null,sets:b.sets||null,rest:b.rest||null,notes:b.notes||null,sort:b.sort})));if(be)throw be;}
     renderMonth();
-  }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";document.getElementById("saveW").disabled=false;}
+  }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";g("saveW").disabled=false;}
 }
 
 // ---------- LID ----------
@@ -288,9 +311,12 @@ async function renderLid(){
   const{data:today}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).eq("workout_date",todayStr());
   const w=(today||[])[0];let body;
   if(w){
-    const bl=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>'<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div><div class="presc">'+esc(b.prescription||"")+(b.notes?' · <i>'+esc(b.notes)+'</i>':'')+'</div></div>').join("");
-    body='<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">vandaag</span></div>'+(bl||'<div class="muted">Geen blokken.</div>')+'</div><p class="note">Scores invullen en video uploaden komt in de volgende stap (Fase 3).</p>';
-  }else{body='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';}
+    let parts="";
+    if(w.warmup)parts+='<div class="block"><div class="bh"><span class="badge" style="background:#3a4a6b">WU</span><b>Warming-up</b></div><div class="presc">'+esc(w.warmup)+'</div></div>';
+    parts+=(w.blocks||[]).sort((a,b)=>a.sort-b.sort).map(b=>{const pr=composePresc(b);return '<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div>'+(pr?'<div class="presc">'+esc(pr)+'</div>':'')+'</div>';}).join("");
+    if(w.cooldown)parts+='<div class="block"><div class="bh"><span class="badge" style="background:#3a4a6b">CD</span><b>Cooldown</b></div><div class="presc">'+esc(w.cooldown)+'</div></div>';
+    body='<div class="card" style="padding:16px;max-width:760px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">vandaag</span></div>'+(w.coach_notes?'<div class="note" style="margin:0 0 10px">📝 '+esc(w.coach_notes)+'</div>':'')+(parts||'<div class="muted">Geen blokken.</div>')+'</div><p class="note">Scores invullen en video uploaden komt in de volgende stap (Fase 3).</p>';
+  }else{body='<div class="card" style="padding:20px;max-width:760px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';}
   c.innerHTML=header("Welkom, "+(ME.profile.first_name||ME.user.email),"Jouw workout van vandaag")+body;
 }
 
