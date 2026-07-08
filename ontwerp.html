@@ -400,6 +400,15 @@ h3{font-size:14px;font-weight:700}
 .linkwrap .i{width:10px;height:10px}
 .combtn{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:6px 0;font-size:10.5px;font-weight:700;color:#4a4f57;background:#fff;margin-top:3px}
 .combtn:hover{border-color:var(--muted2)}
+#p-client .client-layout{border-radius:0;border-left:none;border-right:none;border-top:none}
+.collapsebtn{margin:6px 8px 4px;display:flex;align-items:center;gap:8px;color:#aab0b8;padding:9px 11px;border-radius:8px;font-size:12px;font-weight:600;width:calc(100% - 16px);text-align:left}
+.collapsebtn:hover{background:#22252b;color:#fff}
+#cl-arrow{font-size:14px;line-height:1}
+.client-layout.collapsed .cside{width:52px}
+.client-layout.collapsed .cside .prof,.client-layout.collapsed .cside .streak{display:none}
+.client-layout.collapsed .cnav button{justify-content:center;padding:11px 0;font-size:0;gap:0}
+.client-layout.collapsed .collapsebtn{justify-content:center;padding:10px 0;margin:6px 4px 4px;width:calc(100% - 8px)}
+.client-layout.collapsed .collapsebtn .cl-txt{display:none}
 #float-store{display:none}
 .mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 
@@ -651,10 +660,7 @@ h3{font-size:14px;font-weight:700}
 </div>
 
 <!-- KLANT-DETAIL (maandweergave zoals CoachRx) -->
-<div id="p-client" class="page" style="max-width:100%;padding:18px 14px 60px">
-  <div class="hrow" style="margin-bottom:14px">
-    <button class="btn ghost sm2" onclick="go('clients')">&#8592; Alle klanten</button>
-  </div>
+<div id="p-client" class="page" style="max-width:100%;padding:0">
   <div class="client-layout">
     <div class="cside">
       <div class="prof">
@@ -682,11 +688,13 @@ h3{font-size:14px;font-weight:700}
         <button><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
         <button><svg class="i"><use href="#i-user"/></svg> Profiel</button>
       </div>
+      <button class="collapsebtn" onclick="toggleSide()"><span id="cl-arrow">&#171;</span><span class="cl-txt"> Inklappen</span></button>
     </div>
 
     <div class="cmain">
      <div id="cv-cal">
       <div class="calhead">
+        <button class="btn ghost sm2" onclick="go('clients')">&#8592; Alle klanten</button>
         <span class="month">Juli 2026</span>
         <div class="navarrows"><button>&#8249;</button><button>&#8250;</button></div>
         <button class="btn ghost sm2">Vandaag</button>
@@ -1595,6 +1603,11 @@ function closeExModal(){document.getElementById('exmodal').classList.remove('sho
 function openAssign(){document.getElementById('assignmodal').classList.add('show')}
 function closeAssign(){document.getElementById('assignmodal').classList.remove('show')}
 
+function toggleSide(){
+  var lay=document.querySelector('#p-client .client-layout');
+  lay.classList.toggle('collapsed');
+  document.getElementById('cl-arrow').innerHTML = lay.classList.contains('collapsed') ? '&#187;' : '&#171;';
+}
 /* kalender loopt maanden door (zoals CoachRx) */
 function buildWeeks(){
   var host=document.getElementById('more-weeks');
