@@ -409,6 +409,64 @@ h3{font-size:14px;font-weight:700}
 .client-layout.collapsed .cnav button{justify-content:center;padding:11px 0;font-size:0;gap:0}
 .client-layout.collapsed .collapsebtn{justify-content:center;padding:10px 0;margin:6px 4px 4px;width:calc(100% - 8px)}
 .client-layout.collapsed .collapsebtn .cl-txt{display:none}
+/* vaste zijbalk + donkere uitschuifpanelen (CoachRx) */
+.cside{position:sticky;top:52px;align-self:flex-start;height:calc(100vh - 52px);overflow:hidden}
+.cnav{overflow:auto}
+.sidepanel{width:320px;flex-shrink:0;background:#1d2025;color:#e6e8ea;padding:16px;display:none;
+  position:sticky;top:52px;align-self:flex-start;height:calc(100vh - 52px);overflow:auto}
+.sidepanel.show{display:block}
+.sp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.sp-head h3{font-size:14px;color:#fff;font-weight:800}
+.sp-x{color:#aab0b8;cursor:pointer;display:flex}
+.sp-tabs{display:flex;gap:16px;border-bottom:1px solid #33373d;margin-bottom:14px}
+.sp-tabs button{padding:6px 2px;font-size:12px;font-weight:700;color:#8f959d;border-bottom:2px solid transparent}
+.sp-tabs button.on{color:#fff;border-color:var(--accent)}
+.sp-field{margin-bottom:12px}
+.sp-field label{font-size:11px;font-weight:700;color:#c9cdd4;display:block;margin-bottom:5px}
+.sp-field input,.sp-field select,.sp-field textarea{width:100%;background:#26292f;border:1px solid #33373d;border-radius:7px;padding:8px 10px;color:#e6e8ea;font-size:12px}
+.sp-field textarea{min-height:64px;resize:vertical}
+.sp-btn{background:var(--accent);color:#fff;font-weight:700;font-size:12px;padding:8px 14px;border-radius:7px}
+.sp-btn.ghost{background:#26292f;color:#e6e8ea;border:1px solid #3a3f47}
+.sp-chip{display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--accent);border-radius:8px;padding:9px 11px;font-size:12px;font-weight:600;margin-bottom:8px;color:#fff}
+.sp-chip .x{color:#8f959d;cursor:pointer}
+.sp-note{background:#26292f;border-radius:8px;margin-bottom:10px;overflow:hidden}
+.sp-note .nh{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:#2e3238;font-size:11.5px;font-weight:700;color:#fff}
+.sp-note .nh span{display:flex;gap:10px;color:#8f959d}
+.sp-note .nb{padding:9px 11px;font-size:11.5px;color:#c9cdd4;line-height:1.65;white-space:pre-line}
+.sp-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:12px}
+.ampm{display:flex;gap:6px}
+.ampm button{border:1px solid #3a3f47;border-radius:6px;padding:3px 10px;font-size:10.5px;font-weight:700;color:#8f959d}
+.ampm button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.sp-list{background:#26292f;border-radius:0 0 8px 8px;padding:10px 12px;font-size:11px;color:#c9cdd4;line-height:1.85;max-height:330px;overflow:auto}
+.sp-dark{background:#2e3238;border-radius:8px 8px 0 0;padding:8px 11px;font-size:12px;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center}
+.sp-info{font-size:11px;color:#8f959d;margin:6px 0 12px}
+/* chat-popup rechtsonder (CoachRx Message) */
+.chatpop{position:fixed;right:64px;bottom:0;width:302px;background:#fff;border-radius:12px 12px 0 0;
+  box-shadow:0 -8px 44px rgba(0,0,0,.28);z-index:230;display:none;flex-direction:column;height:430px}
+.chatpop.show{display:flex}
+.chatpop .ch{background:#26292f;color:#fff;padding:10px 12px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:9px}
+.chatpop .ch b{font-size:12.5px;flex:1}
+.chatpop .ch .i{width:13px;height:13px;color:#aab0b8;cursor:pointer}
+.chatpop .msgs2{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.chatpop .bub{max-width:88%;font-size:12px;padding:8px 11px}
+.chatpop .read{font-size:10px;color:var(--muted);text-align:right}
+.chatpop .cin{border-top:1px solid var(--line);padding:8px 10px}
+.chatpop .cin input{width:100%;border:none;font-size:12px;padding:6px 2px}
+.chatpop .cinrow{display:flex;align-items:center;gap:10px;color:var(--muted2)}
+.chatpop .cinrow .i{width:14px;height:14px;cursor:pointer}
+.chatpop .send{margin-left:auto;background:var(--accent);color:#fff;font-weight:700;font-size:12px;padding:6px 14px;border-radius:7px}
+/* trends + profiel hoofdweergaven */
+.trendhead{display:flex;align-items:center;gap:10px;padding:14px 18px;background:transparent}
+.trendcards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:0 18px 18px}
+.trendcard{background:#ececee;border-radius:12px;padding:18px;min-height:210px;position:relative}
+.trendcard h3{font-size:16px}
+.blurbars{display:flex;gap:10px;align-items:flex-end;height:110px;margin-top:30px;filter:blur(7px);opacity:.55}
+.blurbars i{flex:1;background:#9aa0a8;border-radius:4px 4px 0 0}
+.ndbadge{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);background:#f6f7f8;border-radius:6px;
+  padding:4px 10px;font-size:11px;font-weight:600;color:#4a4f57;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.pfwrap{max-width:780px;margin:18px auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px}
+.pfgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 22px}
+.pfav{width:76px;height:76px;border-radius:50%;background:#6b7280;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin:0 auto 12px}
 #float-store{display:none}
 .mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 
@@ -676,19 +734,129 @@ h3{font-size:14px;font-weight:700}
       </div>
       <div class="cnav">
         <button id="cn-cal" class="on" onclick="cview('cal')"><svg class="i"><use href="#i-cal"/></svg> Kalender</button>
-        <button onclick="go('msgs')"><svg class="i"><use href="#i-chat"/></svg> Berichten</button>
+        <button onclick="toggleChat()"><svg class="i"><use href="#i-chat"/></svg> Berichten</button>
+        <button id="cn-trends" onclick="cview('trends')"><svg class="i"><use href="#i-clock"/></svg> Trends</button>
+        <button onclick="openPanel('sp-assess')"><svg class="i"><use href="#i-clip"/></svg> Assessment</button>
         <button id="cn-metrics" onclick="cview('metrics')"><svg class="i"><use href="#i-chart"/></svg> Metrics &amp; 1RM</button>
-        <button><svg class="i"><use href="#i-clock"/></svg> Lifestyle-trends</button>
-        <button><svg class="i"><use href="#i-clip"/></svg> Assessment</button>
-        <button><svg class="i"><use href="#i-check"/></svg> Check-ins &amp; consults</button>
-        <button><svg class="i"><use href="#i-target"/></svg> Doelen</button>
-        <button><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
-        <button><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
-        <button><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
-        <button><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
-        <button><svg class="i"><use href="#i-user"/></svg> Profiel</button>
+        <button onclick="openPanel('sp-checkin')"><svg class="i"><use href="#i-check"/></svg> Check-ins &amp; consults</button>
+        <button onclick="openPanel('sp-goals')"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
+        <button onclick="openPanel('sp-plan')"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
+        <button onclick="openPanel('sp-notes')"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
+        <button onclick="openPanel('sp-schema')"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
+        <button onclick="openPanel('sp-prio')"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
+        <button onclick="openPanel('sp-equip')"><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
+        <button id="cn-profile" onclick="cview('profile')"><svg class="i"><use href="#i-user"/></svg> Profiel</button>
       </div>
       <button class="collapsebtn" onclick="toggleSide()"><span id="cl-arrow">&#171;</span><span class="cl-txt"> Inklappen</span></button>
+    </div>
+
+    <div class="sidepanel" id="sp-assess">
+      <div class="sp-head"><h3>Assessment</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-tabs"><button class="on">OPEX Body</button><button>OPEX Move</button><button>OPEX Work</button></div>
+      <div class="sp-field"><label>Lichaamsgewicht</label><input value="100"></div>
+      <div class="sp-field"><label>Vetpercentage</label><input value="24,4"></div>
+      <div class="sp-field"><label>Skeletspiermassa</label><input value="42,8"></div>
+      <div class="sp-field"><label>Basaal metabolisme</label><input value="2008"></div>
+      <div class="sp-field"><label>Muscle fat-analyse</label><select><option>C-shape</option><option>D-shape</option><option>I-shape</option></select></div>
+      <div class="sp-field"><label>Notities OPEX Body</label><textarea>vet% moet omlaag en meer spiermassa</textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="sp-btn" onclick="toast('Assessment opgeslagen')">Assessment opslaan</button>
+        <button class="sp-btn ghost">Exporteer als PDF</button>
+      </div>
+    </div>
+
+    <div class="sidepanel" id="sp-checkin">
+      <div class="sp-head"><h3>Check-ins &amp; consults</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-tabs"><button class="on">Check-ins</button><button>Consultaties</button></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <select style="flex:1;background:#26292f;border:1px solid #33373d;border-radius:7px;padding:8px 10px;color:#e6e8ea;font-size:12px"><option>Maandag</option><option>Dinsdag</option></select>
+        <select style="flex:1;background:#26292f;border:1px solid #33373d;border-radius:7px;padding:8px 10px;color:#e6e8ea;font-size:12px"><option>Standaard</option><option>Uitgebreid</option></select>
+      </div>
+      <div class="sp-row" style="margin-bottom:8px"><button class="tgl" style="color:#c9cdd4" onclick="this.classList.toggle('on')"><span class="sw"></span> Actief</button><button class="sp-btn" onclick="toast('Check-in-instelling opgeslagen')">Opslaan</button></div>
+      <div class="sp-info">Gepauzeerd: standaard check-in elke maandag</div>
+      <div class="sp-note"><div class="nh">6 december 2021 <span><svg class="i sm-i"><use href="#i-gear"/></svg></span></div></div>
+      <div class="sp-note"><div class="nh">25 oktober 2021 <span><svg class="i sm-i"><use href="#i-gear"/></svg></span></div></div>
+    </div>
+
+    <div class="sidepanel" id="sp-goals">
+      <div class="sp-head"><h3>Doelen</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <button class="sp-btn" style="margin-bottom:14px" onclick="toast('In de echte app bewerk je hier de doelen')">Doelen bewerken</button>
+      <div class="sp-chip">Kracht opbouwen</div>
+      <div class="sp-chip">Vetpercentage verlagen</div>
+      <div class="sp-info" style="margin-top:12px"><b style="color:#c9cdd4">Overige informatie</b><br>Geen</div>
+    </div>
+
+    <div class="sidepanel" id="sp-plan">
+      <div class="sp-head"><h3>Langetermijnplannen</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <button class="sp-btn" onclick="toast('In de echte app maak je hier een langetermijnplan (periodisering)')">Plan toevoegen</button>
+    </div>
+
+    <div class="sidepanel" id="sp-notes">
+      <div class="sp-head"><h3>Notities &amp; documenten</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-tabs"><button class="on">Notities</button><button>Documenten</button></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <button class="sp-btn" onclick="toast('Nieuwe notitie — alleen zichtbaar voor coaches')">Notitie toevoegen</button>
+        <span class="sp-info" style="margin:0">Alleen zichtbaar voor coaches</span>
+      </div>
+      <div class="sp-field"><input placeholder="Zoek in notities…"></div>
+      <div class="sp-note">
+        <div class="nh">5 juni 2022 <span><svg class="i sm-i"><use href="#i-doc"/></svg><svg class="i sm-i"><use href="#i-trash"/></svg></span></div>
+        <div class="nb">200 ring rows
+40 double-unders each. or single unders
+200 push-ups
+30 double-unders each. or single unders
+200 sit-ups
+20 double-unders each. or single unders
+200 squats
+10 double-unders each. or single unders</div>
+      </div>
+      <div class="sp-note">
+        <div class="nh">30 maart 2022 <span><svg class="i sm-i"><use href="#i-doc"/></svg><svg class="i sm-i"><use href="#i-trash"/></svg></span></div>
+        <div class="nb">surprise wod:
+AMRAP (met een partner) in 25 minuten:
+Buy-in: 2000m row
+Daarna, in de resterende tijd, AMRAP:
+12 synchro push-ups / rack push ups
+9 synchro walking lunges
+12 synchro sit ups
+9 box step overs</div>
+      </div>
+      <div class="sp-note">
+        <div class="nh">17 februari 2022 <span><svg class="i sm-i"><use href="#i-doc"/></svg><svg class="i sm-i"><use href="#i-trash"/></svg></span></div>
+        <div class="nb">17 feb:
+doelstelling over 4 weken:
+100+ cal's op de echo bike
+- wekelijks opbouwen / combineren we met core
+* gemiddelde tempo 57RPM</div>
+      </div>
+    </div>
+
+    <div class="sidepanel" id="sp-schema">
+      <div class="sp-head"><h3>Trainingsschema</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-row">Maandag<div class="ampm"><button class="on" onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
+      <div class="sp-row">Dinsdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
+      <div class="sp-row">Woensdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button class="on" onclick="this.classList.toggle('on')">PM</button></div></div>
+      <div class="sp-row">Donderdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
+      <div class="sp-row">Vrijdag<div class="ampm"><button class="on" onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
+      <div class="sp-row">Zaterdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
+      <div class="sp-row">Zondag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
+      <button class="sp-btn" style="margin-top:10px" onclick="toast('Trainingsschema opgeslagen')">Schema opslaan</button>
+    </div>
+
+    <div class="sidepanel" id="sp-prio">
+      <div class="sp-head"><h3>Prioriteiten</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <button class="sp-btn" style="margin-bottom:14px" onclick="toast('Nieuwe prioriteit toevoegen')">Prioriteit toevoegen</button>
+      <div class="sp-chip">Side plank-oefeningen <span class="x">&#10005;</span></div>
+      <div class="sp-chip">Single arm carries <span class="x">&#10005;</span></div>
+      <div class="sp-chip">Vetmassa monitoren <span class="x">&#10005;</span></div>
+      <div class="sp-chip">Spiermassa opbouwen <span class="x">&#10005;</span></div>
+    </div>
+
+    <div class="sidepanel" id="sp-equip">
+      <div class="sp-head"><h3>Materiaallijsten</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <button class="sp-btn" style="margin-bottom:14px" onclick="toast('Nieuwe materiaallijst toevoegen')">Materiaal toevoegen</button>
+      <div class="sp-dark">Gym <svg class="i sm-i"><use href="#i-gear"/></svg></div>
+      <div class="sp-list">Barbell<br>Trap bar<br>Flat bench<br>Incline bench<br>Bumper plates<br>Kettlebells (gewichtsrange)<br>Dumbbells (gewichtsrange)<br>GHD<br>Reverse hyper<br>Axle bar<br>Yoke<br>Farmer's carry handles<br>Sled / Prowler<br>Gymnastics rings<br>Paralletes<br>Wall ball targets<br>Battling ropes<br>Airdyne/Assault bike<br>Ski erg<br>Rower<br>Bike erg<br>Pulley machines</div>
     </div>
 
     <div class="cmain">
@@ -1001,6 +1169,81 @@ h3{font-size:14px;font-weight:700}
         </div>
       </div>
      </div>
+
+     <div id="cv-trends" style="display:none">
+      <div class="calhead">
+        <div class="avc av1" style="width:30px;height:30px;font-size:10px">RV</div>
+        <span class="month">Rick van der Sluis · Trends</span>
+        <div class="seg" style="margin-left:auto"><button class="on">Dag</button><button>Week</button><button>Maand</button></div>
+        <button class="btn ghost sm2"><svg class="i sm-i"><use href="#i-gear"/></svg> Aanpassen</button>
+      </div>
+      <div class="trendcards" style="padding-top:16px">
+        <div class="trendcard"><h3>Readiness</h3><div class="blurbars"><i style="height:70%"></i><i style="height:55%"></i><i style="height:62%"></i><i style="height:45%"></i><i style="height:66%"></i><i style="height:75%"></i><i style="height:50%"></i></div><div class="ndbadge">Nog geen data</div></div>
+        <div class="trendcard"><h3>Beweging</h3><div class="blurbars"><i style="height:60%"></i><i style="height:70%"></i><i style="height:48%"></i><i style="height:64%"></i><i style="height:55%"></i><i style="height:72%"></i><i style="height:58%"></i></div><div class="ndbadge">Nog geen data</div></div>
+        <div class="trendcard"><h3>Slaap <span class="muted sm" style="font-weight:400;float:right">Details</span></h3><div class="blurbars"><i style="height:65%"></i><i style="height:58%"></i><i style="height:70%"></i><i style="height:52%"></i><i style="height:68%"></i><i style="height:60%"></i><i style="height:54%"></i></div><div class="ndbadge">Nog geen data</div></div>
+        <div class="trendcard"><h3>Fitness</h3><div class="blurbars"><i style="height:55%"></i><i style="height:66%"></i><i style="height:58%"></i><i style="height:72%"></i><i style="height:50%"></i><i style="height:64%"></i><i style="height:60%"></i></div><div class="ndbadge">Nog geen data</div></div>
+        <div class="trendcard"><h3>Herstel</h3><div class="blurbars"><i style="height:62%"></i><i style="height:54%"></i><i style="height:68%"></i><i style="height:58%"></i><i style="height:70%"></i><i style="height:52%"></i><i style="height:64%"></i></div><div class="ndbadge">Nog geen data</div></div>
+        <div class="trendcard"><h3>Voeding</h3><div class="blurbars"><i style="height:58%"></i><i style="height:68%"></i><i style="height:52%"></i><i style="height:66%"></i><i style="height:60%"></i><i style="height:56%"></i><i style="height:70%"></i></div><div class="ndbadge">Nog geen data</div></div>
+      </div>
+      <div class="sm muted" style="padding:0 18px 18px">Zodra Rick zijn gezondheidsdata koppelt (of check-ins invult) verschijnen hier de echte grafieken.</div>
+     </div>
+
+     <div id="cv-profile" style="display:none">
+      <div class="pfwrap">
+        <div class="tabs">
+          <button class="on">Profiel bewerken</button>
+          <button>Coaching</button>
+          <button>Voortgangsfoto's</button>
+          <button>Intakeformulier</button>
+          <button>Facturatie</button>
+        </div>
+        <div style="text-align:right"><button class="btn sm2">Bekijk intake</button></div>
+        <div class="pfav">RVDS</div>
+        <div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm2">Kies een afbeelding</button></div>
+        <div style="text-align:center;font-weight:800;margin-bottom:18px">Rick van der Sluis</div>
+        <div class="pfgrid">
+          <div class="mfield"><label>Voornaam <em>*</em></label><input type="text" value="Rick"></div>
+          <div class="mfield"><label>Achternaam <em>*</em></label><input type="text" value="van der Sluis"></div>
+          <div class="mfield"><label>E-mail</label><input type="text" value="rvdseu@me.com"></div>
+          <div class="mfield"><label>Geslacht</label><select><option>Man</option><option>Vrouw</option></select></div>
+          <div class="mfield"><label>Gewicht</label><input type="text" value="100"></div>
+          <div class="mfield"><label>Leeftijd</label><input type="text" value="62" disabled></div>
+          <div class="mfield"><label>Eenheden</label><select><option>Metrisch</option><option>Imperial</option></select></div>
+          <div class="mfield"><label>Geboortedatum</label><input type="text" value="28-04-1964"></div>
+          <div class="mfield"><label>Tijdzone</label><select><option>(GMT+01:00) Amsterdam</option></select></div>
+          <div class="mfield"><label>Locatie</label><input type="text" placeholder=""></div>
+          <div class="mfield"><label>Lengte (cm)</label><input type="text" value="193"></div>
+          <div class="mfield"><label>T-shirtmaat</label><select><option>XXL</option><option>XL</option><option>L</option></select></div>
+          <div class="mfield"><label>Noodcontact</label><input type="text" value="0623496649"></div>
+          <div class="mfield"><label>Aangedragen door</label><input type="text" placeholder=""></div>
+        </div>
+        <div class="mfoot"><button class="btn ghost">Annuleren</button><button class="btn" onclick="toast('Profiel opgeslagen')">Profiel opslaan</button></div>
+      </div>
+     </div>
+    </div>
+  </div>
+
+  <div class="chatpop" id="chatpop">
+    <div class="ch">
+      <div class="avc av1" style="width:24px;height:24px;font-size:9px">RV</div>
+      <b>Rick van der Sluis</b>
+      <svg class="i" onclick="go('msgs')"><use href="#i-move"/></svg>
+      <svg class="i" onclick="toggleChat()"><use href="#i-x"/></svg>
+    </div>
+    <div class="msgs2">
+      <div class="bub me">Je hebt een e-mail ontvangen. Het enige wat je hoeft te doen is registreren via die mail, de app downloaden en inloggen. Vanaf dat moment kun je jouw volledige programma bekijken.<br><br>Team YourProgram</div>
+      <div class="bub me">Hieronder kun je zien hoe het werkt met registreren.</div>
+      <div class="read">Gelezen · 20 mei, 17:54</div>
+      <div class="bub them">Top, gelukt! Ik zie mijn programma staan.</div>
+    </div>
+    <div class="cin">
+      <input placeholder="Typ iets…">
+      <div class="cinrow">
+        <svg class="i"><use href="#i-link"/></svg>
+        <svg class="i"><use href="#i-cam"/></svg>
+        <svg class="i"><use href="#i-play"/></svg>
+        <button class="send" onclick="toast('Bericht verstuurd — Rick krijgt een melding')">Send</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1483,10 +1726,23 @@ function go(p){
   window.scrollTo(0,0);
 }
 function cview(v){
-  document.getElementById('cv-cal').style.display = v==='cal' ? '' : 'none';
-  document.getElementById('cv-metrics').style.display = v==='metrics' ? '' : 'none';
-  document.getElementById('cn-cal').classList.toggle('on', v==='cal');
-  document.getElementById('cn-metrics').classList.toggle('on', v==='metrics');
+  ['cal','metrics','trends','profile'].forEach(function(x){
+    var el=document.getElementById('cv-'+x);
+    if(el)el.style.display = (x===v) ? '' : 'none';
+    var nb=document.getElementById('cn-'+x);
+    if(nb)nb.classList.toggle('on', x===v);
+  });
+  closePanels();
+}
+function openPanel(id){
+  closePanels();
+  document.getElementById(id).classList.add('show');
+}
+function closePanels(){
+  document.querySelectorAll('.sidepanel').forEach(function(p){p.classList.remove('show')});
+}
+function toggleChat(){
+  document.getElementById('chatpop').classList.toggle('show');
 }
 var toastTimer=null;
 function toast(msg){
