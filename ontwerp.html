@@ -401,6 +401,7 @@ h3{font-size:14px;font-weight:700}
 .combtn{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:6px 0;font-size:10.5px;font-weight:700;color:#4a4f57;background:#fff;margin-top:3px}
 .combtn:hover{border-color:var(--muted2)}
 #float-store{display:none}
+.mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 
 @media(max-width:900px){
   .dashgrid{grid-template-columns:1fr}
@@ -650,7 +651,7 @@ h3{font-size:14px;font-weight:700}
 </div>
 
 <!-- KLANT-DETAIL (maandweergave zoals CoachRx) -->
-<div id="p-client" class="page" style="max-width:1360px">
+<div id="p-client" class="page" style="max-width:100%;padding:18px 14px 60px">
   <div class="hrow" style="margin-bottom:14px">
     <button class="btn ghost sm2" onclick="go('clients')">&#8592; Alle klanten</button>
   </div>
@@ -874,6 +875,8 @@ h3{font-size:14px;font-weight:700}
         <div class="mday selectable" onclick="openDayMenu(this,event)"><div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">Aug 01</span></div></div>
         <div class="mday selectable" onclick="openDayMenu(this,event)"><div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">02</span></div></div>
       </div>
+
+      <div id="more-weeks"></div>
 
       <!-- zwevende elementen (worden in de aangeklikte dag geplaatst) -->
       <div id="float-store">
@@ -1170,7 +1173,7 @@ h3{font-size:14px;font-weight:700}
 </div>
 
 <!-- PROGRAMMA-TEMPLATE EDITOR -->
-<div id="p-program" class="page" style="max-width:1360px">
+<div id="p-program" class="page" style="max-width:100%;padding:18px 14px 60px">
   <div class="hrow" style="margin-bottom:14px">
     <button class="btn ghost sm2" onclick="go('programs')">&#8592; Alle programma's</button>
   </div>
@@ -1591,6 +1594,36 @@ function openExModal(nieuw){
 function closeExModal(){document.getElementById('exmodal').classList.remove('show')}
 function openAssign(){document.getElementById('assignmodal').classList.add('show')}
 function closeAssign(){document.getElementById('assignmodal').classList.remove('show')}
+
+/* kalender loopt maanden door (zoals CoachRx) */
+function buildWeeks(){
+  var host=document.getElementById('more-weeks');
+  if(!host||host.dataset.done)return;host.dataset.done='1';
+  var maanden=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  var kort=['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+  var d=new Date(2026,7,3);
+  var end=new Date(2026,10,2);
+  var lastM=-1;
+  while(d<end){
+    if(d.getMonth()!==lastM){
+      var lbl=document.createElement('div');lbl.className='mlabel';
+      lbl.textContent=maanden[d.getMonth()]+' 2026';
+      host.appendChild(lbl);lastM=d.getMonth();
+    }
+    var wk=document.createElement('div');wk.className='mrow';
+    for(var i=0;i<7;i++){
+      var day=document.createElement('div');day.className='mday selectable';
+      (function(cell){cell.onclick=function(ev){openDayMenu(cell,ev)}})(day);
+      var num=d.getDate();
+      var txt=(num===1)?(kort[d.getMonth()]+' 01'):((num<10?'0':'')+num);
+      day.innerHTML='<div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">'+txt+'</span></div>';
+      wk.appendChild(day);
+      d.setDate(d.getDate()+1);
+    }
+    host.appendChild(wk);
+  }
+}
+buildWeeks();
 document.querySelectorAll('.overlay').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('show')});
 });
