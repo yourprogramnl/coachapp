@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoachApp — klikbaar ontwerp v2 (coach-kant)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap');
+/* ==== Ontwerptaal: licht & fris zoals CoachRx/Strivee ==== */
+:root{
+  --nav:#171719; --bg:#f6f7f8; --card:#ffffff; --line:#e7e9ec; --line2:#f0f1f3;
+  --txt:#1d2129; --muted:#8a919c; --muted2:#b3b9c2;
+  --accent:#3eb3e0; --accent-d:#2a9fce;
+  --ok:#27b376; --ok-bg:#e2f6ec;
+  --bad:#e5484d; --bad-bg:#fde9ea;
+  --warn:#f5a623;
+  --purple:#8b7cf6; --purple-bg:#eeebfd;
+  --teal-bg:#dff2f8;
+  /* Strivee-pastels voor blokkleuren */
+  --p-grijs:#f4f4f5; --p-roze:#fce8ec; --p-oranje:#fdeede; --p-geel:#fdf6d9; --p-blauw:#ddedfb; --p-groen:#e3f5e9;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Archivo',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--bg);color:var(--txt);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:13px;color:var(--txt);outline:none}
+h1{font-size:22px;font-weight:800}
+h2{font-size:16px;font-weight:700}
+h3{font-size:14px;font-weight:700}
+.muted{color:var(--muted)}
+.sm{font-size:12px}
+
+/* ===== topbalk (donker, zoals CoachRx) ===== */
+.topbar{position:sticky;top:0;z-index:100;background:var(--nav);color:#fff;height:52px;
+  display:flex;align-items:center;padding:0 20px;gap:8px}
+.logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:26px;white-space:nowrap}
+.logo span{color:var(--accent)}
+.topnav{display:flex;gap:2px;flex:1;justify-content:center}
+.topnav button{color:#c9cdd4;font-size:12.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  padding:7px 13px;border-radius:6px}
+.topnav button:hover{color:#fff}
+.topnav button.on{background:#fff;color:var(--nav)}
+.topright{display:flex;align-items:center;gap:14px;margin-left:26px}
+.icbtn{position:relative;font-size:16px;color:#c9cdd4}
+.icbtn:hover{color:#fff}
+.icbtn .dot{position:absolute;top:-4px;right:-6px;background:var(--bad);color:#fff;font-size:9px;font-weight:700;
+  border-radius:999px;padding:1px 4px}
+.avatar{width:30px;height:30px;border-radius:50%;background:#3a3f47;color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:700;border:2px solid #565c66}
+.demo-note{position:fixed;bottom:14px;left:14px;z-index:200;background:var(--nav);color:#c9cdd4;font-size:11px;
+  padding:7px 12px;border-radius:8px;opacity:.92}
+
+/* ===== algemeen ===== */
+.page{display:none;max-width:1240px;margin:0 auto;padding:26px 24px 60px}
+.page.active{display:block}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.btn{background:var(--accent);color:#fff;font-weight:700;font-size:13px;padding:9px 16px;border-radius:8px}
+.btn:hover{background:var(--accent-d)}
+.btn.ghost{background:#fff;color:var(--txt);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--muted2)}
+.btn.dark{background:var(--nav)}
+.btn.sm2{padding:6px 12px;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.teal{background:var(--teal-bg);color:#1e91b8}
+.pill.purple{background:var(--purple-bg);color:var(--purple)}
+.pill.gray{background:var(--p-grijs);color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:6px;
+  background:#eef1f4;color:#5d6570}
+.tag .x{color:var(--muted2);font-size:10px;cursor:pointer}
+.tag .sq{width:8px;height:8px;border-radius:2px;display:inline-block}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:8px;
+  padding:9px 13px;flex:1;max-width:520px}
+.search input{border:none;flex:1;background:none}
+.search .gl{color:var(--muted2)}
+.kebab{color:var(--muted2);font-size:16px;padding:4px 8px;border-radius:6px}
+.kebab:hover{background:var(--line2);color:var(--muted)}
+.avc{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff}
+.av1{background:linear-gradient(135deg,#38bdf8,#6366f1)} .av2{background:linear-gradient(135deg,#f472b6,#a855f7)}
+.av3{background:linear-gradient(135deg,#34d399,#0ea5e9)} .av4{background:linear-gradient(135deg,#fbbf24,#f97316)}
+.av5{background:linear-gradient(135deg,#818cf8,#3b82f6)} .av6{background:linear-gradient(135deg,#2dd4bf,#059669)}
+.av7{background:linear-gradient(135deg,#64748b,#334155)}
+
+/* stats-balk boven tabellen */
+.statbar{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;padding:22px 10px 18px;margin-bottom:20px}
+.statbar .n{font-size:26px;font-weight:800}
+.statbar .n.acc{color:var(--accent)}
+.statbar .l{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#4a4f57;margin-top:4px}
+.statbar .l .inf{color:var(--muted2);font-weight:400}
+
+/* tabellen */
+.thead{display:flex;align-items:center;padding:10px 18px;background:#f2f4f6;border-bottom:1px solid var(--line);
+  font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);
+  border-radius:10px 10px 0 0}
+.trow{display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line2);gap:12px}
+.trow:last-child{border-bottom:none}
+.trow.click{cursor:pointer}
+.trow.click:hover{background:#fafbfc}
+.cname{display:flex;align-items:center;gap:12px;min-width:0}
+.cname .nm{font-weight:700;font-size:13.5px}
+.cname .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+.comp{font-weight:700;font-size:13px}
+.comp.good{color:var(--ok)} .comp.low{color:var(--bad)}
+
+/* tabs */
+.tabs{display:flex;gap:20px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs button{padding:9px 2px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
+.tabs button.on{color:var(--accent);border-color:var(--accent)}
+.tabs .cnt{background:#eef1f4;color:var(--muted);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:5px}
+
+/* ===== dashboard ===== */
+.dashgrid{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start}
+.panel{background:#f0f2f4;border-radius:12px;padding:18px}
+.panel h2{margin-bottom:12px}
+.attn-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.fchip{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--muted)}
+.fchip.on{background:var(--nav);color:#fff;border-color:var(--nav)}
+.attn-card{background:#fff;border-radius:10px;border:1px solid var(--line)}
+.attn-row{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.attn-row:last-child{border-bottom:none}
+.attn-row .nm{font-weight:700;font-size:13px;min-width:130px}
+.attn-row .pills{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+.attn-ic{display:flex;gap:10px;color:var(--muted2);font-size:14px}
+.tp-avs{display:flex;gap:26px;margin:16px 4px 6px}
+.tp-av{text-align:center;font-size:11px;color:var(--muted)}
+.tp-av .circ{width:62px;height:62px;border-radius:50%;background:#6b7280;color:#fff;display:flex;align-items:center;
+  justify-content:center;font-weight:800;font-size:13px;border:3px solid #cfe9f4;margin:0 auto 7px}
+.feedcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:10px}
+.feedcard .fh{display:flex;gap:11px;align-items:center;margin-bottom:10px}
+.feedcard .score{font-size:15px;font-weight:800;border-bottom:1px solid var(--line2);padding-bottom:9px;margin-bottom:9px}
+.feedblock{display:flex;gap:10px;padding:7px 0;font-size:13px}
+.feedblock .bic{width:22px;height:22px;border-radius:6px;background:#eef1f4;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.feedblock .desc{color:var(--muted);white-space:pre-line;font-size:12.5px;margin-top:2px}
+.ring{width:58px;height:58px;border-radius:50%;background:conic-gradient(var(--accent) 0 60%, #e5e8eb 60% 100%);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ring i{background:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-weight:800;font-size:13px}
+.sideblock{background:#f0f2f4;border-radius:12px;padding:18px;margin-bottom:18px}
+.sideblock .shead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.statecard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;gap:13px;align-items:center}
+.taskchips{display:flex;gap:8px;margin-bottom:12px}
+.tchip{font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--muted)}
+.tchip.on{background:var(--nav);color:#fff;border-color:var(--nav)}
+.empty{color:var(--muted);font-size:12.5px;text-align:center;padding:18px 8px}
+.empty a{color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer}
+
+/* ===== klant-detail ===== */
+.client-layout{display:flex;gap:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:640px}
+.cside{width:230px;flex-shrink:0;background:#16181c;color:#e6e8ea;padding:20px 0 16px;display:flex;flex-direction:column}
+.cside .prof{padding:0 18px 14px;border-bottom:1px solid #2a2d33}
+.cside .bigav{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#6366f1);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;margin-bottom:10px}
+.cside .cnm{font-weight:700;font-size:14px}
+.cside .cinfo{font-size:11.5px;color:#8f959d;margin-top:5px;line-height:1.6}
+.cside .streak{display:flex;align-items:center;gap:7px;font-size:12px;color:#c9cdd4;padding:11px 18px;border-bottom:1px solid #2a2d33}
+.cnav{padding:8px;flex:1;overflow:auto}
+.cnav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8.5px 11px;border-radius:8px;
+  font-size:12.5px;font-weight:600;color:#aab0b8}
+.cnav button:hover{background:#22252b;color:#fff}
+.cnav button.on{background:#2a2e35;color:#fff}
+.cnav .ic{width:16px;text-align:center;font-size:13px}
+.cmain{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.calhead{display:flex;align-items:center;gap:12px;padding:14px 18px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.calhead .month{font-size:16px;font-weight:800}
+.navarrows{display:flex;gap:2px}
+.navarrows button{width:28px;height:28px;border-radius:6px;color:var(--muted);font-size:14px}
+.navarrows button:hover{background:var(--line2)}
+.seg{display:flex;background:#eef1f4;border-radius:8px;padding:3px;margin-left:auto}
+.seg button{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:0;flex:1;overflow-x:auto;background:#fff}
+.dayc{border-right:1px solid var(--line2);min-width:150px;display:flex;flex-direction:column}
+.dayc:last-child{border-right:none}
+.dayh{padding:9px 10px;border-bottom:1px solid var(--line);font-size:11px;font-weight:700;letter-spacing:.6px;
+  color:var(--muted);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}
+.dayh .dnum{font-size:13px;color:var(--txt)}
+.dayh.today .dnum{color:var(--accent)}
+.daybody{padding:8px;flex:1;background:#fbfcfd}
+.wcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 1px 3px rgba(20,24,31,.05)}
+.wcard .whead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.wcard .score{font-weight:800;font-size:13px}
+.blk{border-radius:8px;padding:8px 9px;margin-bottom:7px;font-size:11.5px;line-height:1.45;position:relative;background:var(--p-grijs)}
+.blk .bt{font-weight:700;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.blk .st{position:absolute;top:7px;right:8px;font-size:11px;font-weight:800}
+.blk .st.done{color:var(--ok)} .blk .st.miss{color:var(--bad)}
+.blk .presc{color:#5d6570}
+.blk .log{margin-top:6px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:6px;
+  padding:4px 8px;font-size:11px;color:var(--txt);display:flex;align-items:center;gap:6px}
+.blk .log .vid{color:var(--accent-d)}
+.blk.roze{background:var(--p-roze)} .blk.oranje{background:var(--p-oranje)} .blk.geel{background:var(--p-geel)}
+.blk.blauw{background:var(--p-blauw)} .blk.groen{background:var(--p-groen)}
+.wcard .cbtn{width:100%;text-align:center;font-size:11.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);
+  border-radius:7px;padding:6px 0;margin-top:2px}
+.wcard .cbtn:hover{color:var(--txt);border-color:var(--muted2)}
+.restday{border:1px dashed var(--line);border-radius:10px;padding:12px 10px;text-align:center;color:var(--muted2);
+  font-size:11.5px;font-weight:600}
+.addnew{width:100%;border:1.5px dashed #bfe3f2;color:var(--accent-d);border-radius:10px;padding:9px 0;font-size:12px;
+  font-weight:700;margin-bottom:8px}
+.addnew:hover{background:#f2fafd}
+
+/* ===== workout-bouwer ===== */
+.builder-wrap{max-width:760px;margin:0 auto}
+.bcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px}
+.bcard .btop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.btype{display:flex;gap:8px;margin-bottom:18px}
+.btype button{flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;font-weight:700;font-size:12.5px;color:var(--muted)}
+.btype button.on{border-color:var(--nav);color:var(--txt);background:#fafbfc}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11.5px;font-weight:700;color:#4a4f57;margin-bottom:6px}
+.field input[type=text],.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
+.field textarea{min-height:64px;resize:vertical}
+.field ::placeholder{color:var(--muted2)}
+.exblock{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:#fbfcfd}
+.exblock .exh{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.exblock .letter{width:26px;height:26px;border-radius:7px;background:var(--nav);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.exblock .exh input{flex:1;border:none;background:none;font-weight:700;font-size:13.5px}
+.exblock .tools{display:flex;gap:8px;color:var(--muted2);font-size:13px}
+.exblock .tools button:hover{color:var(--muted)}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.grid3 input{border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;background:#fff}
+.demochip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--accent-d);margin-top:9px}
+.addrow{display:flex;gap:8px;margin:14px 0}
+.addrow button{border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-weight:700;font-size:12.5px;color:var(--txt);background:#fff}
+.addrow button:hover{border-color:var(--muted2)}
+.colorrow{display:flex;gap:8px;align-items:center;margin:4px 0 18px}
+.cdot{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.cdot.on{border-color:var(--nav)}
+.bfoot{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line2);padding-top:16px}
+
+/* ===== bibliotheek ===== */
+.libgrid{display:flex;gap:22px;align-items:flex-start}
+.libnav{width:210px;flex-shrink:0}
+.libnav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:8px;
+  font-size:13px;font-weight:600;color:var(--muted)}
+.libnav button.on{background:#e8f4fa;color:var(--accent-d)}
+.libnav button:hover:not(.on){background:var(--line2)}
+.libmain{flex:1;min-width:0}
+
+/* ===== berichten ===== */
+.chatwrap{display:flex;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:560px}
+.chatlist{width:280px;border-right:1px solid var(--line);flex-shrink:0}
+.chatlist .clh{padding:16px;border-bottom:1px solid var(--line);font-weight:800}
+.chatrow{display:flex;gap:11px;padding:13px 16px;border-bottom:1px solid var(--line2);cursor:pointer;align-items:center}
+.chatrow:hover{background:#fafbfc}
+.chatrow.on{background:#f0f8fc}
+.chatrow .prev{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.thread{flex:1;display:flex;flex-direction:column}
+.thread .th{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.msgs{flex:1;padding:18px;display:flex;flex-direction:column;gap:10px;background:#fbfcfd}
+.bub{max-width:66%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.5}
+.bub.them{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+.bub.me{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.bub .meta{font-size:10.5px;opacity:.65;margin-top:4px}
+.inputbar{display:flex;gap:10px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.inputbar input{flex:1;border:1px solid var(--line);border-radius:999px;padding:10px 16px}
+.inputbar .att{color:var(--muted2);font-size:16px}
+
+/* ===== Strivee-tools ===== */
+.progsel{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:7px 12px;cursor:pointer}
+.progsel .pav{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#171719,#3a3f47);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+.progsel .pn{font-weight:700;font-size:12.5px;line-height:1.2}
+.progsel .pt{font-size:10.5px;color:var(--muted)}
+.progsel .car{color:var(--muted2);font-size:11px;margin-left:4px}
+.tgl{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none}
+.tgl .sw{width:34px;height:19px;border-radius:999px;background:#dfe3e8;position:relative;transition:background .15s}
+.tgl .sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.tgl.on .sw{background:var(--ok)}
+.tgl.on .sw::after{left:17px}
+.smartcalc{background:#effaf3;border:1px solid #bfe8d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#1d7a52;
+  display:flex;align-items:center;gap:8px;margin-top:9px}
+.smartcalc b{font-weight:800}
+.assignlist{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.assignchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;
+  padding:5px 12px 5px 6px;font-size:12px;font-weight:600;cursor:pointer;background:#fff}
+.assignchip .mini{width:20px;height:20px;border-radius:50%;font-size:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+.assignchip.on{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.medrow{display:flex;gap:8px;margin-top:8px}
+.medrow button{border:1px dashed var(--line);border-radius:8px;padding:8px 13px;font-size:12px;font-weight:600;color:var(--muted)}
+.medrow .ai{color:#1d7a52;border-color:#bfe8d0;background:#effaf3}
+/* leaderboard */
+.lbwrap{max-width:860px;margin:0 auto}
+.lbhead{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+.lbcat{font-size:15px;font-weight:800;margin:20px 0 8px}
+.lbcat span{color:#d63384}
+.lbrow{display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid var(--line2)}
+.lbrow:last-child{border-bottom:none}
+.lbrow .rank{width:22px;font-weight:800;color:var(--muted);font-size:13px}
+.lbrow .lbnm{font-weight:700;font-size:13.5px}
+.lbrow .lbsc{font-size:12px;color:var(--muted)}
+.lbrow .fist{margin-left:auto;display:flex;gap:10px;align-items:center;color:var(--muted2);font-size:13px}
+.lbrow .fist .cnt2{font-size:11px;color:var(--muted)}
+.rxtag{font-size:9px;font-weight:800;border-radius:4px;padding:1px 4px;background:#d63384;color:#fff;vertical-align:middle}
+.rxtag.sc{background:#8b7cf6}
+/* metrics */
+.metgrid{display:grid;grid-template-columns:280px 1fr;gap:0;flex:1;background:var(--bg)}
+.metlist{background:#fff;border-right:1px solid var(--line);overflow:auto;max-height:640px}
+.metlist .mlh{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}
+.metlist .grp{padding:8px 15px;background:#f2f4f6;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.metrow{display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--line2);font-size:12.5px;cursor:pointer}
+.metrow:hover{background:#fafbfc}
+.metrow .mv{font-weight:700}
+.metrow .mv.na{color:var(--muted2);font-weight:400}
+.metmain{padding:18px}
+.metcards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.metcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;min-height:130px}
+.metcard h3{margin-bottom:10px}
+.metcard .nodata{border:1px dashed var(--line);border-radius:8px;color:var(--muted2);font-size:11.5px;text-align:center;padding:14px 6px}
+.metcard .val{font-size:22px;font-weight:800}
+.metcard .delta{font-size:11.5px;color:var(--ok);font-weight:700}
+.spark{display:flex;align-items:flex-end;gap:4px;height:44px;margin-top:10px}
+.spark i{flex:1;background:#cfe9f4;border-radius:3px 3px 0 0}
+.spark i.hi{background:var(--accent)}
+@media(max-width:900px){
+  .dashgrid{grid-template-columns:1fr}
+  .statbar{grid-template-columns:repeat(2,1fr);gap:14px}
+  .client-layout{flex-direction:column}
+  .cside{width:100%}
+  .libgrid{flex-direction:column}
+  .libnav{width:100%;display:flex;overflow:auto}
+  .topnav{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== TOPBALK ===== -->
+<div class="topbar">
+  <div class="logo">COACH<span>APP</span></div>
+  <nav class="topnav">
+    <button id="tn-dash" class="on" onclick="go('dash')">Dashboard</button>
+    <button id="tn-clients" onclick="go('clients')">Klanten</button>
+    <button id="tn-lib" onclick="go('lib')">Bibliotheek</button>
+    <button id="tn-coaches" onclick="go('coaches')">Coaches</button>
+    <button id="tn-programs" onclick="go('programs')">Programma's</button>
+    <button id="tn-week" onclick="go('week')">Weekworkout</button>
+    <button id="tn-msgs" onclick="go('msgs')">Berichten</button>
+  </nav>
+  <div class="topright">
+    <button class="icbtn">&#128276;</button>
+    <button class="icbtn" onclick="go('msgs')">&#128172;<span class="dot">2</span></button>
+    <div class="avatar">MB</div>
+  </div>
+</div>
+
+<div class="demo-note">Klikbaar ontwerp v2 · coach-kant · nepdata</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div id="p-dash" class="page active">
+  <div class="hrow"><h1>Dashboard</h1></div>
+  <div class="dashgrid">
+    <div>
+      <div class="panel">
+        <div class="tabs" style="border:none;margin-bottom:8px">
+          <button class="on">Aandacht nodig</button>
+          <button>Inzichten</button>
+        </div>
+        <div class="attn-filters">
+          <button class="fchip on">Alles</button>
+          <button class="fchip">&#127947; Workout te doen (2)</button>
+          <button class="fchip">&#127859; Lifestyle (2)</button>
+          <button class="fchip">&#128101; Consult (2)</button>
+        </div>
+        <div class="attn-card">
+          <div class="attn-row">
+            <div class="avc av1" style="width:32px;height:32px;font-size:11px">RV</div>
+            <div class="nm">Rick van der Sluis</div>
+            <div class="pills">
+              <span class="pill teal">&#127947; Workout te doen</span>
+              <span class="pill ok">&#127859; Lifestyle</span>
+              <span class="pill purple">&#128101; Consult plannen</span>
+            </div>
+            <div class="attn-ic"><span>&#128172;</span><span>&#128065;</span><span>&#128197;</span></div>
+          </div>
+          <div class="attn-row">
+            <div class="avc av2" style="width:32px;height:32px;font-size:11px">SB</div>
+            <div class="nm">Stefan Bakker</div>
+            <div class="pills">
+              <span class="pill teal">&#127947; Workout te doen</span>
+              <span class="pill bad">2x gemist op rij</span>
+              <span class="pill purple">&#128101; Consult plannen</span>
+            </div>
+            <div class="attn-ic"><span>&#128172;</span><span>&#128065;</span><span>&#128197;</span></div>
+          </div>
+        </div>
+
+        <h2 style="margin:20px 0 2px">Contactmomenten <span class="muted" style="font-weight:400">(0%)</span></h2>
+        <div class="sm muted"><b>0 van 2</b> klanten deze week gesproken · week van maandag <b>06-07-2026</b></div>
+        <div class="tp-avs">
+          <div class="tp-av"><div class="circ">RV</div>Rick (0)</div>
+          <div class="tp-av"><div class="circ">SB</div>Stefan (0)</div>
+        </div>
+
+        <h2 style="margin:22px 0 10px">Activiteit</h2>
+        <div class="tabs" style="border:none;margin-bottom:0">
+          <button class="on">Workouts</button>
+          <button>Lifestyle</button>
+          <button>Check-ins</button>
+        </div>
+        <div class="feedcard">
+          <div class="fh">
+            <div class="avc av1" style="width:34px;height:34px">RV</div>
+            <div><b>Rick van der Sluis</b><div class="sm muted">Gedaan op ma 6 juli 2026</div></div>
+            <span class="pill ok" style="margin-left:auto">4/4 afgerond</span>
+          </div>
+          <div class="feedblock"><div class="bic">&#128293;</div><div><b>Warming-up</b><div class="desc">5 min cardio naar keuze + McGill big 3</div></div></div>
+          <div class="feedblock"><div class="bic">A</div><div><b>Plyo — seated box jumps</b><div class="desc">1.1.1 · rust 90 sec x 3 sets — log: “3 x pads ging goed”</div></div></div>
+          <div class="feedblock"><div class="bic">B</div><div><b>Back squat w/safety barbell</b><div class="desc">8-12 @ 3010 · rust 2 min x 3 sets — log: “alleen stang, zwaar genoeg” · &#127909; video</div></div></div>
+          <div class="feedblock"><div class="bic">C</div><div><b>Upper based</b><div class="desc">12-10-8 bench press @ 3010 · 12-10-8 DB row per arm</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sideblock">
+        <div class="shead"><h2>Mijn cijfers</h2><select style="border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#fff"><option>30 dagen</option><option>7 dagen</option></select></div>
+        <div class="statecard">
+          <div class="ring"><i>60%</i></div>
+          <div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">Percentage van de voorgeschreven workouts dat je klanten echt gedaan hebben.</div></div>
+        </div>
+      </div>
+      <div class="sideblock">
+        <div class="shead"><h2>Mijn taken</h2><button class="btn sm2">+ Taak</button></div>
+        <div class="taskchips">
+          <button class="tchip on">Open</button>
+          <button class="tchip">Afgerond</button>
+        </div>
+        <div class="statecard" style="display:block">
+          <div class="empty">Alles afgerond! &#127881;<br><a>Klik hier</a> om een nieuwe taak te maken.</div>
+        </div>
+      </div>
+      <div class="sideblock">
+        <div class="shead"><h2>Workout van de week</h2><span class="pill ok">live</span></div>
+        <div class="statecard" style="display:block">
+          <div style="font-weight:700;font-size:13px">"Week 28 — Grace"</div>
+          <div class="sm muted" style="margin:4px 0 10px">30 clean &amp; jerks voor tijd · 214 deelnemers · 61 scores vandaag</div>
+          <button class="btn sm2" onclick="go('week')">Bekijk leaderboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== KLANTEN ===== -->
+<div id="p-clients" class="page">
+  <div class="card statbar">
+    <div><div class="n">6</div><div class="l">Actieve klanten</div></div>
+    <div><div class="n acc">67%</div><div class="l">Compliance <span class="inf">&#9432;</span></div>
+      <select style="margin-top:8px;border:1px solid var(--line);border-radius:7px;padding:5px 9px;background:#fff;font-size:12px"><option>Workout: 30 dagen</option><option>Workout: 7 dagen</option><option>Lifestyle: 30 dagen</option></select>
+    </div>
+    <div><div class="n">–</div><div class="l">Consult-rate <span class="inf">&#9432;</span></div></div>
+    <div><div class="n">–</div><div class="l">Contactmomenten <span class="inf">&#9432;</span></div></div>
+  </div>
+
+  <div class="hrow">
+    <div class="search"><span class="gl">&#128269;</span><input placeholder="Zoek op naam of tag…"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn">+ Klant toevoegen</button>
+      <button class="btn ghost">Tags beheren</button>
+      <button class="btn ghost">Exporteren</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="on">Actief<span class="cnt">6</span></button>
+    <button>Archief<span class="cnt">43</span></button>
+  </div>
+
+  <div class="card">
+    <div class="thead">
+      <div style="flex:2.2">Naam</div>
+      <div style="flex:1.2">Workout</div>
+      <div style="flex:1.2">Lifestyle</div>
+      <div style="flex:1">Compliance</div>
+      <div style="flex:1.8">Tags</div>
+      <div style="width:30px"></div>
+    </div>
+
+    <div class="trow click" onclick="go('client')">
+      <div class="cname" style="flex:2.2"><div class="avc av3">AK</div><div><div class="nm">Aafke Kruisselbrink</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
+      <div style="flex:1.2"><span class="pill ok">&#127947; zondag</span></div>
+      <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
+      <div style="flex:1"><span class="comp good">86%</span></div>
+      <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#3b82f6"></span>woensdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+
+    <div class="trow click" onclick="go('client')">
+      <div class="cname" style="flex:2.2"><div class="avc av2">AW</div><div><div class="nm">Annebel Wanschers</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
+      <div style="flex:1.2"><span class="pill bad">&#127947; zo 14 juni</span></div>
+      <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
+      <div style="flex:1"><span class="comp low">0%</span> <span class="muted sm">· 76%</span></div>
+      <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#22c55e"></span>maandag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+
+    <div class="trow click" onclick="go('client')">
+      <div class="cname" style="flex:2.2"><div class="avc av4">MT</div><div><div class="nm">Masha Tkachuk</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
+      <div style="flex:1.2"><span class="pill bad">&#127947; ma 22 juni</span></div>
+      <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
+      <div style="flex:1"><span class="comp low">50%</span> <span class="muted sm">· 91%</span></div>
+      <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#ec4899"></span>dinsdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+
+    <div class="trow click" onclick="go('client')">
+      <div class="cname" style="flex:2.2"><div class="avc av5">SM</div><div><div class="nm">Stijn Meijs</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
+      <div style="flex:1.2"><span class="pill ok">&#127947; zo 6 sep</span></div>
+      <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
+      <div style="flex:1"><span class="comp good">96%</span></div>
+      <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#3b82f6"></span>woensdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+
+    <div class="trow click" onclick="go('client')">
+      <div class="cname" style="flex:2.2"><div class="avc av6">TO</div><div><div class="nm">Tessa van Oijen</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
+      <div style="flex:1.2"><span class="pill ok">&#127947; zondag</span></div>
+      <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
+      <div style="flex:1"><span class="comp low">0%</span> <span class="muted sm">· 75%</span></div>
+      <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#ec4899"></span>dinsdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+
+    <div class="trow click" onclick="go('client')">
+      <div class="cname" style="flex:2.2"><div class="avc av7">ZG</div><div><div class="nm">Zoë van Gemst</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
+      <div style="flex:1.2"><span class="pill bad">&#127947; zo 21 juni</span></div>
+      <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
+      <div style="flex:1"><span class="comp good">93%</span></div>
+      <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#22c55e"></span>maandag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== KLANT-DETAIL (weekkalender) ===== -->
+<div id="p-client" class="page" style="max-width:1360px">
+  <div class="hrow" style="margin-bottom:14px">
+    <button class="btn ghost sm2" onclick="go('clients')">&#8592; Alle klanten</button>
+  </div>
+  <div class="client-layout">
+    <div class="cside">
+      <div class="prof">
+        <div class="bigav">RV</div>
+        <div class="cnm">Rick van der Sluis</div>
+        <div class="cinfo">62 jaar · 100 kg · 193 cm<br>196 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag</span></div>
+      </div>
+      <div class="streak">&#128293; Streak: <b>4 weken</b></div>
+      <div class="streak" style="font-size:11px">&#9888; Gezondheidsdata niet gekoppeld — <a style="color:var(--accent);cursor:pointer;margin-left:3px">nodig uit</a></div>
+      <div class="streak" style="gap:6px;flex-wrap:wrap">
+        <span class="pill bad" style="font-size:10px;padding:2px 8px">&#127947; te doen: do</span>
+        <span class="pill gray" style="font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span>
+      </div>
+      <div class="cnav">
+        <button id="cn-cal" class="on" onclick="cview('cal')"><span class="ic">&#128197;</span> Kalender</button>
+        <button onclick="go('msgs')"><span class="ic">&#128172;</span> Berichten</button>
+        <button id="cn-metrics" onclick="cview('metrics')"><span class="ic">&#128200;</span> Metrics &amp; 1RM</button>
+        <button><span class="ic">&#128202;</span> Lifestyle-trends</button>
+        <button><span class="ic">&#128203;</span> Assessment</button>
+        <button><span class="ic">&#9989;</span> Check-ins &amp; consults</button>
+        <button><span class="ic">&#127919;</span> Doelen</button>
+        <button><span class="ic">&#128198;</span> Planning &amp; periodisering</button>
+        <button><span class="ic">&#128221;</span> Notities &amp; documenten</button>
+        <button><span class="ic">&#128340;</span> Trainingsschema</button>
+        <button><span class="ic">&#128295;</span> Materiaal</button>
+        <button><span class="ic">&#128100;</span> Profiel</button>
+      </div>
+    </div>
+
+    <div class="cmain">
+     <div id="cv-cal">
+      <div class="calhead">
+        <span class="month">Juli 2026</span>
+        <div class="navarrows"><button>&#8249;</button><button>&#8250;</button></div>
+        <button class="btn ghost sm2">Vandaag</button>
+        <div class="progsel" title="Programma (Strivee)">
+          <div class="pav">YP</div>
+          <div><div class="pn">YourProgram 1-op-1</div><div class="pt">1:1 · Michel</div></div>
+          <span class="car">&#9662;</span>
+        </div>
+        <div class="seg">
+          <button class="on">Workouts</button>
+          <button>Lifestyle</button>
+        </div>
+        <button class="tgl" onclick="this.classList.toggle('on')"><span class="sw"></span> Zonder scores</button>
+        <button class="btn ghost sm2">&#8681; Export PDF</button>
+      </div>
+
+      <div class="week">
+        <!-- MA -->
+        <div class="dayc">
+          <div class="dayh">MA <span class="dnum">06</span></div>
+          <div class="daybody">
+            <div class="wcard">
+              <div class="whead"><span class="score">4/4</span><span class="pill ok">gedaan</span></div>
+              <div class="blk">
+                <div class="bt">&#128293; Warming-up</div>
+                <div class="presc">5 min cardio naar keuze + McGill big 3: 6x10 sec curl-up, side plank, birddog hold</div>
+              </div>
+              <div class="blk roze">
+                <div class="bt">A) Plyo <span class="st done">&#10003;</span></div>
+                <div class="presc">1.1.1 seated box jumps · rust 10 sec tussen reps · 90 sec x 3 sets</div>
+                <div class="log">&#9998; 3 x pads ging goed</div>
+              </div>
+              <div class="blk oranje">
+                <div class="bt">B) Back squat w/safety barbell <span class="st done">&#10003;</span></div>
+                <div class="presc">8-12 reps @ 3010 · rust 2 min x 3 sets</div>
+                <div class="log">&#9998; Alleen stang … zwaar genoeg <span class="vid">&#127909; video</span></div>
+              </div>
+              <div class="blk geel">
+                <div class="bt">C) Upper based <span class="st done">&#10003;</span></div>
+                <div class="presc">12-10-8 bench press @ 3010 · rust 1 min · 12-10-8 DB row per arm</div>
+                <div class="log">&#9998; 10 x 15 kg</div>
+              </div>
+              <div class="blk blauw">
+                <div class="bt">D) Conditioning <span class="st done">&#10003;</span></div>
+                <div class="presc">10 min AMRAP: 200 m run · max box step-ups</div>
+              </div>
+              <button class="cbtn">&#128172; Reacties (2)</button>
+            </div>
+          </div>
+        </div>
+        <!-- DI -->
+        <div class="dayc">
+          <div class="dayh">DI <span class="dnum">07</span></div>
+          <div class="daybody"><div class="restday">Rustdag</div></div>
+        </div>
+        <!-- WO (vandaag) -->
+        <div class="dayc">
+          <div class="dayh today">WO <span class="dnum">08</span></div>
+          <div class="daybody">
+            <button class="addnew" onclick="go('builder')">+ Workout toevoegen</button>
+            <div class="wcard">
+              <div class="whead"><span class="score">0/4</span><span class="pill gray">gepland</span></div>
+              <div class="blk">
+                <div class="bt">&#128293; Warming-up lower (hinging)</div>
+                <div class="presc">5 min cardio · 20 alternating 90/90 hip shifts · 20 cossack squats · 10/10 single leg RDL · 30/30 sec side plank</div>
+              </div>
+              <div class="blk roze">
+                <div class="bt">A) Primer (plyo step-ups)</div>
+                <div class="presc">3/3 reps @ AHAP (voet op 20 inch box) · rust 90 sec x 3 sets</div>
+              </div>
+              <div class="blk oranje">
+                <div class="bt">B) Deadlift</div>
+                <div class="presc">8-12 reps @ 3010 · rust 2 min x 3 sets · 3 sets @ 70% effort, wekelijks omhoog</div>
+              </div>
+              <div class="blk geel">
+                <div class="bt">C) Upper based</div>
+                <div class="presc">12-10-8 incline DB bench press @ 3010 · rust 1 min · 12-10-8 reverse grip lat pull down · rust 2 min x 3 sets</div>
+              </div>
+              <div class="blk blauw">
+                <div class="bt">D) Conditioning</div>
+                <div class="presc">15 min EMOM: 1) 50 sec row 2) 50 sec walking lunges 3) max unbroken hanging knee raises<br>*probeer elke ronde dezelfde scores te halen</div>
+              </div>
+              <button class="cbtn">&#128172; Reacties (0)</button>
+            </div>
+          </div>
+        </div>
+        <!-- DO -->
+        <div class="dayc">
+          <div class="dayh">DO <span class="dnum">09</span></div>
+          <div class="daybody"><div class="restday">Rustdag</div></div>
+        </div>
+        <!-- VR -->
+        <div class="dayc">
+          <div class="dayh">VR <span class="dnum">10</span></div>
+          <div class="daybody">
+            <div class="wcard">
+              <div class="whead"><span class="score">0/3</span><span class="pill gray">gepland</span></div>
+              <div class="blk">
+                <div class="bt">&#128293; Warming-up</div>
+                <div class="presc">1/4 warming up: 15 cal echo bike · 15 kang squats · 30 sec plank</div>
+              </div>
+              <div class="blk oranje">
+                <div class="bt">A) Pushing from the ground</div>
+                <div class="presc">10-8-6-6 safety bar squats @ 2010 · rust 30 sec · 10 leg extensions @ 3010 · rust 2 min</div>
+              </div>
+              <div class="blk geel">
+                <div class="bt">B) Upper pulling strength</div>
+                <div class="presc">12-10-8-8 seal row @ 30X1 · rust 30 sec · max unbroken reverse grip lat pull downs @ 3010</div>
+              </div>
+              <button class="cbtn">&#128172; Reacties (0)</button>
+            </div>
+          </div>
+        </div>
+        <!-- ZA -->
+        <div class="dayc">
+          <div class="dayh">ZA <span class="dnum">11</span></div>
+          <div class="daybody"><div class="restday">Rustdag</div></div>
+        </div>
+        <!-- ZO -->
+        <div class="dayc">
+          <div class="dayh">ZO <span class="dnum">12</span></div>
+          <div class="daybody"><div class="restday">Rustdag</div></div>
+        </div>
+      </div>
+     </div><!-- /cv-cal -->
+
+     <div id="cv-metrics" style="display:none">
+      <div class="calhead">
+        <span class="month">Metrics &amp; 1RM</span>
+        <div class="seg" style="margin-left:auto">
+          <button>Dag</button><button class="on">Week</button><button>Maand</button>
+        </div>
+        <button class="btn ghost sm2">&#9881; Aanpassen</button>
+      </div>
+      <div class="metgrid">
+        <div class="metlist">
+          <div class="mlh"><b class="sm">Krachtwaarden</b><button class="btn sm2">+ Voeg toe</button></div>
+          <div style="padding:10px 15px;border-bottom:1px solid var(--line2)"><button class="btn ghost sm2" style="width:100%">&#9878; Bekijk structural balance</button></div>
+          <div class="grp"><span>Naam</span><span>Huidig</span></div>
+          <div class="metrow"><span>Back Squat 1RM</span><span class="mv">40 kg</span></div>
+          <div class="metrow"><span>CGBP 1RM</span><span class="mv">50 kg</span></div>
+          <div class="metrow"><span>Clean 1RM</span><span class="mv">40 kg</span></div>
+          <div class="metrow"><span>DB External Rotation 8RM</span><span class="mv">5 kg</span></div>
+          <div class="metrow"><span>DB Powell Raise 8RM</span><span class="mv">5 kg</span></div>
+          <div class="metrow"><span>DB Prone Row 6RM</span><span class="mv">25 kg</span></div>
+          <div class="metrow" style="background:#f0f8fc"><span><b>Deadlift 1RM</b></span><span class="mv">110 kg</span></div>
+          <div class="metrow"><span>Front Squat 1RM</span><span class="mv">40 kg</span></div>
+          <div class="metrow"><span>Goblet Squat 20RM</span><span class="mv">10 kg</span></div>
+          <div class="metrow"><span>Power Clean 1RM</span><span class="mv">40 kg</span></div>
+          <div class="metrow"><span>Power Snatch 1RM</span><span class="mv na">—</span></div>
+          <div class="metrow"><span>Seated DB OH Press 8RM</span><span class="mv">12,5 kg</span></div>
+          <div class="metrow"><span>Snatch 1RM</span><span class="mv na">—</span></div>
+          <div class="metrow"><span>Sorenson Hold</span><span class="mv">1:00</span></div>
+        </div>
+        <div class="metmain">
+          <div class="metcards">
+            <div class="metcard" style="grid-column:span 2">
+              <h3>Deadlift 1RM <span class="muted sm" style="font-weight:400">· laatste 6 metingen</span></h3>
+              <div class="val">110 kg <span class="delta">&#9650; +10 kg in 12 weken</span></div>
+              <div class="spark"><i style="height:55%"></i><i style="height:60%"></i><i style="height:62%"></i><i style="height:70%"></i><i style="height:78%"></i><i class="hi" style="height:100%"></i></div>
+            </div>
+            <div class="metcard"><h3>Readiness</h3><div class="nodata">&#128274; Nog geen data</div></div>
+            <div class="metcard"><h3>Slaap</h3><div class="nodata">&#128274; Nog geen data — koppel gezondheidsdata</div></div>
+            <div class="metcard"><h3>Herstel</h3><div class="nodata">&#128274; Nog geen data</div></div>
+            <div class="metcard"><h3>Voeding</h3><div class="nodata">&#128274; Nog geen data</div></div>
+          </div>
+          <div class="sm muted" style="margin-top:14px">Deze 1RM's voeden de <b>slimme berekening</b> in de workout-bouwer (bijv. "3 sets @ 70% van 1RM deadlift").</div>
+        </div>
+      </div>
+     </div><!-- /cv-metrics -->
+    </div>
+  </div>
+</div>
+
+<!-- ===== WORKOUT-BOUWER ===== -->
+<div id="p-builder" class="page">
+  <div class="builder-wrap">
+    <div class="hrow" style="margin-bottom:14px">
+      <button class="btn ghost sm2" onclick="go('client')">&#8592; Terug naar kalender</button>
+      <span class="muted sm">Rick van der Sluis · woensdag 8 juli 2026</span>
+    </div>
+    <div class="bcard">
+      <div class="btop">
+        <h2>Workout bouwen</h2>
+        <select style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff">
+          <option>Scoring: geen</option><option>Voor tijd</option><option>AMRAP (rondes)</option><option>Zwaarste gewicht</option>
+        </select>
+      </div>
+
+      <div class="btype">
+        <button class="on">Eigen workout</button>
+        <button>Barbell-set (% van 1RM)</button>
+        <button>Benchmark</button>
+      </div>
+
+      <div class="field">
+        <label>Titel</label>
+        <input type="text" placeholder="Bijv. AMRAP 12 of Lower strength" value="Lower strength + EMOM">
+      </div>
+      <div class="field">
+        <label>Coach's notes (ziet de klant bovenaan)</label>
+        <textarea placeholder="Korte uitleg of focus van vandaag…">Focus vandaag op rustig tempo bij de deadlift. Film je zwaarste set.</textarea>
+      </div>
+
+      <div class="field">
+        <label>Warming-up</label>
+        <textarea>5 min cardio naar keuze
+20 alternating 90/90 hip shifts · 20 cossack squats · 10/10 single leg RDL</textarea>
+        <span class="demochip">&#9654; Demo-video's toevoegen aan warming-up</span>
+      </div>
+
+      <div class="exblock">
+        <div class="exh">
+          <div class="letter">A</div>
+          <input value="Primer — plyo step-ups">
+          <div class="tools"><button title="History">&#8635;</button><button title="Demo">&#9654;</button><button title="Verplaats">&#10021;</button><button title="Kopieer">&#10697;</button><button title="Verwijder">&#128465;</button></div>
+        </div>
+        <div class="grid3">
+          <input value="3/3 reps" title="Reps"><input value="@ AHAP" title="Tempo/gewicht"><input value="3 sets" title="Sets"><input value="rust 90 sec" title="Rust">
+        </div>
+        <span class="demochip">&#9654; 1 demo-video gekoppeld · uit bibliotheek (264 oefeningen)</span>
+      </div>
+
+      <div class="exblock">
+        <div class="exh">
+          <div class="letter">B</div>
+          <input value="Deadlift">
+          <div class="tools"><button>&#8635;</button><button>&#9654;</button><button>&#10021;</button><button>&#10697;</button><button>&#128465;</button></div>
+        </div>
+        <div class="grid3">
+          <input value="8-12 reps"><input value="@ 3010"><input value="3 sets"><input value="rust 2 min">
+        </div>
+        <div class="smartcalc">&#129518; Slimme berekening: <b>70% van 1RM deadlift (110 kg) = 77,5 kg</b> — rekent automatisch mee met Rick's metrics</div>
+        <span class="demochip">&#9654; Demo-video kiezen…</span>
+      </div>
+
+      <div class="exblock" style="border-style:dashed;background:#fff">
+        <div class="exh">
+          <div class="letter" style="background:#eef1f4;color:var(--muted)">C</div>
+          <input placeholder="Naam oefening…">
+        </div>
+        <div class="grid3">
+          <input placeholder="Reps"><input placeholder="Tempo"><input placeholder="Sets"><input placeholder="Rust">
+        </div>
+      </div>
+
+      <div class="addrow">
+        <button>+ Oefening</button>
+        <button>+ Superset koppelen</button>
+        <button>+ Conditioning</button>
+        <button>+ Cooldown</button>
+      </div>
+
+      <div class="field" style="margin-bottom:6px"><label>Blokkleur</label></div>
+      <div class="colorrow">
+        <div class="cdot on" style="background:var(--p-grijs);border-color:var(--nav)" onclick="pickColor(this)"></div>
+        <div class="cdot" style="background:var(--p-roze)" onclick="pickColor(this)"></div>
+        <div class="cdot" style="background:var(--p-oranje)" onclick="pickColor(this)"></div>
+        <div class="cdot" style="background:var(--p-geel)" onclick="pickColor(this)"></div>
+        <div class="cdot" style="background:var(--p-blauw)" onclick="pickColor(this)"></div>
+        <div class="cdot" style="background:var(--p-groen)" onclick="pickColor(this)"></div>
+      </div>
+
+      <div class="field" style="margin-bottom:6px"><label>Media (optioneel)</label></div>
+      <div class="medrow" style="margin:0 0 18px">
+        <button>+ Media toevoegen</button>
+        <button class="ai">&#10024; Media automatisch genereren</button>
+      </div>
+
+      <div class="field" style="margin-bottom:6px"><label>Toewijzen aan (meerdere tegelijk)</label></div>
+      <div class="assignlist" style="margin:0 0 18px">
+        <button class="assignchip on" onclick="this.classList.toggle('on')"><span class="mini av1">RV</span> Rick van der Sluis &#10003;</button>
+        <button class="assignchip" onclick="this.classList.toggle('on')"><span class="mini av2">SB</span> Stefan Bakker</button>
+        <button class="assignchip" onclick="this.classList.toggle('on')"><span class="mini av3">AK</span> Aafke Kruisselbrink</button>
+        <button class="assignchip" onclick="this.classList.toggle('on')"><span class="mini av5">SM</span> Stijn Meijs</button>
+        <button class="assignchip" onclick="this.classList.toggle('on')"><span class="mini av7" style="background:#334155">+</span> Hele groep…</button>
+      </div>
+
+      <div class="bfoot">
+        <button class="btn ghost">Annuleren</button>
+        <button class="btn ghost">Opslaan als template</button>
+        <button class="btn" onclick="go('client')">Workout opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BIBLIOTHEEK ===== -->
+<div id="p-lib" class="page">
+  <div class="hrow"><h1>Bibliotheek</h1></div>
+  <div class="libgrid">
+    <div class="libnav card" style="padding:10px">
+      <button class="on">&#127947; Oefeningen</button>
+      <button>&#128293; Warming-ups</button>
+      <button>&#129496; Cooldowns</button>
+      <button>&#9201; Conditioning</button>
+      <button>&#128202; Metric-groepen</button>
+      <button>&#128214; Programma-templates</button>
+      <button>&#128203; Formulieren</button>
+      <button>&#128193; Documenten</button>
+    </div>
+    <div class="libmain">
+      <div class="card" style="padding:18px 18px 0">
+        <div class="hrow" style="margin-bottom:14px">
+          <div>
+            <h2>Oefeningen</h2>
+            <div class="sm muted" style="margin-top:3px">Koppel demo-video's zodat je klanten precies zien hoe het moet.</div>
+          </div>
+          <button class="btn">+ Oefening toevoegen</button>
+        </div>
+        <div class="hrow" style="margin-bottom:12px">
+          <div class="search"><span class="gl">&#128269;</span><input placeholder="Zoek op oefening of bewegingspatroon…"></div>
+          <label class="sm muted" style="display:flex;align-items:center;gap:7px">Alleen eigen oefeningen <input type="checkbox"></label>
+        </div>
+      </div>
+      <div class="card" style="border-radius:0 0 10px 10px;border-top:none">
+        <div class="thead" style="border-radius:0">
+          <div style="flex:2.4">Oefening</div>
+          <div style="flex:1.4">Patroon</div>
+          <div style="flex:1.2">Materiaal</div>
+          <div style="flex:.8">Video</div>
+          <div style="width:70px"></div>
+        </div>
+        <div class="trow"><div style="flex:2.4"><b>1 1/4 Hipthruster</b></div><div st
