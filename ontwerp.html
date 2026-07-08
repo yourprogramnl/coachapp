@@ -6,7 +6,6 @@
 <title>CoachApp — klikbaar ontwerp v2 (coach-kant)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap');
-/* ==== Ontwerptaal: licht & fris zoals CoachRx/Strivee ==== */
 :root{
   --nav:#171719; --bg:#f6f7f8; --card:#ffffff; --line:#e7e9ec; --line2:#f0f1f3;
   --txt:#1d2129; --muted:#8a919c; --muted2:#b3b9c2;
@@ -16,7 +15,6 @@
   --warn:#f5a623;
   --purple:#8b7cf6; --purple-bg:#eeebfd;
   --teal-bg:#dff2f8;
-  /* Strivee-pastels voor blokkleuren */
   --p-grijs:#f4f4f5; --p-roze:#fce8ec; --p-oranje:#fdeede; --p-geel:#fdf6d9; --p-blauw:#ddedfb; --p-groen:#e3f5e9;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -30,8 +28,6 @@ h2{font-size:16px;font-weight:700}
 h3{font-size:14px;font-weight:700}
 .muted{color:var(--muted)}
 .sm{font-size:12px}
-
-/* ===== topbalk (donker, zoals CoachRx) ===== */
 .topbar{position:sticky;top:0;z-index:100;background:var(--nav);color:#fff;height:52px;
   display:flex;align-items:center;padding:0 20px;gap:8px}
 .logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:26px;white-space:nowrap}
@@ -50,8 +46,6 @@ h3{font-size:14px;font-weight:700}
   justify-content:center;font-size:11px;font-weight:700;border:2px solid #565c66}
 .demo-note{position:fixed;bottom:14px;left:14px;z-index:200;background:var(--nav);color:#c9cdd4;font-size:11px;
   padding:7px 12px;border-radius:8px;opacity:.92}
-
-/* ===== algemeen ===== */
 .page{display:none;max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .page.active{display:block}
 .hrow{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
@@ -84,15 +78,11 @@ h3{font-size:14px;font-weight:700}
 .av3{background:linear-gradient(135deg,#34d399,#0ea5e9)} .av4{background:linear-gradient(135deg,#fbbf24,#f97316)}
 .av5{background:linear-gradient(135deg,#818cf8,#3b82f6)} .av6{background:linear-gradient(135deg,#2dd4bf,#059669)}
 .av7{background:linear-gradient(135deg,#64748b,#334155)}
-
-/* stats-balk boven tabellen */
 .statbar{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;padding:22px 10px 18px;margin-bottom:20px}
 .statbar .n{font-size:26px;font-weight:800}
 .statbar .n.acc{color:var(--accent)}
 .statbar .l{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#4a4f57;margin-top:4px}
 .statbar .l .inf{color:var(--muted2);font-weight:400}
-
-/* tabellen */
 .thead{display:flex;align-items:center;padding:10px 18px;background:#f2f4f6;border-bottom:1px solid var(--line);
   font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);
   border-radius:10px 10px 0 0}
@@ -105,14 +95,10 @@ h3{font-size:14px;font-weight:700}
 .cname .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
 .comp{font-weight:700;font-size:13px}
 .comp.good{color:var(--ok)} .comp.low{color:var(--bad)}
-
-/* tabs */
 .tabs{display:flex;gap:20px;border-bottom:1px solid var(--line);margin-bottom:16px}
 .tabs button{padding:9px 2px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
 .tabs button.on{color:var(--accent);border-color:var(--accent)}
 .tabs .cnt{background:#eef1f4;color:var(--muted);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:5px}
-
-/* ===== dashboard ===== */
 .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start}
 .panel{background:#f0f2f4;border-radius:12px;padding:18px}
 .panel h2{margin-bottom:12px}
@@ -131,7 +117,6 @@ h3{font-size:14px;font-weight:700}
   justify-content:center;font-weight:800;font-size:13px;border:3px solid #cfe9f4;margin:0 auto 7px}
 .feedcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:10px}
 .feedcard .fh{display:flex;gap:11px;align-items:center;margin-bottom:10px}
-.feedcard .score{font-size:15px;font-weight:800;border-bottom:1px solid var(--line2);padding-bottom:9px;margin-bottom:9px}
 .feedblock{display:flex;gap:10px;padding:7px 0;font-size:13px}
 .feedblock .bic{width:22px;height:22px;border-radius:6px;background:#eef1f4;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
 .feedblock .desc{color:var(--muted);white-space:pre-line;font-size:12.5px;margin-top:2px}
@@ -147,8 +132,6 @@ h3{font-size:14px;font-weight:700}
 .tchip.on{background:var(--nav);color:#fff;border-color:var(--nav)}
 .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:18px 8px}
 .empty a{color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer}
-
-/* ===== klant-detail ===== */
 .client-layout{display:flex;gap:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:640px}
 .cside{width:230px;flex-shrink:0;background:#16181c;color:#e6e8ea;padding:20px 0 16px;display:flex;flex-direction:column}
 .cside .prof{padding:0 18px 14px;border-bottom:1px solid #2a2d33}
@@ -201,8 +184,6 @@ h3{font-size:14px;font-weight:700}
 .addnew{width:100%;border:1.5px dashed #bfe3f2;color:var(--accent-d);border-radius:10px;padding:9px 0;font-size:12px;
   font-weight:700;margin-bottom:8px}
 .addnew:hover{background:#f2fafd}
-
-/* ===== workout-bouwer ===== */
 .builder-wrap{max-width:760px;margin:0 auto}
 .bcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px}
 .bcard .btop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
@@ -231,8 +212,6 @@ h3{font-size:14px;font-weight:700}
 .cdot{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer}
 .cdot.on{border-color:var(--nav)}
 .bfoot{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line2);padding-top:16px}
-
-/* ===== bibliotheek ===== */
 .libgrid{display:flex;gap:22px;align-items:flex-start}
 .libnav{width:210px;flex-shrink:0}
 .libnav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:8px;
@@ -240,8 +219,6 @@ h3{font-size:14px;font-weight:700}
 .libnav button.on{background:#e8f4fa;color:var(--accent-d)}
 .libnav button:hover:not(.on){background:var(--line2)}
 .libmain{flex:1;min-width:0}
-
-/* ===== berichten ===== */
 .chatwrap{display:flex;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:560px}
 .chatlist{width:280px;border-right:1px solid var(--line);flex-shrink:0}
 .chatlist .clh{padding:16px;border-bottom:1px solid var(--line);font-weight:800}
@@ -259,8 +236,6 @@ h3{font-size:14px;font-weight:700}
 .inputbar{display:flex;gap:10px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
 .inputbar input{flex:1;border:1px solid var(--line);border-radius:999px;padding:10px 16px}
 .inputbar .att{color:var(--muted2);font-size:16px}
-
-/* ===== Strivee-tools ===== */
 .progsel{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:10px;
   padding:7px 12px;cursor:pointer}
 .progsel .pav{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#171719,#3a3f47);
@@ -285,7 +260,6 @@ h3{font-size:14px;font-weight:700}
 .medrow{display:flex;gap:8px;margin-top:8px}
 .medrow button{border:1px dashed var(--line);border-radius:8px;padding:8px 13px;font-size:12px;font-weight:600;color:var(--muted)}
 .medrow .ai{color:#1d7a52;border-color:#bfe8d0;background:#effaf3}
-/* leaderboard */
 .lbwrap{max-width:860px;margin:0 auto}
 .lbhead{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
 .lbcat{font-size:15px;font-weight:800;margin:20px 0 8px}
@@ -299,7 +273,6 @@ h3{font-size:14px;font-weight:700}
 .lbrow .fist .cnt2{font-size:11px;color:var(--muted)}
 .rxtag{font-size:9px;font-weight:800;border-radius:4px;padding:1px 4px;background:#d63384;color:#fff;vertical-align:middle}
 .rxtag.sc{background:#8b7cf6}
-/* metrics */
 .metgrid{display:grid;grid-template-columns:280px 1fr;gap:0;flex:1;background:var(--bg)}
 .metlist{background:#fff;border-right:1px solid var(--line);overflow:auto;max-height:640px}
 .metlist .mlh{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}
@@ -331,7 +304,6 @@ h3{font-size:14px;font-weight:700}
 </head>
 <body>
 
-<!-- ===== TOPBALK ===== -->
 <div class="topbar">
   <div class="logo">COACH<span>APP</span></div>
   <nav class="topnav">
@@ -352,7 +324,6 @@ h3{font-size:14px;font-weight:700}
 
 <div class="demo-note">Klikbaar ontwerp v2 · coach-kant · nepdata</div>
 
-<!-- ===== DASHBOARD ===== -->
 <div id="p-dash" class="page active">
   <div class="hrow"><h1>Dashboard</h1></div>
   <div class="dashgrid">
@@ -411,8 +382,8 @@ h3{font-size:14px;font-weight:700}
             <span class="pill ok" style="margin-left:auto">4/4 afgerond</span>
           </div>
           <div class="feedblock"><div class="bic">&#128293;</div><div><b>Warming-up</b><div class="desc">5 min cardio naar keuze + McGill big 3</div></div></div>
-          <div class="feedblock"><div class="bic">A</div><div><b>Plyo — seated box jumps</b><div class="desc">1.1.1 · rust 90 sec x 3 sets — log: “3 x pads ging goed”</div></div></div>
-          <div class="feedblock"><div class="bic">B</div><div><b>Back squat w/safety barbell</b><div class="desc">8-12 @ 3010 · rust 2 min x 3 sets — log: “alleen stang, zwaar genoeg” · &#127909; video</div></div></div>
+          <div class="feedblock"><div class="bic">A</div><div><b>Plyo — seated box jumps</b><div class="desc">1.1.1 · rust 90 sec x 3 sets — log: "3 x pads ging goed"</div></div></div>
+          <div class="feedblock"><div class="bic">B</div><div><b>Back squat w/safety barbell</b><div class="desc">8-12 @ 3010 · rust 2 min x 3 sets — log: "alleen stang, zwaar genoeg" · &#127909; video</div></div></div>
           <div class="feedblock"><div class="bic">C</div><div><b>Upper based</b><div class="desc">12-10-8 bench press @ 3010 · 12-10-8 DB row per arm</div></div></div>
         </div>
       </div>
@@ -448,7 +419,6 @@ h3{font-size:14px;font-weight:700}
   </div>
 </div>
 
-<!-- ===== KLANTEN ===== -->
 <div id="p-clients" class="page">
   <div class="card statbar">
     <div><div class="n">6</div><div class="l">Actieve klanten</div></div>
@@ -539,7 +509,6 @@ h3{font-size:14px;font-weight:700}
   </div>
 </div>
 
-<!-- ===== KLANT-DETAIL (weekkalender) ===== -->
 <div id="p-client" class="page" style="max-width:1360px">
   <div class="hrow" style="margin-bottom:14px">
     <button class="btn ghost sm2" onclick="go('clients')">&#8592; Alle klanten</button>
@@ -593,7 +562,6 @@ h3{font-size:14px;font-weight:700}
       </div>
 
       <div class="week">
-        <!-- MA -->
         <div class="dayc">
           <div class="dayh">MA <span class="dnum">06</span></div>
           <div class="daybody">
@@ -626,12 +594,10 @@ h3{font-size:14px;font-weight:700}
             </div>
           </div>
         </div>
-        <!-- DI -->
         <div class="dayc">
           <div class="dayh">DI <span class="dnum">07</span></div>
           <div class="daybody"><div class="restday">Rustdag</div></div>
         </div>
-        <!-- WO (vandaag) -->
         <div class="dayc">
           <div class="dayh today">WO <span class="dnum">08</span></div>
           <div class="daybody">
@@ -662,12 +628,10 @@ h3{font-size:14px;font-weight:700}
             </div>
           </div>
         </div>
-        <!-- DO -->
         <div class="dayc">
           <div class="dayh">DO <span class="dnum">09</span></div>
           <div class="daybody"><div class="restday">Rustdag</div></div>
         </div>
-        <!-- VR -->
         <div class="dayc">
           <div class="dayh">VR <span class="dnum">10</span></div>
           <div class="daybody">
@@ -689,12 +653,10 @@ h3{font-size:14px;font-weight:700}
             </div>
           </div>
         </div>
-        <!-- ZA -->
         <div class="dayc">
           <div class="dayh">ZA <span class="dnum">11</span></div>
           <div class="daybody"><div class="restday">Rustdag</div></div>
         </div>
-        <!-- ZO -->
         <div class="dayc">
           <div class="dayh">ZO <span class="dnum">12</span></div>
           <div class="daybody"><div class="restday">Rustdag</div></div>
@@ -750,7 +712,6 @@ h3{font-size:14px;font-weight:700}
   </div>
 </div>
 
-<!-- ===== WORKOUT-BOUWER ===== -->
 <div id="p-builder" class="page">
   <div class="builder-wrap">
     <div class="hrow" style="margin-bottom:14px">
@@ -863,7 +824,6 @@ h3{font-size:14px;font-weight:700}
   </div>
 </div>
 
-<!-- ===== BIBLIOTHEEK ===== -->
 <div id="p-lib" class="page">
   <div class="hrow"><h1>Bibliotheek</h1></div>
   <div class="libgrid">
@@ -899,4 +859,255 @@ h3{font-size:14px;font-weight:700}
           <div style="flex:.8">Video</div>
           <div style="width:70px"></div>
         </div>
-        <div class="trow"><div style="flex:2.4"><b>1 1/4 Hipthruster</b></div><div st
+        <div class="trow"><div style="flex:2.4"><b>1 1/4 Hipthruster</b></div><div style="flex:1.4" class="muted">Hinge</div><div style="flex:1.2" class="muted">Barbell</div><div style="flex:.8"><span class="pill teal">&#9654; 1</span></div><button class="btn ghost sm2" style="width:70px">Bewerk</button></div>
+        <div class="trow"><div style="flex:2.4"><b>1-arm elbows-out DB row</b></div><div style="flex:1.4" class="muted">Pull</div><div style="flex:1.2" class="muted">Dumbbell</div><div style="flex:.8"><span class="pill teal">&#9654; 1</span></div><button class="btn ghost sm2" style="width:70px">Bewerk</button></div>
+        <div class="trow"><div style="flex:2.4"><b>2 Point Bird Dog</b></div><div style="flex:1.4" class="muted">Core</div><div style="flex:1.2" class="muted">Bodyweight</div><div style="flex:.8"><span class="pill gray">—</span></div><button class="btn ghost sm2" style="width:70px">Bewerk</button></div>
+        <div class="trow"><div style="flex:2.4"><b>2 Position Clean</b></div><div style="flex:1.4" class="muted">Weightlifting</div><div style="flex:1.2" class="muted">Barbell</div><div style="flex:.8"><span class="pill teal">&#9654; 2</span></div><button class="btn ghost sm2" style="width:70px">Bewerk</button></div>
+        <div class="trow"><div style="flex:2.4"><b>90/90 Bottoms Up KB Squat</b></div><div style="flex:1.4" class="muted">Squat</div><div style="flex:1.2" class="muted">Kettlebell</div><div style="flex:.8"><span class="pill teal">&#9654; 1</span></div><button class="btn ghost sm2" style="width:70px">Bewerk</button></div>
+        <div class="trow"><div style="flex:2.4"><b>Air Squat</b></div><div style="flex:1.4" class="muted">Squat</div><div style="flex:1.2" class="muted">Bodyweight</div><div style="flex:.8"><span class="pill teal">&#9654; 1</span></div><button class="btn ghost sm2" style="width:70px">Bewerk</button></div>
+        <div class="trow" style="justify-content:center"><span class="muted sm">… 264 oefeningen in totaal</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="p-coaches" class="page">
+  <div class="card statbar">
+    <div><div class="n">32</div><div class="l">Klanten totaal</div></div>
+    <div><div class="n acc">85%</div><div class="l">Compliance <span class="inf">&#9432;</span></div></div>
+    <div><div class="n">–</div><div class="l">Consult-rate <span class="inf">&#9432;</span></div></div>
+    <div><div class="n acc">76%</div><div class="l">Contactmomenten <span class="inf">&#9432;</span></div></div>
+  </div>
+  <div class="hrow">
+    <h1>Coaches</h1>
+    <button class="btn">+ Coach toevoegen</button>
+  </div>
+  <div class="card">
+    <div class="thead">
+      <div style="flex:2.2">Naam</div>
+      <div style="flex:1">Workout %</div>
+      <div style="flex:1">Consult-rate</div>
+      <div style="flex:1.2">Contactmomenten</div>
+      <div style="flex:1">Rol</div>
+      <div style="width:30px"></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.2"><div class="avc av5">MB</div><div><div class="nm">Michel Bakker</div><div class="sub">1 klant</div></div></div>
+      <div style="flex:1"><span class="comp low">58%</span></div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1.2" class="muted">0%</div>
+      <div style="flex:1"><span class="pill purple">Eigenaar</span></div>
+      <div style="width:30px"></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.2"><div class="avc av2">RW</div><div><div class="nm">Rieke Wijnhard</div><div class="sub">0 klanten</div></div></div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1.2" class="muted">0%</div>
+      <div style="flex:1"><span class="pill teal">Coach</span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.2"><div class="avc av1">SB</div><div><div class="nm">Stefan Bakker</div><div class="sub">0 klanten</div></div></div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1.2" class="muted">0%</div>
+      <div style="flex:1"><span class="pill teal">Coach</span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.2"><div class="avc av6">SV</div><div><div class="nm">Stefan Vissenberg</div><div class="sub">6 klanten</div></div></div>
+      <div style="flex:1"><span class="comp good">93%</span></div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1.2" class="muted">0%</div>
+      <div style="flex:1"><span class="pill gray">Admin</span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.2"><div class="avc av4">TB</div><div><div class="nm">Thirza den Boer</div><div class="sub">25 klanten</div></div></div>
+      <div style="flex:1"><span class="comp good">93%</span></div>
+      <div style="flex:1" class="muted">–</div>
+      <div style="flex:1.2"><span class="comp good">100%</span></div>
+      <div style="flex:1"><span class="pill gray">Admin</span></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+  </div>
+</div>
+
+<div id="p-programs" class="page">
+  <div class="hrow">
+    <h1>Programma's</h1>
+    <button class="btn">+ Programma maken</button>
+  </div>
+  <div class="tabs">
+    <button class="on">Programma's</button>
+    <button>Bundels (packs)</button>
+  </div>
+  <div class="hrow" style="margin-bottom:14px">
+    <div class="search"><span class="gl">&#128269;</span><input placeholder="Zoek een programma…"></div>
+    <button class="btn ghost sm2">Filter &#9662;</button>
+  </div>
+  <div class="card">
+    <div class="thead">
+      <div style="flex:2.6">Programma</div>
+      <div style="flex:1">Type</div>
+      <div style="flex:1">Prijs</div>
+      <div style="flex:.8">Klanten</div>
+      <div style="width:30px"></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.6"><div class="avc" style="border-radius:9px;background:linear-gradient(135deg,#171719,#3a3f47)">YP</div><div><div class="nm">YourProgram 1-op-1 coaching (Michel)</div><div class="sub">Eigen chat · uitnodigen via link</div></div></div>
+      <div style="flex:1"><span class="pill teal">1:1</span></div>
+      <div style="flex:1" class="muted">gratis</div>
+      <div style="flex:.8"><b>43</b></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.6"><div class="avc" style="border-radius:9px;background:linear-gradient(135deg,#171719,#3a3f47)">YP</div><div><div class="nm">YourProgram 1-op-1 coaching (Stefan)</div><div class="sub">Eigen chat · uitnodigen via link</div></div></div>
+      <div style="flex:1"><span class="pill teal">1:1</span></div>
+      <div style="flex:1" class="muted">gratis</div>
+      <div style="flex:.8"><b>25</b></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.6"><div class="avc" style="border-radius:9px;background:linear-gradient(135deg,#38bdf8,#6366f1)">NS</div><div><div class="nm">The Next Step</div><div class="sub">Doorlopend groepsprogramma</div></div></div>
+      <div style="flex:1"><span class="pill purple">Classic</span></div>
+      <div style="flex:1"><b>€39</b> <span class="muted sm">/maand</span></div>
+      <div style="flex:.8"><b>4</b></div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.6"><div class="avc" style="border-radius:9px;background:linear-gradient(135deg,#34d399,#0ea5e9)">TB</div><div><div class="nm">Template builder</div><div class="sub">Vaste weekschema's om te hergebruiken</div></div></div>
+      <div style="flex:1"><span class="pill gray">Vast</span></div>
+      <div style="flex:1" class="muted">gratis</div>
+      <div style="flex:.8" class="muted">–</div>
+      <button class="kebab" style="width:30px">⋮</button>
+    </div>
+  </div>
+  <div class="sm muted" style="margin-top:12px">Verkoop (storefront, coupons, betalingen) doen we bewust later — zie functie-overzicht hoofdstuk 9.</div>
+</div>
+
+<div id="p-week" class="page">
+  <div class="lbwrap">
+    <div class="hrow">
+      <h1>Workout van de week</h1>
+      <div style="display:flex;gap:10px">
+        <button class="btn ghost sm2">&#128257; Vorige weken</button>
+        <button class="btn">+ Nieuwe weekworkout</button>
+      </div>
+    </div>
+    <div class="lbhead">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div>
+          <h2 style="font-size:19px">Week 28 — "Grace"</h2>
+          <div class="muted" style="margin-top:6px;font-size:13px">30 clean &amp; jerks voor tijd · Rx: 60/42,5 kg · Scaled: 42,5/30 kg</div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <span class="pill teal">gratis voor iedereen</span>
+            <span class="pill ok">214 deelnemers</span>
+            <span class="pill gray">gepubliceerd ma 6 juli · 07:00</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <button class="btn ghost sm2">&#128279; Deel-link kopiëren</button>
+          <div class="sm muted" style="margin-top:8px">Blog-leden doen gratis mee →<br>funnel naar 1-op-1 coaching</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hrow" style="margin-bottom:10px">
+      <h2>Leaderboard <span class="muted" style="font-weight:400;font-size:13px">· heel Nederland</span></h2>
+      <button class="btn ghost sm2">&#8645; Sorteren</button>
+    </div>
+
+    <div class="lbcat">Mannen / <span>Rx</span></div>
+    <div class="card">
+      <div class="lbrow"><span class="rank">1</span><div class="avc av5" style="width:34px;height:34px;font-size:11px">DV</div><div><div class="lbnm">Daan Verhoeven <span class="rxtag">RX</span></div><div class="lbsc">2:58 · geverifieerd met video &#127909;</div></div><div class="fist">&#128074; <span class="cnt2">23</span> &#128172; <span class="cnt2">4</span></div></div>
+      <div class="lbrow"><span class="rank">2</span><div class="avc av1" style="width:34px;height:34px;font-size:11px">RV</div><div><div class="lbnm">Rick van der Sluis <span class="rxtag">RX</span></div><div class="lbsc">3:12 · 1-op-1 klant</div></div><div class="fist">&#128074; <span class="cnt2">17</span> &#128172; <span class="cnt2">2</span></div></div>
+      <div class="lbrow"><span class="rank">3</span><div class="avc av6" style="width:34px;height:34px;font-size:11px">TW</div><div><div class="lbnm">Thomas de Wit <span class="rxtag">RX</span></div><div class="lbsc">3:24 · blog-lid</div></div><div class="fist">&#128074; <span class="cnt2">9</span></div></div>
+    </div>
+
+    <div class="lbcat">Mannen / <span style="color:var(--purple)">Scaled</span></div>
+    <div class="card">
+      <div class="lbrow"><span class="rank">1</span><div class="avc av7" style="width:34px;height:34px;font-size:11px">JB</div><div><div class="lbnm">Jesse Bos <span class="rxtag sc">SC</span></div><div class="lbsc">3:41 · blog-lid</div></div><div class="fist">&#128074; <span class="cnt2">6</span></div></div>
+      <div class="lbrow"><span class="rank">2</span><div class="avc av4" style="width:34px;height:34px;font-size:11px">SB</div><div><div class="lbnm">Stefan Bakker <span class="rxtag sc">SC</span></div><div class="lbsc">4:05</div></div><div class="fist">&#128074; <span class="cnt2">3</span></div></div>
+    </div>
+
+    <div class="lbcat">Vrouwen / <span>Rx</span></div>
+    <div class="card">
+      <div class="lbrow"><span class="rank">1</span><div class="avc av3" style="width:34px;height:34px;font-size:11px">AK</div><div><div class="lbnm">Aafke Kruisselbrink <span class="rxtag">RX</span></div><div class="lbsc">3:33 · 1-op-1 klant · &#127909;</div></div><div class="fist">&#128074; <span class="cnt2">19</span> &#128172; <span class="cnt2">3</span></div></div>
+      <div class="lbrow"><span class="rank">2</span><div class="avc av2" style="width:34px;height:34px;font-size:11px">LJ</div><div><div class="lbnm">Lisa Jansen <span class="rxtag">RX</span></div><div class="lbsc">3:51 · blog-lid</div></div><div class="fist">&#128074; <span class="cnt2">11</span></div></div>
+      <div class="lbrow"><span class="rank">3</span><div class="avc av6" style="width:34px;height:34px;font-size:11px">TO</div><div><div class="lbnm">Tessa van Oijen <span class="rxtag">RX</span></div><div class="lbsc">4:02</div></div><div class="fist">&#128074; <span class="cnt2">7</span></div></div>
+    </div>
+
+    <div class="lbcat">Vrouwen / <span style="color:var(--purple)">Scaled</span></div>
+    <div class="card">
+      <div class="lbrow"><span class="rank">1</span><div class="avc av4" style="width:34px;height:34px;font-size:11px">EV</div><div><div class="lbnm">Emma Visser <span class="rxtag sc">SC</span></div><div class="lbsc">4:18 · blog-lid</div></div><div class="fist">&#128074; <span class="cnt2">5</span></div></div>
+    </div>
+
+    <div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden (Strivee-stijl, met fist bumps &#128074;). Dit is de etalage die volgers naar betaalde coaching trekt.</div>
+  </div>
+</div>
+
+<div id="p-msgs" class="page">
+  <div class="hrow"><h1>Berichten</h1></div>
+  <div class="chatwrap">
+    <div class="chatlist">
+      <div class="clh">Gesprekken</div>
+      <div class="chatrow on">
+        <div class="avc av1" style="width:34px;height:34px;font-size:11px">RV</div>
+        <div><b class="sm">Rick van der Sluis</b><div class="prev">Top, komt goed! Ik film de…</div></div>
+        <span class="pill bad" style="margin-left:auto;padding:2px 7px">1</span>
+      </div>
+      <div class="chatrow">
+        <div class="avc av2" style="width:34px;height:34px;font-size:11px">SB</div>
+        <div><b class="sm">Stefan Bakker</b><div class="prev">Kan de workout van za naar…</div></div>
+        <span class="pill bad" style="margin-left:auto;padding:2px 7px">1</span>
+      </div>
+      <div class="chatrow">
+        <div class="avc av3" style="width:34px;height:34px;font-size:11px">AK</div>
+        <div><b class="sm">Aafke Kruisselbrink</b><div class="prev">Gelukt &#128170;</div></div>
+      </div>
+    </div>
+    <div class="thread">
+      <div class="th">
+        <div class="avc av1" style="width:34px;height:34px;font-size:11px">RV</div>
+        <div><b>Rick van der Sluis</b><div class="sm muted">Laatst gezien: vandaag 13:15</div></div>
+      </div>
+      <div class="msgs">
+        <div class="bub me">Goedemorgen Rick! Nieuwe week staat klaar. Let bij de deadlift op het tempo (3010) — liever iets lichter en netjes. Film je zwaarste set even?<div class="meta">09:02 · ✓✓ gelezen</div></div>
+        <div class="bub them">Goedemorgen! Gezien, ziet er goed uit. De box jumps van maandag gingen lekker trouwens.<div class="meta">09:41</div></div>
+        <div class="bub them">Top, komt goed! Ik film de deadlift vanmiddag. &#127909;<div class="meta">13:15</div></div>
+      </div>
+      <div class="inputbar">
+        <button class="att">&#128206;</button>
+        <input placeholder="Typ een bericht…">
+        <button class="btn sm2">Versturen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function go(p){
+  document.querySelectorAll('.page').forEach(function(el){el.classList.remove('active')});
+  var page=document.getElementById('p-'+p);
+  if(page)page.classList.add('active');
+  document.querySelectorAll('.topnav button').forEach(function(el){el.classList.remove('on')});
+  var map={dash:'tn-dash',clients:'tn-clients',client:'tn-clients',builder:'tn-clients',lib:'tn-lib',coaches:'tn-coaches',programs:'tn-programs',week:'tn-week',msgs:'tn-msgs'};
+  var btn=document.getElementById(map[p]);
+  if(btn)btn.classList.add('on');
+  window.scrollTo(0,0);
+}
+function cview(v){
+  document.getElementById('cv-cal').style.display = v==='cal' ? '' : 'none';
+  document.getElementById('cv-metrics').style.display = v==='metrics' ? '' : 'none';
+  document.getElementById('cn-cal').classList.toggle('on', v==='cal');
+  document.getElementById('cn-metrics').classList.toggle('on', v==='metrics');
+}
+function pickColor(el){
+  el.parentNode.querySelectorAll('.cdot').forEach(function(d){d.classList.remove('on');d.style.borderColor='transparent'});
+  el.classList.add('on');el.style.borderColor='#171719';
+}
+</script>
+</body>
+</html>
