@@ -388,6 +388,11 @@ h3{font-size:14px;font-weight:700}
 .wkblok .wkx{position:absolute;top:10px;right:10px;cursor:pointer;color:var(--muted);font-size:14px}
 .wkblok .wkx:hover{color:var(--bad)}
 .extools .ib-del:hover{color:var(--bad)}
+.legchip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:20px;padding:5px 10px;cursor:pointer;background:#fff}
+.legchip:hover{border-color:#b9bec6}
+.legchip.aan{border-color:var(--nav);box-shadow:0 0 0 1px var(--nav)}
+.legchip input{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;width:86px;padding:0}
+.legchip input:focus{outline:none;border-bottom:1px dashed var(--muted2)}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -1406,6 +1411,7 @@ doelstelling over 4 weken:
           <div class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Zoek op oefening of tag…" oninput="libFilter(this.value)"></div>
           <button class="tgl" onclick="this.classList.toggle('on')"><span class="sw"></span> Verberg standaard-oefeningen</button>
         </div>
+        <div id="lib-legenda" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center"></div>
       </div>
       <div class="card" style="border-radius:0 0 10px 10px;border-top:none">
         <div class="thead" style="border-radius:0" id="lib-thead"></div>
@@ -1793,6 +1799,19 @@ doelstelling over 4 weken:
 </div>
 
 <!-- MODAL: oefening bewerken -->
+<div class="overlay" id="tplmodal">
+  <div class="modal" style="max-width:560px">
+    <h2>Template bewerken</h2>
+    <div class="mfield"><label>Titel</label><input type="text" id="tpl-naam"></div>
+    <div class="mfield"><label>Instructies</label><textarea id="tpl-instr" style="min-height:130px"></textarea></div>
+    <div class="mfield"><label>Kleur</label><div id="tpl-kleuren" style="display:flex;gap:12px;padding:6px 0 2px"></div></div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeTpl()">Annuleren</button>
+      <button class="btn" onclick="tplOpslaan()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="wkmodal">
   <div class="modal" style="max-width:640px">
     <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Workout bewerken <span id="wk-datum" class="sm muted" style="font-weight:600;font-size:13px"></span></h2>
@@ -2066,9 +2085,14 @@ function laadBieb(){
 var TPL=[], libMode='oef';
 var TPLKLEUR={yellow:'#eab308',blue:'#3b82f6',purple:'#8b5cf6',red:'#ef4444',green:'#22c55e',orange:'#f97316',gray:'#9ca3af'};
 function laadTpl(){
-  fetch('https://ujuvbxqgnxkyjcmcrqpw.supabase.co/rest/v1/templates?select=naam,instructies,type,kleur,tags,coach&order=naam.asc&limit=1000',{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
+  fetch('https://ujuvbxqgnxkyjcmcrqpw.supabase.co/rest/v1/templates?select=id,naam,instructies,type,kleur,tags,coach&order=naam.asc&limit=1000',{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
   .then(function(r){return r.json()})
-  .then(function(d){TPL=d;if(libMode!=='oef')libRender();})
+  .then(function(d){
+    var ed=leesTplEdits();
+    d.forEach(function(o){var e=ed[o.id];if(e){o.naam=e.naam;o.instructies=e.instructies;o.kleur=e.kleur;}});
+    TPL=d;
+    if(libMode!=='oef')libRender();
+  })
   .catch(function(){});
 }
 function setLibMode(m,btn){
@@ -2081,12 +2105,64 @@ function setLibMode(m,btn){
   document.getElementById('lib-addbtn').textContent = m==='oef' ? '+ Oefening toevoegen' : '+ Template toevoegen';
   document.getElementById('lib-sub').textContent = m==='oef'
     ? 'Jullie eigen bibliotheek, live uit de database. Klanten zien de demo-video bij elke workout.'
-    : 'Templates uit jullie Strivee, live uit de database — met de kleuren uit de template builder.';
+    : 'Templates uit jullie Strivee, live uit de database — klik op een template om titel, tekst of kleur aan te passen.';
+  libKleur='';
+  legRender();
   libRender();
 }
 function libAdd(){
   if(libMode==='oef'){openExModal(true);return;}
   toast('Template toevoegen doe je straks via de template-editor — net als in Strivee');
+}
+var KLEUREN=['yellow','blue','purple','red','green','orange'];
+var LEGDEF={yellow:'Conditie',blue:'Kracht',purple:'Gymnastics',red:'Intensief',green:'Herstel',orange:'Overig'};
+var libKleur='', tplEditIdx=-1, tplKleurKeuze='yellow';
+function leesTplEdits(){try{return JSON.parse(localStorage.getItem('coachapp-tpl-edits')||'{}')}catch(e){return{}}}
+function leesLegenda(){var raw={};try{raw=JSON.parse(localStorage.getItem('coachapp-legenda')||'{}')}catch(e){}var uit={};KLEUREN.forEach(function(k){uit[k]=raw[k]||LEGDEF[k]});return uit;}
+function legRender(){
+  var h=document.getElementById('lib-legenda');if(!h)return;
+  if(libMode==='oef'){h.style.display='none';return;}
+  h.style.display='flex';
+  var leg=leesLegenda();
+  h.innerHTML=KLEUREN.map(function(k){
+    return '<div class="legchip'+(libKleur===k?' aan':'')+'" onclick="legFilter(\''+k+'\')">'
+     +'<span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'
+     +'<input value="'+esc(leg[k])+'" onclick="event.stopPropagation()" onchange="legNaam(\''+k+'\',this.value)">'
+     +'</div>';
+  }).join('')+'<span class="sm muted">klik op een kleur om te filteren \u00b7 naam is aanpasbaar</span>';
+}
+function legFilter(k){libKleur = libKleur===k ? '' : k;libPag=0;legRender();libRender();}
+function legNaam(k,v){
+  var raw={};try{raw=JSON.parse(localStorage.getItem('coachapp-legenda')||'{}')}catch(e){}
+  raw[k]=v.trim()||LEGDEF[k];
+  try{localStorage.setItem('coachapp-legenda',JSON.stringify(raw))}catch(e){}
+  toast('Legenda bijgewerkt — blijft bewaard');
+}
+function openTpl(i){
+  var o=TPL[i];if(!o)return;tplEditIdx=i;
+  document.getElementById('tpl-naam').value=o.naam;
+  document.getElementById('tpl-instr').value=o.instructies;
+  tplKleurKeuze=KLEUREN.indexOf(o.kleur)>=0?o.kleur:'yellow';
+  tplKleurenRender();
+  document.getElementById('tplmodal').classList.add('show');
+}
+function tplKleurenRender(){
+  var leg=leesLegenda();
+  document.getElementById('tpl-kleuren').innerHTML=KLEUREN.map(function(k){
+    return '<span class="tip" data-tip="'+esc(leg[k])+'" onclick="kiesTplKleur(\''+k+'\')" style="width:26px;height:26px;border-radius:50%;cursor:pointer;display:inline-block;background:'+TPLKLEUR[k]+';'+(k===tplKleurKeuze?'outline:3px solid var(--nav);outline-offset:2px':'')+'"></span>';
+  }).join('');
+}
+function kiesTplKleur(k){tplKleurKeuze=k;tplKleurenRender();}
+function closeTpl(){document.getElementById('tplmodal').classList.remove('show');tplEditIdx=-1;}
+function tplOpslaan(){
+  var o=TPL[tplEditIdx];if(!o)return;
+  o.naam=document.getElementById('tpl-naam').value.trim()||o.naam;
+  o.instructies=document.getElementById('tpl-instr').value;
+  o.kleur=tplKleurKeuze;
+  var ed=leesTplEdits();ed[o.id]={naam:o.naam,instructies:o.instructies,kleur:o.kleur};
+  try{localStorage.setItem('coachapp-tpl-edits',JSON.stringify(ed))}catch(e){}
+  closeTpl();libRender();
+  toast('Template aangepast — blijft bewaard; in de echte app direct in de database');
 }
 var libZoek='', libPag=0, LIB_PER=50;
 function libFilter(v){libZoek=v.toLowerCase();libPag=0;libRender();}
@@ -2097,14 +2173,15 @@ function libRender(){
   if(libMode!=='oef'){
     if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div><div style="width:76px"></div>';
     var type=libMode==='warmup'?'warmup':(libMode==='cooldown'?'cooldown':'other');
-    var th=TPL.filter(function(o){return o.type===type&&(!libZoek||o.naam.toLowerCase().indexOf(libZoek)>=0||o.instructies.toLowerCase().indexOf(libZoek)>=0||(o.tags||[]).join(' ').toLowerCase().indexOf(libZoek)>=0)});
+    var th=TPL.filter(function(o){return o.type===type&&(!libKleur||o.kleur===libKleur)&&(!libZoek||o.naam.toLowerCase().indexOf(libZoek)>=0||o.instructies.toLowerCase().indexOf(libZoek)>=0||(o.tags||[]).join(' ').toLowerCase().indexOf(libZoek)>=0)});
     var c1=document.getElementById('lib-aantal');if(c1)c1.textContent=th.length;
     host.innerHTML=th.map(function(o){
       var tg=(o.tags||[]).slice(0,2).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join(' ');
+      var ti=TPL.indexOf(o);
       return '<div class="trow" style="align-items:flex-start">'
-        +'<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'
-        +'<div style="flex:1.7"><b>'+esc(o.naam)+'</b></div>'
-        +'<div style="flex:2.6" class="sm muted">'+esc(o.instructies).replace(/\n/g,'<br>')+'</div>'
+        +'<div style="width:20px;padding-top:4px;cursor:pointer" onclick="openTpl('+ti+')"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'
+        +'<div style="flex:1.7;cursor:pointer" onclick="openTpl('+ti+')"><b>'+esc(o.naam)+'</b></div>'
+        +'<div style="flex:2.6;cursor:pointer" class="sm muted" onclick="openTpl('+ti+')">'+esc(o.instructies).replace(/\n/g,'<br>')+'</div>'
         +'<div style="flex:1.2">'+tg+'</div>'
         +'<button class="btn ghost sm2" style="width:76px" onclick="toast(\'Template gebruiken: open een klant-kalender en kies Programma in het dag-menu\')">Gebruik</button></div>';
     }).join('') || '<div style="padding:30px;text-align:center" class="muted">Geen templates gevonden.</div>';
