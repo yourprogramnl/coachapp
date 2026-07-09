@@ -517,6 +517,17 @@ textarea.fcinput.note{background:#fdf6d9;border-color:#ecdf9a}
 .fcmts .fcmt.notec .t{background:#fdf6d9;border-radius:8px;padding:8px 11px}
 .fcrow .send2{cursor:pointer}
 .fcrow .send2.actief{background:var(--accent)}
+/* history-modal zoals CoachRx */
+.histtop{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+.histtop input{flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px}
+.histlist{max-height:56vh;overflow:auto;padding-right:6px;margin-top:14px}
+.histcard{border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(20,24,31,.05)}
+.histcard .hch{display:flex;justify-content:space-between;align-items:center;background:#f2f4f6;padding:9px 14px;font-size:12px;color:var(--muted)}
+.histcard .hch b{font-size:14px;color:var(--txt)}
+.histcard .hcb{padding:13px 14px;display:flex;gap:12px}
+.hlog{background:#f2f4f6;border-left:3px solid var(--ok);border-radius:5px;padding:9px 12px;font-size:12.5px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hlog .okc2{width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hlog .okc2 .i{width:9px;height:9px;stroke-width:2.6}
 #float-store{display:none}
 .mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 
@@ -1755,6 +1766,23 @@ doelstelling over 4 weken:
   </div>
 </div>
 
+<!-- MODAL: workout-history & metrics -->
+<div class="overlay" id="histmodal">
+  <div class="modal" style="max-width:720px">
+    <h2>Zoek workout-history &amp; metrics</h2>
+    <div class="histtop">
+      <input id="hist-zoek" value="">
+      <button class="tgl on" onclick="this.classList.toggle('on')"><span class="sw"></span> Alleen exacte match</button>
+    </div>
+    <div class="tabs" style="margin-bottom:0">
+      <button class="on">Oefening-history<span class="cnt" id="hist-cnt">12</span></button>
+      <button>Workouts<span class="cnt">0</span></button>
+      <button>Metrics<span class="cnt">0</span></button>
+    </div>
+    <div class="histlist" id="hist-lijst"></div>
+  </div>
+</div>
+
 <script>
 function go(p){
   document.querySelectorAll('.page').forEach(function(el){el.classList.remove('active')});
@@ -1953,19 +1981,41 @@ function toggleMark(el){
   kaart.querySelector('.fscore').textContent=ok.length+'/'+alle.length;
   toast(miss?'Gemarkeerd als gemist':'Gemarkeerd als gedaan');
 }
+var HIST2={
+ 'leg press glute focus':{n:12,rows:[
+   ['4/4','maandag 15 juni 2026','3 x 20 reps @ 4010\nrest 2 min','3x 10'],
+   ['3/4','donderdag 7 mei 2026','3 x 18 reps @ 4010\nrest 2 min','Gutes zijn nu wel warm'],
+   ['2/4','donderdag 16 april 2026','3 x 15 reps @ 4010\nrest 2 min','0, 10 , 10'],
+   ['4/4','maandag 30 maart 2026','3 x 15 reps @ 4010\nrest 2 min','3 x 12'],
+   ['3/4','maandag 16 maart 2026','3 x 12 reps @ 4010\nrest 2 min','3 x 12, ging licht'],
+   ['4/4','maandag 2 maart 2026','3 x 12 reps @ 4010\nrest 2 min','3 x 10']]},
+ 'Romanian Deadlift':{n:9,rows:[
+   ['4/4','maandag 15 juni 2026','5-7 reps @ 3010\nrest 1 min','Stang plus 10'],
+   ['4/4','maandag 8 juni 2026','5-7 reps @ 3010\nrest 1 min','Stang plus 7,5'],
+   ['3/4','maandag 1 juni 2026','5-7 reps @ 3010\nrest 1 min','Alleen stang'],
+   ['4/4','maandag 25 mei 2026','5-7 reps @ 3010\nrest 1 min','Alleen stang']]},
+ 'Deadlift':{n:7,rows:[
+   ['2/4','maandag 1 juni 2026','8-12 reps @ 3010\nrest 2 min','80 kg x 5'],
+   ['4/4','maandag 25 mei 2026','8-12 reps @ 3010\nrest 2 min','75 kg x 5'],
+   ['4/4','maandag 18 mei 2026','8-12 reps @ 3010\nrest 2 min','70 kg x 5']]}
+};
 function showHist(ev,el,naam){
   ev.stopPropagation();
-  var oud=document.querySelector('.histpop');
-  if(oud)oud.remove();
-  var rows=HIST[naam]||[['1 jun','—'],['25 mei','—'],['18 mei','—']];
-  var p=document.createElement('div');p.className='histpop show';
-  p.innerHTML='<h4>History — '+naam+'</h4>'+rows.map(function(r){return '<div class="hri"><span class="hd2">'+r[0]+'</span><span>'+r[1]+'</span></div>'}).join('');
-  el.closest('.fblok').appendChild(p);
-  setTimeout(function(){
-    document.addEventListener('click',function sluit(e){
-      if(!p.contains(e.target)){p.remove();document.removeEventListener('click',sluit);}
-    });
-  },0);
+  var d=HIST2[naam]||{n:3,rows:[
+    ['4/4','maandag 8 juni 2026','zelfde voorschrift als deze week','gelogd resultaat'],
+    ['3/4','maandag 1 juni 2026','zelfde voorschrift als deze week','gelogd resultaat'],
+    ['4/4','maandag 25 mei 2026','zelfde voorschrift als deze week','gelogd resultaat']]};
+  document.getElementById('hist-zoek').value=naam;
+  document.getElementById('hist-cnt').textContent=d.n;
+  var lijst=document.getElementById('hist-lijst');
+  lijst.innerHTML=d.rows.map(function(r){
+    return '<div class="histcard"><div class="hch"><b>'+r[0]+'</b><span>'+r[1]+'</span></div>'+
+      '<div class="hcb"><div class="fbadge">A</div><div class="fmain"><div class="fname">'+naam+'</div>'+
+      '<div class="fpresc">'+r[2]+'</div>'+
+      '<div class="hlog"><span>'+r[3]+'</span><span class="okc2"><svg class="i"><use href="#i-check"/></svg></span></div>'+
+      '</div></div></div>';
+  }).join('');
+  document.getElementById('histmodal').classList.add('show');
 }
 function feedTab(el,note){
   var tabs=el.parentNode.querySelectorAll('span');
