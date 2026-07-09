@@ -377,7 +377,11 @@ h3{font-size:14px;font-weight:700}
 .addnewbtn:hover{border-color:var(--muted2)}
 .sqbtn{width:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--muted)}
 .sqbtn:hover{border-color:var(--muted2)}
-.mcard{border:1.5px solid #9fdcb8;border-radius:9px;padding:6px;background:#fff}
+.mcard{border:1.5px solid #9fdcb8;border-radius:9px;padding:6px;background:#fff;position:relative;cursor:grab}
+.mcard.dragging{opacity:.45}
+.mday.dropover{outline:2px dashed var(--accent);outline-offset:-3px;background:#eef8fc}
+.kopbtn{position:absolute;top:4px;right:4px;width:24px;height:24px;border:1px solid var(--line);border-radius:6px;background:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:5;padding:0}
+.mcard:hover .kopbtn{display:flex}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -992,8 +996,8 @@ doelstelling over 4 weken:
         <div class="navarrows"><button onclick="mndScroll(-1)">&#8249;</button><button onclick="mndScroll(1)">&#8250;</button></div>
         <button class="btn ghost sm2" onclick="mndVandaag()">Vandaag</button>
         <div class="progsel" onclick="toggleProgDrop(event)">
-          <div class="pav" id="prog-badge">YP</div>
-          <div><div class="pn" id="prog-naam">YourProgram 1 on 1 (Michel)</div><div class="pt" id="prog-sub">1:1 · Michel</div></div>
+          <div class="pav" id="prog-badge">M</div>
+          <div><div class="pn" id="prog-naam">Coach Michel</div><div class="pt" id="prog-sub">1:1 · Michel</div></div>
           <span class="car">&#9662;</span>
           <div class="progdrop" id="progdrop" onclick="event.stopPropagation()">
             <div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input id="pd-zoek" placeholder="Zoek een programma…" oninput="filterProg(this.value)"></div>
@@ -1001,10 +1005,10 @@ doelstelling over 4 weken:
               <div class="pd-row" onclick="kiesProg(this,'Team training builder','Vast · team')"><div class="pd-badge geel">T</div><div class="pd-naam">Team training builder</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
               <div class="pd-row" onclick="kiesProg(this,'Template builder','Vast · templates')"><div class="pd-badge geel">T</div><div class="pd-naam">Template builder</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
               <div class="pd-row" onclick="kiesProg(this,'The Next Step','Classic · &euro;39/mnd')"><div class="pd-badge blauw">NS</div><div class="pd-naam">The Next Step</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
-              <div class="pd-row actief" onclick="kiesProg(this,'YourProgram 1 on 1 (Michel)','1:1 · Michel')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Michel)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
-              <div class="pd-row" onclick="kiesProg(this,'YourProgram 1 on 1 (Rieke)','1:1 · Rieke')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Rieke)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
-              <div class="pd-row" onclick="kiesProg(this,'YourProgram 1 on 1 (Stefan)','1:1 · Stefan')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Stefan)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
-              <div class="pd-row" onclick="kiesProg(this,'YourProgram 1 on 1 (Thirza)','1:1 · Thirza')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Thirza)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row actief" onclick="kiesProg(this,'Coach Michel','1:1 · Michel')"><div class="pd-badge">M</div><div class="pd-naam">Coach Michel</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'Coach Rieke','1:1 · Rieke')"><div class="pd-badge">R</div><div class="pd-naam">Coach Rieke</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'Coach Stefan','1:1 · Stefan')"><div class="pd-badge">S</div><div class="pd-naam">Coach Stefan</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'Coach Thirza','1:1 · Thirza')"><div class="pd-badge">T</div><div class="pd-naam">Coach Thirza</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
               <div class="pd-row" onclick="kiesProg(this,'YourProgram Showdown only','Classic')"><div class="pd-badge blauw">SD</div><div class="pd-naam">YourProgram Showdown only</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
               <div class="pd-row" onclick="kiesProg(this,'YP Hyrox Program','Classic')"><div class="pd-badge blauw">HX</div><div class="pd-naam">YP Hyrox Program</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
               <div class="pd-row" onclick="kiesProg(this,'YP showdown builder','Vast · alle shows')"><div class="pd-badge geel">Y</div><div class="pd-naam">YP showdown builder (alle showdowns)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
@@ -1044,7 +1048,7 @@ doelstelling over 4 weken:
       <div class="mrow">
         <div class="mday">
           <div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">06</span></div>
-          <div class="addrow2"><button class="addnewbtn" onclick="toast('Deze dag heeft al een workout — in de echte app kun je er meer toevoegen')"><svg class="i sm-i"><use href="#i-link"/></svg> Add New</button><button class="sqbtn" onclick="toast('Workout gekopieerd — plak hem op een andere dag')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>
+          <div class="addrow2"><button class="addnewbtn" onclick="toast('Deze dag heeft al een workout — in de echte app kun je er meer toevoegen')"><svg class="i sm-i"><use href="#i-link"/></svg> Add New</button><button class="sqbtn" onclick="kopieerWorkout(this,event)"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>
           <div class="mcard">
             <div class="msc">4/4</div>
             <div class="cblk">
@@ -2036,6 +2040,98 @@ document.addEventListener('click',function(){
   var kd=document.getElementById('klantdrop');
   if(kd)kd.classList.remove('show');
 });
+/* kopiëren / plakken / slepen (zoals CoachRx) */
+var KLEMBORD=null, sleepKaart=null;
+function kaartData(card){
+  var msc=card.querySelector('.msc');
+  var t=msc?msc.textContent.replace(/^\d+\/\d+\s*·?\s*/,'').trim():'';
+  if(!t)t='Workout';
+  var blk=[].map.call(card.querySelectorAll('.cblk'),function(b){
+    return [(b.querySelector('.n')||{textContent:''}).textContent,(b.querySelector('.pr')||{innerHTML:''}).innerHTML];
+  });
+  return {title:t,blk:blk};
+}
+function kopieerWorkout(el,ev){
+  ev.stopPropagation();
+  var card=el.closest('.mcard')||el.closest('.mday').querySelector('.mcard');
+  if(!card){toast('Geen workout gevonden om te kopiëren');return;}
+  KLEMBORD=kaartData(card);
+  toast('Workout gekopieerd — ga naar een lege dag en kies Plakken');
+}
+function plakKaart(cell,data){
+  var blokken=data.blk.map(function(b){return '<div class="cblk"><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div></div>'}).join('');
+  var d=document.createElement('div');d.className='mcard planned';
+  d.innerHTML='<div class="msc">0/'+data.blk.length+' · '+data.title+'</div>'+blokken+'<button class="combtn"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button>';
+  cell.appendChild(d);
+  cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
+  zetDragEnKnoppen();
+}
+function leesMoves(){try{return JSON.parse(localStorage.getItem('coachapp-moves')||'{}')}catch(e){return {}}}
+function schrijfMoves(m){try{localStorage.setItem('coachapp-moves',JSON.stringify(m))}catch(e){}}
+function onthoudVerplaatsing(van,naar){
+  if(!van||!naar)return;
+  var o=leesOpslag(),lijst=o[curKlant]||[];
+  for(var i=0;i<lijst.length;i++){
+    if(lijst[i].d===van){lijst[i].d=naar;schrijfOpslag(o);return;}
+  }
+  var m=leesMoves();var mk=m[curKlant]=m[curKlant]||{};
+  var orig=van;
+  for(var k in mk){if(mk[k]===van){orig=k;break;}}
+  mk[orig]=naar;schrijfMoves(m);
+}
+function zetDragEnKnoppen(){
+  document.querySelectorAll('#kalgrid .mcard').forEach(function(card){
+    card.setAttribute('draggable','true');
+    if(!card.querySelector('.kopbtn')){
+      var b=document.createElement('button');b.className='kopbtn tip';b.setAttribute('data-tip','Kopieer workout');
+      b.innerHTML='<svg class="i sm-i"><use href="#i-copy"/></svg>';
+      b.onclick=function(ev){kopieerWorkout(b,ev)};
+      card.appendChild(b);
+    }
+  });
+}
+function initSleep(){
+  var grid=document.getElementById('kalgrid');
+  if(!grid||grid.dataset.dnd)return;grid.dataset.dnd='1';
+  grid.addEventListener('dragstart',function(e){
+    var c=e.target.closest?e.target.closest('.mcard'):null;
+    if(!c)return;
+    sleepKaart=c;c.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    try{e.dataTransfer.setData('text/plain','workout')}catch(err){}
+  });
+  grid.addEventListener('dragend',function(){
+    if(sleepKaart)sleepKaart.classList.remove('dragging');
+    grid.querySelectorAll('.dropover').forEach(function(x){x.classList.remove('dropover')});
+  });
+  grid.addEventListener('dragover',function(e){
+    var cel=e.target.closest?e.target.closest('.mday'):null;
+    if(!cel||!sleepKaart)return;
+    if(cel.querySelector('.mcard')&&cel!==sleepKaart.parentNode)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    grid.querySelectorAll('.dropover').forEach(function(x){if(x!==cel)x.classList.remove('dropover')});
+    cel.classList.add('dropover');
+  });
+  grid.addEventListener('drop',function(e){
+    var cel=e.target.closest?e.target.closest('.mday'):null;
+    grid.querySelectorAll('.dropover').forEach(function(x){x.classList.remove('dropover')});
+    if(!cel||!sleepKaart)return;
+    e.preventDefault();
+    var bron=sleepKaart.parentNode;
+    if(cel===bron){sleepKaart=null;return;}
+    if(cel.querySelector('.mcard')){toast('Deze dag heeft al een workout');sleepKaart=null;return;}
+    cel.appendChild(sleepKaart);
+    cel.classList.remove('selectable');cel.removeAttribute('onclick');cel.onclick=null;
+    if(bron&&bron.classList&&bron.classList.contains('mday')&&!bron.querySelector('.mcard')){
+      bron.classList.add('selectable');bron.setAttribute('onclick','openDayMenu(this,event)');delete bron.dataset.hm;
+    }
+    bindHoverMenus();
+    onthoudVerplaatsing(bron&&bron.dataset?bron.dataset.d:null,cel.dataset.d);
+    var lbl=cel.querySelector('.dnum2');
+    toast('Workout verplaatst'+(lbl?' naar '+lbl.textContent.trim():'')+' — blijft bewaard');
+    sleepKaart=null;
+  });
+}
 /* per-klant kalender: eigen programma + opgeslagen workouts blijven staan */
 var KAL_ORIG=null;
 function dstr(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
@@ -2086,15 +2182,7 @@ var KPLAN={};
 })();
 function leesOpslag(){try{return JSON.parse(localStorage.getItem('coachapp-workouts')||'{}')}catch(e){return {}}}
 function schrijfOpslag(o){try{localStorage.setItem('coachapp-workouts',JSON.stringify(o))}catch(e){}}
-function plaatsKaart(cell,title,ex,presc){
-  var d=document.createElement('div');d.className='mcard planned';
-  d.innerHTML='<div class="msc">0/1 · '+title+'</div>'+
-    '<div class="cblk"><div class="n">A) '+ex+'</div><div class="pr">'+presc+'</div>'+
-    '<div class="loginp" style="color:var(--accent-d);font-weight:600">demo-video gekoppeld</div></div>'+
-    '<button class="combtn">Comments</button>';
-  cell.appendChild(d);
-  cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
-}
+
 function bouwKal(id){
   var grid=document.getElementById('kalgrid');
   if(!grid||KAL_ORIG===null)return;
@@ -2124,8 +2212,21 @@ function bouwKal(id){
   }
   (leesOpslag()[id]||[]).forEach(function(w){
     var cell=grid.querySelector('.mday[data-d="'+w.d+'"]');
-    if(cell)plaatsKaart(cell,w.title,w.ex,w.presc);
+    if(!cell||cell.querySelector('.mcard'))return;
+    plakKaart(cell, w.blk ? w : {title:w.title,blk:[['A) '+w.ex,w.presc]]});
   });
+  var mv=leesMoves()[id]||{};
+  for(var van in mv){
+    var bronCel=grid.querySelector('.mday[data-d="'+van+'"]');
+    var doelCel=grid.querySelector('.mday[data-d="'+mv[van]+'"]');
+    var kaart=bronCel?bronCel.querySelector('.mcard'):null;
+    if(kaart&&doelCel&&!doelCel.querySelector('.mcard')){
+      doelCel.appendChild(kaart);
+      doelCel.classList.remove('selectable');doelCel.removeAttribute('onclick');doelCel.onclick=null;
+      bronCel.classList.add('selectable');bronCel.setAttribute('onclick','openDayMenu(this,event)');
+    }
+  }
+  zetDragEnKnoppen();
   bindHoverMenus();
 }
 /* coach-detail (roster zoals CoachRx) */
@@ -2198,10 +2299,10 @@ function markKlant(id){
   curKlant=id;
   var co=coachVan(id)||curCoach;
   if(co!==curCoach){
-    document.getElementById('prog-naam').textContent='YourProgram 1 on 1 ('+co+')';
+    document.getElementById('prog-naam').textContent='Coach '+co;
     document.getElementById('prog-sub').textContent='1:1 \u00b7 '+co;
-    document.getElementById('prog-badge').textContent='YP';
-    document.querySelectorAll('#pd-lijst .pd-row').forEach(function(r){r.classList.toggle('actief',r.textContent.indexOf('('+co+')')>=0)});
+    document.getElementById('prog-badge').textContent=co.charAt(0);
+    document.querySelectorAll('#pd-lijst .pd-row').forEach(function(r){r.classList.toggle('actief',r.textContent.indexOf('Coach '+co)>=0)});
   }
   renderKlantDrop(co);
 }
@@ -2342,7 +2443,13 @@ function pickProgram(ev){
 }
 function pickPaste(ev){
   ev.stopPropagation();storeFloats();
-  toast('Nog niets gekopieerd — gebruik het kopieer-icoon op een workout');
+  if(!KLEMBORD){toast('Nog niets gekopieerd — gebruik het kopieer-icoon op een workout');return;}
+  if(!curCell)return;
+  plakKaart(curCell,KLEMBORD);
+  if(curCell.dataset.d){
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:KLEMBORD.title,blk:KLEMBORD.blk});schrijfOpslag(o);
+  }
+  toast('Workout geplakt — blijft bewaard');
 }
 function assignProgramDay(ev,name){
   ev.stopPropagation();storeFloats();
@@ -2394,7 +2501,7 @@ function saveWorkout(){
     '<button class="combtn">Comments</button>';
   curCell.appendChild(d);curCell.classList.remove('selectable');curCell.removeAttribute('onclick');curCell.onclick=null;
   if(curCell.dataset.d){
-    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,ex:ex,presc:presc});schrijfOpslag(o);
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:[['A) '+ex,presc]]});schrijfOpslag(o);
   }
   toast('Workout opgeslagen — '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
 }
@@ -2641,6 +2748,8 @@ buildWeeks();
 bindHoverMenus();
 tagDates();
 KAL_ORIG=document.getElementById('kalgrid').innerHTML;
+initSleep();
+zetDragEnKnoppen();
 renderKlantDrop('Michel');
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
