@@ -18,7 +18,7 @@
   --ss-a:#ec4899; --ss-b:#8b7cf6; --ss-c:#3eb3e0;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html,body{min-height:100%}
 body{font-family:'Archivo',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   background:var(--bg);color:var(--txt);font-size:14px;-webkit-font-smoothing:antialiased}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
@@ -1010,7 +1010,15 @@ doelstelling over 4 weken:
             </div>
           </div>
         </div>
-        <div class="ktabs" id="ktabs"></div>
+        <div class="progsel" id="klantsel" onclick="toggleKlantDrop(event)">
+          <div class="pav" id="kl-badge" style="background:linear-gradient(135deg,#38bdf8,#6366f1)">RV</div>
+          <div><div class="pn" id="kl-naam">Rick van der Sluis</div><div class="pt" id="kl-sub">Klant &#183; Michel (3)</div></div>
+          <span class="car">&#9662;</span>
+          <div class="progdrop" id="klantdrop" onclick="event.stopPropagation()">
+            <div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input id="kd-zoek" placeholder="Zoek een klant&#8230;" oninput="filterKlant(this.value)"></div>
+            <div class="pd-lijst" id="kd-lijst"></div>
+          </div>
+        </div>
         <div class="seg">
           <button class="on">Workouts</button>
           <button>Lifestyle</button>
@@ -1968,6 +1976,7 @@ function mndVandaag(){mndIdx=0;mndGa();}
 /* programma-dropdown (Strivee) */
 function toggleProgDrop(ev){
   ev.stopPropagation();
+  var kd=document.getElementById('klantdrop');if(kd)kd.classList.remove('show');
   document.getElementById('progdrop').classList.toggle('show');
 }
 function filterProg(v){
@@ -1984,26 +1993,62 @@ function kiesProg(el,naam,sub){
   document.getElementById('prog-badge').textContent=el.querySelector('.pd-badge').textContent;
   document.getElementById('progdrop').classList.remove('show');
   var cm=sub.match(/^1:1 \u00b7 (\w+)/);
-  if(cm){renderKtabs(cm[1],curKlant);}else{var kw=document.getElementById('ktabs');if(kw)kw.innerHTML='';setTimeout(fixSticky,0);}
+  if(cm){renderKlantDrop(cm[1]);}else{var kw=document.getElementById('klantsel');if(kw)kw.style.display='none';setTimeout(fixSticky,0);}
   toast('Programma gewisseld naar '+naam+' — als admin zie je alle coaches; rechten per coach regelen we in de echte app');
 }
 document.addEventListener('click',function(){
   var pd=document.getElementById('progdrop');
   if(pd)pd.classList.remove('show');
+  var kd=document.getElementById('klantdrop');
+  if(kd)kd.classList.remove('show');
 });
-/* klant-tabs naast programma (Strivee) */
+/* klant-dropdown naast programma (Strivee) */
 var PROGKL={Michel:['rick','aafke','stijn'],Rieke:['annebel','masha'],Stefan:['stefan','tessa'],Thirza:['zoe']};
-var curKlant='rick';
-function renderKtabs(coach,actief){
-  var wrap=document.getElementById('ktabs');if(!wrap)return;
+var curKlant='rick', curCoach='Michel';
+function coachVan(id){for(var k in PROGKL){if(PROGKL[k].indexOf(id)>=0)return k;}return null;}
+function renderKlantDrop(coach){
+  curCoach=coach;
+  var sel=document.getElementById('klantsel'), lijst=document.getElementById('kd-lijst');
+  if(!sel)return;
   var ids=PROGKL[coach]||[];
-  wrap.innerHTML=ids.map(function(id){var c=CLIENTS[id];
-    return '<button class="ktab'+(id===actief?' on':'')+'" data-kl="'+id+'" onclick="openClient(\''+id+'\')"><span class="kt-av" style="background:'+c.av+'">'+c.ini+'</span>'+c.nm.split(' ')[0]+'</button>';
+  sel.style.display = ids.length ? '' : 'none';
+  lijst.innerHTML=ids.map(function(id){var c=CLIENTS[id];
+    return '<div class="pd-row'+(id===curKlant?' actief':'')+'" data-kl="'+id+'" onclick="kiesKlant(\''+id+'\',event)"><div class="pd-badge" style="background:'+c.av+'">'+c.ini+'</div><div class="pd-naam">'+c.nm+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   }).join('');
+  var act = ids.indexOf(curKlant)>=0 ? CLIENTS[curKlant] : null;
+  document.getElementById('kl-naam').textContent = act ? act.nm : 'Kies een klant';
+  document.getElementById('kl-sub').textContent = 'Klant \u00b7 '+coach+' ('+ids.length+')';
+  var b=document.getElementById('kl-badge');
+  b.textContent = act ? act.ini : '?';
+  b.style.background = act ? act.av : '#4a4f57';
   setTimeout(fixSticky,0);
 }
-function markKtab(id){
-  document.querySelectorAll('#ktabs .ktab').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-kl')===id)});
+function markKlant(id){
+  curKlant=id;
+  var co=coachVan(id)||curCoach;
+  if(co!==curCoach){
+    document.getElementById('prog-naam').textContent='YourProgram 1 on 1 ('+co+')';
+    document.getElementById('prog-sub').textContent='1:1 \u00b7 '+co;
+    document.getElementById('prog-badge').textContent='YP';
+    document.querySelectorAll('#pd-lijst .pd-row').forEach(function(r){r.classList.toggle('actief',r.textContent.indexOf('('+co+')')>=0)});
+  }
+  renderKlantDrop(co);
+}
+function kiesKlant(id,ev){
+  if(ev)ev.stopPropagation();
+  document.getElementById('klantdrop').classList.remove('show');
+  openClient(id);
+}
+function toggleKlantDrop(ev){
+  ev.stopPropagation();
+  document.getElementById('progdrop').classList.remove('show');
+  document.getElementById('klantdrop').classList.toggle('show');
+}
+function filterKlant(v){
+  v=v.toLowerCase();
+  document.querySelectorAll('#kd-lijst .pd-row').forEach(function(r){
+    r.style.display = r.textContent.toLowerCase().indexOf(v)>=0 ? '' : 'none';
+  });
 }
 function fixSticky(){
   var ch=document.querySelector('#cv-cal .calhead');
@@ -2049,7 +2094,7 @@ function openClient(id){
   var bAv=side.querySelector('.bigav');bAv.textContent=c.ini;bAv.style.background=c.av;
   side.querySelector('.cinfo').innerHTML=c.info;
   go('client');cview('cal');
-  curKlant=id;markKtab(id);
+  markKlant(id);
   toast('Programma van '+c.nm+' geopend');
 }
 /* dag-menu (zoals CoachRx: Workout / Rustdag / Programma / Plakken) */
@@ -2419,7 +2464,7 @@ function buildWeeks(){
 }
 buildWeeks();
 bindHoverMenus();
-renderKtabs('Michel','rick');
+renderKlantDrop('Michel');
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('show')});
