@@ -391,6 +391,7 @@ h3{font-size:14px;font-weight:700}
 .sslink:hover{border-color:#9aa0a8}
 .sslink.aan{border-color:var(--accent);color:var(--accent-d);background:#eaf6fb}
 .klem2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ib textarea{overflow:hidden;min-height:22px}
 .blokchips{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
 .wkblok{border:1px solid var(--line);border-radius:10px;padding:12px 34px 12px 12px;margin-bottom:10px;position:relative}
 .wkblok input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:7px}
@@ -2300,6 +2301,13 @@ function exModalOpslaan(){
   closeExModal();
   toast('Oefening toegevoegd aan de bibliotheek — in de echte app gaat dit direct de database in');
 }
+/* tekstvelden in de bouwer groeien mee zodat alles zichtbaar is (zoals CoachRx) */
+function groei(t){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';}
+function groeiAlles(){document.querySelectorAll('#ib-root textarea').forEach(groei);}
+(function(){
+  var r=document.getElementById('ib-root');
+  if(r)r.addEventListener('input',function(e){if(e.target&&e.target.tagName==='TEXTAREA')groei(e.target);});
+})();
 /* inline bewerken in de dagcel (zoals CoachRx) */
 var bwCel=null, bwKaart=null;
 function openInlineEdit(card){
@@ -2333,6 +2341,7 @@ function openInlineEdit(card){
   });
   if(!blk.length)h.appendChild(maakBlok('ex'));
   hernummer();
+  groeiAlles();
   document.getElementById('ib-verwijder').style.display='';
   document.getElementById('ib-title').focus();
 }
@@ -2918,6 +2927,7 @@ function pickWorkout(ev){
   document.getElementById('ib-warmup').value='';
   document.getElementById('ib-cooldown').value='';
   resetBlokken();
+  groeiAlles();
   document.getElementById('ib-title').focus();
 }
 function pickRest(ev){
