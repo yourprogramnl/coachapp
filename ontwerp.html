@@ -357,7 +357,7 @@ h3{font-size:14px;font-weight:700}
   padding:11px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:400;opacity:0;pointer-events:none;transition:.25s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 /* maandweergave zoals CoachRx */
-.mhead7{display:grid;grid-template-columns:repeat(7,1fr);background:var(--nav);color:#fff;position:sticky;top:52px;z-index:40}
+.mhead7{display:grid;grid-template-columns:repeat(7,1fr);background:var(--nav);color:#fff;position:sticky;top:calc(52px + var(--calh,63px));z-index:40}
 .mhead7 div{padding:8px 10px;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;text-align:center}
 .mrow{display:grid;grid-template-columns:repeat(7,1fr)}
 .mday{border-right:1px solid var(--line2);border-bottom:1px solid var(--line);min-height:122px;padding:3px 4px 6px;background:#fff;position:relative}
@@ -396,6 +396,12 @@ h3{font-size:14px;font-weight:700}
 .combtn:hover{border-color:var(--muted2)}
 .mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 #p-client .client-layout{border-radius:0;border-left:none;border-right:none;border-top:none;overflow:visible}
+#cv-cal .calhead{position:sticky;top:52px;z-index:45}
+.ktabs{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.ktab{display:flex;align-items:center;gap:6px;padding:4px 11px 4px 4px;border:1px solid var(--line);border-radius:20px;background:#fff;font-family:inherit;font-size:12.5px;font-weight:700;color:#333;cursor:pointer}
+.ktab:hover{border-color:#b9bec6}
+.ktab.on{background:var(--nav);color:#fff;border-color:var(--nav)}
+.kt-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex:none}
 .collapsebtn{margin:6px 8px 4px;display:flex;align-items:center;gap:8px;color:#aab0b8;padding:9px 11px;border-radius:8px;font-size:12px;font-weight:600;width:calc(100% - 16px);text-align:left}
 .collapsebtn:hover{background:#22252b;color:#fff}
 #cl-arrow{font-size:14px;line-height:1}
@@ -1004,6 +1010,7 @@ doelstelling over 4 weken:
             </div>
           </div>
         </div>
+        <div class="ktabs" id="ktabs"></div>
         <div class="seg">
           <button class="on">Workouts</button>
           <button>Lifestyle</button>
@@ -1890,6 +1897,7 @@ function cview(v){
     if(nb)nb.classList.toggle('on', x===v);
   });
   closePanels();
+  if(v==='cal')setTimeout(fixSticky,0);
 }
 function openPanel(id){
   closePanels();
@@ -1975,12 +1983,33 @@ function kiesProg(el,naam,sub){
   document.getElementById('prog-sub').textContent=sub;
   document.getElementById('prog-badge').textContent=el.querySelector('.pd-badge').textContent;
   document.getElementById('progdrop').classList.remove('show');
+  var cm=sub.match(/^1:1 \u00b7 (\w+)/);
+  if(cm){renderKtabs(cm[1],curKlant);}else{var kw=document.getElementById('ktabs');if(kw)kw.innerHTML='';setTimeout(fixSticky,0);}
   toast('Programma gewisseld naar '+naam+' — als admin zie je alle coaches; rechten per coach regelen we in de echte app');
 }
 document.addEventListener('click',function(){
   var pd=document.getElementById('progdrop');
   if(pd)pd.classList.remove('show');
 });
+/* klant-tabs naast programma (Strivee) */
+var PROGKL={Michel:['rick','aafke','stijn'],Rieke:['annebel','masha'],Stefan:['stefan','tessa'],Thirza:['zoe']};
+var curKlant='rick';
+function renderKtabs(coach,actief){
+  var wrap=document.getElementById('ktabs');if(!wrap)return;
+  var ids=PROGKL[coach]||[];
+  wrap.innerHTML=ids.map(function(id){var c=CLIENTS[id];
+    return '<button class="ktab'+(id===actief?' on':'')+'" data-kl="'+id+'" onclick="openClient(\''+id+'\')"><span class="kt-av" style="background:'+c.av+'">'+c.ini+'</span>'+c.nm.split(' ')[0]+'</button>';
+  }).join('');
+  setTimeout(fixSticky,0);
+}
+function markKtab(id){
+  document.querySelectorAll('#ktabs .ktab').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-kl')===id)});
+}
+function fixSticky(){
+  var ch=document.querySelector('#cv-cal .calhead');
+  if(ch&&ch.offsetHeight>0)document.documentElement.style.setProperty('--calh',ch.offsetHeight+'px');
+}
+window.addEventListener('resize',fixSticky);
 /* klik op klant-avatar -> direct naar programma */
 var CLIENTS={
  rick:{nm:'Rick van der Sluis',ini:'RV',av:'linear-gradient(135deg,#38bdf8,#6366f1)',
@@ -2020,6 +2049,7 @@ function openClient(id){
   var bAv=side.querySelector('.bigav');bAv.textContent=c.ini;bAv.style.background=c.av;
   side.querySelector('.cinfo').innerHTML=c.info;
   go('client');cview('cal');
+  curKlant=id;markKtab(id);
   toast('Programma van '+c.nm+' geopend');
 }
 /* dag-menu (zoals CoachRx: Workout / Rustdag / Programma / Plakken) */
@@ -2389,6 +2419,8 @@ function buildWeeks(){
 }
 buildWeeks();
 bindHoverMenus();
+renderKtabs('Michel','rick');
+fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('show')});
 });
