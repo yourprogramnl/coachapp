@@ -467,6 +467,34 @@ h3{font-size:14px;font-weight:700}
 .pfwrap{max-width:780px;margin:18px auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px}
 .pfgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 22px}
 .pfav{width:76px;height:76px;border-radius:50%;background:#6b7280;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin:0 auto 12px}
+/* activity feed exact CoachRx */
+.fcard{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:18px;padding:20px 22px}
+.fcard .fhead{display:flex;gap:12px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line2)}
+.fcard .fscore{font-size:17px;font-weight:800;padding:13px 2px;border-bottom:1px solid var(--line2)}
+.fblok{display:flex;gap:14px;padding:16px 2px;border-bottom:1px solid var(--line2)}
+.fblok.last{border-bottom:none}
+.fbadge{width:26px;height:26px;border-radius:6px;background:#eef1f4;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#4a4f57;flex-shrink:0}
+.fbadge.warm{background:var(--nav);color:#fff}
+.fmain{flex:1;min-width:0}
+.fname{font-weight:700;font-size:14px;margin-bottom:8px;padding-top:3px}
+.fpresc{font-size:13px;color:#3d434b;line-height:1.7;white-space:pre-line}
+.flog{background:#f2f4f6;border-radius:6px;padding:11px 14px;font-size:12.5px;margin-top:12px}
+.fmarks{display:flex;flex-direction:column;gap:10px;align-items:center;width:30px;flex-shrink:0}
+.fok{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ok);background:#fff}
+.fok .i{width:13px;height:13px;stroke-width:2.4}
+.fok.miss{color:var(--bad)}
+.fhist{color:var(--muted2);display:flex}
+.fcomment{border-top:1px solid var(--line2);margin-top:2px;padding-top:14px}
+.fctabs{display:flex;gap:16px;font-size:12.5px;font-weight:700;margin-bottom:10px}
+.fctabs .on2{border-bottom:2px solid var(--accent);padding-bottom:4px}
+.fctabs .off2{color:var(--muted)}
+.fcinput{border:1px solid var(--line);border-radius:8px;min-height:60px;padding:10px 12px;font-size:12.5px;color:var(--muted2)}
+.fcrow{display:flex;align-items:center;gap:12px;margin-top:10px;color:var(--muted2)}
+.fcrow .i{width:14px;height:14px}
+.fcrow .send2{margin-left:auto;background:#a8d8ec;color:#fff;font-weight:700;font-size:12.5px;padding:7px 16px;border-radius:7px}
+.feedload{text-align:center;padding:20px;color:var(--muted);font-size:12.5px}
+.spin{width:20px;height:20px;border:2.5px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 8px;animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
 #float-store{display:none}
 .mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 
@@ -588,17 +616,8 @@ h3{font-size:14px;font-weight:700}
           <button>Lifestyle</button>
           <button>Check-ins</button>
         </div>
-        <div class="feedcard">
-          <div class="fh">
-            <div class="avc av1" style="width:34px;height:34px">RV</div>
-            <div><b>Rick van der Sluis</b><div class="sm muted">Gedaan op ma 6 juli 2026</div></div>
-            <span class="pill ok" style="margin-left:auto">4/4 afgerond</span>
-          </div>
-          <div class="feedblock"><div class="bic">W</div><div><b>Warming-up</b><div class="desc">5 min cardio naar keuze + McGill big 3</div></div></div>
-          <div class="feedblock"><div class="bic">A</div><div><b>Plyo — seated box jumps</b><div class="desc">1.1.1 · rust 90 sec x 3 sets — log: "3 x pads ging goed"</div></div></div>
-          <div class="feedblock"><div class="bic">B</div><div><b>Back squat w/safety barbell</b><div class="desc">8-12 @ 3010 · rust 2 min x 3 sets — log: "alleen stang, zwaar genoeg" · video</div></div></div>
-          <div class="feedblock"><div class="bic">C</div><div><b>Upper based</b><div class="desc">12-10-8 bench press @ 3010 · 12-10-8 DB row per arm</div></div></div>
-        </div>
+        <div id="feedhost"></div>
+        <div class="feedload" id="feedload" style="display:none"><div class="spin"></div>Meer scores laden…</div>
       </div>
     </div>
 
@@ -1893,6 +1912,85 @@ function buildWeeks(){
   }
 }
 buildWeeks();
+
+/* activity feed: kaarten exact CoachRx, bijladen bij scrollen */
+var FEED_DATA=[
+ {av:'av1',ini:'RV',naam:'Rick van der Sluis',due:'Due 15 jun 2026',score:'4/4',blokken:[
+   {b:'W',naam:'Warmup',presc:'EMOM 10:\n1) 45 sec echo bike\n2) 20/20 sec side plank\n3) 10 air squats @ controled'},
+   {b:'A',naam:'leg press glute focus',presc:'3 x 20 reps @ 4010\nrest 2 min',log:'3x 10',st:'ok'},
+   {b:'B1',naam:'Romanian Deadlift',presc:'5-7 reps @ 3010\nrest 1 min',log:'Stang plus 10',st:'ok'},
+   {b:'B2',naam:'glider reverse lunges',presc:'20/20 reps @ 2010\nrest 2 min x 3 sets',log:'10/10 zwaar zat',st:'ok'},
+   {b:'C1',naam:'Dumbbell Bench Press',presc:'20 reps @ 3010\nrest 90 sec',log:'15 c 7.5 kg',st:'ok'},
+   {b:'C2',naam:'db seal row (rear delt focus)',presc:'20 reps @ 3010\nrest 90 sec x 3 sets',log:'15 x 10 kg',st:'ok'},
+   {b:'D',naam:'Workout',presc:'3 rounds for time:\n1000m C2 bike\n10 HR push ups\n10 kb swings @ 12kg',st:'miss'}]},
+ {av:'av2',ini:'SB',naam:'Stefan Bakker',due:'Due 14 jun 2026',score:'0/1',blokken:[
+   {b:'A',naam:'test',presc:'TEST TEST',st:'miss'}]},
+ {av:'av1',ini:'RV',naam:'Rick van der Sluis',due:'Due 8 jun 2026',score:'2/4',blokken:[
+   {b:'W',naam:'Warmup',presc:'EMOM 10:\n1) 45 sec row\n2) 30 sec plank'},
+   {b:'A',naam:'Safety bar back squat',presc:'3 x 15-20 @ 3010\nrest 2 min',log:'3 x 10 stang',st:'ok'},
+   {b:'B',naam:'Deadlift',presc:'5-7 reps @ 3010\nrest 2 min',st:'miss'},
+   {b:'C1',naam:'Incline Dumbbell Powell Raise',presc:'8 reps @ 3010\nrest 60 sec',st:'miss'},
+   {b:'C2',naam:'Neutral Grip T-Bar Row Machine',presc:'12 reps @ 3010\nrest 90 sec',log:'100',st:'ok'}]},
+ {av:'av3',ini:'AK',naam:'Aafke Kruisselbrink',due:'Due 7 jun 2026',score:'3/3',blokken:[
+   {b:'W',naam:'Warmup',presc:'1/4 warming up:\n15 cal echo bike\n15 kang squats\n30 sec plank'},
+   {b:'A',naam:'Power Clean',presc:'5 x 3 @ 70% 1RM\nrest 2 min',log:'3 x 40 kg, voelde goed',st:'ok'},
+   {b:'B',naam:'Front Squat',presc:'4 x 6 @ 3010\nrest 2 min',log:'6 x 42,5 kg',st:'ok'},
+   {b:'C',naam:'Conditioning',presc:'12 min AMRAP:\n10 wall balls\n10 cal row',log:'6 rondes + 8 wall balls',st:'ok'}]},
+ {av:'av6',ini:'TO',naam:'Tessa van Oijen',due:'Due 7 jun 2026',score:'2/3',blokken:[
+   {b:'W',naam:'Warmup',presc:'5 min cardio naar keuze + McGill big 3'},
+   {b:'A',naam:'Bench Press',presc:'12-10-8 @ 3010\nrest 90 sec',log:'8 x 32,5 kg',st:'ok'},
+   {b:'B1',naam:'Seal Row',presc:'12-10-8 @ 30X1\nrest 30 sec',log:'10 x 20 kg',st:'ok'},
+   {b:'B2',naam:'Reverse grip lat pull down',presc:'max unbroken @ 3010\nrest 2 min',st:'miss'}]},
+ {av:'av5',ini:'SM',naam:'Stijn Meijs',due:'Due 6 jun 2026',score:'4/4',blokken:[
+   {b:'W',naam:'Warmup',presc:'EMOM 8: 40 sec bike erg / 15 banded good mornings'},
+   {b:'A',naam:'Back Squat',presc:'5 x 5 @ 20X1\nrest 2 min',log:'5 x 80 kg PR-poging volgende week',st:'ok'},
+   {b:'B',naam:'Romanian Deadlift',presc:'3 x 8 @ 3010\nrest 90 sec',log:'8 x 70 kg',st:'ok'},
+   {b:'C',naam:'Conditioning',presc:'3 rounds:\n500m row\n15 burpees',log:'11:42',st:'ok'}]}
+];
+var feedIndex=0;
+function feedCardHtml(d){
+  var h='<div class="fcard"><div class="fhead"><div class="avc '+d.av+'" style="width:38px;height:38px">'+d.ini+'</div>'+
+    '<div><b>'+d.naam+'</b><div class="sm muted">'+d.due+'</div></div></div>'+
+    '<div class="fscore">'+d.score+'</div>';
+  d.blokken.forEach(function(bl,i){
+    var badge = bl.b==='W' ? '<div class="fbadge warm">W</div>' : '<div class="fbadge">'+bl.b+'</div>';
+    h+='<div class="fblok'+(i===d.blokken.length-1?' last':'')+'">'+badge+
+      '<div class="fmain"><div class="fname">'+bl.naam+'</div><div class="fpresc">'+bl.presc+'</div>'+
+      (bl.log?'<div class="flog">'+bl.log+'</div>':'')+'</div>';
+    if(bl.st){
+      h+='<div class="fmarks"><span class="fok'+(bl.st==='miss'?' miss':'')+'"><svg class="i"><use href="#i-'+(bl.st==='miss'?'x':'check')+'"/></svg></span>'+
+        '<span class="fhist"><svg class="i sm-i"><use href="#i-hist"/></svg></span></div>';
+    } else {
+      h+='<div class="fmarks"><span class="fhist"><svg class="i sm-i"><use href="#i-hist"/></svg></span></div>';
+    }
+    h+='</div>';
+  });
+  h+='<div class="fcomment"><div class="fctabs"><span class="on2">Comments</span><span class="off2">Note</span></div>'+
+    '<div class="fcinput">Schrijf een reactie…</div>'+
+    '<div class="fcrow"><svg class="i"><use href="#i-link"/></svg><svg class="i"><use href="#i-cam"/></svg><svg class="i"><use href="#i-play"/></svg><button class="send2">Send</button></div></div></div>';
+  return h;
+}
+function feedAppend(n){
+  var host=document.getElementById('feedhost');
+  if(!host)return;
+  for(var i=0;i<n&&feedIndex<FEED_DATA.length;i++,feedIndex++){
+    host.insertAdjacentHTML('beforeend',feedCardHtml(FEED_DATA[feedIndex]));
+  }
+}
+var feedBusy=false;
+window.addEventListener('scroll',function(){
+  if(!document.getElementById('p-dash').classList.contains('active'))return;
+  if(feedBusy||feedIndex>=FEED_DATA.length)return;
+  if(window.innerHeight+window.scrollY < document.body.offsetHeight-300)return;
+  feedBusy=true;
+  var l=document.getElementById('feedload');l.style.display='';
+  setTimeout(function(){
+    feedAppend(1);
+    l.style.display = feedIndex>=FEED_DATA.length ? 'none' : 'none';
+    feedBusy=false;
+  },650);
+});
+feedAppend(2);
 document.querySelectorAll('.overlay').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('show')});
 });
