@@ -599,7 +599,7 @@ textarea.fcinput.note{background:#fdf6d9;border-color:#ecdf9a}
           <button class="fchip">Consult (2)</button>
         </div>
         <div class="attn-card">
-          <div class="attn-row">
+          <div class="attn-row click" onclick="openClient('rick')">
             <div class="avc av1" style="width:32px;height:32px;font-size:11px">RV</div>
             <div class="nm">Rick van der Sluis</div>
             <div class="pills">
@@ -609,7 +609,7 @@ textarea.fcinput.note{background:#fdf6d9;border-color:#ecdf9a}
             </div>
             <div class="attn-ic"><svg class="i"><use href="#i-chat"/></svg><svg class="i"><use href="#i-eye"/></svg><svg class="i"><use href="#i-cal"/></svg></div>
           </div>
-          <div class="attn-row">
+          <div class="attn-row click" onclick="openClient('stefan')">
             <div class="avc av2" style="width:32px;height:32px;font-size:11px">SB</div>
             <div class="nm">Stefan Bakker</div>
             <div class="pills">
@@ -624,8 +624,8 @@ textarea.fcinput.note{background:#fdf6d9;border-color:#ecdf9a}
         <h2 style="margin:20px 0 2px">Contactmomenten <span class="muted" style="font-weight:400">(0%)</span></h2>
         <div class="sm muted"><b>0 van 2</b> klanten deze week gesproken · week van maandag <b>06-07-2026</b></div>
         <div class="tp-avs">
-          <div class="tp-av"><div class="circ">RV</div>Rick (0)</div>
-          <div class="tp-av"><div class="circ">SB</div>Stefan (0)</div>
+          <div class="tp-av" onclick="openClient('rick')"><div class="circ">RV</div>Rick (0)</div>
+          <div class="tp-av" onclick="openClient('stefan')"><div class="circ">SB</div>Stefan (0)</div>
         </div>
 
         <h2 style="margin:22px 0 10px">Activiteit</h2>
@@ -1801,6 +1801,22 @@ function toast(msg){
   t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(function(){t.classList.remove('show')},2600);
+}
+/* klik op klant-avatar -> direct naar programma */
+var CLIENTS={
+ rick:{nm:'Rick van der Sluis',ini:'RV',av:'linear-gradient(135deg,#38bdf8,#6366f1)',
+   info:'62 jaar · 100 kg · 193 cm<br>196 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag</span>'},
+ stefan:{nm:'Stefan Bakker',ini:'SB',av:'linear-gradient(135deg,#f472b6,#a855f7)',
+   info:'34 jaar · 88 kg · 184 cm<br>112 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#3b82f6"></span>woensdag</span>'}
+};
+function openClient(id){
+  var c=CLIENTS[id]||CLIENTS.rick;
+  var side=document.querySelector('#p-client .cside');
+  side.querySelector('.cnm').textContent=c.nm;
+  var bAv=side.querySelector('.bigav');bAv.textContent=c.ini;bAv.style.background=c.av;
+  side.querySelector('.cinfo').innerHTML=c.info;
+  go('client');cview('cal');
+  toast('Programma van '+c.nm+' geopend');
 }
 /* dag-menu (zoals CoachRx: Workout / Rustdag / Programma / Plakken) */
 var curCell=null;
