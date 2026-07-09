@@ -1258,6 +1258,7 @@ doelstelling over 4 weken:
           <div class="addbtns">
             <button onclick="blokBij('ex')">+ Oefening</button>
             <button onclick="blokBij('cond')">+ Conditioning</button>
+            <button onclick="openInsBouwer(event)">+ Programma</button>
             <button class="iconly" title="Kopieer"><svg class="i"><use href="#i-copy"/></svg></button>
           </div>
           <div class="sec">
@@ -2538,7 +2539,7 @@ function initSleep(){
     try{e.dataTransfer.setData('text/plain','workout')}catch(err){}
   });
   grid.addEventListener('dragend',function(){
-    if(sleepKaart)sleepKaart.classList.remove('dragging');
+    grid.querySelectorAll('.mcard.dragging').forEach(function(x){x.classList.remove('dragging')});
     grid.querySelectorAll('.dropover').forEach(function(x){x.classList.remove('dropover')});
   });
   grid.addEventListener('dragover',function(e){
@@ -2555,6 +2556,7 @@ function initSleep(){
     if(!cel||!sleepKaart)return;
     e.preventDefault();
     var kaart=sleepKaart;sleepKaart=null;
+    kaart.classList.remove('dragging');
     if(cel===kaart.parentNode)return;
     if(cel.querySelector('.mcard')){toast('Deze dag heeft al een workout');return;}
     verplaatsKaartNaar(kaart,cel);
@@ -2937,11 +2939,27 @@ function pickRest(ev){
   }
   toast('Dag ingesteld als rustdag');
 }
-var insTypeF='all', insKleur='';
+var insTypeF='all', insKleur='', insDoel='cel';
+function blokHistory(el,ev){
+  ev.stopPropagation();
+  var naam=el.closest('.exsec').querySelector('.ib-ex').value.trim()||'Oefening';
+  showHist(ev,el,naam);
+}
+function openInsBouwer(ev){
+  if(ev)ev.stopPropagation();
+  insDoel='bouwer';
+  insTypeF='all';insKleur='';
+  var z=document.getElementById('ins-zoek');if(z)z.value='';
+  document.querySelectorAll('#ins-types button').forEach(function(b,i){b.classList.toggle('on',i===0)});
+  document.getElementById('ins-dag').textContent='als blok in deze workout';
+  insKleurenRender();insRender();
+  document.getElementById('insmodal').classList.add('show');
+}
 function pickProgram(ev){
   ev.stopPropagation();
   storeFloats();
   if(!curCell)return;
+  insDoel='cel';
   insTypeF='all';insKleur='';
   var z=document.getElementById('ins-zoek');if(z)z.value='';
   document.querySelectorAll('#ins-types button').forEach(function(b,i){b.classList.toggle('on',i===0)});
@@ -2984,7 +3002,18 @@ function insRender(){
   }).join('') || '<div style="padding:26px;text-align:center" class="muted">Geen templates gevonden.</div>';
 }
 function insInvoegen(i){
-  var o=TPL[i];if(!o||!curCell)return;
+  var o=TPL[i];if(!o)return;
+  if(insDoel==='bouwer'){
+    var h=document.getElementById('ib-blokken');
+    var sec=maakBlok('ex');h.appendChild(sec);
+    sec.querySelector('.ib-ex').value=o.naam;
+    sec.querySelector('.ib-presc').value=o.instructies;
+    hernummer();groeiAlles();
+    document.getElementById('insmodal').classList.remove('show');
+    toast('Template als blok toegevoegd — pas gerust aan');
+    return;
+  }
+  if(!curCell)return;
   if(curCell.querySelector('.mcard')){toast('Deze dag heeft al een workout');return;}
   var data={title:o.naam,blk:[[esc(o.naam),esc(o.instructies).replace(/\n/g,'<br>')]],kleur:o.kleur};
   plakKaart(curCell,data);
@@ -3053,7 +3082,7 @@ function maakBlok(type){
   inp.placeholder = type==='cond' ? 'Conditioning format (bijv. AMRAP 12, For time)' : 'Naam oefening';
   if(type!=='cond')inp.oninput=function(){exSearch(inp)};
   var tools=document.createElement('div');tools.className='extools';
-  tools.innerHTML='<svg class="i tip" data-tip="History"><use href="#i-hist"/></svg>'
+  tools.innerHTML='<svg class="i tip" data-tip="History" onclick="blokHistory(this,event)"><use href="#i-hist"/></svg>'
     +(type==='cond'?'':'<svg class="i ib-cam tip" data-tip="Demo-video" onclick="toggleVid(this)"><use href="#i-cam"/></svg>')
     +'<svg class="i ib-del tip" data-tip="Blok verwijderen" onclick="blokWeg(this)"><use href="#i-x"/></svg>';
   head.appendChild(b);head.appendChild(inp);head.appendChild(tools);
