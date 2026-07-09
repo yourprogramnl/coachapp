@@ -393,6 +393,12 @@ h3{font-size:14px;font-weight:700}
 .klem2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ib textarea{overflow:hidden;min-height:22px}
 .blokchips{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.ass-pf{display:flex;gap:20px;margin-top:7px}
+.ass-pf label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#e6e8ea;font-weight:600;text-transform:none;letter-spacing:0;margin:0}
+.ass-noteslink{display:block;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;margin-top:7px}
+.ass-noteslink:hover{text-decoration:underline}
+.ass-help{display:inline-flex;width:15px;height:15px;border-radius:50%;background:#3a3f47;color:#c9cdd4;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-left:5px;cursor:default;vertical-align:1px}
+.ass-notes{margin-top:7px}
 .wkblok{border:1px solid var(--line);border-radius:10px;padding:12px 34px 12px 12px;margin-bottom:10px;position:relative}
 .wkblok input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:7px}
 .wkblok textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:12.5px;min-height:54px;resize:vertical}
@@ -912,27 +918,11 @@ input[disabled]{cursor:default}
       <div class="sp-field"><label>Basaal metabolisme</label><input value="2008"></div>
       <div class="sp-field"><label>Muscle fat-analyse</label><select><option>C-shape</option><option>D-shape</option><option>I-shape</option></select></div>
       <div class="sp-field"><label>Notities OPEX Body</label><textarea>vet% moet omlaag en meer spiermassa</textarea></div>
+      <div id="ass-add-0"></div>
+      <button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldForm(0)">Voeg toe <span style="opacity:.6;font-weight:400">(alleen admin/headcoach)</span></button>
       </div>
-      <div id="ass-1" style="display:none">
-        <div class="sp-field"><label>Air Squat (30 reps)</label><select><option>Goed</option><option selected>Voldoende</option><option>Beperkt</option></select></div>
-        <div class="sp-field"><label>Toe Touch</label><select><option selected>Goed</option><option>Voldoende</option><option>Beperkt</option></select></div>
-        <div class="sp-field"><label>Overhead Squat (met stok)</label><select><option>Goed</option><option>Voldoende</option><option selected>Beperkt</option></select></div>
-        <div class="sp-field"><label>Active Straight Leg Raise</label><select><option>Goed</option><option selected>Voldoende</option><option>Beperkt</option></select></div>
-        <div class="sp-field"><label>Push-up (max strikt)</label><input value="22"></div>
-        <div class="sp-field"><label>Ring Row (max)</label><input value="15"></div>
-        <div class="sp-field"><label>Sorenson hold</label><input value="1:45"></div>
-        <div class="sp-field"><label>Side plank links / rechts</label><input value="0:50 / 0:55"></div>
-        <div class="sp-field"><label>Notities OPEX Move</label><textarea>OHS beperkt door enkelmobiliteit — 2x per week ankle work in de warming-up</textarea></div>
-      </div>
-      <div id="ass-2" style="display:none">
-        <div class="sp-field"><label>10 min AirBike (cal)</label><input value="148"></div>
-        <div class="sp-field"><label>500m Row</label><input value="1:38,5"></div>
-        <div class="sp-field"><label>1 mile Run</label><input value="7:12"></div>
-        <div class="sp-field"><label>Broad Jump</label><input value="2,45 m"></div>
-        <div class="sp-field"><label>Max squats onafgebroken @ 60 kg</label><input value="18"></div>
-        <div class="sp-field"><label>FLIGHT-test (anaeroob)</label><input value="82% drop-off"></div>
-        <div class="sp-field"><label>Notities OPEX Work</label><textarea>aerobe basis prima; anaerobe capaciteit opbouwen in blok 2</textarea></div>
-      </div>
+      <div id="ass-1" style="display:none"><div class="sp-field"><label>Scratch Test <span class="ass-help tip" data-tip="Schoudermobiliteit: handen achter de rug naar elkaar reiken">?</span></label><div class="ass-pf"><label><input type="radio" name="mv-scratch"> Pass</label><label><input type="radio" name="mv-scratch"> Fail</label></div><span class="ass-noteslink" onclick="assNotes(this)">Add scratch notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Air Squat <span class="ass-help tip" data-tip="Diepe squat met armen vooruit, hielen aan de grond">?</span></label><div class="ass-pf"><label><input type="radio" name="mv-airsquat"> Pass</label><label><input type="radio" name="mv-airsquat"> Fail</label></div><span class="ass-noteslink" onclick="assNotes(this)">Add air squat notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Toe Touch Test <span class="ass-help tip" data-tip="Gestrekte benen, vingertoppen naar de tenen">?</span></label><div class="ass-pf"><label><input type="radio" name="mv-toetouch"> Pass</label><label><input type="radio" name="mv-toetouch"> Fail</label></div><span class="ass-noteslink" onclick="assNotes(this)">Add toe touch notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Lunge Test <span class="ass-help tip" data-tip="Uitvalspas met romp rechtop en knie naar de vloer">?</span></label><div class="ass-pf"><label><input type="radio" name="mv-lunge"> Pass</label><label><input type="radio" name="mv-lunge"> Fail</label></div><span class="ass-noteslink" onclick="assNotes(this)">Add lunge notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Straight Leg Raise Test <span class="ass-help tip" data-tip="Liggend been gestrekt heffen tot 70 graden">?</span></label><div class="ass-pf"><label><input type="radio" name="mv-slr"> Pass</label><label><input type="radio" name="mv-slr"> Fail</label></div><span class="ass-noteslink" onclick="assNotes(this)">Add straight leg raise notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Front Plank/Front Leaning Rest <span class="ass-help tip" data-tip="Vasthouden in seconden">?</span></label><input placeholder="0:00"><span class="ass-noteslink" onclick="assNotes(this)">Add front plank notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Reverse Plank <span class="ass-help tip" data-tip="Omgekeerde plank, heupen hoog">?</span></label><input placeholder="0:00"><span class="ass-noteslink" onclick="assNotes(this)">Add reverse plank notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>Side Plank Right <span class="ass-help tip" data-tip="Zijwaartse plank rechts">?</span></label><input placeholder="0:00"></div><div class="sp-field"><label>Side Plank Left</label><input placeholder="0:00"><span class="ass-noteslink" onclick="assNotes(this)">Add side plank notes</span><textarea class="ass-notes" style="display:none"></textarea></div><div class="sp-field"><label>OPEX Move Notes</label><textarea></textarea></div><div id="ass-add-1"></div><button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldForm(1)">Voeg toe <span style="opacity:.6;font-weight:400">(alleen admin/headcoach)</span></button></div>
+      <div id="ass-2" style="display:none"><div class="sp-field"><label>Airbike 10 min cals</label><input value="143"></div><div class="sp-field"><label>Airbike weight conversion</label><input value="298"></div><div class="sp-field"><label>OPEX Work Notes</label><textarea></textarea></div><div id="ass-add-2"></div><button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldForm(2)">Voeg toe <span style="opacity:.6;font-weight:400">(alleen admin/headcoach)</span></button></div>
       <div style="display:flex;gap:8px">
         <button class="sp-btn" onclick="toast('Assessment opgeslagen')">Assessment opslaan</button>
         <button class="sp-btn ghost">Exporteer als PDF</button>
@@ -2016,6 +2006,39 @@ function cview(v){
   });
   closePanels();
   if(v==='cal')setTimeout(fixSticky,0);
+}
+function assNotes(link){
+  var paneel=link.closest('.sidepanel');
+  var eigen=link.nextElementSibling;
+  var open = eigen.style.display==='none';
+  paneel.querySelectorAll('.ass-notes').forEach(function(t){t.style.display='none'});
+  if(open){eigen.style.display='';eigen.focus();}
+}
+var assVeldTeller=0;
+function assVeldForm(tab){
+  var host=document.getElementById('ass-add-'+tab);
+  if(host.innerHTML){host.innerHTML='';return;}
+  host.innerHTML='<div class="sp-field" style="border:1px dashed #3a3f47;border-radius:8px;padding:10px">'
+   +'<label>Nieuw veld (alleen admin/headcoach)</label>'
+   +'<input id="ass-nf-naam-'+tab+'" placeholder="Naam van de test">'
+   +'<select id="ass-nf-type-'+tab+'" style="margin-top:7px"><option value="pf">Pass / Fail</option><option value="tijd">Tijd (0:00)</option><option value="waarde">Waarde</option></select>'
+   +'<button class="sp-btn" style="margin-top:9px" onclick="assVeldToevoegen('+tab+')">Voeg toe</button></div>';
+}
+function assVeldToevoegen(tab){
+  var naam=document.getElementById('ass-nf-naam-'+tab).value.trim();
+  if(!naam){toast('Vul eerst een naam in');return;}
+  var type=document.getElementById('ass-nf-type-'+tab).value;
+  var host=document.getElementById('ass-add-'+tab);
+  var d=document.createElement('div');d.className='sp-field';
+  assVeldTeller++;
+  if(type==='pf'){
+    d.innerHTML='<label>'+esc(naam)+'</label><div class="ass-pf"><label><input type="radio" name="assnf'+assVeldTeller+'"> Pass</label><label><input type="radio" name="assnf'+assVeldTeller+'"> Fail</label></div>';
+  }else{
+    d.innerHTML='<label>'+esc(naam)+'</label><input placeholder="'+(type==='tijd'?'0:00':'waarde')+'">';
+  }
+  host.parentNode.insertBefore(d,host);
+  host.innerHTML='';
+  toast('Veld toegevoegd — in de echte app zet de admin dit klaar voor alle klanten');
 }
 function assTab(n){
   for(var i=0;i<3;i++){
