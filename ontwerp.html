@@ -1320,26 +1320,13 @@ doelstelling over 4 weken:
           <div class="mlh"><b class="sm">Krachtwaarden</b><button class="btn sm2">+ Voeg toe</button></div>
           <div style="padding:10px 15px;border-bottom:1px solid var(--line2)"><button class="btn ghost sm2" style="width:100%">Bekijk structural balance</button></div>
           <div class="grp"><span>Naam</span><span>Huidig</span></div>
-          <div class="metrow"><span>Back Squat 1RM</span><span class="mv">40 kg</span></div>
-          <div class="metrow"><span>CGBP 1RM</span><span class="mv">50 kg</span></div>
-          <div class="metrow"><span>Clean 1RM</span><span class="mv">40 kg</span></div>
-          <div class="metrow"><span>DB External Rotation 8RM</span><span class="mv">5 kg</span></div>
-          <div class="metrow"><span>DB Powell Raise 8RM</span><span class="mv">5 kg</span></div>
-          <div class="metrow"><span>DB Prone Row 6RM</span><span class="mv">25 kg</span></div>
-          <div class="metrow" style="background:#f0f8fc"><span><b>Deadlift 1RM</b></span><span class="mv">110 kg</span></div>
-          <div class="metrow"><span>Front Squat 1RM</span><span class="mv">40 kg</span></div>
-          <div class="metrow"><span>Goblet Squat 20RM</span><span class="mv">10 kg</span></div>
-          <div class="metrow"><span>Power Clean 1RM</span><span class="mv">40 kg</span></div>
-          <div class="metrow"><span>Power Snatch 1RM</span><span class="mv na">—</span></div>
-          <div class="metrow"><span>Seated DB OH Press 8RM</span><span class="mv">12,5 kg</span></div>
-          <div class="metrow"><span>Snatch 1RM</span><span class="mv na">—</span></div>
-          <div class="metrow"><span>Sorenson Hold</span><span class="mv">1:00</span></div>
+          <div id="bal-lijst"></div>
         </div>
         <div class="metmain">
           <div class="metcards">
             <div class="metcard" style="grid-column:span 2">
-              <h3>Deadlift 1RM <span class="muted sm" style="font-weight:400">· laatste 6 metingen</span></h3>
-              <div class="val">110 kg <span class="delta">+10 kg in 12 weken</span></div>
+              <h3><span id="bal-naam">Deadlift</span> <span class="muted sm" style="font-weight:400">· laatste 6 metingen</span></h3>
+              <div class="val"><span id="bal-waarde">141 kg</span> <span class="delta" id="bal-delta"></span></div>
               <div class="spark"><i style="height:55%"></i><i style="height:60%"></i><i style="height:62%"></i><i style="height:70%"></i><i style="height:78%"></i><i class="hi" style="height:100%"></i></div>
             </div>
             <div class="metcard"><h3>Readiness</h3><div class="nodata">Nog geen data</div></div>
@@ -2048,6 +2035,7 @@ function cview(v){
   });
   closePanels();
   if(v==='cal')setTimeout(fixSticky,0);
+  if(v==='metrics')vulBalans();
 }
 /* Metrics-paneel (exact zoals CoachRx) + 1RM-koppeling */
 var METRICS_DEF={
@@ -2069,6 +2057,27 @@ function mxGroepen(){
   return uit;
 }
 function openMx(){openPanel('sp-mx');renderMetrics();}
+var balKeuze='Deadlift';
+function vulBalans(){
+  var host=document.getElementById('bal-lijst');if(!host)return;
+  var rijen=mxGroepen()['Resistance']||[];
+  host.innerHTML=rijen.map(function(r){
+    var num=parseFloat(String(r.cur).replace(',','.'));
+    var w = r.cur==='' ? '<span class="mv na">\u2014</span>' : '<span class="mv">'+esc(r.cur)+(isNaN(num)?'':' kg')+'</span>';
+    var act=r.naam===balKeuze;
+    return '<div class="metrow"'+(act?' style="background:#f0f8fc"':'')+' onclick="balKies(\''+r.naam.replace(/'/g,"\\'")+'\')"><span>'+(act?'<b>'+esc(r.naam)+'</b>':esc(r.naam))+'</span>'+w+'</div>';
+  }).join('');
+  var gekozen=null;rijen.forEach(function(r){if(r.naam===balKeuze)gekozen=r;});
+  if(gekozen){
+    document.getElementById('bal-naam').textContent=gekozen.naam;
+    var n2=parseFloat(String(gekozen.cur).replace(',','.'));
+    document.getElementById('bal-waarde').textContent = gekozen.cur==='' ? '\u2014' : gekozen.cur+(isNaN(n2)?'':' kg');
+    var a=parseFloat(String(gekozen.vorig).replace(',','.')), b=n2, delta='';
+    if(gekozen.vorig!==''&&!isNaN(a)&&!isNaN(b)&&a!==b){var d=Math.round((b-a)*10)/10;delta=(d>0?'+':'')+d+' kg sinds vorige meting';}
+    document.getElementById('bal-delta').textContent=delta;
+  }
+}
+function balKies(naam){balKeuze=naam;vulBalans();}
 function mxToggle(g){mxOpen[g]=!mxOpen[g];renderMetrics();}
 function renderMetrics(){
   var host=document.getElementById('mx-groepen');if(!host)return;
@@ -2121,7 +2130,7 @@ function mxToevoegen(){
     mxOpen[groep]=true;
   }
   schrijfMx(st);
-  closeMxModal();renderMetrics();
+  closeMxModal();renderMetrics();vulBalans();
   toast(bestaat?'Nieuw resultaat opgeslagen voor '+naam:'Metric toegevoegd — in de echte app direct in de database');
 }
 function mxVanWorkout(blokken){
@@ -2147,7 +2156,7 @@ function mxVanWorkout(blokken){
       }
     });
   });
-  if(gewijzigd){schrijfMx(st);renderMetrics();}
+  if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
 }
 function assNotes(link){
   var paneel=link.closest('.sidepanel');
@@ -2188,12 +2197,24 @@ function assTab(n){
     document.getElementById('ass-'+i).style.display = i===n ? '' : 'none';
   }
 }
+var zijbalkWasIngeklapt=false, paneelOpen=false;
 function openPanel(id){
   closePanels();
   document.getElementById(id).classList.add('show');
+  var lay=document.querySelector('#p-client .client-layout');
+  if(lay&&!paneelOpen){
+    zijbalkWasIngeklapt=lay.classList.contains('collapsed');
+    if(!zijbalkWasIngeklapt){lay.classList.add('collapsed');var p=document.getElementById('cl-arrow');if(p)p.innerHTML='&#8594;';}
+    paneelOpen=true;
+  }
 }
 function closePanels(){
   document.querySelectorAll('.sidepanel').forEach(function(p){p.classList.remove('show')});
+  if(paneelOpen){
+    paneelOpen=false;
+    var lay=document.querySelector('#p-client .client-layout');
+    if(lay&&!zijbalkWasIngeklapt){lay.classList.remove('collapsed');var p2=document.getElementById('cl-arrow');if(p2)p2.innerHTML='&#8592;';}
+  }
 }
 function toggleChat(){
   document.getElementById('chatpop').classList.toggle('show');
