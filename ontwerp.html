@@ -520,6 +520,18 @@ body{cursor:default}
 [onclick],button,a,.click,.selectable,.tip,.tgl,.exopt,.metrow,.chatrow,.trow.click,.fchip,.tchip,.assignchip,.kebab,.cdot,.demolink,.sp-x,.sp-chip .x,.tag .x,.vidchip .x,.progsel,.fok,.fhist,.fctabs span,.send2,.sqbtn,.addnewbtn,.addnew2,.combtn,.collapsebtn{cursor:pointer}
 input,textarea{cursor:text}
 input[disabled]{cursor:default}
+/* taken */
+.taskitem{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line2);align-items:flex-start}
+.taskitem:last-child{border-bottom:none}
+.taskitem .tk{width:18px;height:18px;border:1.5px solid var(--muted2);border-radius:50%;flex-shrink:0;cursor:pointer;margin-top:1px;display:flex;align-items:center;justify-content:center;color:#fff}
+.taskitem .tk .i{width:10px;height:10px;stroke-width:2.6;opacity:0}
+.taskitem.done .tk{background:var(--ok);border-color:var(--ok)}
+.taskitem.done .tk .i{opacity:1}
+.taskitem.done .tt{text-decoration:line-through;color:var(--muted)}
+.taskitem .tt{font-size:12.5px;font-weight:600}
+.taskitem .ts{font-size:11px;color:var(--muted);margin-top:2px}
+#task-save{background:#a8d8ec}
+#task-save.actief{background:var(--accent)}
 #float-store{display:none}
 @media(max-width:900px){
   .dashgrid{grid-template-columns:1fr}
@@ -646,20 +658,21 @@ input[disabled]{cursor:default}
 
     <div>
       <div class="sideblock">
-        <div class="shead"><h2>Mijn cijfers</h2><select style="border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#fff"><option>30 dagen</option><option>7 dagen</option></select></div>
+        <div class="shead"><h2>Mijn cijfers</h2><select onchange="cijfers(this.value)" style="border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#fff"><option value="7">7 dagen</option><option value="30" selected>30 dagen</option><option value="90">90 dagen</option></select></div>
         <div class="statecard">
-          <div class="ring"><i>60%</i></div>
+          <div class="ring" id="ring"><i id="ring-pct">60%</i></div>
           <div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">Percentage van de voorgeschreven workouts dat je klanten echt gedaan hebben.</div></div>
         </div>
       </div>
       <div class="sideblock">
-        <div class="shead"><h2>Mijn taken</h2><button class="btn sm2">+ Taak</button></div>
+        <div class="shead"><h2>Mijn taken</h2><button class="btn sm2" onclick="openTask()">+ Taak</button></div>
         <div class="taskchips">
           <button class="tchip on">Open</button>
           <button class="tchip">Afgerond</button>
         </div>
         <div class="statecard" style="display:block">
-          <div class="empty">Alles afgerond.<br><a>Klik hier</a> om een nieuwe taak te maken.</div>
+          <div id="task-lijst"></div>
+          <div class="empty" id="task-empty">Alles afgerond.<br><a onclick="openTask()">Klik hier</a> om een nieuwe taak te maken.</div>
         </div>
       </div>
       <div class="sideblock">
@@ -1765,6 +1778,21 @@ doelstelling over 4 weken:
   </div>
 </div>
 
+<!-- MODAL: taak toevoegen -->
+<div class="overlay" id="taskmodal">
+  <div class="modal" style="max-width:430px">
+    <h2>Taak toevoegen</h2>
+    <p class="sm muted" style="margin:-8px 0 16px;line-height:1.6">Taken helpen je als coach om georganiseerd te blijven en aan te sluiten bij wat je klant nodig heeft. Kies een datum en een korte beschrijving — de taak komt op je dashboard te staan.</p>
+    <div class="mfield"><input type="text" id="task-datum" placeholder="Vervaldatum (bijv. vr 17 juli)"></div>
+    <div class="mfield"><select id="task-klant"><option value="">Klant (optioneel)</option><option>Rick van der Sluis</option><option>Stefan Bakker</option><option>Aafke Kruisselbrink</option><option>Stijn Meijs</option><option>Tessa van Oijen</option><option>Zo&euml; van Gemst</option></select></div>
+    <div class="mfield"><textarea id="task-tekst" placeholder="Taakbeschrijving…" oninput="taskInput(this)"></textarea></div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeTask()">Annuleren</button>
+      <button class="btn" id="task-save" onclick="saveTask()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function go(p){
   document.querySelectorAll('.page').forEach(function(el){el.classList.remove('active')});
@@ -1806,6 +1834,35 @@ function toast(msg){
   t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(function(){t.classList.remove('show')},2600);
+}
+/* taken zoals CoachRx */
+function openTask(){document.getElementById('taskmodal').classList.add('show');}
+function closeTask(){document.getElementById('taskmodal').classList.remove('show');}
+function taskInput(ta){document.getElementById('task-save').classList.toggle('actief',ta.value.trim().length>0);}
+function saveTask(){
+  var tekst=document.getElementById('task-tekst').value.trim();
+  if(!tekst){toast('Vul eerst een taakbeschrijving in');return;}
+  var datum=document.getElementById('task-datum').value.trim();
+  var klant=document.getElementById('task-klant').value;
+  var sub=[datum,klant].filter(Boolean).join(' · ');
+  var d=document.createElement('div');d.className='taskitem';
+  d.innerHTML='<span class="tk" onclick="this.parentNode.classList.toggle(\'done\')"><svg class="i"><use href="#i-check"/></svg></span>'+
+    '<div><div class="tt">'+tekst.replace(/</g,'&lt;')+'</div>'+(sub?'<div class="ts">'+sub+'</div>':'')+'</div>';
+  document.getElementById('task-lijst').appendChild(d);
+  document.getElementById('task-empty').style.display='none';
+  document.getElementById('task-tekst').value='';
+  document.getElementById('task-datum').value='';
+  document.getElementById('task-klant').value='';
+  document.getElementById('task-save').classList.remove('actief');
+  closeTask();
+  toast('Taak opgeslagen — hij staat op je dashboard');
+}
+/* cijfers-periode 7/30/90 dagen */
+var RINGDATA={'7':75,'30':60,'90':52};
+function cijfers(v){
+  var p=RINGDATA[v]||60;
+  document.getElementById('ring').style.background='conic-gradient(var(--accent) 0 '+p+'%, #e5e8eb '+p+'% 100%)';
+  document.getElementById('ring-pct').textContent=p+'%';
 }
 /* klik op klant-avatar -> direct naar programma */
 var CLIENTS={
