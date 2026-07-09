@@ -1396,31 +1396,26 @@ doelstelling over 4 weken:
       <div class="card" style="padding:18px 18px 0">
         <div class="hrow" style="margin-bottom:14px">
           <div>
-            <h2>Oefeningen</h2>
-            <div class="sm muted" style="margin-top:3px">Koppel demo-video's zodat je klanten precies zien hoe het moet.</div>
+            <h2>Oefeningen <span class="pill teal" style="vertical-align:2px"><span id="lib-aantal">&#8230;</span> video's</span></h2>
+            <div class="sm muted" style="margin-top:3px">Jullie eigen Strivee-bibliotheek, live uit de database. Klanten zien de demo-video bij elke workout.</div>
           </div>
           <button class="btn" onclick="openExModal(true)">+ Oefening toevoegen</button>
         </div>
         <div class="hrow" style="margin-bottom:12px">
-          <div class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Zoek op oefening of bewegingspatroon…"></div>
+          <div class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Zoek op oefening of tag…" oninput="libFilter(this.value)"></div>
           <button class="tgl" onclick="this.classList.toggle('on')"><span class="sw"></span> Verberg standaard-oefeningen</button>
         </div>
       </div>
       <div class="card" style="border-radius:0 0 10px 10px;border-top:none">
         <div class="thead" style="border-radius:0">
-          <div style="flex:2.4">Oefening</div>
-          <div style="flex:1.4">Patroon</div>
-          <div style="flex:1.2">Materiaal</div>
+          <div style="width:74px">Media</div>
+          <div style="flex:2.6">Oefening</div>
+          <div style="flex:1.6">Tags</div>
           <div style="flex:.8">Video</div>
           <div style="width:70px"></div>
         </div>
-        <div class="trow"><div style="flex:2.4"><b>1 1/4 Hipthruster</b></div><div style="flex:1.4" class="muted">Hinge</div><div style="flex:1.2" class="muted">Barbell</div><div style="flex:.8"><span class="pill teal">1 video</span></div><button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>
-        <div class="trow"><div style="flex:2.4"><b>1-arm elbows-out DB row</b></div><div style="flex:1.4" class="muted">Pull</div><div style="flex:1.2" class="muted">Dumbbell</div><div style="flex:.8"><span class="pill teal">1 video</span></div><button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>
-        <div class="trow"><div style="flex:2.4"><b>2 Point Bird Dog</b></div><div style="flex:1.4" class="muted">Core</div><div style="flex:1.2" class="muted">Bodyweight</div><div style="flex:.8"><span class="pill gray">geen</span></div><button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>
-        <div class="trow"><div style="flex:2.4"><b>2 Position Clean</b></div><div style="flex:1.4" class="muted">Weightlifting</div><div style="flex:1.2" class="muted">Barbell</div><div style="flex:.8"><span class="pill teal">2 video's</span></div><button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>
-        <div class="trow"><div style="flex:2.4"><b>90/90 Bottoms Up KB Squat</b></div><div style="flex:1.4" class="muted">Squat</div><div style="flex:1.2" class="muted">Kettlebell</div><div style="flex:.8"><span class="pill teal">1 video</span></div><button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>
-        <div class="trow"><div style="flex:2.4"><b>Air Squat</b></div><div style="flex:1.4" class="muted">Squat</div><div style="flex:1.2" class="muted">Bodyweight</div><div style="flex:.8"><span class="pill teal">1 video</span></div><button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>
-        <div class="trow" style="justify-content:center"><span class="muted sm">… 264 oefeningen in totaal</span></div>
+        <div id="lib-lijst"><div style="padding:30px;text-align:center" class="muted">Bibliotheek laden&#8230;</div></div>
+        <div id="lib-pag" style="display:flex;gap:6px;justify-content:center;align-items:center;padding:14px"></div>
       </div>
     </div>
   </div>
@@ -1836,6 +1831,7 @@ doelstelling over 4 weken:
           <span class="vidchip"><svg class="i sm-i"><use href="#i-play"/></svg> 1 1/4 Barbell Hip Thrust <span class="x" onclick="toast('Video losgekoppeld')">✕</span></span>
           <span class="vcheck"><svg class="i"><use href="#i-check"/></svg></span>
           <div class="sm muted" style="margin-top:7px">Plak een YouTube/Vimeo-link of upload je eigen video.</div>
+          <input type="text" id="exmodal-yt" placeholder="https://youtu.be/&#8230;" style="margin-top:8px;width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-family:inherit;font-size:13px">
         </div>
         <div class="mfield">
           <label>Instructies</label>
@@ -1858,7 +1854,7 @@ doelstelling over 4 weken:
     </div>
     <div class="mfoot">
       <button class="btn ghost" onclick="closeExModal()">Annuleren</button>
-      <button class="btn" onclick="closeExModal();toast('Oefening opgeslagen')">Oefening opslaan</button>
+      <button class="btn" onclick="exModalOpslaan()">Oefening opslaan</button>
     </div>
   </div>
 </div>
@@ -2040,6 +2036,81 @@ document.addEventListener('click',function(){
   var kd=document.getElementById('klantdrop');
   if(kd)kd.classList.remove('show');
 });
+/* bibliotheek: live uit Supabase (jullie eigen Strivee-media) */
+var SB_URL='https://ujuvbxqgnxkyjcmcrqpw.supabase.co/rest/v1/oefeningen';
+var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqdXZieHFnbnhreWpjbWNycXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDE0NTIsImV4cCI6MjA5NzAxNzQ1Mn0.U6jHhVWUc77u38DUKwFYy5uG4vI4riFUzkTARTrbbyc';
+var BIEB=[], biebGeladen=false;
+function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function leesEigenOef(){try{return JSON.parse(localStorage.getItem('coachapp-eigen-oefeningen')||'[]')}catch(e){return[]}}
+function laadBieb(){
+  if(biebGeladen)return;biebGeladen=true;
+  fetch(SB_URL+'?select=naam,youtube_id,tags&order=naam.asc&limit=1000',{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    BIEB=d.concat(leesEigenOef());
+    BIEB.sort(function(a,b){return a.naam.localeCompare(b.naam)});
+    libRender();
+    var c=document.getElementById('lib-aantal');if(c)c.textContent=BIEB.length;
+  })
+  .catch(function(){
+    biebGeladen=false;
+    var h=document.getElementById('lib-lijst');
+    if(h)h.innerHTML='<div style="padding:30px;text-align:center" class="muted">Kon de bibliotheek niet laden. Probeer opnieuw.</div>';
+  });
+}
+var libZoek='', libPag=0, LIB_PER=50;
+function libFilter(v){libZoek=v.toLowerCase();libPag=0;libRender();}
+function libGa(p){libPag=p;libRender();}
+function libRender(){
+  var host=document.getElementById('lib-lijst');if(!host)return;
+  var hits=BIEB.filter(function(o){return !libZoek||o.naam.toLowerCase().indexOf(libZoek)>=0||(o.tags||[]).join(' ').toLowerCase().indexOf(libZoek)>=0});
+  var pages=Math.max(1,Math.ceil(hits.length/LIB_PER));
+  if(libPag>=pages)libPag=pages-1;
+  var deel=hits.slice(libPag*LIB_PER,(libPag+1)*LIB_PER);
+  host.innerHTML=deel.map(function(o){
+    var tags=(o.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join(' ');
+    var thumb=o.youtube_id
+      ? '<img src="https://i.ytimg.com/vi/'+o.youtube_id+'/default.jpg" loading="lazy" style="width:64px;height:40px;object-fit:cover;border-radius:6px;display:block">'
+      : '<div style="width:64px;height:40px;border-radius:6px;background:var(--p-grijs)"></div>';
+    var link=o.youtube_id
+      ? '<a class="pill teal" href="https://youtu.be/'+o.youtube_id+'" target="_blank" rel="noopener" style="text-decoration:none">YouTube</a>'
+      : '<span class="pill gray">geen</span>';
+    return '<div class="trow">'
+      +'<div style="width:74px">'+thumb+'</div>'
+      +'<div style="flex:2.6"><b>'+esc(o.naam)+'</b></div>'
+      +'<div style="flex:1.6">'+tags+'</div>'
+      +'<div style="flex:.8">'+link+'</div>'
+      +'<button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>';
+  }).join('') || '<div style="padding:30px;text-align:center" class="muted">Geen oefeningen gevonden.</div>';
+  var pg=document.getElementById('lib-pag');if(!pg)return;
+  if(pages<=1){pg.innerHTML='';return;}
+  var knoppen='<button class="btn ghost sm2" '+(libPag===0?'disabled':'onclick="libGa('+(libPag-1)+')"')+'>&#8249;</button>';
+  for(var p=0;p<pages;p++){
+    if(p===0||p===pages-1||Math.abs(p-libPag)<=2){
+      knoppen+='<button class="btn sm2 '+(p===libPag?'':'ghost')+'" onclick="libGa('+p+')">'+(p+1)+'</button>';
+    }else if(p===1&&libPag>3||p===pages-2&&libPag<pages-4){
+      knoppen+='<span class="muted">&#8230;</span>';
+    }
+  }
+  knoppen+='<button class="btn ghost sm2" '+(libPag===pages-1?'disabled':'onclick="libGa('+(libPag+1)+')"')+'>&#8250;</button>';
+  pg.innerHTML=knoppen;
+}
+var exModalNieuw=false;
+function exModalOpslaan(){
+  if(!exModalNieuw){closeExModal();toast('Oefening opgeslagen');return;}
+  var naam=document.getElementById('exmodal-name').value.trim();
+  var yt=document.getElementById('exmodal-yt').value.trim();
+  if(!naam){toast('Vul eerst een naam in');return;}
+  var m=yt.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);
+  var o={naam:naam,youtube_id:m?m[1]:'',tags:['eigen']};
+  var l=leesEigenOef();l.push(o);
+  try{localStorage.setItem('coachapp-eigen-oefeningen',JSON.stringify(l))}catch(e){}
+  BIEB.push(o);BIEB.sort(function(a,b){return a.naam.localeCompare(b.naam)});
+  libRender();
+  var c=document.getElementById('lib-aantal');if(c)c.textContent=BIEB.length;
+  closeExModal();
+  toast('Oefening toegevoegd aan de bibliotheek — in de echte app gaat dit direct de database in');
+}
 /* workout bewerken: klik op kaart (zoals CoachRx) */
 var wkCel=null;
 function leesDel(){try{return JSON.parse(localStorage.getItem('coachapp-del')||'{}')}catch(e){return {}}}
@@ -2620,6 +2691,9 @@ function exSearch(inp){
   drop.innerHTML='';
   if(v.length<2){drop.classList.remove('show');return;}
   var hits=EXLIJST.filter(function(e){return e[0].toLowerCase().indexOf(v)>=0});
+  BIEB.forEach(function(o){
+    if(o.naam.toLowerCase().indexOf(v)>=0)hits.push([o.naam,(o.tags||[]).join(' · ')||'YouTube-video','YP']);
+  });
   if(!hits.length){drop.classList.remove('show');return;}
   var hd=document.createElement('div');hd.className='hd';hd.textContent='Oefeningen ('+hits.length+')';drop.appendChild(hd);
   hits.slice(0,8).forEach(function(e){
@@ -2631,6 +2705,7 @@ function exSearch(inp){
     var sb=document.createElement('span');sb.className='srcbadge';sb.textContent=e[2];
     if(e[2]==='TDB')sb.style.background='#64748b';
     if(e[2]==='MB')sb.style.background='linear-gradient(135deg,#38bdf8,#6366f1)';
+    if(e[2]==='YP')sb.style.background='var(--accent)';
     o.appendChild(l);o.appendChild(sb);
     o.onclick=function(ev){ev.stopPropagation();kiesEx(sec,e[0]);};
     drop.appendChild(o);
@@ -2671,6 +2746,8 @@ function saveWorkout(){
 }
 /* modals */
 function openExModal(nieuw){
+  exModalNieuw = nieuw===true;
+  if(exModalNieuw){document.getElementById('exmodal-name').value='';var yv=document.getElementById('exmodal-yt');if(yv)yv.value='';}
   document.getElementById('exmodal-title').textContent = nieuw===true ? 'Oefening toevoegen' : 'Oefening bewerken';
   document.getElementById('exmodal').classList.add('show');
 }
@@ -2914,6 +2991,7 @@ tagDates();
 KAL_ORIG=document.getElementById('kalgrid').innerHTML;
 initSleep();
 zetDragEnKnoppen();
+laadBieb();
 renderKlantDrop('Michel');
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
