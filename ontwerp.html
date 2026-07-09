@@ -382,6 +382,11 @@ h3{font-size:14px;font-weight:700}
 .mday.dropover{outline:2px dashed var(--accent);outline-offset:-3px;background:#eef8fc}
 .kopbtn{position:absolute;top:4px;right:4px;width:24px;height:24px;border:1px solid var(--line);border-radius:6px;background:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:5;padding:0}
 .mcard:hover .kopbtn{display:flex}
+.wkblok{border:1px solid var(--line);border-radius:10px;padding:12px 34px 12px 12px;margin-bottom:10px;position:relative}
+.wkblok input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:7px}
+.wkblok textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:12.5px;min-height:54px;resize:vertical}
+.wkblok .wkx{position:absolute;top:10px;right:10px;cursor:pointer;color:var(--muted);font-size:14px}
+.wkblok .wkx:hover{color:var(--bad)}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -1822,6 +1827,25 @@ doelstelling over 4 weken:
 </div>
 
 <!-- MODAL: oefening bewerken -->
+<div class="overlay" id="wkmodal">
+  <div class="modal" style="max-width:640px">
+    <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Workout bewerken <span id="wk-datum" class="sm muted" style="font-weight:600;font-size:13px"></span></h2>
+    <div class="mfield">
+      <label>Titel</label>
+      <input type="text" id="wk-titel" placeholder="Naam van de workout">
+    </div>
+    <div id="wk-blokken"></div>
+    <button class="btn ghost" style="margin:2px 0 14px" onclick="wkBlokToevoegen()">+ Blok toevoegen</button>
+    <div class="mfoot" style="justify-content:space-between">
+      <button class="btn ghost" style="color:var(--bad);border-color:var(--bad)" onclick="wkVerwijderen()">Workout verwijderen</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn ghost" onclick="closeWk()">Annuleren</button>
+        <button class="btn" onclick="wkOpslaan()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="exmodal">
   <div class="modal">
     <h2 id="exmodal-title">Oefening bewerken</h2>
@@ -2040,6 +2064,77 @@ document.addEventListener('click',function(){
   var kd=document.getElementById('klantdrop');
   if(kd)kd.classList.remove('show');
 });
+/* workout bewerken: klik op kaart (zoals CoachRx) */
+var wkCel=null;
+function leesDel(){try{return JSON.parse(localStorage.getItem('coachapp-del')||'{}')}catch(e){return {}}}
+function schrijfDel(x){try{localStorage.setItem('coachapp-del',JSON.stringify(x))}catch(e){}}
+function origVan(datum){
+  var mk=leesMoves()[curKlant]||{};
+  for(var k in mk){if(mk[k]===datum)return k;}
+  return datum;
+}
+function openWk(card){
+  wkCel=card.closest('.mday');
+  var data=kaartData(card);
+  document.getElementById('wk-titel').value=data.title==='Workout'?'':data.title;
+  var lbl=wkCel.querySelector('.dnum2');
+  document.getElementById('wk-datum').textContent=lbl?lbl.textContent.trim():'';
+  var host=document.getElementById('wk-blokken');host.innerHTML='';
+  data.blk.forEach(function(b){wkBlokToevoegen(b[0],b[1])});
+  document.getElementById('wkmodal').classList.add('show');
+}
+function wkBlokToevoegen(naam,pr){
+  var host=document.getElementById('wk-blokken');
+  var d=document.createElement('div');d.className='wkblok';
+  var x=document.createElement('span');x.className='wkx';x.textContent='\u2715';x.onclick=function(){d.remove()};
+  var i=document.createElement('input');i.placeholder='Bijv. A) Back Squat';i.value=naam||'';
+  var t=document.createElement('textarea');t.placeholder='Tempo, reps, sets, rust\u2026';
+  t.value=(pr||'').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
+  d.appendChild(x);d.appendChild(i);d.appendChild(t);
+  host.appendChild(d);
+}
+function closeWk(){document.getElementById('wkmodal').classList.remove('show');wkCel=null;}
+function wkData(){
+  var blk=[].map.call(document.querySelectorAll('#wk-blokken .wkblok'),function(b){
+    return [b.querySelector('input').value.trim(), b.querySelector('textarea').value.trim().replace(/\n/g,'<br>')];
+  }).filter(function(b){return b[0]||b[1]});
+  return {title:document.getElementById('wk-titel').value.trim()||'Workout',blk:blk};
+}
+function wkOpslaan(){
+  if(!wkCel)return;
+  var datum=wkCel.dataset.d, data=wkData();
+  if(!data.blk.length){wkVerwijderen();return;}
+  var oude=wkCel.querySelector('.mcard');if(oude)oude.remove();
+  var o=leesOpslag(),lijst=o[curKlant]=o[curKlant]||[],hit=null;
+  for(var i=0;i<lijst.length;i++){if(lijst[i].d===datum){hit=lijst[i];break;}}
+  if(hit){hit.title=data.title;hit.blk=data.blk;}
+  else{
+    var del=leesDel();(del[curKlant]=del[curKlant]||{})[origVan(datum)]=1;schrijfDel(del);
+    var m=leesMoves();if(m[curKlant]){delete m[curKlant][origVan(datum)];schrijfMoves(m);}
+    lijst.push({d:datum,title:data.title,blk:data.blk});
+  }
+  schrijfOpslag(o);
+  plakKaart(wkCel,data);
+  closeWk();
+  toast('Workout aangepast — blijft bewaard');
+}
+function wkVerwijderen(){
+  if(!wkCel)return;
+  var datum=wkCel.dataset.d;
+  var kaart=wkCel.querySelector('.mcard');if(kaart)kaart.remove();
+  var ar=wkCel.querySelector('.addrow2');if(ar)ar.remove();
+  var o=leesOpslag(),lijst=o[curKlant]||[],idx=-1;
+  for(var i=0;i<lijst.length;i++){if(lijst[i].d===datum){idx=i;break;}}
+  if(idx>=0){lijst.splice(idx,1);schrijfOpslag(o);}
+  else{
+    var del=leesDel();(del[curKlant]=del[curKlant]||{})[origVan(datum)]=1;schrijfDel(del);
+    var m=leesMoves();if(m[curKlant]){delete m[curKlant][origVan(datum)];schrijfMoves(m);}
+  }
+  wkCel.classList.add('selectable');wkCel.setAttribute('onclick','openDayMenu(this,event)');delete wkCel.dataset.hm;
+  bindHoverMenus();
+  closeWk();
+  toast('Workout verwijderd');
+}
 /* kopiëren / plakken / slepen (zoals CoachRx) */
 var KLEMBORD=null, sleepKaart=null;
 function kaartData(card){
@@ -2082,6 +2177,12 @@ function onthoudVerplaatsing(van,naar){
 function zetDragEnKnoppen(){
   document.querySelectorAll('#kalgrid .mcard').forEach(function(card){
     card.setAttribute('draggable','true');
+    if(!card.dataset.wk){card.dataset.wk='1';
+      card.addEventListener('click',function(ev){
+        if(ev.target.closest('.kopbtn,.combtn,.okc,.loginp,button,input,textarea,a,.linkwrap'))return;
+        openWk(card);
+      });
+    }
     if(!card.querySelector('.kopbtn')){
       var b=document.createElement('button');b.className='kopbtn tip';b.setAttribute('data-tip','Kopieer workout');
       b.innerHTML='<svg class="i sm-i"><use href="#i-copy"/></svg>';
@@ -2209,6 +2310,15 @@ function bouwKal(id){
       cell.appendChild(d);
       cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
     });
+  }
+  var del=leesDel()[id]||{};
+  for(var dd in del){
+    var dc=grid.querySelector('.mday[data-d="'+dd+'"]');
+    if(dc){
+      var dk=dc.querySelector('.mcard');if(dk)dk.remove();
+      var da=dc.querySelector('.addrow2');if(da)da.remove();
+      dc.classList.add('selectable');dc.setAttribute('onclick','openDayMenu(this,event)');
+    }
   }
   (leesOpslag()[id]||[]).forEach(function(w){
     var cell=grid.querySelector('.mday[data-d="'+w.d+'"]');
