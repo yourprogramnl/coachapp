@@ -515,6 +515,11 @@ textarea.fcinput.note{background:#fdf6d9;border-color:#ecdf9a}
   font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .06s;z-index:150}
 .tip:hover::after{opacity:1}
 .histleeg{border:1px dashed var(--line);border-radius:10px;text-align:center;color:var(--muted);font-size:12.5px;padding:26px 10px;margin-top:4px}
+/* cursor-beleid zoals CoachRx: pijl op tekst, handje op alles wat klikbaar is */
+body{cursor:default}
+[onclick],button,a,.click,.selectable,.tip,.tgl,.exopt,.metrow,.chatrow,.trow.click,.fchip,.tchip,.assignchip,.kebab,.cdot,.demolink,.sp-x,.sp-chip .x,.tag .x,.vidchip .x,.progsel,.fok,.fhist,.fctabs span,.send2,.sqbtn,.addnewbtn,.addnew2,.combtn,.collapsebtn{cursor:pointer}
+input,textarea{cursor:text}
+input[disabled]{cursor:default}
 #float-store{display:none}
 @media(max-width:900px){
   .dashgrid{grid-template-columns:1fr}
