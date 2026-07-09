@@ -1411,6 +1411,7 @@ doelstelling over 4 weken:
           <div style="width:74px">Media</div>
           <div style="flex:2.6">Oefening</div>
           <div style="flex:1.6">Tags</div>
+          <div style="flex:.7">Van</div>
           <div style="flex:.8">Video</div>
           <div style="width:70px"></div>
         </div>
@@ -2044,19 +2045,25 @@ function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function leesEigenOef(){try{return JSON.parse(localStorage.getItem('coachapp-eigen-oefeningen')||'[]')}catch(e){return[]}}
 function laadBieb(){
   if(biebGeladen)return;biebGeladen=true;
-  fetch(SB_URL+'?select=naam,youtube_id,tags&order=naam.asc&limit=1000',{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
-  .then(function(r){return r.json()})
-  .then(function(d){
-    BIEB=d.concat(leesEigenOef());
-    BIEB.sort(function(a,b){return a.naam.localeCompare(b.naam)});
-    libRender();
-    var c=document.getElementById('lib-aantal');if(c)c.textContent=BIEB.length;
-  })
-  .catch(function(){
-    biebGeladen=false;
-    var h=document.getElementById('lib-lijst');
-    if(h)h.innerHTML='<div style="padding:30px;text-align:center" class="muted">Kon de bibliotheek niet laden. Probeer opnieuw.</div>';
-  });
+  var alles=[];
+  function stap(offset){
+    fetch(SB_URL+'?select=naam,youtube_id,video_url,tags,bron&order=naam.asc&limit=1000&offset='+offset,{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      alles=alles.concat(d);
+      if(d.length===1000){stap(offset+1000);return;}
+      BIEB=alles.concat(leesEigenOef());
+      BIEB.sort(function(a,b){return a.naam.localeCompare(b.naam)});
+      libRender();
+      var c=document.getElementById('lib-aantal');if(c)c.textContent=BIEB.length;
+    })
+    .catch(function(){
+      biebGeladen=false;
+      var h=document.getElementById('lib-lijst');
+      if(h)h.innerHTML='<div style="padding:30px;text-align:center" class="muted">Kon de bibliotheek niet laden. Probeer opnieuw.</div>';
+    });
+  }
+  stap(0);
 }
 var libZoek='', libPag=0, LIB_PER=50;
 function libFilter(v){libZoek=v.toLowerCase();libPag=0;libRender();}
@@ -2075,12 +2082,15 @@ function libRender(){
     var link=o.youtube_id
       ? '<a class="pill teal" href="https://youtu.be/'+o.youtube_id+'" target="_blank" rel="noopener" style="text-decoration:none">YouTube</a>'
       : '<span class="pill gray">geen</span>';
+    var idx=BIEB.indexOf(o);
+    var bron=o.bron==='coachrx'?'CRx':(o.bron==='eigen'||!o.bron?'YP':String(o.bron).toUpperCase());
     return '<div class="trow">'
-      +'<div style="width:74px">'+thumb+'</div>'
-      +'<div style="flex:2.6"><b>'+esc(o.naam)+'</b></div>'
+      +'<div style="width:74px;cursor:pointer" onclick="libBewerk('+idx+')">'+thumb+'</div>'
+      +'<div style="flex:2.6;cursor:pointer" onclick="libBewerk('+idx+')"><b>'+esc(o.naam)+'</b></div>'
       +'<div style="flex:1.6">'+tags+'</div>'
+      +'<div style="flex:.7"><span class="srcbadge"'+(bron==='YP'?' style="background:var(--accent)"':(bron!=='CRx'?' style="background:#64748b"':''))+'>'+bron+'</span></div>'
       +'<div style="flex:.8">'+link+'</div>'
-      +'<button class="btn ghost sm2" style="width:70px" onclick="openExModal()">Bewerk</button></div>';
+      +'<button class="btn ghost sm2" style="width:70px" onclick="libBewerk('+idx+')">Bewerk</button></div>';
   }).join('') || '<div style="padding:30px;text-align:center" class="muted">Geen oefeningen gevonden.</div>';
   var pg=document.getElementById('lib-pag');if(!pg)return;
   if(pages<=1){pg.innerHTML='';return;}
@@ -2095,8 +2105,29 @@ function libRender(){
   knoppen+='<button class="btn ghost sm2" '+(libPag===pages-1?'disabled':'onclick="libGa('+(libPag+1)+')"')+'>&#8250;</button>';
   pg.innerHTML=knoppen;
 }
-var exModalNieuw=false;
+var exModalNieuw=false, exModalEditIdx=-1;
+function libBewerk(i){
+  var o=BIEB[i];if(!o)return;
+  exModalNieuw=false;exModalEditIdx=i;
+  document.getElementById('exmodal-title').textContent='Oefening bewerken';
+  document.getElementById('exmodal-name').value=o.naam;
+  document.getElementById('exmodal-yt').value=o.youtube_id?('https://youtu.be/'+o.youtube_id):(o.video_url||'');
+  document.getElementById('exmodal').classList.add('show');
+}
 function exModalOpslaan(){
+  if(!exModalNieuw&&exModalEditIdx>=0){
+    var o=BIEB[exModalEditIdx];
+    var naam=document.getElementById('exmodal-name').value.trim();
+    var yt=document.getElementById('exmodal-yt').value.trim();
+    if(naam)o.naam=naam;
+    var m=yt.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);
+    if(m){o.youtube_id=m[1];}else if(yt){o.video_url=yt;}
+    exModalEditIdx=-1;
+    libRender();
+    closeExModal();
+    toast('Oefening bijgewerkt — in de echte app gaat dit direct de database in');
+    return;
+  }
   if(!exModalNieuw){closeExModal();toast('Oefening opgeslagen');return;}
   var naam=document.getElementById('exmodal-name').value.trim();
   var yt=document.getElementById('exmodal-yt').value.trim();
@@ -2692,7 +2723,10 @@ function exSearch(inp){
   if(v.length<2){drop.classList.remove('show');return;}
   var hits=EXLIJST.filter(function(e){return e[0].toLowerCase().indexOf(v)>=0});
   BIEB.forEach(function(o){
-    if(o.naam.toLowerCase().indexOf(v)>=0)hits.push([o.naam,(o.tags||[]).join(' · ')||'YouTube-video','YP']);
+    if(o.naam.toLowerCase().indexOf(v)>=0){
+      var bb=o.bron==='coachrx'?'CRx':(o.bron==='eigen'||!o.bron?'YP':String(o.bron).toUpperCase());
+      hits.push([o.naam,(o.tags||[]).join(' · ')||'YouTube-video',bb]);
+    }
   });
   if(!hits.length){drop.classList.remove('show');return;}
   var hd=document.createElement('div');hd.className='hd';hd.textContent='Oefeningen ('+hits.length+')';drop.appendChild(hd);
@@ -2706,6 +2740,7 @@ function exSearch(inp){
     if(e[2]==='TDB')sb.style.background='#64748b';
     if(e[2]==='MB')sb.style.background='linear-gradient(135deg,#38bdf8,#6366f1)';
     if(e[2]==='YP')sb.style.background='var(--accent)';
+    if(e[2]==='SV')sb.style.background='#0d9488';
     o.appendChild(l);o.appendChild(sb);
     o.onclick=function(ev){ev.stopPropagation();kiesEx(sec,e[0]);};
     drop.appendChild(o);
@@ -2747,7 +2782,7 @@ function saveWorkout(){
 /* modals */
 function openExModal(nieuw){
   exModalNieuw = nieuw===true;
-  if(exModalNieuw){document.getElementById('exmodal-name').value='';var yv=document.getElementById('exmodal-yt');if(yv)yv.value='';}
+  if(exModalNieuw){exModalEditIdx=-1;document.getElementById('exmodal-name').value='';var yv=document.getElementById('exmodal-yt');if(yv)yv.value='';}
   document.getElementById('exmodal-title').textContent = nieuw===true ? 'Oefening toevoegen' : 'Oefening bewerken';
   document.getElementById('exmodal').classList.add('show');
 }
