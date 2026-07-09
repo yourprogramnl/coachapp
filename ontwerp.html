@@ -1383,9 +1383,10 @@ doelstelling over 4 weken:
   <div class="hrow"><h1>Bibliotheek</h1></div>
   <div class="libgrid">
     <div class="libnav card" style="padding:10px">
-      <button class="on"><svg class="i"><use href="#i-chart"/></svg> Oefeningen</button>
-      <button><svg class="i"><use href="#i-clock"/></svg> Warming-ups</button>
-      <button><svg class="i"><use href="#i-walk"/></svg> Cooldowns</button>
+      <button class="on" onclick="setLibMode('oef',this)"><svg class="i"><use href="#i-chart"/></svg> Oefeningen</button>
+      <button onclick="setLibMode('warmup',this)"><svg class="i"><use href="#i-clock"/></svg> Warming-ups</button>
+      <button onclick="setLibMode('workout',this)"><svg class="i"><use href="#i-link"/></svg> Workouts</button>
+      <button onclick="setLibMode('cooldown',this)"><svg class="i"><use href="#i-walk"/></svg> Cooldowns</button>
       <button><svg class="i"><use href="#i-target"/></svg> Conditioning</button>
       <button><svg class="i"><use href="#i-chart"/></svg> Metric-groepen</button>
       <button onclick="go('programs')"><svg class="i"><use href="#i-doc"/></svg> Programma-templates</button>
@@ -1396,10 +1397,10 @@ doelstelling over 4 weken:
       <div class="card" style="padding:18px 18px 0">
         <div class="hrow" style="margin-bottom:14px">
           <div>
-            <h2>Oefeningen <span class="pill teal" style="vertical-align:2px"><span id="lib-aantal">&#8230;</span> video's</span></h2>
-            <div class="sm muted" style="margin-top:3px">Jullie eigen Strivee-bibliotheek, live uit de database. Klanten zien de demo-video bij elke workout.</div>
+            <h2><span id="lib-titel">Oefeningen</span> <span class="pill teal" style="vertical-align:2px"><span id="lib-aantal">&#8230;</span> <span id="lib-eenheid">stuks</span></span></h2>
+            <div class="sm muted" style="margin-top:3px" id="lib-sub">Jullie eigen bibliotheek, live uit de database. Klanten zien de demo-video bij elke workout.</div>
           </div>
-          <button class="btn" onclick="openExModal(true)">+ Oefening toevoegen</button>
+          <button class="btn" id="lib-addbtn" onclick="libAdd()">+ Oefening toevoegen</button>
         </div>
         <div class="hrow" style="margin-bottom:12px">
           <div class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Zoek op oefening of tag…" oninput="libFilter(this.value)"></div>
@@ -1407,14 +1408,7 @@ doelstelling over 4 weken:
         </div>
       </div>
       <div class="card" style="border-radius:0 0 10px 10px;border-top:none">
-        <div class="thead" style="border-radius:0">
-          <div style="width:74px">Media</div>
-          <div style="flex:2.6">Oefening</div>
-          <div style="flex:1.6">Tags</div>
-          <div style="flex:.7">Van</div>
-          <div style="flex:.8">Video</div>
-          <div style="width:70px"></div>
-        </div>
+        <div class="thead" style="border-radius:0" id="lib-thead"></div>
         <div id="lib-lijst"><div style="padding:30px;text-align:center" class="muted">Bibliotheek laden&#8230;</div></div>
         <div id="lib-pag" style="display:flex;gap:6px;justify-content:center;align-items:center;padding:14px"></div>
       </div>
@@ -1835,6 +1829,10 @@ doelstelling over 4 weken:
           <input type="text" id="exmodal-yt" placeholder="https://youtu.be/&#8230;" style="margin-top:8px;width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-family:inherit;font-size:13px">
         </div>
         <div class="mfield">
+          <label>Toegevoegd door</label>
+          <select id="exmodal-coach"><option value="">&#8212; niet ingevuld</option><option value="mb">Michel</option><option value="rw">Rieke</option><option value="sv">Stefan</option><option value="tdb">Thirza</option></select>
+        </div>
+        <div class="mfield">
           <label>Instructies</label>
           <textarea placeholder="Instructies voor de klant…"></textarea>
         </div>
@@ -2065,11 +2063,56 @@ function laadBieb(){
   }
   stap(0);
 }
+var TPL=[], libMode='oef';
+var TPLKLEUR={yellow:'#eab308',blue:'#3b82f6',purple:'#8b5cf6',red:'#ef4444',green:'#22c55e',orange:'#f97316',gray:'#9ca3af'};
+function laadTpl(){
+  fetch('https://ujuvbxqgnxkyjcmcrqpw.supabase.co/rest/v1/templates?select=naam,instructies,type,kleur,tags,coach&order=naam.asc&limit=1000',{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
+  .then(function(r){return r.json()})
+  .then(function(d){TPL=d;if(libMode!=='oef')libRender();})
+  .catch(function(){});
+}
+function setLibMode(m,btn){
+  libMode=m;libZoek='';libPag=0;
+  var inp=document.querySelector('#p-lib .search input');if(inp)inp.value='';
+  if(btn){document.querySelectorAll('#p-lib .libnav button').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');}
+  var titels={oef:'Oefeningen',warmup:'Warming-ups',workout:'Workouts',cooldown:'Cooldowns'};
+  document.getElementById('lib-titel').textContent=titels[m]||'Oefeningen';
+  document.getElementById('lib-eenheid').textContent = m==='oef' ? "video's" : 'templates';
+  document.getElementById('lib-addbtn').textContent = m==='oef' ? '+ Oefening toevoegen' : '+ Template toevoegen';
+  document.getElementById('lib-sub').textContent = m==='oef'
+    ? 'Jullie eigen bibliotheek, live uit de database. Klanten zien de demo-video bij elke workout.'
+    : 'Templates uit jullie Strivee, live uit de database — met de kleuren uit de template builder.';
+  libRender();
+}
+function libAdd(){
+  if(libMode==='oef'){openExModal(true);return;}
+  toast('Template toevoegen doe je straks via de template-editor — net als in Strivee');
+}
 var libZoek='', libPag=0, LIB_PER=50;
 function libFilter(v){libZoek=v.toLowerCase();libPag=0;libRender();}
 function libGa(p){libPag=p;libRender();}
 function libRender(){
   var host=document.getElementById('lib-lijst');if(!host)return;
+  var thead=document.getElementById('lib-thead');
+  if(libMode!=='oef'){
+    if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div><div style="width:76px"></div>';
+    var type=libMode==='warmup'?'warmup':(libMode==='cooldown'?'cooldown':'other');
+    var th=TPL.filter(function(o){return o.type===type&&(!libZoek||o.naam.toLowerCase().indexOf(libZoek)>=0||o.instructies.toLowerCase().indexOf(libZoek)>=0||(o.tags||[]).join(' ').toLowerCase().indexOf(libZoek)>=0)});
+    var c1=document.getElementById('lib-aantal');if(c1)c1.textContent=th.length;
+    host.innerHTML=th.map(function(o){
+      var tg=(o.tags||[]).slice(0,2).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join(' ');
+      return '<div class="trow" style="align-items:flex-start">'
+        +'<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'
+        +'<div style="flex:1.7"><b>'+esc(o.naam)+'</b></div>'
+        +'<div style="flex:2.6" class="sm muted">'+esc(o.instructies).replace(/\n/g,'<br>')+'</div>'
+        +'<div style="flex:1.2">'+tg+'</div>'
+        +'<button class="btn ghost sm2" style="width:76px" onclick="toast(\'Template gebruiken: open een klant-kalender en kies Programma in het dag-menu\')">Gebruik</button></div>';
+    }).join('') || '<div style="padding:30px;text-align:center" class="muted">Geen templates gevonden.</div>';
+    var pg1=document.getElementById('lib-pag');if(pg1)pg1.innerHTML='';
+    return;
+  }
+  if(thead)thead.innerHTML='<div style="width:74px">Media</div><div style="flex:2.6">Oefening</div><div style="flex:1.6">Tags</div><div style="flex:.7">Van</div><div style="flex:.8">Video</div><div style="width:70px"></div>';
+  var c2=document.getElementById('lib-aantal');if(c2&&BIEB.length)c2.textContent=BIEB.length;
   var hits=BIEB.filter(function(o){return !libZoek||o.naam.toLowerCase().indexOf(libZoek)>=0||(o.tags||[]).join(' ').toLowerCase().indexOf(libZoek)>=0});
   var pages=Math.max(1,Math.ceil(hits.length/LIB_PER));
   if(libPag>=pages)libPag=pages-1;
@@ -2083,12 +2126,12 @@ function libRender(){
       ? '<a class="pill teal" href="https://youtu.be/'+o.youtube_id+'" target="_blank" rel="noopener" style="text-decoration:none">YouTube</a>'
       : '<span class="pill gray">geen</span>';
     var idx=BIEB.indexOf(o);
-    var bron=o.bron==='coachrx'?'CRx':(o.bron==='eigen'||!o.bron?'YP':String(o.bron).toUpperCase());
+    var bron=o.bron==='coachrx'?'CRx':(o.bron==='eigen'||!o.bron?'':String(o.bron).toUpperCase());
     return '<div class="trow">'
       +'<div style="width:74px;cursor:pointer" onclick="libBewerk('+idx+')">'+thumb+'</div>'
       +'<div style="flex:2.6;cursor:pointer" onclick="libBewerk('+idx+')"><b>'+esc(o.naam)+'</b></div>'
       +'<div style="flex:1.6">'+tags+'</div>'
-      +'<div style="flex:.7"><span class="srcbadge"'+(bron==='YP'?' style="background:var(--accent)"':(bron!=='CRx'?' style="background:#64748b"':''))+'>'+bron+'</span></div>'
+      +'<div style="flex:.7">'+(bron?'<span class="srcbadge"'+(bron==='CRx'?'':' style="background:#64748b"')+'>'+bron+'</span>':'')+'</div>'
       +'<div style="flex:.8">'+link+'</div>'
       +'<button class="btn ghost sm2" style="width:70px" onclick="libBewerk('+idx+')">Bewerk</button></div>';
   }).join('') || '<div style="padding:30px;text-align:center" class="muted">Geen oefeningen gevonden.</div>';
@@ -2112,6 +2155,8 @@ function libBewerk(i){
   document.getElementById('exmodal-title').textContent='Oefening bewerken';
   document.getElementById('exmodal-name').value=o.naam;
   document.getElementById('exmodal-yt').value=o.youtube_id?('https://youtu.be/'+o.youtube_id):(o.video_url||'');
+  var cs=document.getElementById('exmodal-coach');
+  if(cs)cs.value=['mb','rw','sv','tdb'].indexOf(o.bron)>=0?o.bron:'';
   document.getElementById('exmodal').classList.add('show');
 }
 function exModalOpslaan(){
@@ -2122,6 +2167,8 @@ function exModalOpslaan(){
     if(naam)o.naam=naam;
     var m=yt.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);
     if(m){o.youtube_id=m[1];}else if(yt){o.video_url=yt;}
+    var cs=document.getElementById('exmodal-coach');
+    if(cs&&cs.value)o.bron=cs.value;
     exModalEditIdx=-1;
     libRender();
     closeExModal();
@@ -2133,7 +2180,8 @@ function exModalOpslaan(){
   var yt=document.getElementById('exmodal-yt').value.trim();
   if(!naam){toast('Vul eerst een naam in');return;}
   var m=yt.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);
-  var o={naam:naam,youtube_id:m?m[1]:'',tags:['eigen']};
+  var cs=document.getElementById('exmodal-coach');
+  var o={naam:naam,youtube_id:m?m[1]:'',tags:['eigen'],bron:(cs&&cs.value)||'eigen'};
   var l=leesEigenOef();l.push(o);
   try{localStorage.setItem('coachapp-eigen-oefeningen',JSON.stringify(l))}catch(e){}
   BIEB.push(o);BIEB.sort(function(a,b){return a.naam.localeCompare(b.naam)});
@@ -3027,6 +3075,7 @@ KAL_ORIG=document.getElementById('kalgrid').innerHTML;
 initSleep();
 zetDragEnKnoppen();
 laadBieb();
+laadTpl();
 renderKlantDrop('Michel');
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
