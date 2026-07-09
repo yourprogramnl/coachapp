@@ -1030,6 +1030,7 @@ doelstelling over 4 weken:
 
       <div class="mhead7"><div>MA</div><div>DI</div><div>WO</div><div>DO</div><div>VR</div><div>ZA</div><div>ZO</div></div>
 
+      <div id="kalgrid">
       <div class="mrow">
         <div class="mday selectable" onclick="openDayMenu(this,event)"><div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">29</span></div></div>
         <div class="mday selectable" onclick="openDayMenu(this,event)"><div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">30</span></div></div>
@@ -1197,6 +1198,7 @@ doelstelling over 4 weken:
       </div>
 
       <div id="more-weeks"></div>
+      </div>
 
       <div id="float-store">
         <div class="daymenu" id="dmenu" style="display:none">
@@ -2034,6 +2036,98 @@ document.addEventListener('click',function(){
   var kd=document.getElementById('klantdrop');
   if(kd)kd.classList.remove('show');
 });
+/* per-klant kalender: eigen programma + opgeslagen workouts blijven staan */
+var KAL_ORIG=null;
+function dstr(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function tagDates(){
+  var d=new Date(2026,5,29);
+  document.querySelectorAll('#kalgrid .mrow .mday').forEach(function(cell){
+    cell.dataset.d=dstr(d);d.setDate(d.getDate()+1);
+  });
+}
+var KPLAN={};
+(function(){
+  function mk(id,dagen,ws){
+    var lijst=[],d=new Date(2026,5,29),wi=0;
+    while(d<new Date(2026,10,2)){
+      if(dagen.indexOf(d.getDay())>=0){var w=ws[wi%ws.length];wi++;lijst.push({d:dstr(d),t:w[0],blk:w[1]});}
+      d.setDate(d.getDate()+1);
+    }
+    KPLAN[id]=lijst;
+  }
+  mk('stefan',[3],[
+   ['Full Body Kracht A',[['A) Bench Press','5 x 5 @ 80%<br>rest 2 min','60 kg'],['B) Weighted Pull-ups','4 x 6<br>rest 90 sec','+10 kg'],['C) Farmer Carry','4 x 40m zwaar','2x 32 kg']]],
+   ['Full Body Kracht B',[['A) Back Squat','5 x 5 @ 80%<br>rest 2-3 min','100 kg'],['B) Push Press','4 x 8<br>rest 2 min','50 kg'],['C) Sled Drag','5 x 20m','80 kg']]]
+  ]);
+  mk('aafke',[3,6],[
+   ['Hyrox Run + Sled',[['A) Run intervals','6 x 1 km @ race pace<br>rest 90 sec','4:52 gem.'],['B) Sled Push','8 x 12,5m @ 102 kg','gedaan'],['C) Wall Balls','3 x 30 @ 4 kg','onbroken']]],
+   ['Hyrox Stations',[['A) Ski Erg','4 x 500m<br>rest 1 min','1:58 gem.'],['B) Burpee Broad Jumps','3 x 20m','gedaan'],['C) Sandbag Lunges','3 x 20m @ 20 kg','zwaar']]]
+  ]);
+  mk('annebel',[1,6],[
+   ['Engine Builder — Row',[['A) Row intervals','5 x 750m @ 2k+8<br>rest 2 min','2:04 gem.'],['B) Bike Erg','10 min @ Z3','62 RPM']]],
+   ['Engine Builder — AMRAP',[['A) AMRAP 20','10 cal echo bike<br>10 KB swings @ 20 kg<br>10 box step-ups','7 rondes + 12'],['B) Core','3 x 45 sec hollow hold','gedaan']]]
+  ]);
+  mk('masha',[2,6],[
+   ['Olympic — Snatch',[['A) Snatch','werk naar zware single<br>daarna 3 x 2 @ 85%','52 kg'],['B) Snatch Pull','4 x 3 @ 100%','62 kg'],['C) OHS','3 x 5 @ 3010','40 kg']]],
+   ['Olympic — Clean & Jerk',[['A) Clean & Jerk','5 x 1+1 @ 85%<br>rest 2 min','68 kg'],['B) Front Squat','4 x 3 @ 90%','78 kg'],['C) Jerk Dips','3 x 5','88 kg']]]
+  ]);
+  mk('stijn',[3,6],[
+   ['Strength Cycle — Squat',[['A) Back Squat','5 x 5 @ 82,5%<br>rest 3 min','142 kg'],['B) Bulgarian Split Squat','3 x 8/8','2x 24 kg'],['C) GHD Raises','3 x 12','gedaan']]],
+   ['Strength Cycle — Pull',[['A) Deadlift','5 x 3 @ 85%<br>rest 3 min','180 kg'],['B) Bench Press','5 x 5 @ 80%','110 kg'],['C) Barbell Row','4 x 8','90 kg']]]
+  ]);
+  mk('tessa',[2,6],[
+   ['Gymnastics — Push',[['A) HSPU','5 x max reps strict<br>rest 2 min','8-7-6-5-5'],['B) Wall Walks','4 x 3','gedaan'],['C) Ring Dips','3 x 10','onbroken']]],
+   ['Gymnastics — Pull',[['A) Muscle-ups','EMOM 8: 2 ring MU','alle rondes'],['B) Rope Climbs','5 x 2 legless','gedaan'],['C) Toes to Bar','3 x 15','onbroken']]]
+  ]);
+  mk('zoe',[1,6],[
+   ['Comp Prep — Metcon',[['A) For time','21-15-9<br>thrusters @ 42,5 kg<br>chest to bar','6:42'],['B) Accessoire','3 x 12 DB bench','2x 20 kg']]],
+   ['Comp Prep — Long',[['A) 3 rounds for time','800m run<br>30 wall balls<br>20 T2B','19:55'],['B) Sled Sprint','6 x 15m','gedaan']]]
+  ]);
+})();
+function leesOpslag(){try{return JSON.parse(localStorage.getItem('coachapp-workouts')||'{}')}catch(e){return {}}}
+function schrijfOpslag(o){try{localStorage.setItem('coachapp-workouts',JSON.stringify(o))}catch(e){}}
+function plaatsKaart(cell,title,ex,presc){
+  var d=document.createElement('div');d.className='mcard planned';
+  d.innerHTML='<div class="msc">0/1 · '+title+'</div>'+
+    '<div class="cblk"><div class="n">A) '+ex+'</div><div class="pr">'+presc+'</div>'+
+    '<div class="loginp" style="color:var(--accent-d);font-weight:600">demo-video gekoppeld</div></div>'+
+    '<button class="combtn">Comments</button>';
+  cell.appendChild(d);
+  cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
+}
+function bouwKal(id){
+  var grid=document.getElementById('kalgrid');
+  if(!grid||KAL_ORIG===null)return;
+  storeFloats();
+  grid.innerHTML=KAL_ORIG;
+  grid.querySelectorAll('[data-hm]').forEach(function(c){delete c.dataset.hm});
+  if(id!=='rick'){
+    grid.querySelectorAll('.mday').forEach(function(cell){
+      var num=cell.querySelector('.dnum2');
+      var today=cell.classList.contains('today-cell');
+      cell.className='mday selectable'+(today?' today-cell':'');
+      cell.setAttribute('onclick','openDayMenu(this,event)');
+      cell.innerHTML='<div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span>'+(num?num.outerHTML:'')+'</div>';
+    });
+    (KPLAN[id]||[]).forEach(function(w){
+      var cell=grid.querySelector('.mday[data-d="'+w.d+'"]');
+      if(!cell)return;
+      var done=w.d<='2026-07-08';
+      var blokken=w.blk.map(function(b){
+        return '<div class="cblk"><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div>'+(done?'<div class="loginp">'+(b[2]||'gedaan')+'</div><span class="okc"><svg class="i"><use href="#i-check"/></svg></span>':'')+'</div>';
+      }).join('');
+      var d=document.createElement('div');d.className='mcard'+(done?'':' planned');
+      d.innerHTML='<div class="msc">'+(done?w.blk.length+'/'+w.blk.length:'0/'+w.blk.length)+' · '+w.t+'</div>'+blokken+'<button class="combtn"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button>';
+      cell.appendChild(d);
+      cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
+    });
+  }
+  (leesOpslag()[id]||[]).forEach(function(w){
+    var cell=grid.querySelector('.mday[data-d="'+w.d+'"]');
+    if(cell)plaatsKaart(cell,w.title,w.ex,w.presc);
+  });
+  bindHoverMenus();
+}
 /* coach-detail (roster zoals CoachRx) */
 var COACHES={
  michel:{nm:'Michel Bakker',ini:'MB',av:'av5',rol:'Eigenaar',rolKl:'purple',key:'Michel',comp:'58%',touch:'0%'},
@@ -2171,6 +2265,7 @@ function openClient(id){
   var bAv=side.querySelector('.bigav');bAv.textContent=c.ini;bAv.style.background=c.av;
   side.querySelector('.cinfo').innerHTML=c.info;
   go('client');cview('cal');
+  bouwKal(id);
   markKlant(id);
   toast('Programma van '+c.nm+' geopend');
 }
@@ -2297,8 +2392,11 @@ function saveWorkout(){
     '<div class="cblk"><div class="n">A) '+ex+'</div><div class="pr">'+presc+'</div>'+
     '<div class="loginp" style="color:var(--accent-d);font-weight:600">demo-video gekoppeld</div></div>'+
     '<button class="combtn">Comments</button>';
-  curCell.appendChild(d);curCell.classList.remove('selectable');curCell.onclick=null;
-  toast('Workout opgeslagen — Rick krijgt een melding');
+  curCell.appendChild(d);curCell.classList.remove('selectable');curCell.removeAttribute('onclick');curCell.onclick=null;
+  if(curCell.dataset.d){
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,ex:ex,presc:presc});schrijfOpslag(o);
+  }
+  toast('Workout opgeslagen — '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
 }
 /* modals */
 function openExModal(nieuw){
@@ -2529,7 +2627,7 @@ function buildWeeks(){
     var wk=document.createElement('div');wk.className='mrow';
     for(var i=0;i<7;i++){
       var day=document.createElement('div');day.className='mday selectable';
-      (function(cell){cell.onclick=function(ev){openDayMenu(cell,ev)}})(day);
+      day.setAttribute('onclick','openDayMenu(this,event)');
       var num=d.getDate();
       var txt=(num===1)?(kort[d.getMonth()]+' 01'):((num<10?'0':'')+num);
       day.innerHTML='<div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">'+txt+'</span></div>';
@@ -2541,6 +2639,8 @@ function buildWeeks(){
 }
 buildWeeks();
 bindHoverMenus();
+tagDates();
+KAL_ORIG=document.getElementById('kalgrid').innerHTML;
 renderKlantDrop('Michel');
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
