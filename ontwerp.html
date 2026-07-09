@@ -1255,6 +1255,7 @@ doelstelling over 4 weken:
           <div class="foot">
             <button class="save" onclick="saveWorkout()">Workout opslaan</button>
             <button class="cancel" onclick="cancelBuilder(event)">Annuleren</button>
+            <button class="cancel" id="ib-verwijder" style="display:none;color:var(--bad);border-color:var(--bad)" onclick="bwVerwijderen(event)">Verwijderen</button>
           </div>
         </div>
       </div>
@@ -2287,6 +2288,60 @@ function exModalOpslaan(){
   closeExModal();
   toast('Oefening toegevoegd aan de bibliotheek — in de echte app gaat dit direct de database in');
 }
+/* inline bewerken in de dagcel (zoals CoachRx) */
+var bwCel=null, bwKaart=null;
+function openInlineEdit(card){
+  var cell=card.closest('.mday');
+  storeFloats();
+  bwCel=cell;bwKaart=card;curCell=cell;
+  card.style.display='none';
+  var b=document.getElementById('ib-root');
+  cell.appendChild(b);b.style.display='block';
+  var data=kaartData(card);
+  document.getElementById('ib-title').value = data.title==='Workout' ? '' : data.title;
+  var h=document.getElementById('ib-blokken');h.innerHTML='';
+  data.blk.forEach(function(bl){
+    var sec=maakBlok('ex');h.appendChild(sec);
+    sec.querySelector('.ib-ex').value=(bl[0]||'').replace(/^[A-Z]\d?\)\s*/,'');
+    sec.querySelector('.ib-presc').value=(bl[1]||'').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
+  });
+  if(!data.blk.length)h.appendChild(maakBlok('ex'));
+  hernummer();
+  document.getElementById('ib-verwijder').style.display='';
+  document.getElementById('ib-title').focus();
+}
+function slaBewerkingOp(datum,data){
+  if(!datum)return;
+  var o=leesOpslag(),lijst=o[curKlant]=o[curKlant]||[],hit=null;
+  for(var i=0;i<lijst.length;i++){if(lijst[i].d===datum){hit=lijst[i];break;}}
+  if(hit){hit.title=data.title;hit.blk=data.blk;if(data.kleur)hit.kleur=data.kleur;}
+  else{
+    var del=leesDel();(del[curKlant]=del[curKlant]||{})[origVan(datum)]=1;schrijfDel(del);
+    var m=leesMoves();if(m[curKlant]){delete m[curKlant][origVan(datum)];schrijfMoves(m);}
+    lijst.push({d:datum,title:data.title,blk:data.blk,kleur:data.kleur});
+  }
+  schrijfOpslag(o);
+}
+function bwVerwijderen(ev){
+  if(ev)ev.stopPropagation();
+  if(!bwCel)return;
+  var cel=bwCel,kaart=bwKaart;
+  bwCel=null;bwKaart=null;
+  storeFloats();
+  if(kaart)kaart.remove();
+  var ar=cel.querySelector('.addrow2');if(ar)ar.remove();
+  var datum=cel.dataset.d;
+  var o=leesOpslag(),lijst=o[curKlant]||[],idx=-1;
+  for(var i=0;i<lijst.length;i++){if(lijst[i].d===datum){idx=i;break;}}
+  if(idx>=0){lijst.splice(idx,1);schrijfOpslag(o);}
+  else{
+    var del=leesDel();(del[curKlant]=del[curKlant]||{})[origVan(datum)]=1;schrijfDel(del);
+    var m=leesMoves();if(m[curKlant]){delete m[curKlant][origVan(datum)];schrijfMoves(m);}
+  }
+  cel.classList.add('selectable');cel.setAttribute('onclick','openDayMenu(this,event)');delete cel.dataset.hm;
+  bindHoverMenus();
+  toast('Workout verwijderd');
+}
 /* workout bewerken: klik op kaart (zoals CoachRx) */
 var wkCel=null;
 function leesDel(){try{return JSON.parse(localStorage.getItem('coachapp-del')||'{}')}catch(e){return {}}}
@@ -2380,7 +2435,7 @@ function plakKaart(cell,data){
   var blokken=data.blk.map(function(b){return '<div class="cblk"><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div>'+(b[2]?'<div class="loginp" style="color:var(--accent-d);font-weight:600">demo-video gekoppeld \u2014 zichtbaar voor klant</div>':'')+'</div>'}).join('');
   var d=document.createElement('div');d.className='mcard planned';
   d.innerHTML='<div class="msc">0/'+data.blk.length+' · '+esc(data.title)+'</div>'+blokken+'<button class="combtn"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button>';
-  if(data.kleur&&TPLKLEUR[data.kleur])d.style.borderColor=TPLKLEUR[data.kleur];
+  if(data.kleur&&TPLKLEUR[data.kleur]){d.style.borderColor=TPLKLEUR[data.kleur];d.dataset.kleur=data.kleur;}
   cell.appendChild(d);
   cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
   zetDragEnKnoppen();
@@ -2404,7 +2459,7 @@ function zetDragEnKnoppen(){
     if(!card.dataset.wk){card.dataset.wk='1';
       card.addEventListener('click',function(ev){
         if(ev.target.closest('.kopbtn,.combtn,.okc,.loginp,button,input,textarea,a,.linkwrap'))return;
-        openWk(card);
+        openInlineEdit(card);
       });
     }
     if(!card.querySelector('.kopbtn')){
@@ -2707,6 +2762,8 @@ function openClient(id){
 /* dag-menu (zoals CoachRx: Workout / Rustdag / Programma / Plakken) */
 var curCell=null;
 function storeFloats(){
+  if(bwKaart){bwKaart.style.display='';bwKaart=null;bwCel=null;}
+  var vb=document.getElementById('ib-verwijder');if(vb)vb.style.display='none';
   ['dmenu','progpop','ib-root'].forEach(function(id){
     var el=document.getElementById(id);
     if(el){el.style.display='none';document.getElementById('float-store').appendChild(el);}
@@ -2886,7 +2943,7 @@ function maakBlok(type){
     +'<svg class="i ib-del tip" data-tip="Blok verwijderen" onclick="blokWeg(this)"><use href="#i-x"/></svg>';
   head.appendChild(b);head.appendChild(inp);head.appendChild(tools);
   sec.appendChild(head);
-  var pr=document.createElement('input');pr.className='ib-presc';
+  var pr=document.createElement('textarea');pr.className='ib-presc';pr.rows=2;
   pr.placeholder = type==='cond' ? 'Conditioning-omschrijving, notes, enz.' : 'Tempo, reps, sets, rust';
   sec.appendChild(pr);
   if(type!=='cond'){
@@ -2968,6 +3025,17 @@ function saveWorkout(){
   }).filter(function(x){return x});
   if(!blokken.length)blokken=[['Oefening','Tempo, reps, sets, rust',0]];
   blokken=blokken.map(function(b,i){return ['ABCDEFGHIJ'.charAt(i)+') '+b[0], b[1], b[2]]});
+  if(bwCel){
+    var cel=bwCel,kaart=bwKaart,kleur=(kaart&&kaart.dataset.kleur)||'';
+    bwCel=null;bwKaart=null;
+    storeFloats();
+    if(kaart)kaart.remove();
+    var data={title:title,blk:blokken,kleur:kleur};
+    plakKaart(cel,data);
+    slaBewerkingOp(cel.dataset.d,data);
+    toast('Workout aangepast — blijft bewaard');
+    return;
+  }
   storeFloats();
   if(!curCell)return;
   plakKaart(curCell,{title:title,blk:blokken});
