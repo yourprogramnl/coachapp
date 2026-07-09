@@ -410,6 +410,10 @@ h3{font-size:14px;font-weight:700}
 .mx-pm{flex:.4;text-align:right;color:#8b919b}
 .mx-pm.plus2{color:#4ade80}.mx-pm.min2{color:#f87171}
 .mx-doel{font-size:10.5px;color:#8b919b}
+.client-layout.collapsed .cside{overflow:visible}
+.client-layout.collapsed .cnav button{position:relative}
+.client-layout.collapsed .cnav button::after{content:attr(data-tip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:var(--nav);color:#fff;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .06s;z-index:200;border:1px solid #2c3037}
+.client-layout.collapsed .cnav button:hover::after{opacity:1}
 .wkblok{border:1px solid var(--line);border-radius:10px;padding:12px 34px 12px 12px;margin-bottom:10px;position:relative}
 .wkblok input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:7px}
 .wkblok textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:12.5px;min-height:54px;resize:vertical}
@@ -3732,6 +3736,7 @@ initSleep();
 zetDragEnKnoppen();
 laadBieb();
 laadTpl();
+document.querySelectorAll('#p-client .cnav button').forEach(function(b){b.setAttribute('data-tip',b.textContent.trim());});
 renderKlantDrop('Michel');
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
