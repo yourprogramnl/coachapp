@@ -399,6 +399,17 @@ h3{font-size:14px;font-weight:700}
 .ass-noteslink:hover{text-decoration:underline}
 .ass-help{display:inline-flex;width:15px;height:15px;border-radius:50%;background:#3a3f47;color:#c9cdd4;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-left:5px;cursor:default;vertical-align:1px}
 .ass-notes{margin-top:7px}
+.mx-hd{display:flex;justify-content:space-between;align-items:center;background:#3a3f47;color:#e6e8ea;border-radius:8px;padding:11px 13px;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px}
+.mx-hd .plus{font-size:16px;cursor:pointer;padding:0 4px;color:#c9cdd4}
+.mx-cols{display:flex;color:#8b919b;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:10px 11px 5px}
+.mx-row{display:flex;align-items:center;padding:10px 11px;border-bottom:1px solid #24272c;font-size:12.5px;color:#e6e8ea;cursor:pointer}
+.mx-row:hover{background:#22252b}
+.mx-naam{flex:1.7;display:flex;align-items:center;gap:8px;line-height:1.3}
+.mx-naam .i{width:13px;height:13px;color:#8b919b;flex:none}
+.mx-cur{flex:.6}
+.mx-pm{flex:.4;text-align:right;color:#8b919b}
+.mx-pm.plus2{color:#4ade80}.mx-pm.min2{color:#f87171}
+.mx-doel{font-size:10.5px;color:#8b919b}
 .wkblok{border:1px solid var(--line);border-radius:10px;padding:12px 34px 12px 12px;margin-bottom:10px;position:relative}
 .wkblok input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:7px}
 .wkblok textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:12.5px;min-height:54px;resize:vertical}
@@ -895,7 +906,7 @@ input[disabled]{cursor:default}
         <button onclick="toggleChat()"><svg class="i"><use href="#i-chat"/></svg> Berichten</button>
         <button id="cn-trends" onclick="cview('trends')"><svg class="i"><use href="#i-clock"/></svg> Trends</button>
         <button onclick="openPanel('sp-assess')"><svg class="i"><use href="#i-clip"/></svg> Assessment</button>
-        <button id="cn-metrics" onclick="cview('metrics')"><svg class="i"><use href="#i-chart"/></svg> Metrics &amp; 1RM</button>
+        <button id="cn-metrics" onclick="openMx()"><svg class="i"><use href="#i-chart"/></svg> Metrics &amp; 1RM</button>
         <button onclick="openPanel('sp-checkin')"><svg class="i"><use href="#i-check"/></svg> Check-ins &amp; consults</button>
         <button onclick="openPanel('sp-goals')"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
         <button onclick="openPanel('sp-plan')"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
@@ -927,6 +938,16 @@ input[disabled]{cursor:default}
         <button class="sp-btn" onclick="toast('Assessment opgeslagen')">Assessment opslaan</button>
         <button class="sp-btn ghost">Exporteer als PDF</button>
       </div>
+    </div>
+
+    <div class="sidepanel" id="sp-mx">
+      <div class="sp-head"><h3>Metrics</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+        <button class="sp-btn" style="width:auto;padding:9px 14px" onclick="closePanels();cview('metrics')">View structural balance</button>
+        <button class="sp-btn" style="width:40px;padding:9px 0" onclick="toast('Export komt in de echte app')"><svg class="i sm-i"><use href="#i-dl"/></svg></button>
+        <button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal('','')">+ Add</button>
+      </div>
+      <div id="mx-groepen"></div>
     </div>
 
     <div class="sidepanel" id="sp-checkin">
@@ -1825,6 +1846,27 @@ doelstelling over 4 weken:
 </div>
 
 <!-- MODAL: oefening bewerken -->
+<div class="overlay" id="mxmodal">
+  <div class="modal" style="max-width:520px">
+    <h2>Add Metric</h2>
+    <div class="mfield"><label>Name</label><input type="text" id="mx-naam" placeholder="bijv. Back Squat 1RM, Resting Heart Rate, Vertical Jump"></div>
+    <div class="mfield"><label>Group</label>
+      <select id="mx-groep" onchange="document.getElementById('mx-groep-nieuw').style.display=this.value==='__nieuw'?'':'none'"></select>
+      <input type="text" id="mx-groep-nieuw" placeholder="Naam van de nieuwe groep" style="display:none;margin-top:7px">
+    </div>
+    <div class="mfield"><label>Unit Type</label><select id="mx-unit"><option>kg</option><option>reps</option><option>tijd</option><option>cal</option><option>meter</option><option>%</option></select></div>
+    <div style="display:flex;gap:12px">
+      <div class="mfield" style="flex:1"><label>Result</label><input type="text" id="mx-result"></div>
+      <div class="mfield" style="flex:1"><label>Date</label><input type="text" id="mx-datum" value="09-07-2026"></div>
+    </div>
+    <div class="mfield"><label>Doel (optioneel)</label><input type="text" id="mx-doel" placeholder="bijv. 140 — zo zie je waar de klant naartoe werkt"></div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeMxModal()">Cancel</button>
+      <button class="btn" onclick="mxToevoegen()">Add Metric</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="insmodal">
   <div class="modal" style="max-width:960px">
     <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Template invoegen <span class="sm muted" id="ins-dag" style="font-weight:600;font-size:13px"></span></h2>
@@ -2006,6 +2048,106 @@ function cview(v){
   });
   closePanels();
   if(v==='cal')setTimeout(fixSticky,0);
+}
+/* Metrics-paneel (exact zoals CoachRx) + 1RM-koppeling */
+var METRICS_DEF={
+ 'Resistance':[['Air Squat',''],['Back Squat 1RM','120'],['CGBP 1RM','75'],['Clean 1RM','86'],['DB External Rotation 8RM',''],['DB Powell Raise 8RM',''],['DB Prone Row 6RM',''],['Deadlift','141'],['Front Leaning Rest',''],['Front Squat 1RM','100'],['Goblet Squat 20RM',''],['Power Clean 1RM','70'],['Power Snatch 1RM','55'],['Push-up',''],['Reverse Plank',''],['RFESS',''],['Seated DB OH Press 6RM',''],['Side Plank Left',''],['Side Plank Right',''],['Snatch 1RM',''],['Sorenson Hold',''],['Strict Dip',''],['Strict Knees to Elbow',''],['Strict Press 1RM',''],['Strict Pullup',''],['Thruster 1RM',''],['Unloaded RFESS',''],['Weighted Pull-up 1RM',''],['Weighted Strict Dip 1RM','']],
+ 'Energy System Beginner':[['10 minute AirBike','143'],['5k Row',''],['60min Row',''],['AirBike Weight Conversion','298']],
+ 'Energy System Intermediate':[['2k Row',''],['30/30 Row (Row 1)',''],['30/30 Row (Row 2)',''],['30/30 Row (Row 3)',''],['30/30 Row (Row 4)',''],['3K running','13.45'],['500m Row',''],['60 sec AirBike',''],['60 sec Row',''],['90min AMRAP',''],['Row/Burpee Over Erg','']],
+ 'Energy System Advanced':[['18 min AMRAP',''],['Back Squat Neuromuscular Efficiency (NME)',''],['Constant Variance (Set 1: A,B,C,D,E,F)',''],['Constant Variance (Set 2: D,E,F,C,B,A)',''],['Constant Variance (Set 3: B,D,E,A,F,C)',''],['Constant Variance (Set 4: F,A,D,E,C,B)',''],['Constant Variance (Set 5: C,F,B,D,A,E)',''],['Power Clean/Burpee Repeat (Set 1)',''],['Power Clean/Burpee Repeat (Set 2)',''],['Push/Pull',''],['Row/KBS/Burpee (Set 1)',''],['Row/KBS/Burpee (Set 2)',''],['Row/KBS/Burpee (Set 3)',''],['Strict PU + Strict HSPU (PU)',''],['Strict PU + Strict HSPU (sHSPU)','']],
+ 'OPEX Body':[['Basal Metabolic Rate','1600'],['Bodyfat Percentage','24.3'],['Skeletal Muscle Mass','32.3'],['Weight','72']]
+};
+var mxOpen={};
+function leesMx(){try{return JSON.parse(localStorage.getItem('coachapp-metrics')||'{}')}catch(e){return{}}}
+function schrijfMx(x){try{localStorage.setItem('coachapp-metrics',JSON.stringify(x))}catch(e){}}
+function mxGroepen(){
+  var st=(leesMx()[curKlant])||{};
+  var uit={};
+  for(var g in METRICS_DEF){uit[g]=METRICS_DEF[g].map(function(r){return {naam:r[0],cur:r[1],vorig:'',doel:''}});}
+  (st.nieuw||[]).forEach(function(m){(uit[m.groep]=uit[m.groep]||[]).push({naam:m.naam,cur:m.cur,vorig:'',doel:m.doel||''});});
+  for(var g2 in uit){uit[g2].forEach(function(r){var o=(st.waarden||{})[r.naam];if(o){r.vorig=o.vorig!==undefined?o.vorig:r.cur;r.cur=o.cur;if(o.doel)r.doel=o.doel;}});}
+  return uit;
+}
+function openMx(){openPanel('sp-mx');renderMetrics();}
+function mxToggle(g){mxOpen[g]=!mxOpen[g];renderMetrics();}
+function renderMetrics(){
+  var host=document.getElementById('mx-groepen');if(!host)return;
+  var groepen=mxGroepen(), html='';
+  for(var g in groepen){
+    html+='<div class="mx-hd" onclick="mxToggle(\''+g.replace(/'/g,"\\'")+'\')"><span>'+esc(g)+'</span><span class="plus" onclick="event.stopPropagation();openMxModal(\'\',\''+g.replace(/'/g,"\\'")+'\')">+</span></div>';
+    if(mxOpen[g]){
+      html+='<div class="mx-cols"><div style="flex:1.7">Name</div><div style="flex:.6">Current</div><div style="flex:.4;text-align:right">+/-</div></div>';
+      groepen[g].forEach(function(r){
+        var pm='\u2013', pmKl='';
+        var a=parseFloat(String(r.vorig).replace(',','.')), b=parseFloat(String(r.cur).replace(',','.'));
+        if(r.vorig!==''&&!isNaN(a)&&!isNaN(b)&&a!==b){var d=Math.round((b-a)*10)/10;pm=(d>0?'+':'')+d;pmKl=d>0?' plus2':' min2';}
+        var doel=r.doel?'<div class="mx-doel">doel: '+esc(r.doel)+'</div>':'';
+        html+='<div class="mx-row" onclick="openMxModal(\''+r.naam.replace(/'/g,"\\'")+'\',\''+g.replace(/'/g,"\\'")+'\')">'
+          +'<div class="mx-naam"><svg class="i"><use href="#i-cam"/></svg><span>'+esc(r.naam)+doel+'</span></div>'
+          +'<div class="mx-cur">'+(r.cur!==''?esc(r.cur):'\u2013')+'</div>'
+          +'<div class="mx-pm'+pmKl+'">'+pm+'</div></div>';
+      });
+    }
+  }
+  host.innerHTML=html;
+}
+function openMxModal(naam,groep){
+  var sel=document.getElementById('mx-groep');
+  var groepen=Object.keys(mxGroepen());
+  sel.innerHTML=groepen.map(function(g){return '<option'+(g===groep?' selected':'')+'>'+esc(g)+'</option>'}).join('')+'<option value="__nieuw">+ Nieuwe groep\u2026</option>';
+  document.getElementById('mx-groep-nieuw').style.display='none';
+  document.getElementById('mx-naam').value=naam||'';
+  document.getElementById('mx-result').value='';
+  var bestaand=null;
+  if(naam){var gr=mxGroepen();for(var g in gr){gr[g].forEach(function(r){if(r.naam===naam)bestaand=r;});}}
+  document.getElementById('mx-doel').value=bestaand&&bestaand.doel?bestaand.doel:'';
+  document.getElementById('mxmodal').classList.add('show');
+}
+function closeMxModal(){document.getElementById('mxmodal').classList.remove('show');}
+function mxToevoegen(){
+  var naam=document.getElementById('mx-naam').value.trim();
+  if(!naam){toast('Vul eerst een naam in');return;}
+  var groep=document.getElementById('mx-groep').value;
+  if(groep==='__nieuw'){groep=document.getElementById('mx-groep-nieuw').value.trim()||'Overig';}
+  var result=document.getElementById('mx-result').value.trim();
+  var doel=document.getElementById('mx-doel').value.trim();
+  var st=leesMx();var kl=st[curKlant]=st[curKlant]||{};kl.waarden=kl.waarden||{};kl.nieuw=kl.nieuw||[];
+  var groepen=mxGroepen(), bestaat=false, huidige='';
+  for(var g in groepen){groepen[g].forEach(function(r){if(r.naam===naam){bestaat=true;huidige=r.cur;}});}
+  if(bestaat){
+    kl.waarden[naam]={vorig:huidige,cur:result||huidige,doel:doel};
+  }else{
+    kl.nieuw.push({naam:naam,groep:groep,unit:document.getElementById('mx-unit').value,cur:result,doel:doel});
+    mxOpen[groep]=true;
+  }
+  schrijfMx(st);
+  closeMxModal();renderMetrics();
+  toast(bestaat?'Nieuw resultaat opgeslagen voor '+naam:'Metric toegevoegd — in de echte app direct in de database');
+}
+function mxVanWorkout(blokken){
+  var groepen=mxGroepen(), rms=[];
+  for(var g in groepen){groepen[g].forEach(function(r){if(/1RM/i.test(r.naam)||r.naam==='Deadlift')rms.push(r);});}
+  var st=leesMx();var kl=st[curKlant]=st[curKlant]||{};kl.waarden=kl.waarden||{};
+  var gewijzigd=false;
+  blokken.forEach(function(b){
+    var naam=String(b[0]).replace(/^[A-Z]\d?\)\s*/,'').toLowerCase();
+    var kgs=String(b[1]).match(/(\d+(?:[.,]\d+)?)\s*kg/gi);
+    if(!kgs)return;
+    var max=0;kgs.forEach(function(k){var v=parseFloat(k.replace(',','.'));if(v>max)max=v;});
+    if(!max)return;
+    rms.forEach(function(r){
+      var basis=r.naam.replace(/\s*1RM/i,'').toLowerCase();
+      if(basis.length>3&&naam.indexOf(basis)>=0){
+        var oud=parseFloat(String(r.cur).replace(',','.'))||0;
+        if(max!==oud){
+          kl.waarden[r.naam]={vorig:r.cur,cur:String(max),doel:r.doel};
+          gewijzigd=true;
+          toast('Metric bijgewerkt: '+r.naam+' '+(r.cur||'\u2013')+' \u2192 '+max+' kg');
+        }
+      }
+    });
+  });
+  if(gewijzigd){schrijfMx(st);renderMetrics();}
 }
 function assNotes(link){
   var paneel=link.closest('.sidepanel');
@@ -3306,6 +3448,7 @@ function saveWorkout(){
     var data={title:title,blk:blokken,kleur:kleur,notes:notes,warmup:warmup,cooldown:cooldown};
     plakKaart(cel,data);
     slaBewerkingOp(cel.dataset.d,data);
+    mxVanWorkout(blokken);
     toast('Workout aangepast — blijft bewaard');
     return;
   }
@@ -3316,6 +3459,7 @@ function saveWorkout(){
   if(curCell.dataset.d){
     var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown});schrijfOpslag(o);
   }
+  mxVanWorkout(blokken);
   toast('Workout opgeslagen — '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
 }
 /* modals */
