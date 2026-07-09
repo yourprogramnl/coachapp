@@ -532,6 +532,23 @@ input[disabled]{cursor:default}
 .taskitem .ts{font-size:11px;color:var(--muted);margin-top:2px}
 #task-save{background:#a8d8ec}
 #task-save.actief{background:var(--accent)}
+/* programma-dropdown (Strivee) */
+.progsel{position:relative}
+.progdrop{position:absolute;top:calc(100% + 8px);left:0;z-index:160;background:#fff;border:1px solid var(--line);
+  border-radius:14px;box-shadow:0 18px 50px rgba(15,18,22,.18);width:300px;padding:10px;display:none;cursor:default}
+.progdrop.show{display:block}
+.pd-search{display:flex;align-items:center;gap:8px;background:#f2f4f6;border-radius:9px;padding:9px 12px;margin-bottom:8px;color:var(--muted2)}
+.pd-search input{border:none;background:none;flex:1;font-size:12.5px}
+.pd-lijst{max-height:300px;overflow:auto}
+.pd-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer}
+.pd-row:hover{background:#f4f8fb}
+.pd-badge{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#fff;flex-shrink:0;background:linear-gradient(135deg,#171719,#3a3f47)}
+.pd-badge.geel{background:#fdf0dc;color:#d97706}
+.pd-badge.blauw{background:linear-gradient(135deg,#38bdf8,#6366f1)}
+.pd-naam{font-size:12.5px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pd-vink{color:var(--ok);display:none}
+.pd-row.actief .pd-vink{display:flex}
 #float-store{display:none}
 @media(max-width:900px){
   .dashgrid{grid-template-columns:1fr}
@@ -964,13 +981,28 @@ doelstelling over 4 weken:
      <div id="cv-cal">
       <div class="calhead">
         <button class="btn ghost sm2" onclick="go('clients')">&#8592; Alle klanten</button>
-        <span class="month">Juli 2026</span>
-        <div class="navarrows"><button>&#8249;</button><button>&#8250;</button></div>
-        <button class="btn ghost sm2">Vandaag</button>
-        <div class="progsel">
-          <div class="pav">YP</div>
-          <div><div class="pn">YourProgram 1-op-1</div><div class="pt">1:1 · Michel</div></div>
+        <span class="month" id="mnd-label">Juli 2026</span>
+        <div class="navarrows"><button onclick="mndScroll(-1)">&#8249;</button><button onclick="mndScroll(1)">&#8250;</button></div>
+        <button class="btn ghost sm2" onclick="mndVandaag()">Vandaag</button>
+        <div class="progsel" onclick="toggleProgDrop(event)">
+          <div class="pav" id="prog-badge">YP</div>
+          <div><div class="pn" id="prog-naam">YourProgram 1 on 1 (Michel)</div><div class="pt" id="prog-sub">1:1 · Michel</div></div>
           <span class="car">&#9662;</span>
+          <div class="progdrop" id="progdrop" onclick="event.stopPropagation()">
+            <div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input id="pd-zoek" placeholder="Zoek een programma…" oninput="filterProg(this.value)"></div>
+            <div class="pd-lijst" id="pd-lijst">
+              <div class="pd-row" onclick="kiesProg(this,'Team training builder','Vast · team')"><div class="pd-badge geel">T</div><div class="pd-naam">Team training builder</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'Template builder','Vast · templates')"><div class="pd-badge geel">T</div><div class="pd-naam">Template builder</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'The Next Step','Classic · &euro;39/mnd')"><div class="pd-badge blauw">NS</div><div class="pd-naam">The Next Step</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row actief" onclick="kiesProg(this,'YourProgram 1 on 1 (Michel)','1:1 · Michel')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Michel)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'YourProgram 1 on 1 (Rieke)','1:1 · Rieke')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Rieke)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'YourProgram 1 on 1 (Stefan)','1:1 · Stefan')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Stefan)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'YourProgram 1 on 1 (Thirza)','1:1 · Thirza')"><div class="pd-badge">YP</div><div class="pd-naam">YourProgram 1 on 1 coaching (Thirza)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'YourProgram Showdown only','Classic')"><div class="pd-badge blauw">SD</div><div class="pd-naam">YourProgram Showdown only</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'YP Hyrox Program','Classic')"><div class="pd-badge blauw">HX</div><div class="pd-naam">YP Hyrox Program</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+              <div class="pd-row" onclick="kiesProg(this,'YP showdown builder','Vast · alle shows')"><div class="pd-badge geel">Y</div><div class="pd-naam">YP showdown builder (alle showdowns)</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>
+            </div>
+          </div>
         </div>
         <div class="seg">
           <button class="on">Workouts</button>
@@ -1910,6 +1942,45 @@ function cijfers(v){
   document.getElementById('ring').style.background='conic-gradient(var(--accent) 0 '+p+'%, #e5e8eb '+p+'% 100%)';
   document.getElementById('ring-pct').textContent=p+'%';
 }
+/* maandnavigatie */
+var MND=['Juli 2026','Augustus 2026','September 2026','Oktober 2026'];
+var mndIdx=0;
+function mndGa(){
+  document.getElementById('mnd-label').textContent=MND[mndIdx];
+  var doel;
+  if(mndIdx===0){doel=document.querySelector('#cv-cal .mhead7');}
+  else{doel=document.querySelectorAll('#more-weeks .mlabel')[mndIdx-1];}
+  if(doel){window.scrollTo({top:doel.getBoundingClientRect().top+window.scrollY-96,behavior:'smooth'});}
+}
+function mndScroll(delta){
+  mndIdx=Math.max(0,Math.min(MND.length-1,mndIdx+delta));
+  mndGa();
+}
+function mndVandaag(){mndIdx=0;mndGa();}
+/* programma-dropdown (Strivee) */
+function toggleProgDrop(ev){
+  ev.stopPropagation();
+  document.getElementById('progdrop').classList.toggle('show');
+}
+function filterProg(v){
+  v=v.toLowerCase();
+  document.querySelectorAll('#pd-lijst .pd-row').forEach(function(r){
+    r.style.display = r.textContent.toLowerCase().indexOf(v)>=0 ? '' : 'none';
+  });
+}
+function kiesProg(el,naam,sub){
+  document.querySelectorAll('#pd-lijst .pd-row').forEach(function(r){r.classList.remove('actief')});
+  el.classList.add('actief');
+  document.getElementById('prog-naam').textContent=naam;
+  document.getElementById('prog-sub').textContent=sub;
+  document.getElementById('prog-badge').textContent=el.querySelector('.pd-badge').textContent;
+  document.getElementById('progdrop').classList.remove('show');
+  toast('Programma gewisseld naar '+naam+' — als admin zie je alle coaches; rechten per coach regelen we in de echte app');
+}
+document.addEventListener('click',function(){
+  var pd=document.getElementById('progdrop');
+  if(pd)pd.classList.remove('show');
+});
 /* klik op klant-avatar -> direct naar programma */
 var CLIENTS={
  rick:{nm:'Rick van der Sluis',ini:'RV',av:'linear-gradient(135deg,#38bdf8,#6366f1)',
