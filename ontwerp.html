@@ -495,6 +495,28 @@ h3{font-size:14px;font-weight:700}
 .feedload{text-align:center;padding:20px;color:var(--muted);font-size:12.5px}
 .spin{width:20px;height:20px;border:2.5px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 8px;animation:sp .9s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* interactieve feed */
+.fblok{position:relative}
+.fok{cursor:pointer}
+.fok:hover{border-color:var(--muted2)}
+.fhist{cursor:pointer}
+.fhist:hover{color:var(--muted)}
+.histpop{position:absolute;right:36px;top:2px;z-index:130;background:#fff;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 14px 44px rgba(15,18,22,.18);width:262px;padding:13px 15px;display:none}
+.histpop.show{display:block}
+.histpop h4{font-size:12.5px;font-weight:800;margin-bottom:8px}
+.histpop .hri{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line2)}
+.histpop .hri:last-child{border-bottom:none}
+.histpop .hd2{color:var(--muted)}
+textarea.fcinput{width:100%;border:1px solid var(--line);border-radius:8px;min-height:60px;padding:10px 12px;font-size:12.5px;resize:vertical;color:var(--txt)}
+textarea.fcinput.note{background:#fdf6d9;border-color:#ecdf9a}
+.fctabs span{cursor:pointer}
+.fcmts .fcmt{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line2);align-items:flex-start}
+.fcmts .fcmt .t{font-size:12.5px;line-height:1.5}
+.fcmts .fcmt .m{font-size:10.5px;color:var(--muted);margin-top:2px}
+.fcmts .fcmt.notec .t{background:#fdf6d9;border-radius:8px;padding:8px 11px}
+.fcrow .send2{cursor:pointer}
+.fcrow .send2.actief{background:var(--accent)}
 #float-store{display:none}
 .mlabel{padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.3px;background:#f6f7f8;border-bottom:1px solid var(--line);color:#4a4f57}
 
@@ -1913,6 +1935,60 @@ function buildWeeks(){
 }
 buildWeeks();
 
+
+/* feed-interactie: vinkjes, history, comments, notes */
+var HIST={
+ 'leg press glute focus':[['8 jun','3 x 12 @ 40 kg'],['1 jun','3 x 10 @ 35 kg'],['25 mei','3 x 10 @ 35 kg']],
+ 'Romanian Deadlift':[['8 jun','Stang plus 7,5'],['1 jun','Alleen stang'],['25 mei','Alleen stang']],
+ 'glider reverse lunges':[['8 jun','10/10'],['1 jun','8/8 zwaar'],['25 mei','8/8']],
+ 'Dumbbell Bench Press':[['8 jun','15 x 7,5 kg'],['1 jun','12 x 7,5 kg'],['25 mei','12 x 5 kg']],
+ 'Deadlift':[['1 jun','80 kg x 5'],['25 mei','75 kg x 5'],['18 mei','70 kg x 5']]
+};
+function toggleMark(el){
+  var miss=el.classList.toggle('miss');
+  el.innerHTML='<svg class="i"><use href="#i-'+(miss?'x':'check')+'"/></svg>';
+  var kaart=el.closest('.fcard');
+  var alle=kaart.querySelectorAll('.fok');
+  var ok=kaart.querySelectorAll('.fok:not(.miss)');
+  kaart.querySelector('.fscore').textContent=ok.length+'/'+alle.length;
+  toast(miss?'Gemarkeerd als gemist':'Gemarkeerd als gedaan');
+}
+function showHist(ev,el,naam){
+  ev.stopPropagation();
+  var oud=document.querySelector('.histpop');
+  if(oud)oud.remove();
+  var rows=HIST[naam]||[['1 jun','—'],['25 mei','—'],['18 mei','—']];
+  var p=document.createElement('div');p.className='histpop show';
+  p.innerHTML='<h4>History — '+naam+'</h4>'+rows.map(function(r){return '<div class="hri"><span class="hd2">'+r[0]+'</span><span>'+r[1]+'</span></div>'}).join('');
+  el.closest('.fblok').appendChild(p);
+  setTimeout(function(){
+    document.addEventListener('click',function sluit(e){
+      if(!p.contains(e.target)){p.remove();document.removeEventListener('click',sluit);}
+    });
+  },0);
+}
+function feedTab(el,note){
+  var tabs=el.parentNode.querySelectorAll('span');
+  tabs.forEach(function(t){t.className='off2'});
+  el.className='on2';
+  var ta=el.closest('.fcomment').querySelector('.fcinput');
+  ta.classList.toggle('note',note===1);
+  ta.placeholder = note===1 ? 'Notitie — alleen zichtbaar voor coaches…' : 'Schrijf een reactie…';
+}
+function sendComment(btn){
+  var box=btn.closest('.fcomment');
+  var ta=box.querySelector('.fcinput');
+  var txt=ta.value.trim();
+  if(!txt){toast('Typ eerst een reactie of notitie');return;}
+  var isNote=ta.classList.contains('note');
+  var d=document.createElement('div');
+  d.className='fcmt'+(isNote?' notec':'');
+  d.innerHTML='<div class="avc av5" style="width:28px;height:28px;font-size:10px">MB</div>'+
+    '<div><div class="t">'+txt.replace(/</g,'&lt;')+'</div><div class="m">Michel Bakker · zojuist'+(isNote?' · alleen coaches':'')+'</div></div>';
+  box.querySelector('.fcmts').appendChild(d);
+  ta.value='';
+  toast(isNote?'Notitie opgeslagen — alleen zichtbaar voor coaches':'Reactie verstuurd — Rick krijgt een melding');
+}
 /* activity feed: kaarten exact CoachRx, bijladen bij scrollen */
 var FEED_DATA=[
  {av:'av1',ini:'RV',naam:'Rick van der Sluis',due:'Due 15 jun 2026',score:'4/4',blokken:[
@@ -1957,17 +2033,19 @@ function feedCardHtml(d){
     h+='<div class="fblok'+(i===d.blokken.length-1?' last':'')+'">'+badge+
       '<div class="fmain"><div class="fname">'+bl.naam+'</div><div class="fpresc">'+bl.presc+'</div>'+
       (bl.log?'<div class="flog">'+bl.log+'</div>':'')+'</div>';
+    var nm=bl.naam.replace(/'/g,"&#39;");
     if(bl.st){
-      h+='<div class="fmarks"><span class="fok'+(bl.st==='miss'?' miss':'')+'"><svg class="i"><use href="#i-'+(bl.st==='miss'?'x':'check')+'"/></svg></span>'+
-        '<span class="fhist"><svg class="i sm-i"><use href="#i-hist"/></svg></span></div>';
+      h+='<div class="fmarks"><span class="fok'+(bl.st==='miss'?' miss':'')+'" title="Klik om gedaan/gemist te wisselen" onclick="toggleMark(this)"><svg class="i"><use href="#i-'+(bl.st==='miss'?'x':'check')+'"/></svg></span>'+
+        '<span class="fhist" onclick="showHist(event,this,\''+nm+'\')"><svg class="i sm-i"><use href="#i-hist"/></svg></span></div>';
     } else {
-      h+='<div class="fmarks"><span class="fhist"><svg class="i sm-i"><use href="#i-hist"/></svg></span></div>';
+      h+='<div class="fmarks"><span class="fhist" onclick="showHist(event,this,\''+nm+'\')"><svg class="i sm-i"><use href="#i-hist"/></svg></span></div>';
     }
     h+='</div>';
   });
-  h+='<div class="fcomment"><div class="fctabs"><span class="on2">Comments</span><span class="off2">Note</span></div>'+
-    '<div class="fcinput">Schrijf een reactie…</div>'+
-    '<div class="fcrow"><svg class="i"><use href="#i-link"/></svg><svg class="i"><use href="#i-cam"/></svg><svg class="i"><use href="#i-play"/></svg><button class="send2">Send</button></div></div></div>';
+  h+='<div class="fcomment"><div class="fctabs"><span class="on2" onclick="feedTab(this,0)">Comments</span><span class="off2" onclick="feedTab(this,1)">Note</span></div>'+
+    '<div class="fcmts"></div>'+
+    '<textarea class="fcinput" placeholder="Schrijf een reactie…"></textarea>'+
+    '<div class="fcrow"><svg class="i"><use href="#i-link"/></svg><svg class="i"><use href="#i-cam"/></svg><svg class="i"><use href="#i-play"/></svg><button class="send2" onclick="sendComment(this)">Send</button></div></div></div>';
   return h;
 }
 function feedAppend(n){
