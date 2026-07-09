@@ -904,13 +904,35 @@ input[disabled]{cursor:default}
 
     <div class="sidepanel" id="sp-assess">
       <div class="sp-head"><h3>Assessment</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <div class="sp-tabs"><button class="on">OPEX Body</button><button>OPEX Move</button><button>OPEX Work</button></div>
+      <div class="sp-tabs"><button class="on" id="ass-t0" onclick="assTab(0)">OPEX Body</button><button id="ass-t1" onclick="assTab(1)">OPEX Move</button><button id="ass-t2" onclick="assTab(2)">OPEX Work</button></div>
+      <div id="ass-0">
       <div class="sp-field"><label>Lichaamsgewicht</label><input value="100"></div>
       <div class="sp-field"><label>Vetpercentage</label><input value="24,4"></div>
       <div class="sp-field"><label>Skeletspiermassa</label><input value="42,8"></div>
       <div class="sp-field"><label>Basaal metabolisme</label><input value="2008"></div>
       <div class="sp-field"><label>Muscle fat-analyse</label><select><option>C-shape</option><option>D-shape</option><option>I-shape</option></select></div>
       <div class="sp-field"><label>Notities OPEX Body</label><textarea>vet% moet omlaag en meer spiermassa</textarea></div>
+      </div>
+      <div id="ass-1" style="display:none">
+        <div class="sp-field"><label>Air Squat (30 reps)</label><select><option>Goed</option><option selected>Voldoende</option><option>Beperkt</option></select></div>
+        <div class="sp-field"><label>Toe Touch</label><select><option selected>Goed</option><option>Voldoende</option><option>Beperkt</option></select></div>
+        <div class="sp-field"><label>Overhead Squat (met stok)</label><select><option>Goed</option><option>Voldoende</option><option selected>Beperkt</option></select></div>
+        <div class="sp-field"><label>Active Straight Leg Raise</label><select><option>Goed</option><option selected>Voldoende</option><option>Beperkt</option></select></div>
+        <div class="sp-field"><label>Push-up (max strikt)</label><input value="22"></div>
+        <div class="sp-field"><label>Ring Row (max)</label><input value="15"></div>
+        <div class="sp-field"><label>Sorenson hold</label><input value="1:45"></div>
+        <div class="sp-field"><label>Side plank links / rechts</label><input value="0:50 / 0:55"></div>
+        <div class="sp-field"><label>Notities OPEX Move</label><textarea>OHS beperkt door enkelmobiliteit — 2x per week ankle work in de warming-up</textarea></div>
+      </div>
+      <div id="ass-2" style="display:none">
+        <div class="sp-field"><label>10 min AirBike (cal)</label><input value="148"></div>
+        <div class="sp-field"><label>500m Row</label><input value="1:38,5"></div>
+        <div class="sp-field"><label>1 mile Run</label><input value="7:12"></div>
+        <div class="sp-field"><label>Broad Jump</label><input value="2,45 m"></div>
+        <div class="sp-field"><label>Max squats onafgebroken @ 60 kg</label><input value="18"></div>
+        <div class="sp-field"><label>FLIGHT-test (anaeroob)</label><input value="82% drop-off"></div>
+        <div class="sp-field"><label>Notities OPEX Work</label><textarea>aerobe basis prima; anaerobe capaciteit opbouwen in blok 2</textarea></div>
+      </div>
       <div style="display:flex;gap:8px">
         <button class="sp-btn" onclick="toast('Assessment opgeslagen')">Assessment opslaan</button>
         <button class="sp-btn ghost">Exporteer als PDF</button>
@@ -1818,6 +1840,7 @@ doelstelling over 4 weken:
     <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Template invoegen <span class="sm muted" id="ins-dag" style="font-weight:600;font-size:13px"></span></h2>
     <div class="hrow" style="margin-bottom:10px">
       <div class="search" style="flex:1"><svg class="i"><use href="#i-search"/></svg><input id="ins-zoek" placeholder="Zoek op naam, tekst of kleurnaam (bijv. kracht)&#8230;" oninput="insRender()"></div>
+      <button class="btn" style="white-space:nowrap" onclick="openTplNieuw()">+ Nieuwe template</button>
       <div class="seg" id="ins-types">
         <button class="on" onclick="insType('all',this)">Alles</button>
         <button onclick="insType('warmup',this)">Warm-ups</button>
@@ -1838,6 +1861,7 @@ doelstelling over 4 weken:
     <h2>Template bewerken</h2>
     <div class="mfield"><label>Titel</label><input type="text" id="tpl-naam"></div>
     <div class="mfield"><label>Instructies</label><textarea id="tpl-instr" style="min-height:130px"></textarea></div>
+    <div class="mfield"><label>Type</label><select id="tpl-type"><option value="other">Workout</option><option value="warmup">Warm-up</option><option value="cooldown">Cooldown</option></select></div>
     <div class="mfield"><label>Kleur</label><div id="tpl-kleuren" style="display:flex;gap:12px;padding:6px 0 2px"></div></div>
     <div class="mfoot">
       <button class="btn ghost" onclick="closeTpl()">Annuleren</button>
@@ -1993,6 +2017,12 @@ function cview(v){
   closePanels();
   if(v==='cal')setTimeout(fixSticky,0);
 }
+function assTab(n){
+  for(var i=0;i<3;i++){
+    document.getElementById('ass-t'+i).classList.toggle('on',i===n);
+    document.getElementById('ass-'+i).style.display = i===n ? '' : 'none';
+  }
+}
 function openPanel(id){
   closePanels();
   document.getElementById(id).classList.add('show');
@@ -2123,8 +2153,9 @@ function laadTpl(){
   .then(function(r){return r.json()})
   .then(function(d){
     var ed=leesTplEdits();
-    d.forEach(function(o){var e=ed[o.id];if(e){o.naam=e.naam;o.instructies=e.instructies;o.kleur=e.kleur;}});
-    TPL=d;
+    d.forEach(function(o){var e=ed[o.id];if(e){o.naam=e.naam;o.instructies=e.instructies;o.kleur=e.kleur;if(e.type)o.type=e.type;}});
+    TPL=d.concat(leesEigenTpl());
+    TPL.sort(function(a,b){return a.naam.localeCompare(b.naam)});
     if(libMode!=='oef')libRender();
   })
   .catch(function(){});
@@ -2146,11 +2177,22 @@ function setLibMode(m,btn){
 }
 function libAdd(){
   if(libMode==='oef'){openExModal(true);return;}
-  toast('Template toevoegen doe je straks via de template-editor — net als in Strivee');
+  openTplNieuw();
 }
 var KLEUREN=['yellow','blue','purple','red','green','orange'];
 var LEGDEF={yellow:'Conditie',blue:'Kracht',purple:'Gymnastics',red:'Intensief',green:'Herstel',orange:'Overig'};
 var libKleur='', tplEditIdx=-1, tplKleurKeuze='yellow';
+function leesEigenTpl(){try{return JSON.parse(localStorage.getItem('coachapp-eigen-templates')||'[]')}catch(e){return[]}}
+function schrijfEigenTpl(l){try{localStorage.setItem('coachapp-eigen-templates',JSON.stringify(l))}catch(e){}}
+function openTplNieuw(){
+  tplEditIdx=-2;
+  document.getElementById('tpl-naam').value='';
+  document.getElementById('tpl-instr').value='';
+  var ts=document.getElementById('tpl-type');
+  if(ts)ts.value = (libMode==='warmup'||insTypeF==='warmup') ? 'warmup' : ((libMode==='cooldown'||insTypeF==='cooldown') ? 'cooldown' : 'other');
+  tplKleurKeuze='yellow';tplKleurenRender();
+  document.getElementById('tplmodal').classList.add('show');
+}
 function leesTplEdits(){try{return JSON.parse(localStorage.getItem('coachapp-tpl-edits')||'{}')}catch(e){return{}}}
 function leesLegenda(){var raw={};try{raw=JSON.parse(localStorage.getItem('coachapp-legenda')||'{}')}catch(e){}var uit={};KLEUREN.forEach(function(k){uit[k]=raw[k]||LEGDEF[k]});return uit;}
 function legRender(){
@@ -2176,6 +2218,7 @@ function openTpl(i){
   var o=TPL[i];if(!o)return;tplEditIdx=i;
   document.getElementById('tpl-naam').value=o.naam;
   document.getElementById('tpl-instr').value=o.instructies;
+  var ts=document.getElementById('tpl-type');if(ts)ts.value=o.type||'other';
   tplKleurKeuze=KLEUREN.indexOf(o.kleur)>=0?o.kleur:'yellow';
   tplKleurenRender();
   document.getElementById('tplmodal').classList.add('show');
@@ -2189,13 +2232,35 @@ function tplKleurenRender(){
 function kiesTplKleur(k){tplKleurKeuze=k;tplKleurenRender();}
 function closeTpl(){document.getElementById('tplmodal').classList.remove('show');tplEditIdx=-1;}
 function tplOpslaan(){
+  var naam=document.getElementById('tpl-naam').value.trim();
+  var instr=document.getElementById('tpl-instr').value;
+  var ts=document.getElementById('tpl-type');
+  var type=ts?ts.value:'other';
+  if(tplEditIdx===-2){
+    if(!naam){toast('Vul eerst een titel in');return;}
+    var nieuw={id:'eigen-'+Date.now(),naam:naam,instructies:instr,type:type,kleur:tplKleurKeuze,tags:['eigen'],coach:''};
+    TPL.push(nieuw);TPL.sort(function(a,b){return a.naam.localeCompare(b.naam)});
+    var l=leesEigenTpl();l.push(nieuw);schrijfEigenTpl(l);
+    closeTpl();libRender();
+    if(document.getElementById('insmodal').classList.contains('show'))insRender();
+    toast('Nieuwe template opgeslagen — in de echte app gaat dit direct de database in');
+    return;
+  }
   var o=TPL[tplEditIdx];if(!o)return;
-  o.naam=document.getElementById('tpl-naam').value.trim()||o.naam;
-  o.instructies=document.getElementById('tpl-instr').value;
+  o.naam=naam||o.naam;
+  o.instructies=instr;
   o.kleur=tplKleurKeuze;
-  var ed=leesTplEdits();ed[o.id]={naam:o.naam,instructies:o.instructies,kleur:o.kleur};
-  try{localStorage.setItem('coachapp-tpl-edits',JSON.stringify(ed))}catch(e){}
+  o.type=type;
+  if(String(o.id).indexOf('eigen-')===0){
+    var l2=leesEigenTpl();
+    for(var i=0;i<l2.length;i++){if(l2[i].id===o.id){l2[i]=o;break;}}
+    schrijfEigenTpl(l2);
+  }else{
+    var ed=leesTplEdits();ed[o.id]={naam:o.naam,instructies:o.instructies,kleur:o.kleur,type:o.type};
+    try{localStorage.setItem('coachapp-tpl-edits',JSON.stringify(ed))}catch(e){}
+  }
   closeTpl();libRender();
+  if(document.getElementById('insmodal').classList.contains('show'))insRender();
   toast('Template aangepast — blijft bewaard; in de echte app direct in de database');
 }
 var libZoek='', libPag=0, LIB_PER=50;
