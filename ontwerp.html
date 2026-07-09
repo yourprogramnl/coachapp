@@ -61,6 +61,7 @@ h3{font-size:14px;font-weight:700}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}
 .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.warn{background:#fdf3e2;color:#b97b1f}
 .pill.teal{background:var(--teal-bg);color:#1e91b8}
 .pill.purple{background:var(--purple-bg);color:var(--purple)}
 .pill.gray{background:var(--p-grijs);color:var(--muted)}
@@ -1441,7 +1442,7 @@ doelstelling over 4 weken:
 <!-- COACHES -->
 <div id="p-coaches" class="page">
   <div class="card statbar">
-    <div><div class="n">32</div><div class="l">Klanten totaal</div></div>
+    <div><div class="n">8</div><div class="l">Klanten totaal</div></div>
     <div><div class="n acc">85%</div><div class="l">Compliance <span class="inf">i</span></div></div>
     <div><div class="n">–</div><div class="l">Consult-rate <span class="inf">i</span></div></div>
     <div><div class="n acc">76%</div><div class="l">Contactmomenten <span class="inf">i</span></div></div>
@@ -1459,23 +1460,23 @@ doelstelling over 4 weken:
       <div style="flex:1">Rol</div>
       <div style="width:30px"></div>
     </div>
-    <div class="trow">
-      <div class="cname" style="flex:2.2"><div class="avc av5">MB</div><div><div class="nm">Michel Bakker</div><div class="sub">1 klant</div></div></div>
+    <div class="trow click" onclick="openCoach('michel')">
+      <div class="cname" style="flex:2.2"><div class="avc av5">MB</div><div><div class="nm">Michel Bakker</div><div class="sub">3 klanten</div></div></div>
       <div style="flex:1"><span class="comp low">58%</span></div>
       <div style="flex:1" class="muted">–</div>
       <div style="flex:1.2" class="muted">0%</div>
       <div style="flex:1"><span class="pill purple">Eigenaar</span></div>
       <div style="width:30px"></div>
     </div>
-    <div class="trow">
-      <div class="cname" style="flex:2.2"><div class="avc av2">RW</div><div><div class="nm">Rieke Wijnhard</div><div class="sub">0 klanten</div></div></div>
+    <div class="trow click" onclick="openCoach('rieke')">
+      <div class="cname" style="flex:2.2"><div class="avc av2">RW</div><div><div class="nm">Rieke Wijnhard</div><div class="sub">2 klanten</div></div></div>
       <div style="flex:1" class="muted">–</div>
       <div style="flex:1" class="muted">–</div>
       <div style="flex:1.2" class="muted">0%</div>
       <div style="flex:1"><span class="pill teal">Coach</span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow">
+    <div class="trow click" onclick="openCoach('stefanb')">
       <div class="cname" style="flex:2.2"><div class="avc av1">SB</div><div><div class="nm">Stefan Bakker</div><div class="sub">0 klanten</div></div></div>
       <div style="flex:1" class="muted">–</div>
       <div style="flex:1" class="muted">–</div>
@@ -1483,22 +1484,53 @@ doelstelling over 4 weken:
       <div style="flex:1"><span class="pill teal">Coach</span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow">
-      <div class="cname" style="flex:2.2"><div class="avc av6">SV</div><div><div class="nm">Stefan Vissenberg</div><div class="sub">6 klanten</div></div></div>
+    <div class="trow click" onclick="openCoach('sv')">
+      <div class="cname" style="flex:2.2"><div class="avc av6">SV</div><div><div class="nm">Stefan Vissenberg</div><div class="sub">2 klanten</div></div></div>
       <div style="flex:1"><span class="comp good">93%</span></div>
       <div style="flex:1" class="muted">–</div>
       <div style="flex:1.2" class="muted">0%</div>
       <div style="flex:1"><span class="pill gray">Admin</span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow">
-      <div class="cname" style="flex:2.2"><div class="avc av4">TB</div><div><div class="nm">Thirza den Boer</div><div class="sub">25 klanten</div></div></div>
+    <div class="trow click" onclick="openCoach('thirza')">
+      <div class="cname" style="flex:2.2"><div class="avc av4">TB</div><div><div class="nm">Thirza den Boer</div><div class="sub">1 klant</div></div></div>
       <div style="flex:1"><span class="comp good">93%</span></div>
       <div style="flex:1" class="muted">–</div>
       <div style="flex:1.2"><span class="comp good">100%</span></div>
       <div style="flex:1"><span class="pill gray">Admin</span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
+  </div>
+</div>
+
+<!-- COACH-DETAIL (roster zoals CoachRx) -->
+<div id="p-coachdetail" class="page">
+  <div class="hrow" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <button class="btn ghost sm2" onclick="go('coaches')">&#8592; Coaches</button>
+      <div class="avc av5" id="cd-av">MB</div>
+      <div><h1 style="margin:0" id="cd-naam">Michel Bakker</h1><div id="cd-sub"></div></div>
+    </div>
+    <button class="btn" onclick="toast('Klant koppelen aan deze coach — komt in de echte app')">+ Klant koppelen</button>
+  </div>
+  <div class="card statbar">
+    <div><div class="n" id="cd-tot">3</div><div class="l">Klanten totaal</div></div>
+    <div><div class="n acc" id="cd-comp">58%</div><div class="l">Compliance <span class="inf">i</span></div>
+      <select style="margin-top:8px;border:1px solid var(--line);border-radius:7px;padding:5px 9px;background:#fff;font-size:12px"><option>Workout: 30 dagen</option><option>Workout: 7 dagen</option><option>Lifestyle: 30 dagen</option></select>
+    </div>
+    <div><div class="n">&#8211;</div><div class="l">Consult-rate <span class="inf">i</span></div></div>
+    <div><div class="n acc" id="cd-touch">0%</div><div class="l">Contactmomenten <span class="inf">i</span></div></div>
+  </div>
+  <div class="card">
+    <div class="thead">
+      <div style="flex:2.2">Naam</div>
+      <div style="flex:1.2">Workout</div>
+      <div style="flex:1.2">Lifestyle</div>
+      <div style="flex:1">Compliance</div>
+      <div style="flex:1.8">Tags</div>
+      <div style="width:30px"></div>
+    </div>
+    <div id="cd-lijst"></div>
   </div>
 </div>
 
@@ -1892,7 +1924,7 @@ function go(p){
   var page=document.getElementById('p-'+p);
   if(page)page.classList.add('active');
   document.querySelectorAll('.topnav button').forEach(function(el){el.classList.remove('on')});
-  var map={dash:'tn-dash',clients:'tn-clients',client:'tn-clients',lib:'tn-lib',coaches:'tn-coaches',programs:'tn-programs',program:'tn-programs',week:'tn-week',msgs:'tn-msgs'};
+  var map={dash:'tn-dash',clients:'tn-clients',client:'tn-clients',lib:'tn-lib',coaches:'tn-coaches',coachdetail:'tn-coaches',programs:'tn-programs',program:'tn-programs',week:'tn-week',msgs:'tn-msgs'};
   var btn=document.getElementById(map[p]);
   if(btn)btn.classList.add('on');
   window.scrollTo(0,0);
@@ -2002,6 +2034,51 @@ document.addEventListener('click',function(){
   var kd=document.getElementById('klantdrop');
   if(kd)kd.classList.remove('show');
 });
+/* coach-detail (roster zoals CoachRx) */
+var COACHES={
+ michel:{nm:'Michel Bakker',ini:'MB',av:'av5',rol:'Eigenaar',rolKl:'purple',key:'Michel',comp:'58%',touch:'0%'},
+ rieke:{nm:'Rieke Wijnhard',ini:'RW',av:'av2',rol:'Coach',rolKl:'teal',key:'Rieke',comp:'88%',touch:'50%'},
+ stefanb:{nm:'Stefan Bakker',ini:'SB',av:'av1',rol:'Coach',rolKl:'teal',key:null,comp:'\u2013',touch:'0%'},
+ sv:{nm:'Stefan Vissenberg',ini:'SV',av:'av6',rol:'Admin',rolKl:'gray',key:'Stefan',comp:'93%',touch:'0%'},
+ thirza:{nm:'Thirza den Boer',ini:'TB',av:'av4',rol:'Admin',rolKl:'gray',key:'Thirza',comp:'93%',touch:'100%'}
+};
+var ROSTER={
+ rick:{due:'maandag',dueKl:'ok',comp:'93%',compKl:'good',tags:[['maandag','#22c55e']]},
+ aafke:{due:'zondag',dueKl:'ok',comp:'86%',compKl:'good',tags:[['woensdag','#3b82f6'],['zaterdag','#8b5cf6']]},
+ stijn:{due:'vandaag',dueKl:'warn',comp:'100%',compKl:'good',tags:[['woensdag','#3b82f6'],['zaterdag','#8b5cf6']]},
+ annebel:{due:'di &#8211; verlopen',dueKl:'bad',comp:'50%',compKl:'low',tags:[['maandag','#22c55e'],['zaterdag','#8b5cf6']]},
+ masha:{due:'zaterdag',dueKl:'ok',comp:'96%',compKl:'good',tags:[['dinsdag','#ec4899']]},
+ stefan:{due:'woensdag',dueKl:'ok',comp:'71%',compKl:'low',tags:[['woensdag','#3b82f6']]},
+ tessa:{due:'vrijdag',dueKl:'warn',comp:'90%',compKl:'good',tags:[['dinsdag','#ec4899'],['zaterdag','#8b5cf6']]},
+ zoe:{due:'maandag',dueKl:'ok',comp:'98%',compKl:'good',tags:[['maandag','#22c55e'],['zaterdag','#8b5cf6']]}
+};
+function openCoach(k){
+  var co=COACHES[k];if(!co)return;
+  var av=document.getElementById('cd-av');av.textContent=co.ini;av.className='avc '+co.av;
+  document.getElementById('cd-naam').textContent=co.nm;
+  document.getElementById('cd-sub').innerHTML='<span class="pill '+co.rolKl+'">'+co.rol+'</span>';
+  var ids=co.key?(PROGKL[co.key]||[]):[];
+  document.getElementById('cd-tot').textContent=ids.length;
+  document.getElementById('cd-comp').textContent=co.comp;
+  document.getElementById('cd-touch').textContent=co.touch;
+  var host=document.getElementById('cd-lijst');
+  if(!ids.length){
+    host.innerHTML='<div style="padding:34px;text-align:center;color:var(--muted)">Nog geen klanten gekoppeld aan deze coach.</div>';
+  }else{
+    host.innerHTML=ids.map(function(id){
+      var c=CLIENTS[id],r=ROSTER[id]||{};
+      var tags=(r.tags||[]).map(function(t){return '<span class="tag"><span class="sq" style="background:'+t[1]+'"></span>'+t[0]+' <span class="x">\u2715</span></span>'}).join(' ');
+      return '<div class="trow click" onclick="openClient(\''+id+'\')">'
+        +'<div class="cname" style="flex:2.2"><div class="avc" style="background:'+c.av+'">'+c.ini+'</div><div><div class="nm">'+c.nm+'</div><div class="sub">Laatste consult: n.v.t.</div></div></div>'
+        +'<div style="flex:1.2"><span class="pill '+(r.dueKl||'gray')+'">'+(r.due||'\u2013')+'</span></div>'
+        +'<div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>'
+        +'<div style="flex:1"><span class="comp '+(r.compKl||'good')+'">'+(r.comp||'\u2013')+'</span></div>'
+        +'<div style="flex:1.8">'+tags+'</div>'
+        +'<button class="kebab" style="width:30px">\u22ee</button></div>';
+    }).join('');
+  }
+  go('coachdetail');
+}
 /* klant-dropdown naast programma (Strivee) */
 var PROGKL={Michel:['rick','aafke','stijn'],Rieke:['annebel','masha'],Stefan:['stefan','tessa'],Thirza:['zoe']};
 var curKlant='rick', curCoach='Michel';
