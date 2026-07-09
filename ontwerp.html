@@ -1981,7 +1981,7 @@ var feedBusy=false;
 window.addEventListener('scroll',function(){
   if(!document.getElementById('p-dash').classList.contains('active'))return;
   if(feedBusy||feedIndex>=FEED_DATA.length)return;
-  if(window.innerHeight+window.scrollY < document.body.offsetHeight-300)return;
+  if(window.innerHeight+window.scrollY < document.documentElement.scrollHeight-300)return;
   feedBusy=true;
   var l=document.getElementById('feedload');l.style.display='';
   setTimeout(function(){
