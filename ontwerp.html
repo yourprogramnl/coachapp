@@ -369,7 +369,7 @@ h3{font-size:14px;font-weight:700}
 .dnum2.today{color:var(--accent)}
 .mday.selectable{cursor:pointer}
 .mday.selectable:hover{background:#fbfdfe}
-.mday.today-cell{outline:1.5px solid var(--accent);outline-offset:-2px}
+.mday.today-cell{outline:2px solid #6ec4e8;outline-offset:-2px;background:#fcfeff}
 .addrow2{display:flex;gap:5px;margin-bottom:6px}
 .addnewbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);border-radius:7px;
   padding:6px 0;font-size:11px;font-weight:700;background:#fff;color:#4a4f57}
@@ -1152,10 +1152,10 @@ doelstelling over 4 weken:
 
       <div id="float-store">
         <div class="daymenu" id="dmenu" style="display:none">
-          <button onclick="pickWorkout(event)"><svg class="i"><use href="#i-link"/></svg> Workout</button>
-          <button onclick="pickRest(event)"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>
-          <button onclick="pickProgram(event)"><svg class="i"><use href="#i-doc"/></svg> Programma</button>
-          <button onclick="pickPaste(event)"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>
+          <button class="tip" data-tip="Workout toevoegen · Enter" onclick="pickWorkout(event)"><svg class="i"><use href="#i-link"/></svg> Workout</button>
+          <button class="tip" data-tip="Dag op rustdag zetten" onclick="pickRest(event)"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>
+          <button class="tip" data-tip="Programma toewijzen vanaf deze dag" onclick="pickProgram(event)"><svg class="i"><use href="#i-doc"/></svg> Programma</button>
+          <button class="tip" data-tip="Gekopieerde workout plakken" onclick="pickPaste(event)"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>
         </div>
 
         <div class="daymenu" id="progpop" style="display:none;grid-template-columns:1fr">
@@ -1962,11 +1962,38 @@ function storeFloats(){
 function openDayMenu(cell,ev){
   if(ev)ev.stopPropagation();
   var m=document.getElementById('dmenu');
-  if(m.parentNode===cell&&m.style.display!=='none'){storeFloats();return;}
+  if(ev&&m.parentNode===cell&&m.style.display!=='none'){storeFloats();return;}
+  var b=document.getElementById('ib-root');
+  if(b.style.display!=='none')return;
   storeFloats();
   curCell=cell;
   cell.appendChild(m);m.style.display='grid';
 }
+function bindHoverMenus(){
+  document.querySelectorAll('.mday.selectable').forEach(function(cell){
+    if(cell.dataset.hm)return;cell.dataset.hm='1';
+    cell.addEventListener('mouseenter',function(){
+      if(cell.querySelector('.mcard')||cell.querySelector('.restday'))return;
+      openDayMenu(cell);
+    });
+    cell.addEventListener('mouseleave',function(){
+      var m=document.getElementById('dmenu');
+      var bb=document.getElementById('ib-root');
+      var pp=document.getElementById('progpop');
+      if(bb.parentNode===cell&&bb.style.display!=='none')return;
+      if(pp.parentNode===cell&&pp.style.display!=='none')return;
+      if(m.parentNode===cell){m.style.display='none';document.getElementById('float-store').appendChild(m);}
+    });
+  });
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  var m=document.getElementById('dmenu');
+  if(m&&m.style.display!=='none'&&m.parentNode&&m.parentNode.classList&&m.parentNode.classList.contains('mday')){
+    e.preventDefault();
+    pickWorkout({stopPropagation:function(){}});
+  }
+});
 function pickWorkout(ev){
   ev.stopPropagation();
   var m=document.getElementById('dmenu');
@@ -2290,6 +2317,7 @@ function buildWeeks(){
   }
 }
 buildWeeks();
+bindHoverMenus();
 document.querySelectorAll('.overlay').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('show')});
 });
