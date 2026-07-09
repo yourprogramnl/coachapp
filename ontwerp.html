@@ -708,11 +708,11 @@ input[disabled]{cursor:default}
   </div>
 
   <div class="tabs">
-    <button class="on">Actief<span class="cnt">6</span></button>
-    <button>Archief<span class="cnt">43</span></button>
+    <button class="on" id="kl-tab0" onclick="klTab(0)">Actief<span class="cnt">6</span></button>
+    <button id="kl-tab1" onclick="klTab(1)">Archief<span class="cnt" id="kl-arch-cnt">43</span></button>
   </div>
 
-  <div class="card">
+  <div class="card" id="kl-actief">
     <div class="thead">
       <div style="flex:2.2">Naam</div>
       <div style="flex:1.2">Workout</div>
@@ -721,7 +721,7 @@ input[disabled]{cursor:default}
       <div style="flex:1.8">Tags</div>
       <div style="width:30px"></div>
     </div>
-    <div class="trow click" onclick="go('client')">
+    <div class="trow click" onclick="openClient('aafke')">
       <div class="cname" style="flex:2.2"><div class="avc av3">AK</div><div><div class="nm">Aafke Kruisselbrink</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
       <div style="flex:1.2"><span class="pill ok">zondag</span></div>
       <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
@@ -729,7 +729,7 @@ input[disabled]{cursor:default}
       <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#3b82f6"></span>woensdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow click" onclick="go('client')">
+    <div class="trow click" onclick="openClient('annebel')">
       <div class="cname" style="flex:2.2"><div class="avc av2">AW</div><div><div class="nm">Annebel Wanschers</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
       <div style="flex:1.2"><span class="pill bad">zo 14 juni</span></div>
       <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
@@ -737,7 +737,7 @@ input[disabled]{cursor:default}
       <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#22c55e"></span>maandag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow click" onclick="go('client')">
+    <div class="trow click" onclick="openClient('masha')">
       <div class="cname" style="flex:2.2"><div class="avc av4">MT</div><div><div class="nm">Masha Tkachuk</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
       <div style="flex:1.2"><span class="pill bad">ma 22 juni</span></div>
       <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
@@ -745,7 +745,7 @@ input[disabled]{cursor:default}
       <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#ec4899"></span>dinsdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow click" onclick="go('client')">
+    <div class="trow click" onclick="openClient('stijn')">
       <div class="cname" style="flex:2.2"><div class="avc av5">SM</div><div><div class="nm">Stijn Meijs</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
       <div style="flex:1.2"><span class="pill ok">zo 6 sep</span></div>
       <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
@@ -753,7 +753,7 @@ input[disabled]{cursor:default}
       <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#3b82f6"></span>woensdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow click" onclick="go('client')">
+    <div class="trow click" onclick="openClient('tessa')">
       <div class="cname" style="flex:2.2"><div class="avc av6">TO</div><div><div class="nm">Tessa van Oijen</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
       <div style="flex:1.2"><span class="pill ok">zondag</span></div>
       <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
@@ -761,7 +761,7 @@ input[disabled]{cursor:default}
       <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#ec4899"></span>dinsdag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
-    <div class="trow click" onclick="go('client')">
+    <div class="trow click" onclick="openClient('zoe')">
       <div class="cname" style="flex:2.2"><div class="avc av7">ZG</div><div><div class="nm">Zoë van Gemst</div><div class="sub">Laatste consult: n.v.t.</div></div></div>
       <div style="flex:1.2"><span class="pill bad">zo 21 juni</span></div>
       <div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>
@@ -769,6 +769,52 @@ input[disabled]{cursor:default}
       <div style="flex:1.8"><span class="tag"><span class="sq" style="background:#22c55e"></span>maandag <span class="x">✕</span></span> <span class="tag"><span class="sq" style="background:#8b5cf6"></span>zaterdag <span class="x">✕</span></span></div>
       <button class="kebab" style="width:30px">⋮</button>
     </div>
+  </div>
+
+  <div class="card" id="kl-archief" style="display:none">
+    <div class="thead">
+      <div style="flex:2.4">Naam</div>
+      <div style="flex:1.4">Laatst actief</div>
+      <div style="flex:1.4">Reden</div>
+      <div style="width:170px"></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.4"><div class="avc" style="background:#c3c9d1">BG</div><div><div class="nm" style="color:var(--muted)">Bram de Groot</div><div class="sub">Lid van jan 2024 - mrt 2026</div></div></div>
+      <div style="flex:1.4" class="muted">15 maart 2026</div>
+      <div style="flex:1.4"><span class="pill gray">opgezegd</span></div>
+      <div style="width:170px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="herstelKlant(this,'Bram de Groot')">Terugzetten</button><button class="kebab">⋮</button></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.4"><div class="avc" style="background:#c3c9d1">KV</div><div><div class="nm" style="color:var(--muted)">Kim Verhagen</div><div class="sub">Lid van mei 2023 - jan 2026</div></div></div>
+      <div style="flex:1.4" class="muted">28 januari 2026</div>
+      <div style="flex:1.4"><span class="pill gray">blessure</span></div>
+      <div style="width:170px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="herstelKlant(this,'Kim Verhagen')">Terugzetten</button><button class="kebab">⋮</button></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.4"><div class="avc" style="background:#c3c9d1">JL</div><div><div class="nm" style="color:var(--muted)">Joost van Leeuwen</div><div class="sub">Lid van feb 2024 - dec 2025</div></div></div>
+      <div style="flex:1.4" class="muted">19 december 2025</div>
+      <div style="flex:1.4"><span class="pill gray">verhuisd</span></div>
+      <div style="width:170px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="herstelKlant(this,'Joost van Leeuwen')">Terugzetten</button><button class="kebab">⋮</button></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.4"><div class="avc" style="background:#c3c9d1">SB</div><div><div class="nm" style="color:var(--muted)">Sanne de Boer</div><div class="sub">Lid van aug 2022 - nov 2025</div></div></div>
+      <div style="flex:1.4" class="muted">30 november 2025</div>
+      <div style="flex:1.4"><span class="pill gray">opgezegd</span></div>
+      <div style="width:170px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="herstelKlant(this,'Sanne de Boer')">Terugzetten</button><button class="kebab">⋮</button></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.4"><div class="avc" style="background:#c3c9d1">PS</div><div><div class="nm" style="color:var(--muted)">Pieter Smits</div><div class="sub">Lid van jan 2023 - okt 2025</div></div></div>
+      <div style="flex:1.4" class="muted">12 oktober 2025</div>
+      <div style="flex:1.4"><span class="pill gray">pauze</span></div>
+      <div style="width:170px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="herstelKlant(this,'Pieter Smits')">Terugzetten</button><button class="kebab">⋮</button></div>
+    </div>
+    <div class="trow">
+      <div class="cname" style="flex:2.4"><div class="avc" style="background:#c3c9d1">FJ</div><div><div class="nm" style="color:var(--muted)">Femke Jansen</div><div class="sub">Lid van jun 2023 - sep 2025</div></div></div>
+      <div style="flex:1.4" class="muted">7 september 2025</div>
+      <div style="flex:1.4"><span class="pill gray">opgezegd</span></div>
+      <div style="width:170px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="herstelKlant(this,'Femke Jansen')">Terugzetten</button><button class="kebab">⋮</button></div>
+    </div>
+    <div class="trow" style="justify-content:center"><span class="muted sm">… nog 37 gearchiveerde klanten</span></div>
   </div>
 </div>
 
@@ -1869,8 +1915,33 @@ var CLIENTS={
  rick:{nm:'Rick van der Sluis',ini:'RV',av:'linear-gradient(135deg,#38bdf8,#6366f1)',
    info:'62 jaar · 100 kg · 193 cm<br>196 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag</span>'},
  stefan:{nm:'Stefan Bakker',ini:'SB',av:'linear-gradient(135deg,#f472b6,#a855f7)',
-   info:'34 jaar · 88 kg · 184 cm<br>112 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#3b82f6"></span>woensdag</span>'}
+   info:'34 jaar · 88 kg · 184 cm<br>112 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#3b82f6"></span>woensdag</span>'},
+ aafke:{nm:'Aafke Kruisselbrink',ini:'AK',av:'linear-gradient(135deg,#34d399,#0ea5e9)',
+   info:'29 jaar · 64 kg · 171 cm<br>148 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#3b82f6"></span>woensdag · zaterdag</span>'},
+ annebel:{nm:'Annebel Wanschers',ini:'AW',av:'linear-gradient(135deg,#f472b6,#a855f7)',
+   info:'31 jaar · 68 kg · 174 cm<br>87 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag · zaterdag</span>'},
+ masha:{nm:'Masha Tkachuk',ini:'MT',av:'linear-gradient(135deg,#fbbf24,#f97316)',
+   info:'27 jaar · 61 kg · 168 cm<br>64 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#ec4899"></span>dinsdag · zaterdag</span>'},
+ stijn:{nm:'Stijn Meijs',ini:'SM',av:'linear-gradient(135deg,#818cf8,#3b82f6)',
+   info:'36 jaar · 92 kg · 188 cm<br>203 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#3b82f6"></span>woensdag · zaterdag</span>'},
+ tessa:{nm:'Tessa van Oijen',ini:'TO',av:'linear-gradient(135deg,#2dd4bf,#059669)',
+   info:'33 jaar · 66 kg · 173 cm<br>129 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#ec4899"></span>dinsdag · zaterdag</span>'},
+ zoe:{nm:'Zo\u00eb van Gemst',ini:'ZG',av:'linear-gradient(135deg,#64748b,#334155)',
+   info:'25 jaar · 59 kg · 166 cm<br>176 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag · zaterdag</span>'}
 };
+function klTab(n){
+  document.getElementById('kl-tab0').classList.toggle('on',n===0);
+  document.getElementById('kl-tab1').classList.toggle('on',n===1);
+  document.getElementById('kl-actief').style.display = n===0 ? '' : 'none';
+  document.getElementById('kl-archief').style.display = n===1 ? '' : 'none';
+}
+function herstelKlant(btn,naam){
+  var rij=btn.closest('.trow');
+  rij.remove();
+  var cnt=document.getElementById('kl-arch-cnt');
+  cnt.textContent=parseInt(cnt.textContent)-1;
+  toast(naam+' teruggezet — staat weer bij Actief');
+}
 function openClient(id){
   var c=CLIENTS[id]||CLIENTS.rick;
   var side=document.querySelector('#p-client .cside');
