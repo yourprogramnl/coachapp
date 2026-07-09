@@ -387,6 +387,7 @@ h3{font-size:14px;font-weight:700}
 .wkblok textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:12.5px;min-height:54px;resize:vertical}
 .wkblok .wkx{position:absolute;top:10px;right:10px;cursor:pointer;color:var(--muted);font-size:14px}
 .wkblok .wkx:hover{color:var(--bad)}
+.extools .ib-del:hover{color:var(--bad)}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -1236,35 +1237,10 @@ doelstelling over 4 weken:
             <input placeholder="Warming-up toevoegen…">
             <div class="demolink">Demo-video's aan warming-up toevoegen</div>
           </div>
-          <div class="sec">
-            <div class="exhead">
-              <b>A)</b>
-              <input id="ib-ex" placeholder="Naam oefening" autocomplete="off" oninput="exSearch(this.value)">
-              <div class="extools">
-                <svg class="i" title="History"><use href="#i-hist"/></svg>
-                <svg class="i" id="ib-cam" onclick="toggleVid()"><use href="#i-cam"/></svg>
-              </div>
-            </div>
-            <input id="ib-presc" placeholder="Tempo, reps, sets, rust">
-            <div class="smartline" id="ib-smart">Slimme berekening: 70% van 1RM deadlift (110 kg) = 77,5 kg</div>
-            <div class="exdrop" id="ib-drop">
-              <div class="hd">Oefeningen (117)</div>
-              <div class="exopt" onclick="chooseEx('Deadlift','Bend · Barbell')"><div><div class="en">Deadlift</div><div class="ep">Bend · Barbell</div></div><span class="srcbadge">CRx</span></div>
-              <div class="exopt" onclick="chooseEx('Deadlift from pins','Bend · Barbell')"><div><div class="en">Deadlift from pins</div><div class="ep">Bend · Barbell</div></div><span class="srcbadge" style="background:#64748b">TDB</span></div>
-              <div class="exopt" onclick="chooseEx('Deadlift no touch &amp; go','Bend · Barbell')"><div><div class="en">Deadlift no touch &amp; go</div><div class="ep">Bend · Barbell</div></div><span class="srcbadge" style="background:#64748b">TDB</span></div>
-              <div class="exopt" onclick="chooseEx('Deadlift to knee','Bend · Barbell')"><div><div class="en">Deadlift to knee</div><div class="ep">Bend · Barbell</div></div><span class="srcbadge">CRx</span></div>
-              <div class="exopt" onclick="chooseEx('Romanian Deadlift','Bend · Barbell')"><div><div class="en">Romanian Deadlift</div><div class="ep">Bend · Barbell</div></div><span class="srcbadge">CRx</span></div>
-            </div>
-            <div class="vidpop" id="ib-vid">
-              <div class="vt" id="ib-vid-title">Deadlift</div>
-              <div class="vprev"><div class="vlabel">Conventional Deadlift — OPEX Fitness</div><div class="pbtn"></div></div>
-              <div class="vp-cap">Bewegingspatronen</div>
-              <span class="tag">Bend</span>
-            </div>
-          </div>
+          <div id="ib-blokken"></div>
           <div class="addbtns">
-            <button onclick="toast('In de echte app komt hier blok B bij')">+ Oefening</button>
-            <button onclick="toast('In de echte app komt hier een conditioning-blok bij')">+ Conditioning</button>
+            <button onclick="blokBij('ex')">+ Oefening</button>
+            <button onclick="blokBij('cond')">+ Conditioning</button>
             <button class="iconly" title="Kopieer"><svg class="i"><use href="#i-copy"/></svg></button>
           </div>
           <div class="sec">
@@ -2154,7 +2130,7 @@ function kopieerWorkout(el,ev){
   toast('Workout gekopieerd — ga naar een lege dag en kies Plakken');
 }
 function plakKaart(cell,data){
-  var blokken=data.blk.map(function(b){return '<div class="cblk"><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div></div>'}).join('');
+  var blokken=data.blk.map(function(b){return '<div class="cblk"><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div>'+(b[2]?'<div class="loginp" style="color:var(--accent-d);font-weight:600">demo-video gekoppeld \u2014 zichtbaar voor klant</div>':'')+'</div>'}).join('');
   var d=document.createElement('div');d.className='mcard planned';
   d.innerHTML='<div class="msc">0/'+data.blk.length+' · '+data.title+'</div>'+blokken+'<button class="combtn"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button>';
   cell.appendChild(d);
@@ -2530,8 +2506,7 @@ function pickWorkout(ev){
   var b=document.getElementById('ib-root');
   curCell.appendChild(b);b.style.display='block';
   document.getElementById('ib-title').value='';
-  document.getElementById('ib-ex').value='';
-  document.getElementById('ib-presc').value='';
+  resetBlokken();
   document.getElementById('ib-cam').classList.remove('has-video');
   document.getElementById('ib-smart').classList.remove('show');
   document.getElementById('ib-title').focus();
@@ -2576,42 +2551,123 @@ function assignProgramDay(ev,name){
 function cancelBuilder(ev){
   if(ev)ev.stopPropagation();
   storeFloats();
-  document.getElementById('ib-drop').classList.remove('show');
-  document.getElementById('ib-vid').classList.remove('show');
+  document.querySelectorAll('#ib-blokken .ib-drop, #ib-blokken .ib-vid').forEach(function(x){x.classList.remove('show')});
 }
-/* oefening-zoeker */
-function exSearch(v){
-  var drop=document.getElementById('ib-drop');
-  if(v.trim().length>=3){drop.classList.add('show')}else{drop.classList.remove('show')}
+/* oefening-zoeker + blokken (zoals CoachRx) */
+var EXLIJST=[
+ ['back extensions','Hinge \u00b7 Bodyweight','MB'],
+ ['Back knee bent in the split jerk ?','Weightlifting','TDB'],
+ ['Back rack elbow rotations','Mobility','TDB'],
+ ['back rack front squat','Squat \u00b7 Barbell','MB'],
+ ['Back Squat','Squat \u00b7 Barbell','CRx'],
+ ['Bench Press','Push \u00b7 Barbell','CRx'],
+ ['Box Jump','Jump \u00b7 Box','TDB'],
+ ['Burpee','Full body \u00b7 Bodyweight','CRx'],
+ ['Deadlift','Bend \u00b7 Barbell','CRx'],
+ ['Deadlift from pins','Bend \u00b7 Barbell','TDB'],
+ ['Echo Bike','Conditioning \u00b7 Machine','MB'],
+ ['Front Squat','Squat \u00b7 Barbell','CRx'],
+ ['Kettlebell Swing','Hinge \u00b7 Kettlebell','CRx'],
+ ['Overhead Press','Push \u00b7 Barbell','CRx'],
+ ['Pull-up','Pull \u00b7 Bodyweight','CRx'],
+ ['Push-up','Push \u00b7 Bodyweight','CRx'],
+ ['Romanian Deadlift','Bend \u00b7 Barbell','CRx'],
+ ['Row (C2)','Pull \u00b7 Machine','CRx'],
+ ['Thruster','Squat \u00b7 Barbell','CRx'],
+ ['Wall Ball','Squat \u00b7 Medicine ball','CRx']
+];
+function maakBlok(type){
+  var sec=document.createElement('div');sec.className='sec exsec'+(type==='cond'?' cond':'');
+  var head=document.createElement('div');head.className='exhead';
+  var b=document.createElement('b');b.className='exletter';b.textContent='A)';
+  var inp=document.createElement('input');inp.className='ib-ex';inp.autocomplete='off';
+  inp.placeholder = type==='cond' ? 'Conditioning format (bijv. AMRAP 12, For time)' : 'Naam oefening';
+  if(type!=='cond')inp.oninput=function(){exSearch(inp)};
+  var tools=document.createElement('div');tools.className='extools';
+  tools.innerHTML='<svg class="i tip" data-tip="History"><use href="#i-hist"/></svg>'
+    +(type==='cond'?'':'<svg class="i ib-cam tip" data-tip="Demo-video" onclick="toggleVid(this)"><use href="#i-cam"/></svg>')
+    +'<svg class="i ib-del tip" data-tip="Blok verwijderen" onclick="blokWeg(this)"><use href="#i-x"/></svg>';
+  head.appendChild(b);head.appendChild(inp);head.appendChild(tools);
+  sec.appendChild(head);
+  var pr=document.createElement('input');pr.className='ib-presc';
+  pr.placeholder = type==='cond' ? 'Conditioning-omschrijving, notes, enz.' : 'Tempo, reps, sets, rust';
+  sec.appendChild(pr);
+  if(type!=='cond'){
+    var sm=document.createElement('div');sm.className='smartline ib-smart';sm.textContent='Slimme berekening: 70% van 1RM deadlift (110 kg) = 77,5 kg';sec.appendChild(sm);
+    var drop=document.createElement('div');drop.className='exdrop ib-drop';sec.appendChild(drop);
+    var vid=document.createElement('div');vid.className='vidpop ib-vid';
+    vid.innerHTML='<div class="vt ib-vid-title">Oefening</div><div class="vprev"><div class="vlabel">Demo-video uit de bibliotheek</div><div class="pbtn"></div></div><div class="vp-cap">Zichtbaar voor de klant bij deze workout</div>';
+    sec.appendChild(vid);
+  }else{
+    var dl=document.createElement('div');dl.className='demolink';dl.textContent="Demo-video's aan conditioning toevoegen";sec.appendChild(dl);
+  }
+  return sec;
 }
-function chooseEx(name,pat){
-  document.getElementById('ib-ex').value=name;
-  document.getElementById('ib-drop').classList.remove('show');
-  document.getElementById('ib-cam').classList.add('has-video');
-  document.getElementById('ib-vid-title').textContent=name;
-  document.getElementById('ib-smart').classList.toggle('show', name==='Deadlift');
-  document.getElementById('ib-presc').focus();
-  toast('Demo-video automatisch gekoppeld uit de bibliotheek');
+function hernummer(){
+  document.querySelectorAll('#ib-blokken .exsec .exletter').forEach(function(b,i){b.textContent='ABCDEFGHIJ'.charAt(i)+')'});
 }
-function toggleVid(){
-  var cam=document.getElementById('ib-cam');
-  if(!cam.classList.contains('has-video')){toast('Kies eerst een oefening uit de bibliotheek');return}
-  document.getElementById('ib-vid').classList.toggle('show');
+function resetBlokken(){
+  var h=document.getElementById('ib-blokken');h.innerHTML='';h.appendChild(maakBlok('ex'));hernummer();
+}
+function blokBij(type){
+  document.getElementById('ib-blokken').appendChild(maakBlok(type));
+  hernummer();
+  var secs=document.querySelectorAll('#ib-blokken .exsec');
+  secs[secs.length-1].querySelector('.ib-ex').focus();
+}
+function blokWeg(el){el.closest('.exsec').remove();hernummer();}
+function exSearch(inp){
+  var sec=inp.closest('.exsec'),drop=sec.querySelector('.ib-drop');
+  var v=inp.value.trim().toLowerCase();
+  drop.innerHTML='';
+  if(v.length<2){drop.classList.remove('show');return;}
+  var hits=EXLIJST.filter(function(e){return e[0].toLowerCase().indexOf(v)>=0});
+  if(!hits.length){drop.classList.remove('show');return;}
+  var hd=document.createElement('div');hd.className='hd';hd.textContent='Oefeningen ('+hits.length+')';drop.appendChild(hd);
+  hits.slice(0,8).forEach(function(e){
+    var o=document.createElement('div');o.className='exopt';
+    var l=document.createElement('div');
+    var en=document.createElement('div');en.className='en';en.textContent=e[0];
+    var ep=document.createElement('div');ep.className='ep';ep.textContent=e[1];
+    l.appendChild(en);l.appendChild(ep);
+    var sb=document.createElement('span');sb.className='srcbadge';sb.textContent=e[2];
+    if(e[2]==='TDB')sb.style.background='#64748b';
+    if(e[2]==='MB')sb.style.background='linear-gradient(135deg,#38bdf8,#6366f1)';
+    o.appendChild(l);o.appendChild(sb);
+    o.onclick=function(ev){ev.stopPropagation();kiesEx(sec,e[0]);};
+    drop.appendChild(o);
+  });
+  drop.classList.add('show');
+}
+function kiesEx(sec,naam){
+  sec.querySelector('.ib-ex').value=naam;
+  sec.querySelector('.ib-drop').classList.remove('show');
+  var cam=sec.querySelector('.ib-cam');if(cam)cam.classList.add('has-video');
+  var vt=sec.querySelector('.ib-vid-title');if(vt)vt.textContent=naam;
+  var sm=sec.querySelector('.ib-smart');if(sm)sm.classList.toggle('show',naam==='Deadlift');
+  sec.querySelector('.ib-presc').focus();
+  toast('Demo-video automatisch gekoppeld — de klant ziet hem bij de workout');
+}
+function toggleVid(cam){
+  if(!cam.classList.contains('has-video')){toast('Kies eerst een oefening uit de bibliotheek');return;}
+  cam.closest('.exsec').querySelector('.ib-vid').classList.toggle('show');
 }
 function saveWorkout(){
   var title=document.getElementById('ib-title').value||'Workout';
-  var ex=document.getElementById('ib-ex').value||'Oefening';
-  var presc=document.getElementById('ib-presc').value||'Tempo, reps, sets, rust';
+  var blokken=[].map.call(document.querySelectorAll('#ib-blokken .exsec'),function(sec){
+    var naam=sec.querySelector('.ib-ex').value.trim();
+    var pr=sec.querySelector('.ib-presc').value.trim();
+    if(!naam&&!pr)return null;
+    var cam=sec.querySelector('.ib-cam');
+    return [naam||'Oefening', pr||'Tempo, reps, sets, rust', cam&&cam.classList.contains('has-video')?1:0];
+  }).filter(function(x){return x});
+  if(!blokken.length)blokken=[['Oefening','Tempo, reps, sets, rust',0]];
+  blokken=blokken.map(function(b,i){return ['ABCDEFGHIJ'.charAt(i)+') '+b[0], b[1], b[2]]});
   storeFloats();
   if(!curCell)return;
-  var d=document.createElement('div');d.className='mcard planned';
-  d.innerHTML='<div class="msc">0/1 · '+title+'</div>'+
-    '<div class="cblk"><div class="n">A) '+ex+'</div><div class="pr">'+presc+'</div>'+
-    '<div class="loginp" style="color:var(--accent-d);font-weight:600">demo-video gekoppeld</div></div>'+
-    '<button class="combtn">Comments</button>';
-  curCell.appendChild(d);curCell.classList.remove('selectable');curCell.removeAttribute('onclick');curCell.onclick=null;
+  plakKaart(curCell,{title:title,blk:blokken});
   if(curCell.dataset.d){
-    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:[['A) '+ex,presc]]});schrijfOpslag(o);
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken});schrijfOpslag(o);
   }
   toast('Workout opgeslagen — '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
 }
