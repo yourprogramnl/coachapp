@@ -2025,9 +2025,11 @@ var FEED_DATA=[
 ];
 var feedIndex=0;
 function feedCardHtml(d){
+  var tot=0,okc=0;
+  d.blokken.forEach(function(bl){if(bl.st){tot++;if(bl.st==='ok')okc++;}});
   var h='<div class="fcard"><div class="fhead"><div class="avc '+d.av+'" style="width:38px;height:38px">'+d.ini+'</div>'+
     '<div><b>'+d.naam+'</b><div class="sm muted">'+d.due+'</div></div></div>'+
-    '<div class="fscore">'+d.score+'</div>';
+    '<div class="fscore">'+okc+'/'+tot+'</div>';
   d.blokken.forEach(function(bl,i){
     var badge = bl.b==='W' ? '<div class="fbadge warm">W</div>' : '<div class="fbadge">'+bl.b+'</div>';
     h+='<div class="fblok'+(i===d.blokken.length-1?' last':'')+'">'+badge+
