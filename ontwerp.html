@@ -1376,13 +1376,13 @@ input[disabled]{cursor:default}
           <div class="mfield"><label>E-mail</label><input type="text" value="rvdseu@me.com"></div>
           <div class="mfield"><label>Geslacht</label><select><option>Man</option><option>Vrouw</option></select></div>
           <div class="mfield"><label>Gewicht</label><input type="text" value="100"></div>
-          <div class="mfield"><label>Leeftijd</label><input type="text" value="62" disabled></div>
+          <div class="mfield"><label>Leeftijd <span class="sm muted" style="font-weight:400;text-transform:none;letter-spacing:0">(berekend uit geboortedatum)</span></label><input type="text" id="prof-leeftijd" value="62" readonly style="background:#f2f4f6;color:var(--muted);cursor:default"></div>
           <div class="mfield"><label>Eenheden</label><select><option>Metrisch</option><option>Imperial</option></select></div>
-          <div class="mfield"><label>Geboortedatum</label><input type="text" value="28-04-1964"></div>
+          <div class="mfield"><label>Geboortedatum</label><input type="date" id="prof-geb" value="1964-04-28" onchange="leeftijdUit()"></div>
           <div class="mfield"><label>Tijdzone</label><select><option>(GMT+01:00) Amsterdam</option></select></div>
           <div class="mfield"><label>Locatie</label><input type="text" placeholder=""></div>
           <div class="mfield"><label>Lengte (cm)</label><input type="text" value="193"></div>
-          <div class="mfield"><label>T-shirtmaat</label><select><option>XXL</option><option>XL</option><option>L</option></select></div>
+          <div class="mfield"><label>T-shirtmaat</label><select><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option selected>XXL</option><option>3XL</option></select></div>
           <div class="mfield"><label>Noodcontact</label><input type="text" value="0623496649"></div>
           <div class="mfield"><label>Aangedragen door</label><input type="text" placeholder=""></div>
         </div>
@@ -2157,6 +2157,16 @@ function mxVanWorkout(blokken){
     });
   });
   if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
+}
+/* profiel: leeftijd automatisch uit geboortedatum */
+function leeftijdUit(){
+  var v=document.getElementById('prof-geb');
+  var uit=document.getElementById('prof-leeftijd');
+  if(!v||!uit||!v.value)return;
+  var d=new Date(v.value), n=new Date();
+  var a=n.getFullYear()-d.getFullYear();
+  if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;
+  uit.value=a;
 }
 /* Training Schedule (zoals CoachRx, met Ochtend/Middag/Avond) */
 var SCHEMA_DAGEN=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
@@ -4020,6 +4030,7 @@ laadBieb();
 laadTpl();
 document.querySelectorAll('#p-client .cnav button').forEach(function(b){b.setAttribute('data-tip',b.textContent.trim());});
 renderKlantDrop('Michel');
+leeftijdUit();
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('show')});
