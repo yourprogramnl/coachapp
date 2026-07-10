@@ -2795,6 +2795,7 @@ function groeiAlles(){document.querySelectorAll('#ib-root textarea').forEach(gro
 /* inline bewerken in de dagcel (zoals CoachRx) */
 var bwCel=null, bwKaart=null;
 function openInlineEdit(card){
+  if(card.dataset.rust){toast('Rustdag — verwijder de kaart (kruisje) als je hier toch wilt plannen');return;}
   var cell=card.closest('.mday');
   storeFloats();
   bwCel=cell;bwKaart=card;curCell=cell;
@@ -3199,6 +3200,7 @@ function bouwKal(id){
   (leesOpslag()[id]||[]).forEach(function(w){
     var cell=grid.querySelector('.mday[data-d="'+w.d+'"]');
     if(!cell||cell.querySelector('.mcard'))return;
+    if(w.rust){rustKaart(cell);return;}
     plakKaart(cell, w.blk ? w : {title:w.title,blk:[['A) '+w.ex,w.presc]]});
   });
   var mv=leesMoves()[id]||{};
@@ -3422,15 +3424,50 @@ function pickWorkout(ev){
   groeiAlles();
   document.getElementById('ib-title').focus();
 }
+function rustKaart(cell){
+  var d=document.createElement('div');d.className='mcard planned';
+  d.dataset.rust='1';
+  d.innerHTML='<div class="msc" style="color:var(--ok)">Rest Day</div>'
+    +'<div class="cblk"><div class="pr" style="color:var(--muted)">No instructions</div></div>'
+    +'<button class="combtn"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button>';
+  d.__wk={title:'Rest Day',blk:[],rust:true};
+  cell.appendChild(d);
+  cell.classList.remove('selectable');cell.removeAttribute('onclick');cell.onclick=null;
+  zetDragEnKnoppen();
+}
 function pickRest(ev){
   ev.stopPropagation();storeFloats();
-  if(curCell){
-    var d=document.createElement('div');d.className='restday';d.style.marginTop='2px';d.textContent='Rustdag';
-    curCell.appendChild(d);curCell.classList.remove('selectable');curCell.onclick=null;
+  if(!curCell)return;
+  if(curCell.querySelector('.mcard')){toast('Deze dag heeft al een workout');return;}
+  rustKaart(curCell);
+  if(curCell.dataset.d){
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,rust:1});schrijfOpslag(o);
   }
-  toast('Dag ingesteld als rustdag');
+  toast('Dag ingesteld als rustdag — blijft bewaard');
 }
 var insTypeF='all', insKleur='', insDoel='cel';
+var WEEKWOD={naam:'Weekworkout \u00b7 Week 28 \u2014 "Grace"',instructies:'30 clean & jerks voor tijd\nRx: 60/42,5 kg \u00b7 Scaled: 42,5/30 kg\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'};
+function insWeekwod(){
+  var data={title:'Weekworkout \u2014 "Grace"',blk:[[esc(WEEKWOD.naam),esc(WEEKWOD.instructies).replace(/\n/g,'<br>')]],kleur:'blue'};
+  if(insDoel==='bouwer'){
+    var h=document.getElementById('ib-blokken');
+    var sec=maakBlok('ex');h.appendChild(sec);
+    sec.querySelector('.ib-ex').value=WEEKWOD.naam;
+    sec.querySelector('.ib-presc').value=WEEKWOD.instructies;
+    hernummer();groeiAlles();
+    document.getElementById('insmodal').classList.remove('show');
+    toast('Weekworkout als blok toegevoegd');
+    return;
+  }
+  if(!curCell)return;
+  if(curCell.querySelector('.mcard')){toast('Deze dag heeft al een workout');return;}
+  plakKaart(curCell,data);
+  if(curCell.dataset.d){
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:data.title,blk:data.blk,kleur:'blue',week:1});schrijfOpslag(o);
+  }
+  document.getElementById('insmodal').classList.remove('show');
+  toast('Weekworkout ingevoegd \u2014 het gedeelde leaderboard koppelen we later');
+}
 function blokHistory(el,ev){
   ev.stopPropagation();
   var naam=el.closest('.exsec').querySelector('.ib-ex').value.trim()||'Oefening';
@@ -3482,7 +3519,16 @@ function insRender(){
     if(!v)return true;
     return o.naam.toLowerCase().indexOf(v)>=0||o.instructies.toLowerCase().indexOf(v)>=0||(o.tags||[]).join(' ').toLowerCase().indexOf(v)>=0||(leg[o.kleur]||'').toLowerCase().indexOf(v)>=0;
   });
-  host.innerHTML=hits.map(function(o){
+  var vast='';
+  var v2=(document.getElementById('ins-zoek').value||'').toLowerCase().trim();
+  if((insTypeF==='all'||insTypeF==='other')&&(!insKleur||insKleur==='blue')&&(!v2||WEEKWOD.naam.toLowerCase().indexOf(v2)>=0||'weekworkout grace leaderboard'.indexOf(v2)>=0)){
+    vast='<div class="trow" style="align-items:flex-start;background:#f0f8fc">'
+      +'<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR.blue+'"></span></div>'
+      +'<div style="flex:1.6"><b>'+esc(WEEKWOD.naam)+'</b><div class="sm muted" style="margin-top:2px">weekworkout \u00b7 gedeeld leaderboard</div></div>'
+      +'<div style="flex:2.4" class="sm muted">'+esc(WEEKWOD.instructies).replace(/\n/g,'<br>')+'</div>'
+      +'<button class="btn sm2" style="width:86px" onclick="insWeekwod()">Invoegen</button></div>';
+  }
+  host.innerHTML=vast+hits.map(function(o){
     var ti=TPL.indexOf(o);
     var soort=o.type==='warmup'?'warm-up':(o.type==='cooldown'?'cooldown':'workout');
     return '<div class="trow" style="align-items:flex-start">'
