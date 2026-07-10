@@ -798,7 +798,7 @@ input[disabled]{cursor:default}
   <div class="hrow">
     <div class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Zoek op naam of tag…"></div>
     <div style="display:flex;gap:10px">
-      <button class="btn">+ Klant toevoegen</button>
+      <button class="btn" onclick="openKlantModal()">+ Klant toevoegen</button>
       <button class="btn ghost">Tags beheren</button>
       <button class="btn ghost">Exporteren</button>
     </div>
@@ -1957,6 +1957,31 @@ input[disabled]{cursor:default}
 </div>
 
 <!-- MODAL: oefening bewerken -->
+<div class="overlay" id="klantmodal">
+  <div class="modal" style="max-width:520px">
+    <h2>Nieuw lid toevoegen</h2>
+    <div style="display:flex;gap:12px">
+      <div class="mfield" style="flex:1"><label>Voornaam <em>*</em></label><input type="text" id="nk-vn"></div>
+      <div class="mfield" style="flex:1"><label>Achternaam <em>*</em></label><input type="text" id="nk-an"></div>
+    </div>
+    <div class="mfield"><label>E-mail <em>*</em></label><input type="text" id="nk-em" placeholder="naam@voorbeeld.nl"></div>
+    <h2 style="font-size:14px;margin:14px 0 4px">Coaching</h2>
+    <div class="sm muted" style="margin-bottom:10px">Welke diensten bied je dit lid? Later aan te passen bij het profiel.</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:14px;align-items:flex-start">
+      <button class="tgl on" onclick="this.classList.toggle('on')"><span class="sw"></span> Workout-coaching</button>
+      <button class="tgl on" onclick="this.classList.toggle('on')"><span class="sw"></span> Lifestyle- &amp; voedingscoaching</button>
+      <button class="tgl on" onclick="this.classList.toggle('on')"><span class="sw"></span> Consult-planning</button>
+    </div>
+    <h2 style="font-size:14px;margin:0 0 4px">Contactmomenten</h2>
+    <div class="sm muted" style="margin-bottom:10px">Houd wekelijkse interacties bij (consults, comments, berichten) zodat je betrokken blijft.</div>
+    <button class="tgl on" onclick="this.classList.toggle('on')" style="margin-bottom:14px"><span class="sw"></span> Contactmomenten bijhouden</button>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="document.getElementById('klantmodal').classList.remove('show')">Annuleren</button>
+      <button class="btn" onclick="klantUitnodigen()">Lid uitnodigen</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="mxmodal">
   <div class="modal" style="max-width:520px">
     <h2>Add Metric</h2>
@@ -2655,6 +2680,58 @@ function planVerwijder(btn,id){
   st[curKlant]=lijst;schrijfPlannen(st);
   planRender();
   toast('Plan verwijderd');
+}
+/* nieuw lid toevoegen en uitnodigen (zoals CoachRx Add client) */
+function leesNieuwKlant(){try{return JSON.parse(localStorage.getItem('coachapp-klanten')||'[]')}catch(e){return[]}}
+function registreerKlant(k){
+  CLIENTS[k.id]={nm:k.nm,ini:k.ini,av:k.av,info:k.info};
+  if(PROGKL.Michel.indexOf(k.id)<0)PROGKL.Michel.push(k.id);
+  var host=document.getElementById('kl-actief');
+  if(host&&!host.querySelector('[data-nk="'+k.id+'"]')){
+    var thead=host.querySelector('.thead');
+    var row=document.createElement('div');row.className='trow click';row.setAttribute('data-nk',k.id);
+    row.onclick=function(){openClient(k.id)};
+    row.innerHTML='<div class="cname" style="flex:2.2"><div class="avc" style="background:'+k.av+'">'+k.ini+'</div><div><div class="nm">'+esc(k.nm)+'</div><div class="sub">Uitgenodigd \u00b7 wacht op eerste login</div></div></div>'
+      +'<div style="flex:1.2"><span class="pill gray">nog niets gepland</span></div>'
+      +'<div style="flex:1.2"><span class="pill gray">niet ingesteld</span></div>'
+      +'<div style="flex:1"><span class="comp">\u2013</span></div>'
+      +'<div style="flex:1.8"></div>'
+      +'<button class="kebab" style="width:30px">\u22ee</button>';
+    if(thead)thead.insertAdjacentElement('afterend',row);
+  }
+}
+function nieuweKlantenLaad(){
+  var l=leesNieuwKlant();
+  l.forEach(registreerKlant);
+  if(l.length){
+    var cnt=document.querySelector('#kl-tab0 .cnt');
+    if(cnt)cnt.textContent=6+l.length;
+  }
+}
+function openKlantModal(){
+  document.getElementById('nk-vn').value='';
+  document.getElementById('nk-an').value='';
+  document.getElementById('nk-em').value='';
+  document.querySelectorAll('#klantmodal .tgl').forEach(function(t){t.classList.add('on')});
+  document.getElementById('klantmodal').classList.add('show');
+}
+function klantUitnodigen(){
+  var vn=document.getElementById('nk-vn').value.trim();
+  var an=document.getElementById('nk-an').value.trim();
+  var em=document.getElementById('nk-em').value.trim();
+  if(!vn||!an){toast('Vul voor- en achternaam in');return;}
+  if(!/^\S+@\S+\.\S+$/.test(em)){toast('Vul een geldig e-mailadres in');return;}
+  var lijst=leesNieuwKlant();
+  var kleuren=['linear-gradient(135deg,#38bdf8,#6366f1)','linear-gradient(135deg,#f472b6,#a855f7)','linear-gradient(135deg,#34d399,#0ea5e9)','linear-gradient(135deg,#fbbf24,#f97316)'];
+  var k={id:'nk'+Date.now(),nm:vn+' '+an,ini:(vn.charAt(0)+an.charAt(0)).toUpperCase(),av:kleuren[lijst.length%4],email:em,info:'Uitgenodigd \u00b7 nog geen gegevens<br>0 sessies afgerond'};
+  lijst.push(k);
+  try{localStorage.setItem('coachapp-klanten',JSON.stringify(lijst))}catch(e){}
+  registreerKlant(k);
+  var cnt=document.querySelector('#kl-tab0 .cnt');
+  if(cnt)cnt.textContent=6+lijst.length;
+  renderKlantDrop(curCoach);
+  document.getElementById('klantmodal').classList.remove('show');
+  toast('Uitnodiging verstuurd naar '+em+'. In de echte app krijgt '+vn+' een e-mail met inloglink, maakt daarmee een wachtwoord aan en logt in via de app.');
 }
 /* Sneltoetsen (zoals CoachRx) */
 var SNELTOETSEN=[
@@ -4635,6 +4712,7 @@ zetDragEnKnoppen();
 laadBieb();
 laadTpl();
 document.querySelectorAll('#p-client .cnav button').forEach(function(b){b.setAttribute('data-tip',b.textContent.trim());});
+nieuweKlantenLaad();
 renderKlantDrop('Michel');
 function routeer(){
   var h=decodeURIComponent(location.hash.replace('#',''));
