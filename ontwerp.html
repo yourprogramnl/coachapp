@@ -1372,7 +1372,7 @@ input[disabled]{cursor:default}
           <button>Intakeformulier</button>
           <button>Facturatie</button>
         </div>
-        <div style="text-align:right"><button class="btn sm2">Bekijk intake</button></div>
+        <div style="text-align:right"><button class="btn sm2" onclick="openIntake()">Bekijk intake</button></div>
         <div class="pfav">RVDS</div>
         <div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm2">Kies een afbeelding</button></div>
         <div style="text-align:center;font-weight:800;margin-bottom:18px">Rick van der Sluis</div>
@@ -1384,8 +1384,23 @@ input[disabled]{cursor:default}
           <div class="mfield"><label>Gewicht</label><input type="text" value="100"></div>
           <div class="mfield"><label>Leeftijd <span class="sm muted" style="font-weight:400;text-transform:none;letter-spacing:0">(berekend uit geboortedatum)</span></label><input type="text" id="prof-leeftijd" value="62" readonly style="background:#f2f4f6;color:var(--muted);cursor:default"></div>
           <div class="mfield"><label>Eenheden</label><select><option>Metrisch</option><option>Imperial</option></select></div>
-          <div class="mfield"><label>Geboortedatum</label><input type="date" id="prof-geb" value="1964-04-28" onchange="leeftijdUit()"></div>
-          <div class="mfield"><label>Tijdzone</label><select><option>(GMT+01:00) Amsterdam</option></select></div>
+          <div class="mfield"><label>Geboortedatum</label><input type="date" id="prof-geb" value="1964-04-28" min="1926-01-01" max="2026-07-10" onchange="leeftijdUit()"></div>
+          <div class="mfield"><label>Tijdzone</label><select>
+            <option selected>(GMT+01:00) Amsterdam</option>
+            <option>(GMT+01:00) Brussel</option>
+            <option>(GMT+01:00) Parijs</option>
+            <option>(GMT+01:00) Berlijn</option>
+            <option>(GMT+00:00) Londen</option>
+            <option>(GMT+00:00) Lissabon</option>
+            <option>(GMT+02:00) Athene</option>
+            <option>(GMT-03:00) Paramaribo</option>
+            <option>(GMT-04:00) Willemstad (Cura&ccedil;ao)</option>
+            <option>(GMT-05:00) New York</option>
+            <option>(GMT-08:00) Los Angeles</option>
+            <option>(GMT+04:00) Dubai</option>
+            <option>(GMT+08:00) Singapore</option>
+            <option>(GMT+10:00) Sydney</option>
+          </select></div>
           <div class="mfield"><label>Locatie</label><input type="text" placeholder=""></div>
           <div class="mfield"><label>Lengte (cm)</label><input type="text" value="193"></div>
           <div class="mfield"><label>T-shirtmaat</label><select><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option selected>XXL</option><option>3XL</option></select></div>
@@ -1839,6 +1854,20 @@ input[disabled]{cursor:default}
 </div>
 
 <!-- MODAL: oefening bewerken -->
+<div class="overlay" id="intakemodal">
+  <div class="modal" style="max-width:860px">
+    <h2 style="display:flex;justify-content:space-between;align-items:center">Intake Form
+      <button class="btn ghost sm2" onclick="toast('Export komt in de echte app')"><svg class="i sm-i"><use href="#i-dl"/></svg></button>
+    </h2>
+    <div class="sm muted" style="margin-bottom:14px">In te vullen door de coach, later ook door de atleet zelf.</div>
+    <div id="intake-lijst" style="max-height:56vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 16px"></div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeIntake()">Sluiten</button>
+      <button class="btn" onclick="intakeOpslaan()">Intake opslaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="mxmodal">
   <div class="modal" style="max-width:520px">
     <h2>Add Metric</h2>
@@ -2165,6 +2194,57 @@ function mxVanWorkout(blokken){
   });
   if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
 }
+/* intake-formulier (zoals CoachRx Intake Form) */
+var INTAKE_VRAGEN=[
+ 'Wat is uw huidige beroep?',
+ 'Wat is uw huidige werkrooster (dagen/uren)?',
+ 'Wat is uw huidige gezinssituatie? (Alleenstaand, Getrouwd, Kinderen, Student, Dieren, Anders)',
+ 'Wat zijn uw langetermijndoelen? En waarom?',
+ 'Wat zijn uw kortetermijndoelen? En waarom?',
+ 'Welke ervaring heeft u met krachttraining?',
+ 'Welke ervaring heeft u met het beoefenen van sporten?',
+ 'Heeft u eerder samengewerkt met een coach op afstand? Zo ja, hoe was die ervaring?',
+ 'Wat is uw recente trainingsmethode (stijl of methode)?',
+ 'Hoeveel trainingssessies voltooit u per dag? Per week?',
+ 'Heeft u momenteel of in het verleden medische problemen en/of traumatische verwondingen gehad?',
+ 'Beoordeel uw slaap op een schaal van 1-5, waarbij 5 het beste is.',
+ 'Hoeveel uur slaapt u gemiddeld per nacht?',
+ 'Hoe laat gaat u meestal slapen?',
+ 'Hoe vaak wordt u \u0027s nachts wakker?',
+ 'Hoe vaak bent u per jaar ziek?',
+ 'Beschrijf kort uw dagelijkse energieniveaus.',
+ 'Beoordeel uw algehele stressniveau op een schaal van 1-5, waarbij 5 het meest gestrest is.',
+ 'Heeft u last van gasvorming of een opgeblazen gevoel?',
+ 'Hoe vaak heeft u per dag een stoelgang?',
+ 'Beschrijf alstublieft uw menstruatiecyclus (alleen voor vrouwen).',
+ 'Gebruikt u enige vrij verkrijgbare voedingssupplementen? (Eiwitpoeder, vitamines, mineralen, probiotica, etc.)',
+ 'Gebruikt u voorgeschreven medicijnen?',
+ 'Heeft u bekende allergie\u00ebn voor medicijnen, voedsel of omgeving?'
+];
+var INTAKE_DEMO=['directeur','10','getrouwd','gezond blijven','geen','geen','veel','nee','geen','2 per week','diabetes 2','4','8','2300','1','bijna niet','goed','1-2','nee','1-2','geen','nee','ja','nee'];
+function leesIntake(){try{return JSON.parse(localStorage.getItem('coachapp-intake')||'{}')}catch(e){return{}}}
+function openIntake(){
+  var st=leesIntake()[curKlant];
+  var host=document.getElementById('intake-lijst');
+  host.innerHTML=INTAKE_VRAGEN.map(function(vr,i){
+    var antw = st ? (st[i]||'') : (curKlant==='rick' ? (INTAKE_DEMO[i]||'') : '');
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--line2)">'
+      +'<div style="font-size:12.5px;font-weight:700;margin-bottom:6px">'+esc(vr)+'</div>'
+      +'<input class="intake-antw" value="'+esc(antw)+'" placeholder="Nog niet ingevuld" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px">'
+      +'</div>';
+  }).join('');
+  document.getElementById('intakemodal').classList.add('show');
+}
+function closeIntake(){document.getElementById('intakemodal').classList.remove('show');}
+function intakeOpslaan(){
+  var st=leesIntake();
+  var antw={};
+  document.querySelectorAll('#intake-lijst .intake-antw').forEach(function(inp,i){antw[i]=inp.value.trim();});
+  st[curKlant]=antw;
+  try{localStorage.setItem('coachapp-intake',JSON.stringify(st))}catch(e){}
+  closeIntake();
+  toast('Intake opgeslagen, blijft bewaard per klant');
+}
 /* profiel: leeftijd automatisch uit geboortedatum */
 function leeftijdUit(){
   var v=document.getElementById('prof-geb');
@@ -2173,6 +2253,11 @@ function leeftijdUit(){
   var d=new Date(v.value), n=new Date();
   var a=n.getFullYear()-d.getFullYear();
   if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;
+  if(a<0||a>100){
+    toast('Dat kan niet kloppen: kies een geboortedatum van maximaal 100 jaar geleden');
+    v.value='';uit.value='';
+    return;
+  }
   uit.value=a;
 }
 /* Training Schedule (zoals CoachRx, met Ochtend/Middag/Avond) */
