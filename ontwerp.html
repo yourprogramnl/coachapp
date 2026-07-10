@@ -3240,7 +3240,7 @@ function libBewerk(i){
   if(cs)cs.value=['mb','rw','sv','tdb'].indexOf(o.bron)>=0?o.bron:'';
   var prev=document.getElementById('exmodal-prev');
   if(prev)prev.innerHTML = o.youtube_id
-    ? '<a href="https://youtu.be/'+o.youtube_id+'" target="_blank" rel="noopener" style="display:block;min-height:180px;position:relative"><img src="https://i.ytimg.com/vi/'+o.youtube_id+'/hqdefault.jpg" style="width:100%;min-height:180px;object-fit:cover;display:block;border-radius:10px" alt=""><span class="pbtn"></span></a>'
+    ? '<div onclick="speelAf(this,\''+o.youtube_id+'\')" style="min-height:180px;position:relative;cursor:pointer"><img src="https://i.ytimg.com/vi/'+o.youtube_id+'/hqdefault.jpg" style="width:100%;min-height:180px;object-fit:cover;display:block;border-radius:10px" alt=""><span class="pbtn"></span></div>'
     : '<div class="pbtn"></div>';
   document.getElementById('exmodal').classList.add('show');
 }
@@ -4283,15 +4283,20 @@ function chipWeg(x,ev){
   sec.querySelector('.blokchips').innerHTML='';
   var cam=sec.querySelector('.ib-cam');if(cam)cam.classList.remove('has-video');
 }
+function speelAf(el,yt){
+  el.outerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+yt+'?autoplay=1&rel=0" style="width:100%;height:100%;border:0;display:block" allowfullscreen allow="autoplay; encrypted-media"></iframe>';
+}
 function toggleVid(cam){
   if(!cam.classList.contains('has-video')){toast('Kies eerst een oefening uit de bibliotheek');return;}
   var sec=cam.closest('.exsec');
   var vid=sec.querySelector('.ib-vid');
   var yt=sec.dataset.yt||'';
   if(yt&&vid.dataset.geladen!==yt){
-    vid.querySelector('.vprev').innerHTML='<a href="https://youtu.be/'+yt+'" target="_blank" rel="noopener" style="display:block;width:100%;height:100%;position:relative">'
+    vid.querySelector('.vprev').innerHTML='<div onclick="event.stopPropagation();speelAf(this,\''+yt+'\')" style="width:100%;height:100%;position:relative;cursor:pointer">'
       +'<img src="https://i.ytimg.com/vi/'+yt+'/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
-      +'<span class="pbtn"></span></a>';
+      +'<span class="pbtn"></span></div>';
+    var cap=vid.querySelector('.vp-cap');
+    if(cap)cap.innerHTML='Klik om af te spelen \u00b7 <a href="https://youtu.be/'+yt+'" target="_blank" rel="noopener" style="color:var(--accent-d)">werkt hij niet? open op YouTube</a>';
     vid.dataset.geladen=yt;
   }
   vid.classList.toggle('show');
