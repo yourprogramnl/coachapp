@@ -458,7 +458,12 @@ h3{font-size:14px;font-weight:700}
 .collapsebtn:hover{background:#2c3037;color:#fff}
 #cl-arrow{font-size:14px;line-height:1}
 .client-layout.collapsed .cside{width:52px}
-.client-layout.collapsed .cside .prof,.client-layout.collapsed .cside .streak{display:none}
+.client-layout.collapsed .cside .streak{display:none}
+.client-layout.collapsed .cside .prof{padding:0}
+.client-layout.collapsed .cside .prof .cnm,.client-layout.collapsed .cside .prof .cinfo{display:none}
+.client-layout.collapsed .cside .prof .bigav{width:34px;height:34px;font-size:11px;margin:0 auto}
+.mini-sess{display:none}
+.client-layout.collapsed .mini-sess{display:flex;align-items:center;justify-content:center;color:#e6e8ea;font-size:11px;font-weight:800;margin:7px 0 4px;background:#22252b;border-radius:10px;width:34px;padding:3px 0;margin-left:auto;margin-right:auto}
 .client-layout.collapsed .cnav button{justify-content:center;padding:11px 0;font-size:0;gap:0}
 .client-layout.collapsed .collapsebtn{right:9px}
 /* vaste zijbalk + donkere uitschuifpanelen (CoachRx) */
@@ -903,6 +908,7 @@ input[disabled]{cursor:default}
         <div class="cnm">Rick van der Sluis</div>
         <div class="cinfo">62 jaar · 100 kg · 193 cm<br>196 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag</span></div>
       </div>
+      <div class="mini-sess tip" id="mini-sess" data-tip="196 sessies afgerond">196</div>
       <div class="streak">Streak: <b>4 weken</b></div>
       <div class="streak" style="font-size:11px">Gezondheidsdata niet gekoppeld, <a style="color:var(--accent);cursor:pointer">nodig uit</a></div>
       <div class="streak" style="gap:6px;flex-wrap:wrap">
@@ -3378,6 +3384,8 @@ function openClient(id){
   side.querySelector('.cnm').textContent=c.nm;
   var bAv=side.querySelector('.bigav');bAv.textContent=c.ini;bAv.style.background=c.av;
   side.querySelector('.cinfo').innerHTML=c.info;
+  var ms=document.getElementById('mini-sess');
+  if(ms){var aant=(c.info.match(/(\d+) sessies/)||[])[1]||'';ms.textContent=aant;ms.setAttribute('data-tip',aant+' sessies afgerond');}
   go('client');cview('cal');
   bouwKal(id);
   markKlant(id);
