@@ -3307,6 +3307,7 @@ function openInlineEdit(card){
     sec.querySelector('.ib-presc').value=terug(bl[1]);
     var g=bl[3]||0;
     if(g>0&&x<blk.length-1&&(blk[x+1][3]||0)===g)sec.dataset.koppel='1';
+    if(bl[4]){sec.dataset.blokkleur=bl[4];blokKleurRender(sec);}
     if(bl[2]){
       var cam=sec.querySelector('.ib-cam');if(cam)cam.classList.add('has-video');
       var naamV=typeof bl[2]==='string'?bl[2]:'demo-video';
@@ -3464,7 +3465,8 @@ function plakKaart(cell,data){
     var g=b[3]||0;
     var kl=g>0?(g%2?' ssp':' ssb2'):'';
     if(g>0&&g===vorigeGroep)html+='<div class="linkwrap'+(g%2?'':' blauw')+'"><span><svg class="i"><use href="#i-link"/></svg></span></div>';
-    html+='<div class="cblk'+kl+'"><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div></div>';
+    var bkl = b[4]&&TPLKLEUR[b[4]] ? ' style="border-left:3px solid '+TPLKLEUR[b[4]]+'"' : '';
+    html+='<div class="cblk'+kl+'"'+bkl+'><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div></div>';
     vorigeGroep=g;
   });
   if(data.cooldown)html+='<div class="cblk"><div class="n">Cooldown</div><div class="pr klem2">'+data.cooldown+'</div></div>';
@@ -4150,6 +4152,9 @@ function maakBlok(type){
   var pr=document.createElement('textarea');pr.className='ib-presc';pr.rows=2;
   pr.placeholder = type==='cond' ? 'Conditioning-omschrijving, notes, enz.' : 'Tempo, reps, sets, rust';
   sec.appendChild(pr);
+  var bk=document.createElement('div');bk.className='blokkleur';bk.style.cssText='display:flex;gap:6px;margin-top:7px;align-items:center';
+  sec.appendChild(bk);
+  blokKleurRender(sec);
   if(type!=='cond'){
     var sm=document.createElement('div');sm.className='smartline ib-smart';sm.textContent='Slimme berekening: 70% van 1RM deadlift (110 kg) = 77,5 kg';sec.appendChild(sm);
     var drop=document.createElement('div');drop.className='exdrop ib-drop';sec.appendChild(drop);
@@ -4160,6 +4165,21 @@ function maakBlok(type){
     var dl=document.createElement('div');dl.className='demolink';dl.textContent="Demo-video's aan conditioning toevoegen";sec.appendChild(dl);
   }
   return sec;
+}
+function blokKleurRender(sec){
+  var host=sec.querySelector('.blokkleur');if(!host)return;
+  var leg=leesLegenda();
+  var act=sec.dataset.blokkleur||'';
+  var html='<span class="tip" data-tip="Geen kleur" onclick="kiesBlokKleur(this,\'\')" style="width:14px;height:14px;border-radius:50%;cursor:pointer;display:inline-block;background:#fff;border:1.5px solid var(--line);'+(act===''?'outline:2px solid var(--nav);outline-offset:1.5px':'')+'"></span>';
+  KLEUREN.forEach(function(k){
+    html+='<span class="tip" data-tip="'+esc(leg[k])+'" onclick="kiesBlokKleur(this,\''+k+'\')" style="width:14px;height:14px;border-radius:50%;cursor:pointer;display:inline-block;background:'+TPLKLEUR[k]+';'+(k===act?'outline:2px solid var(--nav);outline-offset:1.5px':'')+'"></span>';
+  });
+  host.innerHTML=html;
+}
+function kiesBlokKleur(el,k){
+  var sec=el.closest('.exsec');
+  sec.dataset.blokkleur=k;
+  blokKleurRender(sec);
 }
 function hernummer(){
   var secs=[].slice.call(document.querySelectorAll('#ib-blokken .exsec'));
@@ -4258,7 +4278,7 @@ function saveWorkout(){
     if(!naam&&!pr)return;
     var chip=sec.querySelector('.blokchips .vidchip');
     var cam=sec.querySelector('.ib-cam');
-    ruw.push({naam:naam||'Oefening',pr:prep(pr||'Tempo, reps, sets, rust'),video:chip?chip.textContent.replace(/\u2715/g,'').trim():(cam&&cam.classList.contains('has-video')?1:0),koppel:sec.dataset.koppel==='1'});
+    ruw.push({naam:naam||'Oefening',pr:prep(pr||'Tempo, reps, sets, rust'),video:chip?chip.textContent.replace(/\u2715/g,'').trim():(cam&&cam.classList.contains('has-video')?1:0),koppel:sec.dataset.koppel==='1',kleurB:sec.dataset.blokkleur||''});
   });
   if(!ruw.length)ruw.push({naam:'Oefening',pr:'Tempo, reps, sets, rust',video:0,koppel:false});
   var blokken=[],L='ABCDEFGHIJ',li=0,i=0,groep=0;
@@ -4266,7 +4286,7 @@ function saveWorkout(){
     var j=i;while(j<ruw.length-1&&ruw[j].koppel)j++;
     var n=j-i+1;if(n>1)groep++;
     for(var k=i;k<=j;k++){
-      blokken.push([L.charAt(li)+(n>1?String(k-i+1):'')+') '+esc(ruw[k].naam), ruw[k].pr, ruw[k].video, n>1?groep:0]);
+      blokken.push([L.charAt(li)+(n>1?String(k-i+1):'')+') '+esc(ruw[k].naam), ruw[k].pr, ruw[k].video, n>1?groep:0, ruw[k].kleurB||'']);
     }
     li++;i=j+1;
   }
