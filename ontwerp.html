@@ -919,7 +919,7 @@ input[disabled]{cursor:default}
         <button onclick="openPanel('sp-goals');goalsView()"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
         <button onclick="openPanel('sp-plan');planRender();planReset()"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
         <button onclick="openPanel('sp-notes');notesRender();docsRender()"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
-        <button onclick="openPanel('sp-schema')"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
+        <button onclick="openPanel('sp-schema');schemaRender()"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
         <button onclick="openPanel('sp-prio')"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
         <button onclick="openPanel('sp-equip')"><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
         <button id="cn-profile" onclick="cview('profile')"><svg class="i"><use href="#i-user"/></svg> Profiel</button>
@@ -1022,15 +1022,10 @@ input[disabled]{cursor:default}
     </div>
 
     <div class="sidepanel" id="sp-schema">
-      <div class="sp-head"><h3>Trainingsschema</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <div class="sp-row">Maandag<div class="ampm"><button class="on" onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
-      <div class="sp-row">Dinsdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
-      <div class="sp-row">Woensdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button class="on" onclick="this.classList.toggle('on')">PM</button></div></div>
-      <div class="sp-row">Donderdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
-      <div class="sp-row">Vrijdag<div class="ampm"><button class="on" onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
-      <div class="sp-row">Zaterdag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
-      <div class="sp-row">Zondag<div class="ampm"><button onclick="this.classList.toggle('on')">AM</button><button onclick="this.classList.toggle('on')">PM</button></div></div>
-      <button class="sp-btn" style="margin-top:10px" onclick="toast('Trainingsschema opgeslagen')">Schema opslaan</button>
+      <div class="sp-head"><h3>Training Schedule</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sm" style="color:#8b919b;margin-bottom:12px">Zo weet je wanneer dit lid kan trainen.</div>
+      <div id="schema-dagen"></div>
+      <button class="sp-btn" style="margin-top:14px" onclick="schemaOpslaan()">Save schedule</button>
     </div>
 
     <div class="sidepanel" id="sp-prio">
@@ -2162,6 +2157,38 @@ function mxVanWorkout(blokken){
     });
   });
   if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
+}
+/* Training Schedule (zoals CoachRx, met Ochtend/Middag/Avond) */
+var SCHEMA_DAGEN=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+var SCHEMA_DELEN=['Ochtend','Middag','Avond'];
+function leesSchema(){try{return JSON.parse(localStorage.getItem('coachapp-schema')||'{}')}catch(e){return{}}}
+function schemaVan(){
+  var st=leesSchema();
+  if(st[curKlant])return st[curKlant];
+  var demo={};
+  if(curKlant==='rick'){demo={Maandag:['Avond'],Zaterdag:['Ochtend']};}
+  return demo;
+}
+function schemaRender(){
+  var host=document.getElementById('schema-dagen');if(!host)return;
+  var sch=schemaVan();
+  host.innerHTML=SCHEMA_DAGEN.map(function(dag){
+    var aan=sch[dag]||[];
+    return '<div class="sp-row">'+dag+'<div class="ampm">'
+      +SCHEMA_DELEN.map(function(deel){
+        return '<button class="'+(aan.indexOf(deel)>=0?'on':'')+'" onclick="this.classList.toggle(\'on\')">'+deel+'</button>';
+      }).join('')+'</div></div>';
+  }).join('');
+}
+function schemaOpslaan(){
+  var sch={};
+  document.querySelectorAll('#schema-dagen .sp-row').forEach(function(rij,i){
+    var aan=[].filter.call(rij.querySelectorAll('.ampm button'),function(b){return b.classList.contains('on')}).map(function(b){return b.textContent});
+    if(aan.length)sch[SCHEMA_DAGEN[i]]=aan;
+  });
+  var st=leesSchema();st[curKlant]=sch;
+  try{localStorage.setItem('coachapp-schema',JSON.stringify(st))}catch(e){}
+  toast('Trainingsschema opgeslagen — blijft bewaard');
 }
 /* Notes & Documents (zoals CoachRx) */
 var noteEditId=null;
