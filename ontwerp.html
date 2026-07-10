@@ -906,7 +906,7 @@ input[disabled]{cursor:default}
   <div class="client-layout">
     <div class="cside">
       <div class="prof">
-        <div class="bigav">RV</div>
+        <div class="bigav tip" data-tip="Naar het programma" onclick="cview('cal')">RV</div>
         <div class="cnm">Rick van der Sluis</div>
         <div class="cinfo">62 jaar · 100 kg · 193 cm<br>196 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag</span></div>
       </div>
@@ -929,7 +929,7 @@ input[disabled]{cursor:default}
         <button onclick="openPanel('sp-notes');notesRender();docsRender()"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
         <button onclick="openPanel('sp-schema');schemaRender()"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
         <button onclick="openPanel('sp-prio');prioRender()"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
-        <button onclick="openPanel('sp-equip')"><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
+        <button onclick="openPanel('sp-equip');equipRender();equipFormSluit()"><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
         <button id="cn-profile" onclick="cview('profile')"><svg class="i"><use href="#i-user"/></svg> Profiel</button>
       </div>
       <button class="collapsebtn tip" data-tip="Zijbalk in-/uitklappen" onclick="toggleSide()"><span id="cl-arrow">&#8592;</span></button>
@@ -1047,10 +1047,17 @@ input[disabled]{cursor:default}
     </div>
 
     <div class="sidepanel" id="sp-equip">
-      <div class="sp-head"><h3>Materiaallijsten</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <button class="sp-btn" style="margin-bottom:14px" onclick="toast('Nieuwe materiaallijst toevoegen')">Materiaal toevoegen</button>
-      <div class="sp-dark">Gym <svg class="i sm-i"><use href="#i-gear"/></svg></div>
-      <div class="sp-list">Barbell<br>Trap bar<br>Flat bench<br>Incline bench<br>Bumper plates<br>Kettlebells (gewichtsrange)<br>Dumbbells (gewichtsrange)<br>GHD<br>Reverse hyper<br>Axle bar<br>Yoke<br>Farmer's carry handles<br>Sled / Prowler<br>Gymnastics rings<br>Paralletes<br>Wall ball targets<br>Battling ropes<br>Airdyne/Assault bike<br>Ski erg<br>Rower<br>Bike erg<br>Pulley machines</div>
+      <div class="sp-head"><h3>Equipment Lists</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <button class="sp-btn" style="margin-bottom:14px" onclick="equipForm()">Add equipment</button>
+      <div id="equip-form" style="display:none">
+        <div class="sp-field"><label>Location</label><input id="eq-loc" placeholder="Ex: gym, home, travel&#8230;"></div>
+        <div class="sp-field"><label>Equipment</label><textarea id="eq-items" placeholder="Add equipment&#8230;" style="min-height:100px"></textarea></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="sp-btn" style="width:auto;padding:9px 16px" onclick="equipOpslaan()">Save equipment</button>
+          <button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="equipFormSluit()">Cancel</button>
+        </div>
+      </div>
+      <div id="equip-lijst"></div>
     </div>
 
     <div class="cmain">
@@ -2583,6 +2590,57 @@ function planVerwijder(btn,id){
   st[curKlant]=lijst;schrijfPlannen(st);
   planRender();
   toast('Plan verwijderd');
+}
+/* Equipment Lists (zoals CoachRx: locatie + materiaal) */
+var equipEditId=null;
+function leesEquip(){try{return JSON.parse(localStorage.getItem('coachapp-equip')||'{}')}catch(e){return{}}}
+function equipVan(){
+  var st=leesEquip();
+  if(st[curKlant])return st[curKlant];
+  return [{id:1,loc:'Gym',items:"Barbell\nTrap bar\nFlat bench\nIncline bench\nBumper plates\nKettlebells (gewichtsrange)\nDumbbells (gewichtsrange)\nGHD\nReverse hyper\nAxle bar\nYoke\nLog\nFarmer's carry handles\nFat grips\nLifting blocks\nSled / Prowler\nRope (om slee te trekken)\nStones (gewichtsrange)\nMedballs\nSlam balls\nSandbags (gewichtsrange)\nGymnastics rings\nParalletes\nClimbing rope\nWall ball targets\nChains\nBattling ropes\nSwiss ball\nAirdyne / Assault bike\nSki erg\nRower\nBike erg\nTreadmill\nPulley machines\nPeg board"}];
+}
+function equipRender(){
+  var host=document.getElementById('equip-lijst');if(!host)return;
+  host.innerHTML=equipVan().map(function(e){
+    return '<div class="sp-dark">'+esc(e.loc)+' <svg class="i sm-i" style="cursor:pointer" onclick="equipBewerk('+e.id+')"><use href="#i-gear"/></svg></div>'
+      +'<div class="sp-list">'+esc(e.items).replace(/\n/g,'<br>')+'</div>';
+  }).join('') || '<div class="sm" style="color:#8b919b">Nog geen materiaallijsten. Voeg de eerste toe.</div>';
+}
+function equipForm(){
+  equipEditId=null;
+  document.getElementById('eq-loc').value='';
+  document.getElementById('eq-items').value='';
+  document.getElementById('equip-form').style.display='';
+  document.getElementById('eq-loc').focus();
+}
+function equipFormSluit(){
+  equipEditId=null;
+  var f=document.getElementById('equip-form');if(f)f.style.display='none';
+}
+function equipBewerk(id){
+  var e=null;equipVan().forEach(function(x){if(x.id===id)e=x;});
+  if(!e)return;
+  equipEditId=id;
+  document.getElementById('eq-loc').value=e.loc;
+  document.getElementById('eq-items').value=e.items;
+  document.getElementById('equip-form').style.display='';
+  groei(document.getElementById('eq-items'));
+}
+function equipOpslaan(){
+  var loc=document.getElementById('eq-loc').value.trim();
+  var items=document.getElementById('eq-items').value.trim();
+  if(!loc){toast('Vul eerst een locatie in (bijv. gym, thuis, op reis)');return;}
+  var st=leesEquip();
+  var lijst=st[curKlant]||equipVan().slice();
+  if(equipEditId){
+    lijst.forEach(function(e){if(e.id===equipEditId){e.loc=loc;e.items=items;}});
+  }else{
+    lijst.unshift({id:Date.now(),loc:loc,items:items});
+  }
+  st[curKlant]=lijst;
+  try{localStorage.setItem('coachapp-equip',JSON.stringify(st))}catch(e){}
+  equipFormSluit();equipRender();
+  toast('Materiaallijst opgeslagen, blijft bewaard');
 }
 /* Priorities (zoals CoachRx: toevoegen + kruisje) */
 function leesPrio(){try{return JSON.parse(localStorage.getItem('coachapp-prio')||'{}')}catch(e){return{}}}
