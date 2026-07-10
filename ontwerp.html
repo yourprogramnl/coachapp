@@ -3050,6 +3050,7 @@ function laadBieb(){
 }
 var TPL=[], libMode='oef';
 var TPLKLEUR={yellow:'#eab308',blue:'#3b82f6',purple:'#8b5cf6',red:'#ef4444',green:'#22c55e',orange:'#f97316',gray:'#9ca3af'};
+var TPLZACHT={yellow:'#fdf4d5',blue:'#e0edfd',purple:'#ece4fb',red:'#fbe0e0',green:'#def4e6',orange:'#fdeada',gray:'#eef0f2'};
 function laadTpl(){
   fetch('https://ujuvbxqgnxkyjcmcrqpw.supabase.co/rest/v1/templates?select=id,naam,instructies,type,kleur,tags,coach&order=naam.asc&limit=1000',{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
   .then(function(r){return r.json()})
@@ -3467,7 +3468,7 @@ function plakKaart(cell,data){
     var g=b[3]||0;
     var kl=g>0?(g%2?' ssp':' ssb2'):'';
     if(g>0&&g===vorigeGroep)html+='<div class="linkwrap'+(g%2?'':' blauw')+'"><span><svg class="i"><use href="#i-link"/></svg></span></div>';
-    var bkl = b[4]&&TPLKLEUR[b[4]] ? ' style="border-left:3px solid '+TPLKLEUR[b[4]]+'"' : '';
+    var bkl = b[4]&&TPLKLEUR[b[4]] ? ' style="border-left:3px solid '+TPLKLEUR[b[4]]+';background:'+TPLZACHT[b[4]]+'"' : '';
     html+='<div class="cblk'+kl+'"'+bkl+'><div class="n">'+b[0]+'</div><div class="pr">'+b[1]+'</div></div>';
     vorigeGroep=g;
   });
