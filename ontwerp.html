@@ -1366,13 +1366,14 @@ input[disabled]{cursor:default}
      <div id="cv-profile" style="display:none">
       <div class="pfwrap">
         <div class="tabs">
-          <button class="on">Profiel bewerken</button>
-          <button>Coaching</button>
-          <button>Voortgangsfoto's</button>
-          <button>Intakeformulier</button>
-          <button>Facturatie</button>
+          <button class="on" id="pf-t0" onclick="profTab(0)">Profiel bewerken</button>
+          <button onclick="toast('Coaching komt later in het ontwerp')">Coaching</button>
+          <button onclick="toast('Voortgangsfoto&#39;s komen later in het ontwerp')">Voortgangsfoto's</button>
+          <button id="pf-t3" onclick="profTab(3)">Intakeformulier</button>
+          <button onclick="toast('Facturatie komt later in het ontwerp')">Facturatie</button>
         </div>
-        <div style="text-align:right"><button class="btn sm2" onclick="openIntake()">Bekijk intake</button></div>
+        <div id="prof-tab-0">
+        <div style="text-align:right"><button class="btn sm2" onclick="profTab(3)">Bekijk intake</button></div>
         <div class="pfav">RVDS</div>
         <div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm2">Kies een afbeelding</button></div>
         <div style="text-align:center;font-weight:800;margin-bottom:18px">Rick van der Sluis</div>
@@ -1408,6 +1409,16 @@ input[disabled]{cursor:default}
           <div class="mfield"><label>Aangedragen door</label><input type="text" placeholder=""></div>
         </div>
         <div class="mfoot"><button class="btn ghost">Annuleren</button><button class="btn" onclick="toast('Profiel opgeslagen')">Profiel opslaan</button></div>
+        </div>
+        <div id="prof-tab-3" style="display:none">
+          <div class="hrow" style="margin-bottom:8px">
+            <h2>Intake Form</h2>
+            <button class="btn ghost sm2" onclick="toast('Export komt in de echte app')"><svg class="i sm-i"><use href="#i-dl"/></svg></button>
+          </div>
+          <div class="sm muted" style="margin-bottom:14px">In te vullen door de coach, later ook door de atleet zelf.</div>
+          <div id="intake-lijst"></div>
+          <div class="mfoot"><button class="btn ghost" onclick="profTab(0)">Terug naar profiel</button><button class="btn" onclick="intakeOpslaan()">Intake opslaan</button></div>
+        </div>
       </div>
      </div>
     </div>
@@ -1854,20 +1865,6 @@ input[disabled]{cursor:default}
 </div>
 
 <!-- MODAL: oefening bewerken -->
-<div class="overlay" id="intakemodal">
-  <div class="modal" style="max-width:860px">
-    <h2 style="display:flex;justify-content:space-between;align-items:center">Intake Form
-      <button class="btn ghost sm2" onclick="toast('Export komt in de echte app')"><svg class="i sm-i"><use href="#i-dl"/></svg></button>
-    </h2>
-    <div class="sm muted" style="margin-bottom:14px">In te vullen door de coach, later ook door de atleet zelf.</div>
-    <div id="intake-lijst" style="max-height:56vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 16px"></div>
-    <div class="mfoot">
-      <button class="btn ghost" onclick="closeIntake()">Sluiten</button>
-      <button class="btn" onclick="intakeOpslaan()">Intake opslaan</button>
-    </div>
-  </div>
-</div>
-
 <div class="overlay" id="mxmodal">
   <div class="modal" style="max-width:520px">
     <h2>Add Metric</h2>
@@ -2072,6 +2069,7 @@ function cview(v){
   closePanels();
   if(v==='cal')setTimeout(fixSticky,0);
   if(v==='metrics')vulBalans();
+  if(v==='profile')profTab(0);
 }
 /* Metrics-paneel (exact zoals CoachRx) + 1RM-koppeling */
 var METRICS_DEF={
@@ -2223,6 +2221,14 @@ var INTAKE_VRAGEN=[
 ];
 var INTAKE_DEMO=['directeur','10','getrouwd','gezond blijven','geen','geen','veel','nee','geen','2 per week','diabetes 2','4','8','2300','1','bijna niet','goed','1-2','nee','1-2','geen','nee','ja','nee'];
 function leesIntake(){try{return JSON.parse(localStorage.getItem('coachapp-intake')||'{}')}catch(e){return{}}}
+function profTab(n){
+  document.getElementById('pf-t0').classList.toggle('on',n===0);
+  document.getElementById('pf-t3').classList.toggle('on',n===3);
+  document.getElementById('prof-tab-0').style.display = n===0 ? '' : 'none';
+  document.getElementById('prof-tab-3').style.display = n===3 ? '' : 'none';
+  if(n===3)openIntake();
+  window.scrollTo(0,0);
+}
 function openIntake(){
   var st=leesIntake()[curKlant];
   var host=document.getElementById('intake-lijst');
@@ -2233,16 +2239,13 @@ function openIntake(){
       +'<input class="intake-antw" value="'+esc(antw)+'" placeholder="Nog niet ingevuld" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-family:inherit;font-size:13px">'
       +'</div>';
   }).join('');
-  document.getElementById('intakemodal').classList.add('show');
 }
-function closeIntake(){document.getElementById('intakemodal').classList.remove('show');}
 function intakeOpslaan(){
   var st=leesIntake();
   var antw={};
   document.querySelectorAll('#intake-lijst .intake-antw').forEach(function(inp,i){antw[i]=inp.value.trim();});
   st[curKlant]=antw;
   try{localStorage.setItem('coachapp-intake',JSON.stringify(st))}catch(e){}
-  closeIntake();
   toast('Intake opgeslagen, blijft bewaard per klant');
 }
 /* profiel: leeftijd automatisch uit geboortedatum */
