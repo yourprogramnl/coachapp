@@ -1340,10 +1340,6 @@ input[disabled]{cursor:default}
             <textarea id="ib-cooldown" rows="2" placeholder="Cooldown toevoegen…"></textarea>
             <div class="demolink">Demo-video's aan cooldown toevoegen</div>
           </div>
-          <div class="sec" style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:11px;font-weight:700;color:#4a4f57;letter-spacing:.5px">KLEUR (optioneel)</span>
-            <div id="ib-kleuren" style="display:flex;gap:8px"></div>
-          </div>
           <div class="foot">
             <button class="save" onclick="saveWorkout()">Workout opslaan</button>
             <button class="cancel" onclick="cancelBuilder(event)">Annuleren</button>
@@ -3334,7 +3330,6 @@ function openInlineEdit(card){
   });
   if(!blk.length)h.appendChild(maakBlok('ex'));
   hernummer();
-  bwKleurKeuze=card.dataset.kleur||'';ibKleurenRender();
   groeiAlles();
   document.getElementById('ib-verwijder').style.display='';
   document.getElementById('ib-title').focus();
@@ -3947,7 +3942,6 @@ function pickWorkout(ev){
   document.getElementById('ib-warmup').value='';
   document.getElementById('ib-cooldown').value='';
   resetBlokken();
-  bwKleurKeuze='';ibKleurenRender();
   groeiAlles();
   document.getElementById('ib-title').focus();
 }
@@ -4182,11 +4176,21 @@ function maakBlok(type){
   }
   return sec;
 }
+function kleurVoorOefening(naam){
+  var n=String(naam).toLowerCase();
+  var b=null;BIEB.forEach(function(o){if(!b&&o.naam.toLowerCase()===n)b=o;});
+  var t=n+' '+(b?(b.tags||[]).join(' '):'');
+  if(/stretch|mobilit|breath|adem|foam|cool.?down|pigeon|cars\b|herstel/.test(t))return 'green';
+  if(/muscle.?up|handstand|hspu|ring|toes to bar|t2b|rope climb|lever|planche|gymnast|pull.?over.*ring/.test(t))return 'purple';
+  if(/bike|erg\b|\brun|ski\b|amrap|interval|metcon|burpee|double.?under|sprint|conditioning|for time|emom|wod/.test(t))return 'yellow';
+  if(/squat|deadlift|press|bench|pull.?up|chin.?up|row|curl|lunge|rdl|hip thrust|clean|snatch|jerk|carry|dip\b|raise|extension|swing|thruster|barbell|dumbbell|kettlebell|kracht/.test(t))return 'blue';
+  return 'orange';
+}
 function blokKleurRender(sec){
   var host=sec.querySelector('.blokkleur');if(!host)return;
   var leg=leesLegenda();
   var act=sec.dataset.blokkleur||'';
-  var html='<span class="tip" data-tip="Geen kleur" onclick="kiesBlokKleur(this,\'\')" style="width:14px;height:14px;border-radius:50%;cursor:pointer;display:inline-block;background:#fff;border:1.5px solid var(--line);'+(act===''?'outline:2px solid var(--nav);outline-offset:1.5px':'')+'"></span>';
+  var html='';
   KLEUREN.forEach(function(k){
     html+='<span class="tip" data-tip="'+esc(leg[k])+'" onclick="kiesBlokKleur(this,\''+k+'\')" style="width:14px;height:14px;border-radius:50%;cursor:pointer;display:inline-block;background:'+TPLKLEUR[k]+';'+(k===act?'outline:2px solid var(--nav);outline-offset:1.5px':'')+'"></span>';
   });
@@ -4266,6 +4270,7 @@ function vindYt(naam){
 }
 function kiesEx(sec,naam){
   sec.dataset.yt=vindYt(naam);
+  if(!sec.dataset.blokkleur){sec.dataset.blokkleur=kleurVoorOefening(naam);blokKleurRender(sec);}
   sec.querySelector('.ib-ex').value=naam;
   sec.querySelector('.ib-drop').classList.remove('show');
   var cam=sec.querySelector('.ib-cam');if(cam)cam.classList.add('has-video');
@@ -4315,7 +4320,9 @@ function saveWorkout(){
     if(!naam&&!pr)return;
     var chip=sec.querySelector('.blokchips .vidchip');
     var cam=sec.querySelector('.ib-cam');
-    ruw.push({naam:naam||'Oefening',pr:prep(pr||'Tempo, reps, sets, rust'),video:chip?chip.textContent.replace(/\u2715/g,'').trim():(cam&&cam.classList.contains('has-video')?1:0),koppel:sec.dataset.koppel==='1',kleurB:sec.dataset.blokkleur||''});
+    var kb=sec.dataset.blokkleur||kleurVoorOefening(naam||pr);
+    sec.dataset.blokkleur=kb;blokKleurRender(sec);
+    ruw.push({naam:naam||'Oefening',pr:prep(pr||'Tempo, reps, sets, rust'),video:chip?chip.textContent.replace(/\u2715/g,'').trim():(cam&&cam.classList.contains('has-video')?1:0),koppel:sec.dataset.koppel==='1',kleurB:kb});
   });
   if(!ruw.length)ruw.push({naam:'Oefening',pr:'Tempo, reps, sets, rust',video:0,koppel:false});
   var blokken=[],L='ABCDEFGHIJ',li=0,i=0,groep=0;
@@ -4328,7 +4335,7 @@ function saveWorkout(){
     li++;i=j+1;
   }
   if(bwCel){
-    var cel=bwCel,kaart=bwKaart,kleur=bwKleurKeuze;
+    var cel=bwCel,kaart=bwKaart,kleur=(kaart&&kaart.dataset.kleur)||'';
     bwCel=null;bwKaart=null;
     storeFloats();
     if(kaart)kaart.remove();
@@ -4341,10 +4348,10 @@ function saveWorkout(){
   }
   storeFloats();
   if(!curCell)return;
-  var data2={title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown,kleur:bwKleurKeuze};
+  var data2={title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown};
   plakKaart(curCell,data2);
   if(curCell.dataset.d){
-    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown,kleur:bwKleurKeuze});schrijfOpslag(o);
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown});schrijfOpslag(o);
   }
   mxVanWorkout(blokken);
   toast('Workout opgeslagen, '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
