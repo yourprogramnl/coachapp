@@ -435,8 +435,11 @@ label.dienst input{width:16px;height:16px;accent-color:var(--accent)}
 .keygroep{font-size:13px;font-weight:800;color:#fff;margin:14px 0 4px}
 .kbd{background:#26292f;border:1px solid #3a3f47;border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;color:#c9cdd4;margin-left:4px}
 #kalgrid.weekview .mday{min-height:66vh}
-#kalgrid.dagview .mrow{display:flex}
-#kalgrid.dagview .mday{min-height:66vh;flex:1}
+#kalgrid.dagview .mrow{display:flex;padding:14px}
+#kalgrid.dagview .mday{min-height:64vh;flex:1;border:1.5px solid var(--line);border-radius:12px;box-shadow:0 2px 10px rgba(15,18,22,.05)}
+#kalgrid.dagview .daymenu,#kalgrid.weekview .daymenu{max-width:430px;margin-left:auto;margin-right:auto}
+#kalgrid.dagview .mcard{max-width:540px}
+#kalgrid.dagview .ib{max-width:560px}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -1332,6 +1335,10 @@ input[disabled]{cursor:default}
           <div class="sec">
             <textarea id="ib-cooldown" rows="2" placeholder="Cooldown toevoegen…"></textarea>
             <div class="demolink">Demo-video's aan cooldown toevoegen</div>
+          </div>
+          <div class="sec" style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;font-weight:700;color:#4a4f57;letter-spacing:.5px">KLEUR (optioneel)</span>
+            <div id="ib-kleuren" style="display:flex;gap:8px"></div>
           </div>
           <div class="foot">
             <button class="save" onclick="saveWorkout()">Workout opslaan</button>
@@ -3267,7 +3274,17 @@ function groeiAlles(){document.querySelectorAll('#ib-root textarea').forEach(gro
   if(r)r.addEventListener('input',function(e){if(e.target&&e.target.tagName==='TEXTAREA')groei(e.target);});
 })();
 /* inline bewerken in de dagcel (zoals CoachRx) */
-var bwCel=null, bwKaart=null;
+var bwCel=null, bwKaart=null, bwKleurKeuze='';
+function ibKleurenRender(){
+  var host=document.getElementById('ib-kleuren');if(!host)return;
+  var leg=leesLegenda();
+  var dots='<span class="tip" data-tip="Geen kleur" onclick="kiesIbKleur(\'\')" style="width:20px;height:20px;border-radius:50%;cursor:pointer;display:inline-block;background:#fff;border:1.5px solid var(--line);'+(bwKleurKeuze===''?'outline:2.5px solid var(--nav);outline-offset:2px':'')+'"></span>';
+  KLEUREN.forEach(function(k){
+    dots+='<span class="tip" data-tip="'+esc(leg[k])+'" onclick="kiesIbKleur(\''+k+'\')" style="width:20px;height:20px;border-radius:50%;cursor:pointer;display:inline-block;background:'+TPLKLEUR[k]+';'+(k===bwKleurKeuze?'outline:2.5px solid var(--nav);outline-offset:2px':'')+'"></span>';
+  });
+  host.innerHTML=dots;
+}
+function kiesIbKleur(k){bwKleurKeuze=k;ibKleurenRender();}
 function openInlineEdit(card){
   if(card.dataset.rust){toast('Rustdag, verwijder de kaart (kruisje) als je hier toch wilt plannen');return;}
   var cell=card.closest('.mday');
@@ -3300,6 +3317,7 @@ function openInlineEdit(card){
   });
   if(!blk.length)h.appendChild(maakBlok('ex'));
   hernummer();
+  bwKleurKeuze=card.dataset.kleur||'';ibKleurenRender();
   groeiAlles();
   document.getElementById('ib-verwijder').style.display='';
   document.getElementById('ib-title').focus();
@@ -3911,6 +3929,7 @@ function pickWorkout(ev){
   document.getElementById('ib-warmup').value='';
   document.getElementById('ib-cooldown').value='';
   resetBlokken();
+  bwKleurKeuze='';ibKleurenRender();
   groeiAlles();
   document.getElementById('ib-title').focus();
 }
@@ -4252,7 +4271,7 @@ function saveWorkout(){
     li++;i=j+1;
   }
   if(bwCel){
-    var cel=bwCel,kaart=bwKaart,kleur=(kaart&&kaart.dataset.kleur)||'';
+    var cel=bwCel,kaart=bwKaart,kleur=bwKleurKeuze;
     bwCel=null;bwKaart=null;
     storeFloats();
     if(kaart)kaart.remove();
@@ -4265,10 +4284,10 @@ function saveWorkout(){
   }
   storeFloats();
   if(!curCell)return;
-  var data2={title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown};
+  var data2={title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown,kleur:bwKleurKeuze};
   plakKaart(curCell,data2);
   if(curCell.dataset.d){
-    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown});schrijfOpslag(o);
+    var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown,kleur:bwKleurKeuze});schrijfOpslag(o);
   }
   mxVanWorkout(blokken);
   toast('Workout opgeslagen, '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
