@@ -431,6 +431,10 @@ h3{font-size:14px;font-weight:700}
 .legchip.aan{border-color:var(--nav);box-shadow:0 0 0 1px var(--nav)}
 .legchip input{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;width:86px;padding:0}
 .legchip input:focus{outline:none;border-bottom:1px dashed var(--muted2)}
+.popmenu{position:absolute;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(15,18,22,.16);z-index:80;padding:6px;min-width:190px}
+.popmenu button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;border-radius:7px;font-size:13px;font-weight:600;text-align:left;color:#222}
+.popmenu button:hover{background:#f2f4f6}
+.popmenu input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;margin-top:4px}
 label.dienst{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;padding:7px 0;cursor:pointer}
 label.dienst input{width:16px;height:16px;accent-color:var(--accent)}
 .keyrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:12.5px;color:#e6e8ea}
@@ -2681,6 +2685,171 @@ function planVerwijder(btn,id){
   planRender();
   toast('Plan verwijderd');
 }
+/* tags beheren + kebab-menu per klant (zoals CoachRx) */
+var TAGKLEUR={maandag:'#22c55e',dinsdag:'#ec4899',woensdag:'#3b82f6',donderdag:'#14b8a6',vrijdag:'#eab308',zaterdag:'#8b5cf6',zondag:'#f97316'};
+function leesTags(){try{return JSON.parse(localStorage.getItem('coachapp-tags')||'{}')}catch(e){return{}}}
+function schrijfTags(x){try{localStorage.setItem('coachapp-tags',JSON.stringify(x))}catch(e){}}
+function klantIdVanRij(row){
+  var oc=row.getAttribute('onclick')||'';
+  var m=oc.match(/openClient\('([^']+)'\)/);
+  return m?m[1]:(row.getAttribute('data-nk')||'');
+}
+function tagsVan(id,cel){
+  var st=leesTags();
+  if(st[id])return st[id];
+  var uit=[];
+  if(cel)cel.querySelectorAll('.tag').forEach(function(t){
+    var naam=t.textContent.replace(/\u2715|\u2715/g,'').replace('\u2715','').replace(/\s+/g,' ').trim();
+    naam=naam.replace(/ ?\u2715$/,'').trim();
+    var sq=t.querySelector('.sq');
+    uit.push({n:naam,k:sq?sq.style.background:'#9ca3af'});
+  });
+  return uit;
+}
+function tagsRenderCel(cel){
+  var id=cel.dataset.kid;
+  var lijst=tagsVan(id,null)||[];
+  var st=leesTags();
+  if(!st[id])lijst=cel.dataset.init?JSON.parse(cel.dataset.init):[];
+  cel.innerHTML=lijst.map(function(t,i){
+    return '<span class="tag"><span class="sq" style="background:'+t.k+'"></span>'+esc(t.n)+' <span class="x" onclick="event.stopPropagation();tagWeg(\''+id+'\','+i+',this)">\u2715</span></span>';
+  }).join(' ')+' <button class="btn ghost sm2" style="padding:2px 9px" onclick="event.stopPropagation();tagMenu(this,\''+id+'\')">+</button>';
+}
+function tagsInit(){
+  document.querySelectorAll('#kl-actief .trow').forEach(function(row){
+    var id=klantIdVanRij(row);if(!id)return;
+    var cel=row.children[4];
+    if(!cel||cel.dataset.tagsklaar)return;
+    cel.dataset.tagsklaar='1';cel.dataset.kid=id;
+    cel.dataset.init=JSON.stringify(tagsVan(id,cel));
+    tagsRenderCel(cel);
+  });
+}
+function tagLijstMaterialiseer(id){
+  var st=leesTags();
+  if(!st[id]){
+    var cel=document.querySelector('#kl-actief [data-kid="'+id+'"]');
+    st[id]=cel&&cel.dataset.init?JSON.parse(cel.dataset.init):[];
+  }
+  return st;
+}
+function tagWeg(id,i,el){
+  var st=tagLijstMaterialiseer(id);
+  st[id].splice(i,1);schrijfTags(st);
+  var cel=el.closest('[data-kid]');
+  tagsRenderCel(cel);
+  toast('Tag verwijderd');
+}
+function tagKies(id,naam,kleur){
+  naam=String(naam).trim().toLowerCase();
+  if(!naam)return;
+  var st=tagLijstMaterialiseer(id);
+  if(st[id].some(function(t){return t.n===naam})){toast('Die tag heeft dit lid al');sluitPop();return;}
+  st[id].push({n:naam,k:kleur||TAGKLEUR[naam]||'#9ca3af'});
+  schrijfTags(st);
+  var cel=document.querySelector('#kl-actief [data-kid="'+id+'"]');
+  if(cel)tagsRenderCel(cel);
+  sluitPop();
+  toast('Tag toegevoegd, blijft bewaard');
+}
+function sluitPop(){var p=document.getElementById('popmenu');if(p)p.remove();}
+function tagMenu(btn,id){
+  sluitPop();
+  var row=btn.closest('.trow');row.style.position='relative';
+  var m=document.createElement('div');m.className='popmenu';m.id='popmenu';
+  m.onclick=function(e){e.stopPropagation();};
+  m.innerHTML=Object.keys(TAGKLEUR).map(function(d){
+    return '<button onclick="tagKies(\''+id+'\',\''+d+'\')"><span class="sq" style="background:'+TAGKLEUR[d]+';width:9px;height:9px;border-radius:2px;display:inline-block"></span> '+d+'</button>';
+  }).join('')+'<input placeholder="Nieuwe tag + Enter" onkeydown="if(event.key===\'Enter\')tagKies(\''+id+'\',this.value)">';
+  m.style.right='40px';m.style.top='40px';
+  row.appendChild(m);
+}
+function kebabMenu(btn,ev){
+  ev.stopPropagation();
+  sluitPop();
+  var row=btn.closest('.trow');row.style.position='relative';
+  var id=klantIdVanRij(row);
+  var m=document.createElement('div');m.className='popmenu';m.id='popmenu';
+  m.onclick=function(e){e.stopPropagation();};
+  m.innerHTML='<button onclick="sluitPop();openClient(\''+id+'\');cview(\'profile\')">Profiel bewerken</button>'
+   +'<button onclick="sluitPop();openClient(\''+id+'\');cview(\'profile\');profTab(3)">Intake bekijken</button>'
+   +'<button onclick="transferMenu(\''+id+'\')">Overzetten naar coach</button>'
+   +'<button onclick="sluitPop();openClient(\''+id+'\');toggleChat()">Bericht sturen</button>'
+   +'<div style="border-top:1px solid var(--line2);margin:4px 0"></div>'
+   +'<button style="color:var(--bad)" onclick="archiveerKlant(\''+id+'\',this)">Archiveren</button>';
+  m.style.right='6px';m.style.top='42px';
+  row.appendChild(m);
+}
+function transferMenu(id){
+  var m=document.getElementById('popmenu');if(!m)return;
+  m.innerHTML='<div style="font-size:11px;font-weight:800;color:var(--muted);padding:4px 11px;text-transform:uppercase;letter-spacing:.6px">Overzetten naar</div>'
+   +['Michel','Rieke','Stefan','Thirza'].map(function(c){
+     return '<button onclick="transferKlant(\''+id+'\',\''+c+'\')">Coach '+c+'</button>';
+   }).join('');
+}
+function transferKlant(id,coach){
+  for(var c in PROGKL){var ix=PROGKL[c].indexOf(id);if(ix>=0)PROGKL[c].splice(ix,1);}
+  PROGKL[coach].push(id);
+  var st={};try{st=JSON.parse(localStorage.getItem('coachapp-transfer')||'{}')}catch(e){}
+  st[id]=coach;
+  try{localStorage.setItem('coachapp-transfer',JSON.stringify(st))}catch(e){}
+  renderKlantDrop(curCoach);
+  sluitPop();
+  toast((CLIENTS[id]?CLIENTS[id].nm:'Lid')+' overgezet naar coach '+coach+'. Die ziet dit lid nu in zijn lijst.');
+}
+function transferInit(){
+  var st={};try{st=JSON.parse(localStorage.getItem('coachapp-transfer')||'{}')}catch(e){}
+  for(var id in st){
+    for(var c in PROGKL){var ix=PROGKL[c].indexOf(id);if(ix>=0)PROGKL[c].splice(ix,1);}
+    if(PROGKL[st[id]])PROGKL[st[id]].push(id);
+  }
+}
+function archiveerKlant(id,btn){
+  if(btn&&btn.textContent!=='Zeker weten?'){btn.textContent='Zeker weten?';return;}
+  var st={};try{st=JSON.parse(localStorage.getItem('coachapp-arch')||'{}')}catch(e){}
+  st[id]=CLIENTS[id]?CLIENTS[id].nm:id;
+  try{localStorage.setItem('coachapp-arch',JSON.stringify(st))}catch(e){}
+  sluitPop();
+  archiefToepassen();
+  toast('Gearchiveerd. Terugzetten kan via de Archief-tab.');
+}
+function archiefToepassen(){
+  var st={};try{st=JSON.parse(localStorage.getItem('coachapp-arch')||'{}')}catch(e){}
+  var n=0;
+  document.querySelectorAll('#kl-actief .trow').forEach(function(row){
+    var id=klantIdVanRij(row);
+    var weg=!!st[id];
+    row.style.display=weg?'none':'';
+    if(weg)n++;
+  });
+  var host=document.getElementById('kl-archief');
+  if(host){
+    host.querySelectorAll('[data-archnk]').forEach(function(r){r.remove()});
+    for(var id in st){
+      var row=document.createElement('div');row.className='trow';row.setAttribute('data-archnk',id);
+      row.innerHTML='<div class="cname" style="flex:2.2"><div class="avc" style="background:#9ca3af">'+(CLIENTS[id]?CLIENTS[id].ini:'?')+'</div><div><div class="nm">'+esc(st[id])+'</div><div class="sub">Zojuist gearchiveerd</div></div></div>'
+        +'<div style="flex:3.2" class="muted">Programma gepauzeerd</div>'
+        +'<button class="btn ghost sm2" style="width:90px" onclick="herstelNieuwKlant(\''+id+'\')">Herstellen</button>';
+      var thead=host.querySelector('.thead');
+      if(thead)thead.insertAdjacentElement('afterend',row);else host.appendChild(row);
+    }
+  }
+  var ca=document.querySelector('#kl-tab0 .cnt');
+  if(ca)ca.textContent=(6+leesNieuwKlant().length-Object.keys(st).length);
+}
+function herstelNieuwKlant(id){
+  var st={};try{st=JSON.parse(localStorage.getItem('coachapp-arch')||'{}')}catch(e){}
+  var naam=st[id];delete st[id];
+  try{localStorage.setItem('coachapp-arch',JSON.stringify(st))}catch(e){}
+  archiefToepassen();
+  toast((naam||'Lid')+' teruggezet, staat weer bij Actief');
+}
+function kebabInit(){
+  document.querySelectorAll('#kl-actief .kebab').forEach(function(b){
+    if(b.dataset.kb)return;b.dataset.kb='1';
+    b.onclick=function(ev){kebabMenu(b,ev)};
+  });
+}
 /* nieuw lid toevoegen en uitnodigen (zoals CoachRx Add client) */
 function leesNieuwKlant(){try{return JSON.parse(localStorage.getItem('coachapp-klanten')||'[]')}catch(e){return[]}}
 function registreerKlant(k){
@@ -2698,6 +2867,10 @@ function registreerKlant(k){
       +'<div style="flex:1.8"></div>'
       +'<button class="kebab" style="width:30px">\u22ee</button>';
     if(thead)thead.insertAdjacentElement('afterend',row);
+    var cel=row.children[4];
+    cel.dataset.tagsklaar='1';cel.dataset.kid=k.id;cel.dataset.init='[]';
+    tagsRenderCel(cel);
+    kebabInit();
   }
 }
 function nieuweKlantenLaad(){
@@ -3123,6 +3296,7 @@ document.addEventListener('click',function(){
   if(pd)pd.classList.remove('show');
   var kd=document.getElementById('klantdrop');
   if(kd)kd.classList.remove('show');
+  if(typeof sluitPop==='function')sluitPop();
 });
 /* bibliotheek: live uit Supabase (jullie eigen Strivee-media) */
 var SB_URL='https://ujuvbxqgnxkyjcmcrqpw.supabase.co/rest/v1/oefeningen';
@@ -4713,6 +4887,10 @@ laadBieb();
 laadTpl();
 document.querySelectorAll('#p-client .cnav button').forEach(function(b){b.setAttribute('data-tip',b.textContent.trim());});
 nieuweKlantenLaad();
+transferInit();
+tagsInit();
+kebabInit();
+archiefToepassen();
 renderKlantDrop('Michel');
 function routeer(){
   var h=decodeURIComponent(location.hash.replace('#',''));
