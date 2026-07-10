@@ -1869,6 +1869,7 @@ input[disabled]{cursor:default}
       <div class="seg" id="ins-types">
         <button class="on" onclick="insType('all',this)">Alles</button>
         <button onclick="insType('warmup',this)">Warm-ups</button>
+        <button onclick="insType('week',this)">Weekworkouts</button>
         <button onclick="insType('cooldown',this)">Cooldowns</button>
         <button onclick="insType('other',this)">Workouts</button>
       </div>
@@ -3472,14 +3473,20 @@ function pickRest(ev){
   toast('Dag ingesteld als rustdag, blijft bewaard');
 }
 var insTypeF='all', insKleur='', insDoel='cel';
-var WEEKWOD={naam:'Weekworkout \u00b7 Week 28, "Grace"',instructies:'30 clean & jerks voor tijd\nRx: 60/42,5 kg \u00b7 Scaled: 42,5/30 kg\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'};
-function insWeekwod(){
-  var data={title:'Weekworkout, "Grace"',blk:[[esc(WEEKWOD.naam),esc(WEEKWOD.instructies).replace(/\n/g,'<br>')]],kleur:'blue'};
+var WEEKWODS=[
+ {naam:'Weekworkout \u00b7 Week 28 \u00b7 "Grace"',instructies:'30 clean & jerks voor tijd\nRx: 60/42,5 kg \u00b7 Scaled: 42,5/30 kg\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'},
+ {naam:'Weekworkout \u00b7 Week 27 \u00b7 "Helen"',instructies:'3 rondes voor tijd:\n400m run\n21 KB swings @ 24/16 kg\n12 pull-ups\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'},
+ {naam:'Weekworkout \u00b7 Week 26 \u00b7 "DT"',instructies:'5 rondes voor tijd:\n12 deadlifts\n9 hang power cleans\n6 push jerks\nRx: 70/47,5 kg\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'}
+];
+var WEEKWOD=WEEKWODS[0];
+function insWeekwod(i){
+  var w=WEEKWODS[i||0];
+  var data={title:w.naam,blk:[[esc(w.naam),esc(w.instructies).replace(/\n/g,'<br>')]],kleur:'blue'};
   if(insDoel==='bouwer'){
     var h=document.getElementById('ib-blokken');
     var sec=maakBlok('ex');h.appendChild(sec);
-    sec.querySelector('.ib-ex').value=WEEKWOD.naam;
-    sec.querySelector('.ib-presc').value=WEEKWOD.instructies;
+    sec.querySelector('.ib-ex').value=w.naam;
+    sec.querySelector('.ib-presc').value=w.instructies;
     hernummer();groeiAlles();
     document.getElementById('insmodal').classList.remove('show');
     toast('Weekworkout als blok toegevoegd');
@@ -3547,12 +3554,20 @@ function insRender(){
   });
   var vast='';
   var v2=(document.getElementById('ins-zoek').value||'').toLowerCase().trim();
-  if((insTypeF==='all'||insTypeF==='other')&&(!insKleur||insKleur==='blue')&&(!v2||WEEKWOD.naam.toLowerCase().indexOf(v2)>=0||'weekworkout grace leaderboard'.indexOf(v2)>=0)){
-    vast='<div class="trow" style="align-items:flex-start;background:#f0f8fc">'
+  function weekRij(w,i){
+    return '<div class="trow" style="align-items:flex-start;background:#f0f8fc">'
       +'<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR.blue+'"></span></div>'
-      +'<div style="flex:1.6"><b>'+esc(WEEKWOD.naam)+'</b><div class="sm muted" style="margin-top:2px">weekworkout \u00b7 gedeeld leaderboard</div></div>'
-      +'<div style="flex:2.4" class="sm muted">'+esc(WEEKWOD.instructies).replace(/\n/g,'<br>')+'</div>'
-      +'<button class="btn sm2" style="width:86px" onclick="insWeekwod()">Invoegen</button></div>';
+      +'<div style="flex:1.6"><b>'+esc(w.naam)+'</b><div class="sm muted" style="margin-top:2px">weekworkout \u00b7 gedeeld leaderboard</div></div>'
+      +'<div style="flex:2.4" class="sm muted">'+esc(w.instructies).replace(/\n/g,'<br>')+'</div>'
+      +'<button class="btn sm2" style="width:86px" onclick="insWeekwod('+i+')">Invoegen</button></div>';
+  }
+  if(insTypeF==='week'){
+    host.innerHTML=WEEKWODS.filter(function(w){return !v2||w.naam.toLowerCase().indexOf(v2)>=0||w.instructies.toLowerCase().indexOf(v2)>=0})
+      .map(function(w){return weekRij(w,WEEKWODS.indexOf(w))}).join('') || '<div style="padding:26px;text-align:center" class="muted">Geen weekworkouts gevonden.</div>';
+    return;
+  }
+  if(insTypeF==='all'&&(!insKleur||insKleur==='blue')&&(!v2||WEEKWODS[0].naam.toLowerCase().indexOf(v2)>=0||'weekworkout grace leaderboard'.indexOf(v2)>=0)){
+    vast=weekRij(WEEKWODS[0],0);
   }
   host.innerHTML=vast+hits.map(function(o){
     var ti=TPL.indexOf(o);
