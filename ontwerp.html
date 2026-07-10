@@ -1444,7 +1444,19 @@ input[disabled]{cursor:default}
           <div class="mfield"><label>Noodcontact</label><input type="text" value="0623496649"></div>
           <div class="mfield"><label>Aangedragen door</label><input type="text" placeholder=""></div>
         </div>
-        <div class="mfoot"><button class="btn ghost">Annuleren</button><button class="btn" onclick="toast('Profiel opgeslagen')">Profiel opslaan</button></div>
+        <div style="border-top:1px solid var(--line2);margin:20px 0 14px"></div>
+        <h2 style="font-size:15px;margin-bottom:6px">Zichtbaarheid voor het lid</h2>
+        <div class="sm muted" style="margin-bottom:12px">Bepaal per lid wat hij of zij in de app kan zien en doen.</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;align-items:flex-start">
+          <button class="tgl" id="zi-0" onclick="this.classList.toggle('on')"><span class="sw"></span> Reacties alleen-lezen</button>
+          <button class="tgl" id="zi-1" onclick="this.classList.toggle('on')"><span class="sw"></span> Berichten alleen-lezen</button>
+          <button class="tgl" id="zi-2" onclick="this.classList.toggle('on')"><span class="sw"></span> Uploads door het lid uitschakelen</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;flex-wrap:wrap">
+          Lid mag workouts <input class="numveld" id="zi-dagen" value="0" style="width:64px;border:1px solid var(--line);border-radius:7px;padding:7px 9px;text-align:center;font-family:inherit;font-size:13px"> dagen vooruit zien <span class="muted sm">(0 = geen limiet)</span>
+        </div>
+        <button class="tgl on" id="zi-3" onclick="this.classList.toggle('on')" style="margin-bottom:6px"><span class="sw"></span> Toekomstige workouts alleen zichtbaar binnen de huidige week</button>
+        <div class="mfoot"><button class="btn ghost">Annuleren</button><button class="btn" onclick="zichtOpslaan()">Profiel opslaan</button></div>
         </div>
         <div id="prof-tab-3" style="display:none">
           <div class="hrow" style="margin-bottom:8px">
@@ -2314,6 +2326,7 @@ function profTab(n){
     var t=document.getElementById('pf-t'+i);if(t)t.classList.toggle('on',i===n);
     var c=document.getElementById('prof-tab-'+i);if(c)c.style.display = i===n ? '' : 'none';
   });
+  if(n===0)zichtLaad();
   if(n===1)servicesLaad();
   if(n===2)fotosRender();
   if(n===3)openIntake();
@@ -2396,6 +2409,22 @@ function intakeOpslaan(){
   st[curKlant]=antw;
   try{localStorage.setItem('coachapp-intake',JSON.stringify(st))}catch(e){}
   toast('Intake opgeslagen, blijft bewaard per klant');
+}
+/* zichtbaarheid voor het lid (Client Visibility Settings) */
+function leesZicht(){try{return JSON.parse(localStorage.getItem('coachapp-zicht')||'{}')}catch(e){return{}}}
+function zichtLaad(){
+  var st=leesZicht()[curKlant]||{t:[false,false,false,true],dagen:'0'};
+  [0,1,2,3].forEach(function(i){var b=document.getElementById('zi-'+i);if(b)b.classList.toggle('on',!!st.t[i]);});
+  var d=document.getElementById('zi-dagen');if(d)d.value=st.dagen;
+}
+function zichtOpslaan(){
+  var st=leesZicht();
+  st[curKlant]={
+    t:[0,1,2,3].map(function(i){var b=document.getElementById('zi-'+i);return b?b.classList.contains('on'):false}),
+    dagen:(document.getElementById('zi-dagen')||{value:'0'}).value||'0'
+  };
+  try{localStorage.setItem('coachapp-zicht',JSON.stringify(st))}catch(e){}
+  toast('Profiel opgeslagen, zichtbaarheid-instellingen bewaard per lid');
 }
 /* profiel: leeftijd automatisch uit geboortedatum */
 function leeftijdUit(){
