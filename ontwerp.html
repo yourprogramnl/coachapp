@@ -2058,7 +2058,7 @@ input[disabled]{cursor:default}
       </div>
       <div>
         <label style="display:block;font-size:11.5px;font-weight:700;color:#4a4f57;margin-bottom:6px">Video-preview</label>
-        <div class="mprev"><div class="pbtn"></div></div>
+        <div class="mprev" id="exmodal-prev"><div class="pbtn"></div></div>
         <div class="sm muted" style="margin-top:8px">Deze video ziet je klant bij elke workout waar de oefening in zit, plus in de warming-up en cooldown als je hem daar koppelt.</div>
       </div>
     </div>
@@ -3236,6 +3236,10 @@ function libBewerk(i){
   document.getElementById('exmodal-yt').value=o.youtube_id?('https://youtu.be/'+o.youtube_id):(o.video_url||'');
   var cs=document.getElementById('exmodal-coach');
   if(cs)cs.value=['mb','rw','sv','tdb'].indexOf(o.bron)>=0?o.bron:'';
+  var prev=document.getElementById('exmodal-prev');
+  if(prev)prev.innerHTML = o.youtube_id
+    ? '<iframe src="https://www.youtube.com/embed/'+o.youtube_id+'" style="width:100%;height:100%;min-height:180px;border:0;display:block" allowfullscreen></iframe>'
+    : '<div class="pbtn"></div>';
   document.getElementById('exmodal').classList.add('show');
 }
 function exModalOpslaan(){
@@ -3314,6 +3318,7 @@ function openInlineEdit(card){
     if(bl[2]){
       var cam=sec.querySelector('.ib-cam');if(cam)cam.classList.add('has-video');
       var naamV=typeof bl[2]==='string'?bl[2]:'demo-video';
+      sec.dataset.yt=vindYt(naamV)||vindYt(terug(bl[0]).replace(/^[A-Z]\d?\)\s*/,''));
       var ch=document.createElement('div');ch.className='blokchips';
       ch.innerHTML='<span class="vidchip"><svg class="i sm-i"><use href="#i-cam"/></svg> '+esc(naamV)+' <span class="x" onclick="chipWeg(this,event)">\u2715</span></span>';
       sec.appendChild(ch);
@@ -4245,7 +4250,14 @@ function exSearch(inp){
   });
   drop.classList.add('show');
 }
+function vindYt(naam){
+  var hit=null;
+  BIEB.forEach(function(o){if(!hit&&o.naam===naam&&o.youtube_id)hit=o.youtube_id;});
+  if(!hit)BIEB.forEach(function(o){if(!hit&&o.naam.toLowerCase()===String(naam).toLowerCase()&&o.youtube_id)hit=o.youtube_id;});
+  return hit||'';
+}
 function kiesEx(sec,naam){
+  sec.dataset.yt=vindYt(naam);
   sec.querySelector('.ib-ex').value=naam;
   sec.querySelector('.ib-drop').classList.remove('show');
   var cam=sec.querySelector('.ib-cam');if(cam)cam.classList.add('has-video');
@@ -4265,7 +4277,14 @@ function chipWeg(x,ev){
 }
 function toggleVid(cam){
   if(!cam.classList.contains('has-video')){toast('Kies eerst een oefening uit de bibliotheek');return;}
-  cam.closest('.exsec').querySelector('.ib-vid').classList.toggle('show');
+  var sec=cam.closest('.exsec');
+  var vid=sec.querySelector('.ib-vid');
+  var yt=sec.dataset.yt||'';
+  if(yt&&vid.dataset.geladen!==yt){
+    vid.querySelector('.vprev').innerHTML='<iframe src="https://www.youtube.com/embed/'+yt+'" style="width:100%;height:100%;border:0;display:block" allowfullscreen allow="autoplay; encrypted-media"></iframe>';
+    vid.dataset.geladen=yt;
+  }
+  vid.classList.toggle('show');
 }
 function saveWorkout(){
   function prep(v){return esc(String(v||'').trim()).replace(/\n/g,'<br>');}
@@ -4318,7 +4337,7 @@ function saveWorkout(){
 /* modals */
 function openExModal(nieuw){
   exModalNieuw = nieuw===true;
-  if(exModalNieuw){exModalEditIdx=-1;document.getElementById('exmodal-name').value='';var yv=document.getElementById('exmodal-yt');if(yv)yv.value='';}
+  if(exModalNieuw){exModalEditIdx=-1;document.getElementById('exmodal-name').value='';var yv=document.getElementById('exmodal-yt');if(yv)yv.value='';var pv=document.getElementById('exmodal-prev');if(pv)pv.innerHTML='<div class=\"pbtn\"></div>';}
   document.getElementById('exmodal-title').textContent = nieuw===true ? 'Oefening toevoegen' : 'Oefening bewerken';
   document.getElementById('exmodal').classList.add('show');
 }
