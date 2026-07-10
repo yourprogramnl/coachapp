@@ -801,9 +801,9 @@ input[disabled]{cursor:default}
 
   <div class="hrow">
     <div class="search"><svg class="i"><use href="#i-search"/></svg><input placeholder="Zoek op naam of tag…"></div>
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;gap:10px;position:relative">
       <button class="btn" onclick="openKlantModal()">+ Klant toevoegen</button>
-      <button class="btn ghost">Tags beheren</button>
+      <button class="btn ghost" onclick="tagsBeheerMenu(this,event)">Tags beheren</button>
       <button class="btn ghost">Exporteren</button>
     </div>
   </div>
@@ -1986,6 +1986,26 @@ input[disabled]{cursor:default}
   </div>
 </div>
 
+<div class="overlay" id="tagbewerkmodal">
+  <div class="modal" style="max-width:460px">
+    <h2 style="margin-bottom:6px">Tags bewerken</h2>
+    <div class="sm muted" id="tb-sub" style="margin-bottom:12px">Klik op een naam om te hernoemen.</div>
+    <div id="tb-lijst"></div>
+  </div>
+</div>
+
+<div class="overlay" id="tagnieuwmodal">
+  <div class="modal" style="max-width:420px">
+    <h2>Nieuwe tag maken</h2>
+    <div class="mfield"><label>Naam <em>*</em></label><input type="text" id="tn-naam" placeholder="bijv. hyrox" onkeydown="if(event.key==='Enter')tagNieuwOpslaan()"></div>
+    <div class="mfield"><label>Kleur</label><div id="tn-kleuren" style="display:flex;gap:8px;flex-wrap:wrap;padding-top:2px"></div></div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="document.getElementById('tagnieuwmodal').classList.remove('show')">Annuleren</button>
+      <button class="btn" onclick="tagNieuwOpslaan()">Tag maken</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="mxmodal">
   <div class="modal" style="max-width:520px">
     <h2>Add Metric</h2>
@@ -2687,6 +2707,11 @@ function planVerwijder(btn,id){
 }
 /* tags beheren + kebab-menu per klant (zoals CoachRx) */
 var TAGKLEUR={maandag:'#22c55e',dinsdag:'#ec4899',woensdag:'#3b82f6',donderdag:'#14b8a6',vrijdag:'#eab308',zaterdag:'#8b5cf6',zondag:'#f97316'};
+var TAGDEF_STD=[{n:'maandag',k:'#22c55e'},{n:'dinsdag',k:'#ec4899'},{n:'woensdag',k:'#3b82f6'},{n:'donderdag',k:'#14b8a6'},{n:'vrijdag',k:'#eab308'},{n:'zaterdag',k:'#8b5cf6'},{n:'zondag',k:'#f97316'},{n:'sport',k:'#0d9488'},{n:'lichaamssamenstelling',k:'#06b6d4'},{n:'gezondheid & welzijn',k:'#2563eb'}];
+var TAGPALET=['#22c55e','#ec4899','#3b82f6','#ef4444','#f97316','#eab308','#8b5cf6','#14b8a6','#06b6d4','#64748b'];
+function tagDefs(){try{var d=JSON.parse(localStorage.getItem('coachapp-tagdefs')||'null');if(d&&d.length)return d}catch(e){}return TAGDEF_STD.map(function(t){return{n:t.n,k:t.k}})}
+function schrijfTagDefs(d){try{localStorage.setItem('coachapp-tagdefs',JSON.stringify(d))}catch(e){}}
+function defKleur(naam){var t=tagDefs().filter(function(x){return x.n===naam})[0];return t?t.k:null}
 function leesTags(){try{return JSON.parse(localStorage.getItem('coachapp-tags')||'{}')}catch(e){return{}}}
 function schrijfTags(x){try{localStorage.setItem('coachapp-tags',JSON.stringify(x))}catch(e){}}
 function klantIdVanRij(row){
@@ -2711,6 +2736,10 @@ function tagsRenderCel(cel){
   var lijst=tagsVan(id,null)||[];
   var st=leesTags();
   if(!st[id])lijst=cel.dataset.init?JSON.parse(cel.dataset.init):[];
+  if(!lijst.length){
+    cel.innerHTML='<button class="btn ghost sm2" style="padding:4px 12px" onclick="event.stopPropagation();tagMenu(this,\''+id+'\')">+ Tag toevoegen</button>';
+    return;
+  }
   cel.innerHTML=lijst.map(function(t,i){
     return '<span class="tag"><span class="sq" style="background:'+t.k+'"></span>'+esc(t.n)+' <span class="x" onclick="event.stopPropagation();tagWeg(\''+id+'\','+i+',this)">\u2715</span></span>';
   }).join(' ')+' <button class="btn ghost sm2" style="padding:2px 9px" onclick="event.stopPropagation();tagMenu(this,\''+id+'\')">+</button>';
@@ -2745,8 +2774,11 @@ function tagKies(id,naam,kleur){
   if(!naam)return;
   var st=tagLijstMaterialiseer(id);
   if(st[id].some(function(t){return t.n===naam})){toast('Die tag heeft dit lid al');sluitPop();return;}
-  st[id].push({n:naam,k:kleur||TAGKLEUR[naam]||'#9ca3af'});
+  var kl=kleur||defKleur(naam)||'#9ca3af';
+  st[id].push({n:naam,k:kl});
   schrijfTags(st);
+  var defs=tagDefs();
+  if(!defs.some(function(t){return t.n===naam})){defs.push({n:naam,k:kl});schrijfTagDefs(defs);}
   var cel=document.querySelector('#kl-actief [data-kid="'+id+'"]');
   if(cel)tagsRenderCel(cel);
   sluitPop();
@@ -2758,11 +2790,111 @@ function tagMenu(btn,id){
   var row=btn.closest('.trow');row.style.position='relative';
   var m=document.createElement('div');m.className='popmenu';m.id='popmenu';
   m.onclick=function(e){e.stopPropagation();};
-  m.innerHTML=Object.keys(TAGKLEUR).map(function(d){
-    return '<button onclick="tagKies(\''+id+'\',\''+d+'\')"><span class="sq" style="background:'+TAGKLEUR[d]+';width:9px;height:9px;border-radius:2px;display:inline-block"></span> '+d+'</button>';
+  m.innerHTML=tagDefs().map(function(t){
+    return '<button onclick="tagKies(\''+id+'\',\''+esc(t.n).replace(/'/g,"\\'")+'\')"><span class="sq" style="background:'+t.k+';width:9px;height:9px;border-radius:2px;display:inline-block"></span> '+esc(t.n)+'</button>';
   }).join('')+'<input placeholder="Nieuwe tag + Enter" onkeydown="if(event.key===\'Enter\')tagKies(\''+id+'\',this.value)">';
-  m.style.right='40px';m.style.top='40px';
+  m.style.right='40px';m.style.top='40px';m.style.maxHeight='300px';m.style.overflow='auto';
   row.appendChild(m);
+}
+/* Tags beheren (zoals CoachRx Manage tags): dropdown + modals */
+function tagsBeheerMenu(btn,ev){
+  ev.stopPropagation();
+  sluitPop();
+  var wrap=btn.parentElement;
+  var m=document.createElement('div');m.className='popmenu';m.id='popmenu';
+  m.onclick=function(e){e.stopPropagation();};
+  m.innerHTML='<button onclick="sluitPop();openTagNieuw()">Nieuwe tag maken</button>'
+   +'<button onclick="sluitPop();openTagBewerk()">Bestaande bewerken</button>';
+  m.style.right='0';m.style.top=(btn.offsetTop+btn.offsetHeight+6)+'px';
+  wrap.appendChild(m);
+}
+function openTagNieuw(){
+  var veld=document.getElementById('tn-naam');veld.value='';
+  document.getElementById('tn-kleuren').innerHTML=TAGPALET.map(function(k,i){
+    return '<span class="tn-dot'+(i===0?' on':'')+'" data-k="'+k+'" onclick="tnKleur(this)" style="width:22px;height:22px;border-radius:50%;background:'+k+';cursor:pointer;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 '+(i===0?'2px #171719':'1px var(--line)')+'"></span>';
+  }).join('');
+  document.getElementById('tagnieuwmodal').classList.add('show');
+  setTimeout(function(){veld.focus()},60);
+}
+function tnKleur(el){
+  el.parentElement.querySelectorAll('.tn-dot').forEach(function(d){d.classList.remove('on');d.style.boxShadow='0 0 0 1px var(--line)'});
+  el.classList.add('on');el.style.boxShadow='0 0 0 2px #171719';
+}
+function tagNieuwOpslaan(){
+  var naam=document.getElementById('tn-naam').value.trim().toLowerCase();
+  if(!naam){toast('Geef de tag eerst een naam');return;}
+  var defs=tagDefs();
+  if(defs.some(function(t){return t.n===naam})){toast('Die tag bestaat al');return;}
+  var dot=document.querySelector('#tn-kleuren .tn-dot.on');
+  defs.push({n:naam,k:dot?dot.dataset.k:'#9ca3af'});
+  schrijfTagDefs(defs);
+  document.getElementById('tagnieuwmodal').classList.remove('show');
+  toast('Tag "'+naam+'" gemaakt — kies hem bij een lid via de +');
+}
+function openTagBewerk(){tagBewerkRender();document.getElementById('tagbewerkmodal').classList.add('show');}
+function tagBewerkRender(){
+  var defs=tagDefs();
+  document.getElementById('tb-sub').textContent='Klik op een naam om te hernoemen. '+defs.length+' tag'+(defs.length===1?'':'s')+' in totaal.';
+  document.getElementById('tb-lijst').innerHTML=defs.map(function(t,i){
+    return '<div style="display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--line2)">'
+     +'<span style="width:11px;height:11px;border-radius:3px;background:'+t.k+';flex:none"></span>'
+     +'<span style="flex:1;font-size:13.5px;font-weight:600;cursor:pointer" title="Klik om te hernoemen" onclick="tagHernoemStart(this,'+i+')">'+esc(t.n)+'</span>'
+     +'<button title="Tag verwijderen" style="color:var(--muted2);display:flex;cursor:pointer" onclick="tagVerwijderDef('+i+',this)"><svg class="i" style="width:14px;height:14px"><use href="#i-trash"/></svg></button>'
+     +'</div>';
+  }).join('')||'<div class="sm muted">Nog geen tags. Maak er een via "Nieuwe tag maken".</div>';
+}
+function tagHernoemStart(el,i){
+  var oud=tagDefs()[i].n;
+  var inp=document.createElement('input');
+  inp.value=oud;
+  inp.style.cssText='flex:1;border:1px solid var(--accent);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:13px';
+  el.replaceWith(inp);inp.focus();inp.select();
+  var klaar=false;
+  function afronden(){if(klaar)return;klaar=true;tagHernoem(i,inp.value)}
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Enter')afronden();
+    if(e.key==='Escape'){klaar=true;tagBewerkRender()}
+  });
+  inp.addEventListener('blur',afronden);
+}
+function tagsAllesInStore(){
+  var st=leesTags();
+  document.querySelectorAll('#kl-actief [data-kid]').forEach(function(cel){
+    var id=cel.dataset.kid;
+    if(!st[id])st[id]=cel.dataset.init?JSON.parse(cel.dataset.init):[];
+  });
+  schrijfTags(st);
+  return st;
+}
+function tagsAllesVernieuw(){
+  document.querySelectorAll('#kl-actief [data-kid]').forEach(function(cel){tagsRenderCel(cel)});
+}
+function tagHernoem(i,nieuw){
+  var defs=tagDefs();var oud=defs[i].n;
+  nieuw=String(nieuw).trim().toLowerCase();
+  if(!nieuw||nieuw===oud){tagBewerkRender();return;}
+  if(defs.some(function(t,j){return j!==i&&t.n===nieuw})){toast('Die tagnaam bestaat al');tagBewerkRender();return;}
+  defs[i].n=nieuw;schrijfTagDefs(defs);
+  var st=tagsAllesInStore();
+  for(var id in st)st[id].forEach(function(t){if(t.n===oud)t.n=nieuw});
+  schrijfTags(st);
+  tagsAllesVernieuw();tagBewerkRender();
+  toast('Tag hernoemd naar "'+nieuw+'" — ook bij alle leden aangepast');
+}
+function tagVerwijderDef(i,btn){
+  if(!btn.dataset.zeker){
+    btn.dataset.zeker='1';
+    btn.innerHTML='<span style="color:var(--bad);font-size:11px;font-weight:800">Zeker?</span>';
+    setTimeout(function(){if(btn.isConnected&&btn.dataset.zeker)tagBewerkRender()},2600);
+    return;
+  }
+  var defs=tagDefs();var naam=defs[i].n;
+  defs.splice(i,1);schrijfTagDefs(defs);
+  var st=tagsAllesInStore();
+  for(var id in st)st[id]=st[id].filter(function(t){return t.n!==naam});
+  schrijfTags(st);
+  tagsAllesVernieuw();tagBewerkRender();
+  toast('Tag "'+naam+'" verwijderd, ook bij alle leden');
 }
 function kebabMenu(btn,ev){
   ev.stopPropagation();
