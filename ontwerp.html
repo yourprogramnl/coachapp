@@ -434,6 +434,9 @@ label.dienst input{width:16px;height:16px;accent-color:var(--accent)}
 .keyrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:12.5px;color:#e6e8ea}
 .keygroep{font-size:13px;font-weight:800;color:#fff;margin:14px 0 4px}
 .kbd{background:#26292f;border:1px solid #3a3f47;border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;color:#c9cdd4;margin-left:4px}
+#kalgrid.weekview .mday{min-height:66vh}
+#kalgrid.dagview .mrow{display:flex}
+#kalgrid.dagview .mday{min-height:66vh;flex:1}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -1078,6 +1081,11 @@ input[disabled]{cursor:default}
         <span class="month" id="mnd-label">Juli 2026</span>
         <div class="navarrows"><button onclick="mndScroll(-1)">&#8249;</button><button onclick="mndScroll(1)">&#8250;</button></div>
         <button class="btn ghost sm2" onclick="mndVandaag()">Vandaag</button>
+        <div class="seg" id="kal-views">
+          <button onclick="kalSetView('dag',this)">Dag</button>
+          <button onclick="kalSetView('week',this)">Week</button>
+          <button class="on" onclick="kalSetView('maand',this)">Maand</button>
+        </div>
         <div class="progsel" onclick="toggleProgDrop(event)">
           <div class="pav" id="prog-badge">M</div>
           <div><div class="pn" id="prog-naam">Coach Michel</div><div class="pt" id="prog-sub">1:1 · Michel</div></div>
@@ -2904,11 +2912,68 @@ function mndGa(){
   else{doel=document.querySelectorAll('#more-weeks .mlabel')[mndIdx-1];}
   if(doel){window.scrollTo({top:doel.getBoundingClientRect().top+window.scrollY-96,behavior:'smooth'});}
 }
+var kalView='maand', kalAnker=new Date(2026,6,8);
+function kalSetView(v,btn){
+  kalView=v;
+  document.querySelectorAll('#kal-views button').forEach(function(b){b.classList.remove('on')});
+  if(btn)btn.classList.add('on');
+  kalViewToepassen();
+}
+function kalViewToepassen(){
+  var grid=document.getElementById('kalgrid');if(!grid)return;
+  grid.classList.remove('weekview','dagview');
+  grid.querySelectorAll('.mrow,.mlabel').forEach(function(r){r.style.display=''});
+  grid.querySelectorAll('.mday').forEach(function(c){c.style.display=''});
+  var kop=document.querySelector('#cv-cal .mhead7');
+  if(kop)kop.style.display='';
+  var lbl=document.getElementById('mnd-label');
+  var maanden=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  if(kalView==='maand'){
+    if(lbl)lbl.textContent=MND[mndIdx];
+    setTimeout(fixSticky,0);
+    return;
+  }
+  var cel=grid.querySelector('.mday[data-d="'+dstr(kalAnker)+'"]');
+  if(!cel){setTimeout(fixSticky,0);return;}
+  var rij=cel.parentElement;
+  grid.querySelectorAll('.mlabel').forEach(function(x){x.style.display='none'});
+  grid.querySelectorAll('.mrow').forEach(function(r){if(r!==rij)r.style.display='none'});
+  grid.classList.add(kalView==='week'?'weekview':'dagview');
+  if(kalView==='dag'){
+    [].forEach.call(rij.children,function(c){c.style.display = c===cel ? '' : 'none';});
+    if(kop)kop.style.display='none';
+  }
+  if(lbl){
+    if(kalView==='week'){
+      var d0=new Date(kalAnker);d0.setDate(d0.getDate()-((d0.getDay()+6)%7));
+      var d6=new Date(d0);d6.setDate(d6.getDate()+6);
+      lbl.textContent=d0.getDate()+' '+maanden[d0.getMonth()]+' t/m '+d6.getDate()+' '+maanden[d6.getMonth()]+' '+d6.getFullYear();
+    }else{
+      var dagen=['zo','ma','di','wo','do','vr','za'];
+      lbl.textContent=dagen[kalAnker.getDay()]+' '+kalAnker.getDate()+' '+maanden[kalAnker.getMonth()]+' '+kalAnker.getFullYear();
+    }
+  }
+  window.scrollTo(0,0);
+  setTimeout(fixSticky,0);
+}
 function mndScroll(delta){
+  if(kalView!=='maand'){
+    var stap = kalView==='week' ? 7 : 1;
+    var nieuw=new Date(kalAnker);nieuw.setDate(nieuw.getDate()+delta*stap);
+    var min=new Date(2026,5,29), max=new Date(2026,10,1);
+    if(nieuw<min||nieuw>max){toast('Buiten het bereik van dit ontwerp (29 jun t/m 1 nov 2026)');return;}
+    kalAnker=nieuw;
+    kalViewToepassen();
+    return;
+  }
   mndIdx=Math.max(0,Math.min(MND.length-1,mndIdx+delta));
   mndGa();
 }
-function mndVandaag(){mndIdx=0;mndGa();}
+function mndVandaag(){
+  kalAnker=new Date(2026,6,8);
+  if(kalView!=='maand'){kalViewToepassen();return;}
+  mndIdx=0;mndGa();
+}
 /* programma-dropdown (Strivee) */
 function toggleProgDrop(ev){
   ev.stopPropagation();
@@ -3626,6 +3691,7 @@ function bouwKal(id){
   }
   zetDragEnKnoppen();
   bindHoverMenus();
+  kalViewToepassen();
 }
 /* coach-detail (roster zoals CoachRx) */
 var COACHES={
