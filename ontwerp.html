@@ -918,7 +918,7 @@ input[disabled]{cursor:default}
         <button onclick="openPanel('sp-checkin')"><svg class="i"><use href="#i-check"/></svg> Check-ins &amp; consults</button>
         <button onclick="openPanel('sp-goals');goalsView()"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
         <button onclick="openPanel('sp-plan');planRender();planReset()"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
-        <button onclick="openPanel('sp-notes')"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
+        <button onclick="openPanel('sp-notes');notesRender();docsRender()"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
         <button onclick="openPanel('sp-schema')"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
         <button onclick="openPanel('sp-prio')"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
         <button onclick="openPanel('sp-equip')"><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
@@ -1002,42 +1002,22 @@ input[disabled]{cursor:default}
     </div>
 
     <div class="sidepanel" id="sp-notes">
-      <div class="sp-head"><h3>Notities &amp; documenten</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <div class="sp-tabs"><button class="on">Notities</button><button>Documenten</button></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <button class="sp-btn" onclick="toast('Nieuwe notitie — alleen zichtbaar voor coaches')">Notitie toevoegen</button>
-        <span class="sp-info" style="margin:0">Alleen zichtbaar voor coaches</span>
+      <div class="sp-head"><h3>Notes &amp; Documents</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-tabs"><button class="on" id="nd-t0" onclick="ndTab(0)">Notes</button><button id="nd-t1" onclick="ndTab(1)">Documents</button></div>
+      <div id="nd-0">
+        <div class="sp-field"><textarea id="note-nieuw" placeholder="Add note (only visible to you)&#8230;"></textarea></div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="sp-btn" style="width:auto;padding:9px 16px" id="note-saveknop" onclick="noteOpslaan()">Save</button>
+          <button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="noteReset()">Cancel</button>
+        </div>
+        <div class="sp-field"><input id="note-zoek" placeholder="Search notes" oninput="notesRender()"></div>
+        <div id="notes-lijst"></div>
       </div>
-      <div class="sp-field"><input placeholder="Zoek in notities…"></div>
-      <div class="sp-note">
-        <div class="nh">5 juni 2022 <span><svg class="i sm-i"><use href="#i-doc"/></svg><svg class="i sm-i"><use href="#i-trash"/></svg></span></div>
-        <div class="nb">200 ring rows
-40 double-unders each. or single unders
-200 push-ups
-30 double-unders each. or single unders
-200 sit-ups
-20 double-unders each. or single unders
-200 squats
-10 double-unders each. or single unders</div>
-      </div>
-      <div class="sp-note">
-        <div class="nh">30 maart 2022 <span><svg class="i sm-i"><use href="#i-doc"/></svg><svg class="i sm-i"><use href="#i-trash"/></svg></span></div>
-        <div class="nb">surprise wod:
-AMRAP (met een partner) in 25 minuten:
-Buy-in: 2000m row
-Daarna, in de resterende tijd, AMRAP:
-12 synchro push-ups / rack push ups
-9 synchro walking lunges
-12 synchro sit ups
-9 box step overs</div>
-      </div>
-      <div class="sp-note">
-        <div class="nh">17 februari 2022 <span><svg class="i sm-i"><use href="#i-doc"/></svg><svg class="i sm-i"><use href="#i-trash"/></svg></span></div>
-        <div class="nb">17 feb:
-doelstelling over 4 weken:
-100+ cal's op de echo bike
-- wekelijks opbouwen / combineren we met core
-* gemiddelde tempo 57RPM</div>
+      <div id="nd-1" style="display:none">
+        <div class="sp-field"><input id="doc-naam" placeholder="Documentnaam (bijv. intake-formulier.pdf)"></div>
+        <button class="sp-btn" style="margin-bottom:8px" onclick="docToevoegen()">Document toevoegen</button>
+        <div class="sm" style="color:#8b919b;margin-bottom:14px">Standaard alleen zichtbaar voor coaches. Zet de schakelaar aan om een document met het lid te delen.</div>
+        <div id="docs-lijst"></div>
       </div>
     </div>
 
@@ -2182,6 +2162,112 @@ function mxVanWorkout(blokken){
     });
   });
   if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
+}
+/* Notes & Documents (zoals CoachRx) */
+var noteEditId=null;
+function leesND(){try{return JSON.parse(localStorage.getItem('coachapp-notes')||'{}')}catch(e){return{}}}
+function schrijfND(x){try{localStorage.setItem('coachapp-notes',JSON.stringify(x))}catch(e){}}
+function ndVan(){
+  var st=leesND();
+  if(st[curKlant])return st[curKlant];
+  return {notes:[
+    {id:1,datum:'5 juni 2026',tekst:'200 ring rows\n40 double-unders each. or single unders\n200 push-ups\n30 double-unders\n200 sit-ups\n200 squats'},
+    {id:2,datum:'30 maart 2026',tekst:'surprise wod:\nAMRAP (met een partner) in 25 minuten:\nBuy-in: 2000m row\n12 synchro push-ups\n9 synchro walking lunges\n12 synchro sit ups\n9 box step overs'}
+  ],docs:[{id:1,datum:'12 mei 2026',naam:'intake-formulier.pdf',zichtbaar:false}]};
+}
+function vandaagNL(){
+  var m=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+  var d=new Date();return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear();
+}
+function ndTab(n){
+  document.getElementById('nd-t0').classList.toggle('on',n===0);
+  document.getElementById('nd-t1').classList.toggle('on',n===1);
+  document.getElementById('nd-0').style.display = n===0 ? '' : 'none';
+  document.getElementById('nd-1').style.display = n===1 ? '' : 'none';
+}
+function notesRender(){
+  var host=document.getElementById('notes-lijst');if(!host)return;
+  var zoek=(document.getElementById('note-zoek').value||'').toLowerCase();
+  var notes=ndVan().notes.filter(function(n){return !zoek||n.tekst.toLowerCase().indexOf(zoek)>=0||n.datum.toLowerCase().indexOf(zoek)>=0});
+  host.innerHTML=notes.map(function(n){
+    return '<div class="sp-note"><div class="nh">'+esc(n.datum)
+      +' <span><svg class="i sm-i" style="cursor:pointer" onclick="noteBewerk('+n.id+')"><use href="#i-pen"/></svg> '
+      +'<svg class="i sm-i" style="cursor:pointer" onclick="noteVerwijder(this,'+n.id+')"><use href="#i-trash"/></svg></span></div>'
+      +'<div class="nb">'+esc(n.tekst)+'</div></div>';
+  }).join('') || '<div class="sm" style="color:#8b919b">Geen notities gevonden.</div>';
+}
+function noteReset(){
+  noteEditId=null;
+  document.getElementById('note-nieuw').value='';
+  document.getElementById('note-saveknop').textContent='Save';
+}
+function noteOpslaan(){
+  var tekst=document.getElementById('note-nieuw').value.trim();
+  if(!tekst){toast('Schrijf eerst een notitie');return;}
+  var st=leesND();var kl=st[curKlant]||ndVan();
+  if(noteEditId){
+    kl.notes.forEach(function(n){if(n.id===noteEditId)n.tekst=tekst;});
+  }else{
+    kl.notes.unshift({id:Date.now(),datum:vandaagNL(),tekst:tekst});
+  }
+  st[curKlant]=kl;schrijfND(st);
+  var wasEdit=noteEditId;
+  noteReset();notesRender();
+  toast(wasEdit?'Notitie bijgewerkt':'Notitie opgeslagen — alleen zichtbaar voor coaches');
+}
+function noteBewerk(id){
+  var n=null;ndVan().notes.forEach(function(x){if(x.id===id)n=x;});
+  if(!n)return;
+  noteEditId=id;
+  document.getElementById('note-nieuw').value=n.tekst;
+  document.getElementById('note-saveknop').textContent='Wijzigingen opslaan';
+  groei(document.getElementById('note-nieuw'));
+}
+function noteVerwijder(el,id){
+  var span=el.closest('span');
+  if(!span.dataset.zeker){span.dataset.zeker='1';toast('Klik nog een keer op het prullenbakje om te bevestigen');setTimeout(function(){delete span.dataset.zeker},2500);return;}
+  var st=leesND();var kl=st[curKlant]||ndVan();
+  kl.notes=kl.notes.filter(function(n){return n.id!==id});
+  st[curKlant]=kl;schrijfND(st);
+  notesRender();toast('Notitie verwijderd');
+}
+function docsRender(){
+  var host=document.getElementById('docs-lijst');if(!host)return;
+  host.innerHTML=ndVan().docs.map(function(d){
+    return '<div class="sp-note"><div class="nh"><svg class="i sm-i"><use href="#i-doc"/></svg> '+esc(d.naam)
+      +' <span><svg class="i sm-i" style="cursor:pointer" onclick="docVerwijder(this,'+d.id+')"><use href="#i-trash"/></svg></span></div>'
+      +'<div class="nb" style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      +'<span style="color:#8b919b">'+esc(d.datum)+'</span>'
+      +'<button class="sp-btn'+(d.zichtbaar?'':' ghost')+'" style="width:auto;padding:5px 11px;font-size:11px" onclick="docZichtbaar('+d.id+')">'
+      +(d.zichtbaar?'Zichtbaar voor lid':'Alleen coach')+'</button></div></div>';
+  }).join('') || '<div class="sm" style="color:#8b919b">Nog geen documenten.</div>';
+}
+function docToevoegen(){
+  var naam=document.getElementById('doc-naam').value.trim();
+  if(!naam){toast('Vul eerst een documentnaam in');return;}
+  var st=leesND();var kl=st[curKlant]||ndVan();
+  kl.docs.unshift({id:Date.now(),datum:vandaagNL(),naam:naam,zichtbaar:false});
+  st[curKlant]=kl;schrijfND(st);
+  document.getElementById('doc-naam').value='';
+  docsRender();
+  toast('Document toegevoegd — in de echte app upload je hier het bestand');
+}
+function docZichtbaar(id){
+  var st=leesND();var kl=st[curKlant]||ndVan();
+  var doc=null;kl.docs.forEach(function(d){if(d.id===id)doc=d;});
+  if(!doc)return;
+  doc.zichtbaar=!doc.zichtbaar;
+  st[curKlant]=kl;schrijfND(st);
+  docsRender();
+  toast(doc.zichtbaar?'"'+doc.naam+'" is nu zichtbaar voor het lid':'"'+doc.naam+'" is weer alleen voor coaches');
+}
+function docVerwijder(el,id){
+  var span=el.closest('span');
+  if(!span.dataset.zeker){span.dataset.zeker='1';toast('Klik nog een keer op het prullenbakje om te bevestigen');setTimeout(function(){delete span.dataset.zeker},2500);return;}
+  var st=leesND();var kl=st[curKlant]||ndVan();
+  kl.docs=kl.docs.filter(function(d){return d.id!==id});
+  st[curKlant]=kl;schrijfND(st);
+  docsRender();toast('Document verwijderd');
 }
 /* Long-term plans (zoals CoachRx, met historie) */
 var planEditId=null;
