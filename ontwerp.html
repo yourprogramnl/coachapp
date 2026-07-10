@@ -917,7 +917,7 @@ input[disabled]{cursor:default}
         <button id="cn-metrics" onclick="openMx()"><svg class="i"><use href="#i-chart"/></svg> Metrics &amp; 1RM</button>
         <button onclick="openPanel('sp-checkin')"><svg class="i"><use href="#i-check"/></svg> Check-ins &amp; consults</button>
         <button onclick="openPanel('sp-goals');goalsView()"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
-        <button onclick="openPanel('sp-plan')"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
+        <button onclick="openPanel('sp-plan');planRender();planReset()"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
         <button onclick="openPanel('sp-notes')"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
         <button onclick="openPanel('sp-schema')"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
         <button onclick="openPanel('sp-prio')"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
@@ -989,8 +989,16 @@ input[disabled]{cursor:default}
     </div>
 
     <div class="sidepanel" id="sp-plan">
-      <div class="sp-head"><h3>Langetermijnplannen</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <button class="sp-btn" onclick="toast('In de echte app maak je hier een langetermijnplan (periodisering)')">Plan toevoegen</button>
+      <div class="sp-head"><h3>Long-term plans</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-field"><label>Startdatum</label><input id="plan-start" placeholder="DD-MM-JJJJ"></div>
+      <div class="sp-field"><label>Einddatum</label><input id="plan-eind" placeholder="DD-MM-JJJJ"></div>
+      <div class="sp-field"><label>Notities / doel van dit blok</label><textarea id="plan-notes" placeholder="Bijv. 1 juli tot 1 november: doel is X"></textarea></div>
+      <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+        <button class="sp-btn" id="plan-saveknop" onclick="planOpslaan()">Save long-term plan</button>
+        <button class="sp-btn ghost" id="plan-annuleer" style="display:none" onclick="planReset()">Annuleren</button>
+        <button class="sp-btn ghost" onclick="closePanels()">Go back to month view</button>
+      </div>
+      <div id="plan-lijst"></div>
     </div>
 
     <div class="sidepanel" id="sp-notes">
@@ -2174,6 +2182,73 @@ function mxVanWorkout(blokken){
     });
   });
   if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
+}
+/* Long-term plans (zoals CoachRx, met historie) */
+var planEditId=null;
+function leesPlannen(){try{return JSON.parse(localStorage.getItem('coachapp-plannen')||'{}')}catch(e){return{}}}
+function schrijfPlannen(x){try{localStorage.setItem('coachapp-plannen',JSON.stringify(x))}catch(e){}}
+function plannenVan(){
+  var st=leesPlannen();
+  if(st[curKlant])return st[curKlant];
+  return [
+    {id:1,start:'01-07-2026',eind:'01-11-2026',notes:'Intensification-blok richting de Showdown: weightlifting (high %), abs strength, interval based workouts'},
+    {id:2,start:'01-03-2026',eind:'30-06-2026',notes:'Off-season volume-opbouw: aerobe basis + hypertrofie'}
+  ];
+}
+function planRender(){
+  var host=document.getElementById('plan-lijst');if(!host)return;
+  host.innerHTML=plannenVan().map(function(p){
+    return '<div class="sp-info" style="margin-bottom:10px">'
+      +'<b style="color:#c9cdd4">'+esc(p.start||'?')+' \u2014 '+esc(p.eind||'?')+'</b><br>'+esc(p.notes).replace(/\n/g,'<br>')
+      +'<div style="display:flex;gap:8px;margin-top:9px">'
+      +'<button class="sp-btn ghost" style="width:auto;padding:5px 11px;font-size:11px" onclick="planBewerk('+p.id+')">Bewerken</button>'
+      +'<button class="sp-btn ghost" style="width:auto;padding:5px 11px;font-size:11px;color:#f87171" onclick="planVerwijder(this,'+p.id+')">Verwijderen</button>'
+      +'</div></div>';
+  }).join('') || '<div class="sm" style="color:#8b919b">Nog geen plannen \u2014 voeg de eerste toe.</div>';
+}
+function planReset(){
+  planEditId=null;
+  document.getElementById('plan-start').value='';
+  document.getElementById('plan-eind').value='';
+  document.getElementById('plan-notes').value='';
+  document.getElementById('plan-annuleer').style.display='none';
+  document.getElementById('plan-saveknop').textContent='Save long-term plan';
+}
+function planOpslaan(){
+  var start=document.getElementById('plan-start').value.trim();
+  var eind=document.getElementById('plan-eind').value.trim();
+  var notes=document.getElementById('plan-notes').value.trim();
+  if(!notes&&!start){toast('Vul minimaal een startdatum of doel in');return;}
+  var wasEdit=planEditId;
+  var st=leesPlannen();
+  var lijst=st[curKlant]||plannenVan().slice();
+  if(wasEdit){
+    lijst.forEach(function(p){if(p.id===wasEdit){p.start=start;p.eind=eind;p.notes=notes;}});
+  }else{
+    lijst.unshift({id:Date.now(),start:start,eind:eind,notes:notes});
+  }
+  st[curKlant]=lijst;schrijfPlannen(st);
+  planReset();planRender();
+  toast(wasEdit?'Plan bijgewerkt \u2014 blijft bewaard':'Long-term plan opgeslagen \u2014 nieuwste staat bovenaan, oude blijven zichtbaar');
+}
+function planBewerk(id){
+  var p=null;plannenVan().forEach(function(x){if(x.id===id)p=x;});
+  if(!p)return;
+  planEditId=id;
+  document.getElementById('plan-start').value=p.start;
+  document.getElementById('plan-eind').value=p.eind;
+  document.getElementById('plan-notes').value=p.notes;
+  document.getElementById('plan-annuleer').style.display='';
+  document.getElementById('plan-saveknop').textContent='Wijzigingen opslaan';
+  groei(document.getElementById('plan-notes'));
+}
+function planVerwijder(btn,id){
+  if(btn.textContent!=='Zeker weten?'){btn.textContent='Zeker weten?';setTimeout(function(){if(btn.isConnected)btn.textContent='Verwijderen';},2500);return;}
+  var st=leesPlannen();
+  var lijst=(st[curKlant]||plannenVan().slice()).filter(function(p){return p.id!==id});
+  st[curKlant]=lijst;schrijfPlannen(st);
+  planRender();
+  toast('Plan verwijderd');
 }
 /* Goals (exact zoals CoachRx Edit goals) */
 var GOALOPTS=['Build Muscle Mass','Increase Strength','Improve Cardiovascular Fitness','Lose Body Fat','Enhance Overall Health','Develop Healthier Habits','Boost Energy Levels','Other (please specify)'];
