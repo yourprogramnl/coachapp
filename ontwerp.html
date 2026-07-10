@@ -2321,13 +2321,20 @@ function plannenVan(){
 function planRender(){
   var host=document.getElementById('plan-lijst');if(!host)return;
   host.innerHTML=plannenVan().map(function(p){
-    return '<div class="sp-info" style="margin-bottom:10px">'
-      +'<b style="color:#c9cdd4">'+esc(p.start||'?')+' \u2014 '+esc(p.eind||'?')+'</b><br>'+esc(p.notes).replace(/\n/g,'<br>')
-      +'<div style="display:flex;gap:8px;margin-top:9px">'
-      +'<button class="sp-btn ghost" style="width:auto;padding:5px 11px;font-size:11px" onclick="planBewerk('+p.id+')">Bewerken</button>'
-      +'<button class="sp-btn ghost" style="width:auto;padding:5px 11px;font-size:11px;color:#f87171" onclick="planVerwijder(this,'+p.id+')">Verwijderen</button>'
-      +'</div></div>';
+    return '<div class="sp-note"><div class="nh">'+esc(p.start||'?')+' \u2014 '+esc(p.eind||'?')
+      +' <span><svg class="i sm-i" style="cursor:pointer" onclick="planBewerk('+p.id+')"><use href="#i-pen"/></svg> '
+      +'<svg class="i sm-i" style="cursor:pointer" onclick="planVerwijderIcoon(this,'+p.id+')"><use href="#i-trash"/></svg></span></div>'
+      +'<div class="nb">'+esc(p.notes)+'</div></div>';
   }).join('') || '<div class="sm" style="color:#8b919b">Nog geen plannen \u2014 voeg de eerste toe.</div>';
+}
+function planVerwijderIcoon(el,id){
+  var span=el.closest('span');
+  if(!span.dataset.zeker){span.dataset.zeker='1';toast('Klik nog een keer op het prullenbakje om te bevestigen');setTimeout(function(){delete span.dataset.zeker},2500);return;}
+  var st=leesPlannen();
+  var lijst=(st[curKlant]||plannenVan().slice()).filter(function(p){return p.id!==id});
+  st[curKlant]=lijst;schrijfPlannen(st);
+  planRender();
+  toast('Plan verwijderd');
 }
 function planReset(){
   planEditId=null;
