@@ -429,6 +429,8 @@ h3{font-size:14px;font-weight:700}
 .legchip.aan{border-color:var(--nav);box-shadow:0 0 0 1px var(--nav)}
 .legchip input{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;width:86px;padding:0}
 .legchip input:focus{outline:none;border-bottom:1px dashed var(--muted2)}
+label.dienst{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;padding:7px 0;cursor:pointer}
+label.dienst input{width:16px;height:16px;accent-color:var(--accent)}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -1367,10 +1369,10 @@ input[disabled]{cursor:default}
       <div class="pfwrap">
         <div class="tabs">
           <button class="on" id="pf-t0" onclick="profTab(0)">Profiel bewerken</button>
-          <button onclick="toast('Coaching komt later in het ontwerp')">Coaching</button>
-          <button onclick="toast('Voortgangsfoto&#39;s komen later in het ontwerp')">Voortgangsfoto's</button>
+          <button id="pf-t1" onclick="profTab(1)">Coaching</button>
+          <button id="pf-t2" onclick="profTab(2)">Voortgangsfoto's</button>
           <button id="pf-t3" onclick="profTab(3)">Intakeformulier</button>
-          <button onclick="toast('Facturatie komt later in het ontwerp')">Facturatie</button>
+          <button id="pf-t4" onclick="profTab(4)">Facturatie</button>
         </div>
         <div id="prof-tab-0">
         <div style="text-align:right"><button class="btn sm2" onclick="profTab(3)">Bekijk intake</button></div>
@@ -1418,6 +1420,50 @@ input[disabled]{cursor:default}
           <div class="sm muted" style="margin-bottom:14px">In te vullen door de coach, later ook door de atleet zelf.</div>
           <div id="intake-lijst"></div>
           <div class="mfoot"><button class="btn ghost" onclick="profTab(0)">Terug naar profiel</button><button class="btn" onclick="intakeOpslaan()">Intake opslaan</button></div>
+        </div>
+        <div id="prof-tab-1" style="display:none">
+          <h2>Coaching</h2>
+          <div class="sm muted" style="margin:6px 0 14px">Stel in welke meldingen je voor deze klant krijgt in het "vraagt aandacht"-blok op je dashboard. Dit filtert ook de bijbehorende metrics en due-datums.</div>
+          <label class="dienst"><input type="checkbox" id="sv-alles" onchange="servicesAlles(this)"> <b>Alles aan/uit</b></label>
+          <div style="border-top:1px solid var(--line2);margin:8px 0 10px"></div>
+          <label class="dienst"><input type="checkbox" class="sv-box" checked onchange="servicesSync()"> Lifestyle- &amp; voedingscoaching</label>
+          <label class="dienst"><input type="checkbox" class="sv-box" checked onchange="servicesSync()"> Workout-coaching</label>
+          <label class="dienst"><input type="checkbox" class="sv-box" checked onchange="servicesSync()"> Consult-planning</label>
+          <div class="mfoot" style="justify-content:flex-start;border-top:none;margin-top:10px"><button class="btn" onclick="servicesOpslaan()">Opslaan</button></div>
+        </div>
+        <div id="prof-tab-2" style="display:none">
+          <div class="hrow" style="margin-bottom:12px">
+            <h2>Voortgangsfoto's</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="foto-type" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-family:inherit;font-size:13px"><option>Voor (before)</option><option>Na (after)</option><option>Algemeen</option></select>
+              <input type="file" id="foto-file" accept="image/*" multiple style="display:none" onchange="fotoGekozen(this)">
+              <button class="btn" onclick="document.getElementById('foto-file').click()">Voortgangsfoto's toevoegen</button>
+            </div>
+          </div>
+          <div class="thead"><div style="flex:1.2">Datum</div><div style="flex:.7">Aantal</div><div style="flex:1">Type</div><div style="flex:2.2">Bestanden</div><div style="width:30px"></div></div>
+          <div id="fotos-lijst"></div>
+        </div>
+        <div id="prof-tab-4" style="display:none">
+          <h2>Facturatie</h2>
+          <div class="card" style="padding:16px;margin:12px 0"><b>Betaalmethode</b><div class="sm muted" style="margin-top:6px">Geen kaart bekend. Betalingen lopen nu via Strivee en Stripe; in de echte app koppelen we hier iDEAL of automatische incasso.</div></div>
+          <div class="card" style="padding:16px;margin-bottom:12px">
+            <b>Abonnementen</b>
+            <div class="tabs" style="margin-top:8px"><button class="on" id="abo-t0" onclick="aboTab(0)">Actief<span class="cnt">1</span></button><button id="abo-t1" onclick="aboTab(1)">Verlopen<span class="cnt">1</span></button></div>
+            <div class="thead"><div style="flex:2">Prijsplan</div><div style="flex:1">Gestart</div><div style="flex:1">Eindigt</div><div style="flex:1">Status</div></div>
+            <div id="abo-0"><div class="trow"><div style="flex:2"><b>YourProgram 1 op 1 coaching</b> &#183; &euro;199/mnd</div><div style="flex:1" class="muted">01-03-2026</div><div style="flex:1" class="muted">doorlopend</div><div style="flex:1"><span class="pill ok">actief</span></div></div></div>
+            <div id="abo-1" style="display:none"><div class="trow"><div style="flex:2"><b>The Next Step</b> &#183; &euro;39/mnd</div><div style="flex:1" class="muted">01-09-2025</div><div style="flex:1" class="muted">28-02-2026</div><div style="flex:1"><span class="pill gray">verlopen</span></div></div></div>
+          </div>
+          <div class="card" style="padding:16px">
+            <b>Facturen</b>
+            <div class="tabs" style="margin-top:8px"><button class="on" id="fac-t0" onclick="facTab(0)">Open<span class="cnt">0</span></button><button id="fac-t1" onclick="facTab(1)">Betaald<span class="cnt">3</span></button></div>
+            <div class="thead"><div style="flex:1">Bedrag</div><div style="flex:1">Status</div><div style="flex:2.2">Omschrijving</div><div style="flex:1">Datum</div></div>
+            <div id="fac-0"><div class="trow" style="justify-content:center"><span class="muted sm">Geen open facturen</span></div></div>
+            <div id="fac-1" style="display:none">
+              <div class="trow"><div style="flex:1">&euro;199,00</div><div style="flex:1"><span class="pill ok">betaald</span></div><div style="flex:2.2" class="muted">1 op 1 coaching &#183; juli 2026</div><div style="flex:1" class="muted">01-07-2026</div></div>
+              <div class="trow"><div style="flex:1">&euro;199,00</div><div style="flex:1"><span class="pill ok">betaald</span></div><div style="flex:2.2" class="muted">1 op 1 coaching &#183; juni 2026</div><div style="flex:1" class="muted">01-06-2026</div></div>
+              <div class="trow"><div style="flex:1">&euro;199,00</div><div style="flex:1"><span class="pill ok">betaald</span></div><div style="flex:2.2" class="muted">1 op 1 coaching &#183; mei 2026</div><div style="flex:1" class="muted">01-05-2026</div></div>
+            </div>
+          </div>
         </div>
       </div>
      </div>
@@ -2222,12 +2268,73 @@ var INTAKE_VRAGEN=[
 var INTAKE_DEMO=['directeur','10','getrouwd','gezond blijven','geen','geen','veel','nee','geen','2 per week','diabetes 2','4','8','2300','1','bijna niet','goed','1-2','nee','1-2','geen','nee','ja','nee'];
 function leesIntake(){try{return JSON.parse(localStorage.getItem('coachapp-intake')||'{}')}catch(e){return{}}}
 function profTab(n){
-  document.getElementById('pf-t0').classList.toggle('on',n===0);
-  document.getElementById('pf-t3').classList.toggle('on',n===3);
-  document.getElementById('prof-tab-0').style.display = n===0 ? '' : 'none';
-  document.getElementById('prof-tab-3').style.display = n===3 ? '' : 'none';
+  [0,1,2,3,4].forEach(function(i){
+    var t=document.getElementById('pf-t'+i);if(t)t.classList.toggle('on',i===n);
+    var c=document.getElementById('prof-tab-'+i);if(c)c.style.display = i===n ? '' : 'none';
+  });
+  if(n===1)servicesLaad();
+  if(n===2)fotosRender();
   if(n===3)openIntake();
   window.scrollTo(0,0);
+}
+function leesServices(){try{return JSON.parse(localStorage.getItem('coachapp-services')||'{}')}catch(e){return{}}}
+function servicesLaad(){
+  var st=leesServices()[curKlant]||[true,true,true];
+  document.querySelectorAll('.sv-box').forEach(function(b,i){b.checked=st[i]!==false});
+  servicesSync();
+}
+function servicesSync(){
+  var alle=[].every.call(document.querySelectorAll('.sv-box'),function(b){return b.checked});
+  document.getElementById('sv-alles').checked=alle;
+}
+function servicesAlles(m){
+  document.querySelectorAll('.sv-box').forEach(function(b){b.checked=m.checked});
+}
+function servicesOpslaan(){
+  var st=leesServices();
+  st[curKlant]=[].map.call(document.querySelectorAll('.sv-box'),function(b){return b.checked});
+  try{localStorage.setItem('coachapp-services',JSON.stringify(st))}catch(e){}
+  toast('Coaching-instellingen opgeslagen, blijven bewaard');
+}
+function leesFotos(){try{return JSON.parse(localStorage.getItem('coachapp-fotos')||'{}')}catch(e){return{}}}
+function schrijfFotos(x){try{localStorage.setItem('coachapp-fotos',JSON.stringify(x))}catch(e){}}
+function fotoGekozen(inp){
+  var fs=inp.files;if(!fs||!fs.length)return;
+  var type=document.getElementById('foto-type').value;
+  var st=leesFotos();var l=st[curKlant]=st[curKlant]||[];
+  l.unshift({id:Date.now(),datum:vandaagNL(),aantal:fs.length,type:type,namen:[].map.call(fs,function(f){return f.name}).slice(0,6)});
+  schrijfFotos(st);
+  inp.value='';
+  fotosRender();
+  toast(fs.length+(fs.length===1?' foto':' foto\u0027s')+' toegevoegd. In de echte app worden ze veilig opgeslagen en zie je ze hier terug.');
+}
+function fotosRender(){
+  var host=document.getElementById('fotos-lijst');if(!host)return;
+  var l=(leesFotos()[curKlant])||[];
+  host.innerHTML=l.map(function(r){
+    var kl = r.type.indexOf('Voor')===0 ? 'teal' : (r.type.indexOf('Na')===0 ? 'ok' : 'gray');
+    return '<div class="trow"><div style="flex:1.2">'+esc(r.datum)+'</div><div style="flex:.7">'+r.aantal+'</div><div style="flex:1"><span class="pill '+kl+'">'+esc(r.type)+'</span></div><div style="flex:2.2" class="sm muted">'+r.namen.map(esc).join(', ')+'</div><button class="kebab" style="width:30px" onclick="fotoWeg(this,'+r.id+')">\u2715</button></div>';
+  }).join('') || '<div class="trow" style="justify-content:center"><span class="muted sm">Nog geen foto\u0027s. Voeg de eerste voor/na-foto toe.</span></div>';
+}
+function fotoWeg(btn,id){
+  if(!btn.dataset.zeker){btn.dataset.zeker='1';toast('Klik nog een keer om te bevestigen');setTimeout(function(){delete btn.dataset.zeker},2500);return;}
+  var st=leesFotos();
+  st[curKlant]=(st[curKlant]||[]).filter(function(r){return r.id!==id});
+  schrijfFotos(st);
+  fotosRender();
+  toast('Foto\u0027s verwijderd');
+}
+function aboTab(n){
+  document.getElementById('abo-t0').classList.toggle('on',n===0);
+  document.getElementById('abo-t1').classList.toggle('on',n===1);
+  document.getElementById('abo-0').style.display = n===0 ? '' : 'none';
+  document.getElementById('abo-1').style.display = n===1 ? '' : 'none';
+}
+function facTab(n){
+  document.getElementById('fac-t0').classList.toggle('on',n===0);
+  document.getElementById('fac-t1').classList.toggle('on',n===1);
+  document.getElementById('fac-0').style.display = n===0 ? '' : 'none';
+  document.getElementById('fac-1').style.display = n===1 ? '' : 'none';
 }
 function openIntake(){
   var st=leesIntake()[curKlant];
