@@ -998,8 +998,8 @@ input[disabled]{cursor:default}
 
     <div class="sidepanel" id="sp-plan">
       <div class="sp-head"><h3>Long-term plans</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <div class="sp-field"><label>Startdatum</label><input id="plan-start" placeholder="DD-MM-JJJJ"></div>
-      <div class="sp-field"><label>Einddatum</label><input id="plan-eind" placeholder="DD-MM-JJJJ"></div>
+      <div class="sp-field"><label>Startdatum</label><input type="date" id="plan-start" style="color-scheme:dark"></div>
+      <div class="sp-field"><label>Einddatum</label><input type="date" id="plan-eind" style="color-scheme:dark"></div>
       <div class="sp-field"><label>Notities / doel van dit blok</label><textarea id="plan-notes" placeholder="Bijv. 1 juli tot 1 november: doel is X"></textarea></div>
       <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
         <button class="sp-btn" id="plan-saveknop" onclick="planOpslaan()">Save long-term plan</button>
@@ -2519,6 +2519,8 @@ function docVerwijder(el,id){
 }
 /* Long-term plans (zoals CoachRx, met historie) */
 var planEditId=null;
+function naarNL(iso){if(!iso)return '';var p=iso.split('-');return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:iso;}
+function naarISO(nl){if(!nl)return '';var p=nl.split('-');return p.length===3&&p[2].length===4?p[2]+'-'+p[1]+'-'+p[0]:nl;}
 function leesPlannen(){try{return JSON.parse(localStorage.getItem('coachapp-plannen')||'{}')}catch(e){return{}}}
 function schrijfPlannen(x){try{localStorage.setItem('coachapp-plannen',JSON.stringify(x))}catch(e){}}
 function plannenVan(){
@@ -2556,8 +2558,8 @@ function planReset(){
   document.getElementById('plan-saveknop').textContent='Save long-term plan';
 }
 function planOpslaan(){
-  var start=document.getElementById('plan-start').value.trim();
-  var eind=document.getElementById('plan-eind').value.trim();
+  var start=naarNL(document.getElementById('plan-start').value.trim());
+  var eind=naarNL(document.getElementById('plan-eind').value.trim());
   var notes=document.getElementById('plan-notes').value.trim();
   if(!notes&&!start){toast('Vul minimaal een startdatum of doel in');return;}
   var wasEdit=planEditId;
@@ -2576,8 +2578,8 @@ function planBewerk(id){
   var p=null;plannenVan().forEach(function(x){if(x.id===id)p=x;});
   if(!p)return;
   planEditId=id;
-  document.getElementById('plan-start').value=p.start;
-  document.getElementById('plan-eind').value=p.eind;
+  document.getElementById('plan-start').value=naarISO(p.start);
+  document.getElementById('plan-eind').value=naarISO(p.eind);
   document.getElementById('plan-notes').value=p.notes;
   document.getElementById('plan-annuleer').style.display='';
   document.getElementById('plan-saveknop').textContent='Wijzigingen opslaan';
