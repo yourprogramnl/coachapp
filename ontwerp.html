@@ -754,7 +754,7 @@ input[disabled]{cursor:default}
       <div class="sideblock">
         <div class="shead"><h2>Workout van de week</h2><span class="pill ok">live</span></div>
         <div class="statecard" style="display:block">
-          <div style="font-weight:700;font-size:13px">"Week 28 — Grace"</div>
+          <div style="font-weight:700;font-size:13px">"Week 28, Grace"</div>
           <div class="sm muted" style="margin:4px 0 10px">30 clean &amp; jerks voor tijd · 214 deelnemers · 61 scores vandaag</div>
           <button class="btn sm2" onclick="go('week')">Bekijk leaderboard</button>
         </div>
@@ -904,7 +904,7 @@ input[disabled]{cursor:default}
         <div class="cinfo">62 jaar · 100 kg · 193 cm<br>196 sessies afgerond<br><span class="tag" style="margin-top:6px;background:#2a2e35;color:#c9cdd4"><span class="sq" style="background:#22c55e"></span>maandag</span></div>
       </div>
       <div class="streak">Streak: <b>4 weken</b></div>
-      <div class="streak" style="font-size:11px">Gezondheidsdata niet gekoppeld — <a style="color:var(--accent);cursor:pointer">nodig uit</a></div>
+      <div class="streak" style="font-size:11px">Gezondheidsdata niet gekoppeld, <a style="color:var(--accent);cursor:pointer">nodig uit</a></div>
       <div class="streak" style="gap:6px;flex-wrap:wrap">
         <span class="pill bad" style="font-size:10px;padding:2px 8px">workout te doen: do</span>
         <span class="pill gray" style="font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span>
@@ -1014,8 +1014,8 @@ input[disabled]{cursor:default}
         <div id="notes-lijst"></div>
       </div>
       <div id="nd-1" style="display:none">
-        <div class="sp-field"><input id="doc-naam" placeholder="Documentnaam (bijv. intake-formulier.pdf)"></div>
-        <button class="sp-btn" style="margin-bottom:8px" onclick="docToevoegen()">Document toevoegen</button>
+        <input type="file" id="doc-file" style="display:none" onchange="docGekozen(this)">
+        <button class="sp-btn" style="margin-bottom:8px" onclick="document.getElementById('doc-file').click()">Document uploaden vanaf je computer</button>
         <div class="sm" style="color:#8b919b;margin-bottom:14px">Standaard alleen zichtbaar voor coaches. Zet de schakelaar aan om een document met het lid te delen.</div>
         <div id="docs-lijst"></div>
       </div>
@@ -1104,7 +1104,7 @@ input[disabled]{cursor:default}
       <div class="mrow">
         <div class="mday">
           <div class="mday-top"><svg class="i"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2">06</span></div>
-          <div class="addrow2"><button class="addnewbtn" onclick="toast('Deze dag heeft al een workout — in de echte app kun je er meer toevoegen')"><svg class="i sm-i"><use href="#i-link"/></svg> Add New</button><button class="sqbtn" onclick="kopieerWorkout(this,event)"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>
+          <div class="addrow2"><button class="addnewbtn" onclick="toast('Deze dag heeft al een workout, in de echte app kun je er meer toevoegen')"><svg class="i sm-i"><use href="#i-link"/></svg> Add New</button><button class="sqbtn" onclick="kopieerWorkout(this,event)"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>
           <div class="mcard">
             <div class="msc">4/4</div>
             <div class="cblk">
@@ -1330,7 +1330,7 @@ input[disabled]{cursor:default}
               <div class="spark"><i style="height:55%"></i><i style="height:60%"></i><i style="height:62%"></i><i style="height:70%"></i><i style="height:78%"></i><i class="hi" style="height:100%"></i></div>
             </div>
             <div class="metcard"><h3>Readiness</h3><div class="nodata">Nog geen data</div></div>
-            <div class="metcard"><h3>Slaap</h3><div class="nodata">Nog geen data — koppel gezondheidsdata</div></div>
+            <div class="metcard"><h3>Slaap</h3><div class="nodata">Nog geen data, koppel gezondheidsdata</div></div>
             <div class="metcard"><h3>Herstel</h3><div class="nodata">Nog geen data</div></div>
             <div class="metcard"><h3>Voeding</h3><div class="nodata">Nog geen data</div></div>
           </div>
@@ -1411,7 +1411,7 @@ input[disabled]{cursor:default}
         <svg class="i"><use href="#i-link"/></svg>
         <svg class="i"><use href="#i-cam"/></svg>
         <svg class="i"><use href="#i-play"/></svg>
-        <button class="send" onclick="toast('Bericht verstuurd — Rick krijgt een melding')">Send</button>
+        <button class="send" onclick="toast('Bericht verstuurd, Rick krijgt een melding')">Send</button>
       </div>
     </div>
   </div>
@@ -1528,7 +1528,7 @@ input[disabled]{cursor:default}
       <div class="avc av5" id="cd-av">MB</div>
       <div><h1 style="margin:0" id="cd-naam">Michel Bakker</h1><div id="cd-sub"></div></div>
     </div>
-    <button class="btn" onclick="toast('Klant koppelen aan deze coach — komt in de echte app')">+ Klant koppelen</button>
+    <button class="btn" onclick="toast('Klant koppelen aan deze coach, komt in de echte app')">+ Klant koppelen</button>
   </div>
   <div class="card statbar">
     <div><div class="n" id="cd-tot">3</div><div class="l">Klanten totaal</div></div>
@@ -1556,7 +1556,7 @@ input[disabled]{cursor:default}
   <div class="hrow">
     <div>
       <h1>Programma's</h1>
-      <div class="sm muted" style="margin-top:4px">Templates die je aan klanten toewijst — bouw één keer, gebruik vaak.</div>
+      <div class="sm muted" style="margin-top:4px">Templates die je aan klanten toewijst, bouw één keer, gebruik vaak.</div>
     </div>
     <button class="btn">+ Programma maken</button>
   </div>
@@ -1611,7 +1611,7 @@ input[disabled]{cursor:default}
       <div style="width:150px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm2" onclick="event.stopPropagation();go('program')">Bewerk</button><button class="kebab">⋮</button></div>
     </div>
   </div>
-  <div class="sm muted" style="margin-top:12px">Verkoop via storefront (Strivee) bouwen we in een latere fase — zie functie-overzicht hoofdstuk 9.</div>
+  <div class="sm muted" style="margin-top:12px">Verkoop via storefront (Strivee) bouwen we in een latere fase, zie functie-overzicht hoofdstuk 9.</div>
 </div>
 
 <!-- PROGRAMMA-TEMPLATE EDITOR -->
@@ -1720,7 +1720,7 @@ input[disabled]{cursor:default}
     </div>
   </div>
 
-  <div class="pweek-label">Week 2 · dag 8-14 <span style="font-weight:400;text-transform:none;letter-spacing:0">— zelfde opbouw, volume +1 set</span></div>
+  <div class="pweek-label">Week 2 · dag 8-14 <span style="font-weight:400;text-transform:none;letter-spacing:0">zelfde opbouw, volume +1 set</span></div>
   <div class="pdays" style="opacity:.55">
     <div class="pday"><div class="pdh">Dag 8</div><div class="wl">Workout</div><div class="tblk ssa"><b>A1) Back Squat</b><div class="tp">@20X1 · 10 reps x 5 sets</div></div></div>
     <div class="pday"><div class="pdh">Dag 9</div><div class="wl">Workout</div><div class="tblk ssa"><b>A1) Romanian Deadlift</b><div class="tp">@20X1 · 10 reps x 5 sets</div></div></div>
@@ -1745,7 +1745,7 @@ input[disabled]{cursor:default}
     <div class="lbhead">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
         <div>
-          <h2 style="font-size:19px">Week 28 — "Grace"</h2>
+          <h2 style="font-size:19px">Week 28, "Grace"</h2>
           <div class="muted" style="margin-top:6px;font-size:13px">30 clean &amp; jerks voor tijd · Rx: 60/42,5 kg · Scaled: 42,5/30 kg</div>
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
             <span class="pill teal">gratis voor iedereen</span>
@@ -1755,7 +1755,7 @@ input[disabled]{cursor:default}
         </div>
         <div style="text-align:right">
           <button class="btn ghost sm2" onclick="toast('Deel-link gekopieerd')"><svg class="i sm-i"><use href="#i-link"/></svg> Deel-link kopiëren</button>
-          <div class="sm muted" style="margin-top:8px">Blog-leden doen gratis mee —<br>funnel naar 1-op-1 coaching</div>
+          <div class="sm muted" style="margin-top:8px">Blog-leden doen gratis mee,<br>funnel naar 1-op-1 coaching</div>
         </div>
       </div>
     </div>
@@ -1819,7 +1819,7 @@ input[disabled]{cursor:default}
         <div><b>Rick van der Sluis</b><div class="sm muted">Laatst gezien: vandaag 13:15</div></div>
       </div>
       <div class="msgs">
-        <div class="bub me">Goedemorgen Rick! Nieuwe week staat klaar. Let bij de deadlift op het tempo (3010) — liever iets lichter en netjes. Film je zwaarste set even?<div class="meta">09:02 · gelezen</div></div>
+        <div class="bub me">Goedemorgen Rick! Nieuwe week staat klaar. Let bij de deadlift op het tempo (3010), liever iets lichter en netjes. Film je zwaarste set even?<div class="meta">09:02 · gelezen</div></div>
         <div class="bub them">Goedemorgen! Gezien, ziet er goed uit. De box jumps van maandag gingen lekker trouwens.<div class="meta">09:41</div></div>
         <div class="bub them">Top, komt goed! Ik film de deadlift vanmiddag.<div class="meta">13:15</div></div>
       </div>
@@ -1846,7 +1846,7 @@ input[disabled]{cursor:default}
       <div class="mfield" style="flex:1"><label>Result</label><input type="text" id="mx-result"></div>
       <div class="mfield" style="flex:1"><label>Date</label><input type="text" id="mx-datum" value="09-07-2026"></div>
     </div>
-    <div class="mfield"><label>Doel (optioneel)</label><input type="text" id="mx-doel" placeholder="bijv. 140 — zo zie je waar de klant naartoe werkt"></div>
+    <div class="mfield"><label>Doel (optioneel)</label><input type="text" id="mx-doel" placeholder="bijv. 140, zo zie je waar de klant naartoe werkt"></div>
     <div class="mfoot">
       <button class="btn ghost" onclick="closeMxModal()">Cancel</button>
       <button class="btn" onclick="mxToevoegen()">Add Metric</button>
@@ -1944,7 +1944,7 @@ input[disabled]{cursor:default}
       <div>
         <label style="display:block;font-size:11.5px;font-weight:700;color:#4a4f57;margin-bottom:6px">Video-preview</label>
         <div class="mprev"><div class="pbtn"></div></div>
-        <div class="sm muted" style="margin-top:8px">Deze video ziet je klant bij elke workout waar de oefening in zit — plus in de warming-up en cooldown als je hem daar koppelt.</div>
+        <div class="sm muted" style="margin-top:8px">Deze video ziet je klant bij elke workout waar de oefening in zit, plus in de warming-up en cooldown als je hem daar koppelt.</div>
       </div>
     </div>
     <div class="mfoot">
@@ -2004,7 +2004,7 @@ input[disabled]{cursor:default}
 <div class="overlay" id="taskmodal">
   <div class="modal" style="max-width:430px">
     <h2>Taak toevoegen</h2>
-    <p class="sm muted" style="margin:-8px 0 16px;line-height:1.6">Taken helpen je als coach om georganiseerd te blijven en aan te sluiten bij wat je klant nodig heeft. Kies een datum en een korte beschrijving — de taak komt op je dashboard te staan.</p>
+    <p class="sm muted" style="margin:-8px 0 16px;line-height:1.6">Taken helpen je als coach om georganiseerd te blijven en aan te sluiten bij wat je klant nodig heeft. Kies een datum en een korte beschrijving, de taak komt op je dashboard te staan.</p>
     <div class="mfield"><input type="text" id="task-datum" placeholder="Vervaldatum (bijv. vr 17 juli)"></div>
     <div class="mfield"><select id="task-klant"><option value="">Klant (optioneel)</option><option>Rick van der Sluis</option><option>Stefan Bakker</option><option>Aafke Kruisselbrink</option><option>Stijn Meijs</option><option>Tessa van Oijen</option><option>Zo&euml; van Gemst</option></select></div>
     <div class="mfield"><textarea id="task-tekst" placeholder="Taakbeschrijving…" oninput="taskInput(this)"></textarea></div>
@@ -2131,7 +2131,7 @@ function mxToevoegen(){
   }
   schrijfMx(st);
   closeMxModal();renderMetrics();vulBalans();
-  toast(bestaat?'Nieuw resultaat opgeslagen voor '+naam:'Metric toegevoegd — in de echte app direct in de database');
+  toast(bestaat?'Nieuw resultaat opgeslagen voor '+naam:'Metric toegevoegd, in de echte app direct in de database');
 }
 function mxVanWorkout(blokken){
   var groepen=mxGroepen(), rms=[];
@@ -2198,7 +2198,7 @@ function schemaOpslaan(){
   });
   var st=leesSchema();st[curKlant]=sch;
   try{localStorage.setItem('coachapp-schema',JSON.stringify(st))}catch(e){}
-  toast('Trainingsschema opgeslagen — blijft bewaard');
+  toast('Trainingsschema opgeslagen, blijft bewaard');
 }
 /* Notes & Documents (zoals CoachRx) */
 var noteEditId=null;
@@ -2250,7 +2250,7 @@ function noteOpslaan(){
   st[curKlant]=kl;schrijfND(st);
   var wasEdit=noteEditId;
   noteReset();notesRender();
-  toast(wasEdit?'Notitie bijgewerkt':'Notitie opgeslagen — alleen zichtbaar voor coaches');
+  toast(wasEdit?'Notitie bijgewerkt':'Notitie opgeslagen, alleen zichtbaar voor coaches');
 }
 function noteBewerk(id){
   var n=null;ndVan().notes.forEach(function(x){if(x.id===id)n=x;});
@@ -2274,20 +2274,21 @@ function docsRender(){
     return '<div class="sp-note"><div class="nh"><svg class="i sm-i"><use href="#i-doc"/></svg> '+esc(d.naam)
       +' <span><svg class="i sm-i" style="cursor:pointer" onclick="docVerwijder(this,'+d.id+')"><use href="#i-trash"/></svg></span></div>'
       +'<div class="nb" style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
-      +'<span style="color:#8b919b">'+esc(d.datum)+'</span>'
+      +'<span style="color:#8b919b">'+esc(d.datum)+(d.groot?' \u00b7 '+esc(d.groot):'')+'</span>'
       +'<button class="sp-btn'+(d.zichtbaar?'':' ghost')+'" style="width:auto;padding:5px 11px;font-size:11px" onclick="docZichtbaar('+d.id+')">'
       +(d.zichtbaar?'Zichtbaar voor lid':'Alleen coach')+'</button></div></div>';
   }).join('') || '<div class="sm" style="color:#8b919b">Nog geen documenten.</div>';
 }
-function docToevoegen(){
-  var naam=document.getElementById('doc-naam').value.trim();
-  if(!naam){toast('Vul eerst een documentnaam in');return;}
+function docGekozen(inp){
+  var f=inp.files&&inp.files[0];
+  if(!f)return;
+  var grootte = f.size>1048576 ? (Math.round(f.size/104857.6)/10)+' MB' : Math.max(1,Math.round(f.size/1024))+' kB';
   var st=leesND();var kl=st[curKlant]||ndVan();
-  kl.docs.unshift({id:Date.now(),datum:vandaagNL(),naam:naam,zichtbaar:false});
+  kl.docs.unshift({id:Date.now(),datum:vandaagNL(),naam:f.name,groot:grootte,zichtbaar:false});
   st[curKlant]=kl;schrijfND(st);
-  document.getElementById('doc-naam').value='';
+  inp.value='';
   docsRender();
-  toast('Document toegevoegd — in de echte app upload je hier het bestand');
+  toast('"'+f.name+'" toegevoegd. In de echte app wordt het bestand direct opgeslagen in de database.');
 }
 function docZichtbaar(id){
   var st=leesND();var kl=st[curKlant]||ndVan();
@@ -2321,11 +2322,11 @@ function plannenVan(){
 function planRender(){
   var host=document.getElementById('plan-lijst');if(!host)return;
   host.innerHTML=plannenVan().map(function(p){
-    return '<div class="sp-note"><div class="nh">'+esc(p.start||'?')+' \u2014 '+esc(p.eind||'?')
+    return '<div class="sp-note"><div class="nh">'+esc(p.start||'?')+' t/m '+esc(p.eind||'?')
       +' <span><svg class="i sm-i" style="cursor:pointer" onclick="planBewerk('+p.id+')"><use href="#i-pen"/></svg> '
       +'<svg class="i sm-i" style="cursor:pointer" onclick="planVerwijderIcoon(this,'+p.id+')"><use href="#i-trash"/></svg></span></div>'
       +'<div class="nb">'+esc(p.notes)+'</div></div>';
-  }).join('') || '<div class="sm" style="color:#8b919b">Nog geen plannen \u2014 voeg de eerste toe.</div>';
+  }).join('') || '<div class="sm" style="color:#8b919b">Nog geen plannen, voeg de eerste toe.</div>';
 }
 function planVerwijderIcoon(el,id){
   var span=el.closest('span');
@@ -2359,7 +2360,7 @@ function planOpslaan(){
   }
   st[curKlant]=lijst;schrijfPlannen(st);
   planReset();planRender();
-  toast(wasEdit?'Plan bijgewerkt \u2014 blijft bewaard':'Long-term plan opgeslagen \u2014 nieuwste staat bovenaan, oude blijven zichtbaar');
+  toast(wasEdit?'Plan bijgewerkt, blijft bewaard':'Long-term plan opgeslagen, nieuwste staat bovenaan, oude blijven zichtbaar');
 }
 function planBewerk(id){
   var p=null;plannenVan().forEach(function(x){if(x.id===id)p=x;});
@@ -2406,7 +2407,7 @@ function goalsSave(){
   st[curKlant]={sel:sel,other:document.getElementById('goals-other').value.trim()||'Geen'};
   try{localStorage.setItem('coachapp-goals',JSON.stringify(st))}catch(e){}
   goalsView();
-  toast('Doelen opgeslagen — blijven bewaard; in de echte app direct in de database');
+  toast('Doelen opgeslagen, blijven bewaard; in de echte app direct in de database');
 }
 function assNotes(link){
   var paneel=link.closest('.sidepanel');
@@ -2439,7 +2440,7 @@ function assVeldToevoegen(tab){
   }
   host.parentNode.insertBefore(d,host);
   host.innerHTML='';
-  toast('Veld toegevoegd — in de echte app zet de admin dit klaar voor alle klanten');
+  toast('Veld toegevoegd, in de echte app zet de admin dit klaar voor alle klanten');
 }
 function assTab(n){
   for(var i=0;i<3;i++){
@@ -2501,7 +2502,7 @@ function saveTask(){
   document.getElementById('task-klant').value='';
   document.getElementById('task-save').classList.remove('actief');
   closeTask();
-  toast('Taak opgeslagen — hij staat op je dashboard');
+  toast('Taak opgeslagen, hij staat op je dashboard');
 }
 /* cijfers-periode 7/30/90 dagen */
 var RINGDATA={'7':75,'30':60,'90':52};
@@ -2546,7 +2547,7 @@ function kiesProg(el,naam,sub){
   document.getElementById('progdrop').classList.remove('show');
   var cm=sub.match(/^1:1 \u00b7 (\w+)/);
   if(cm){renderKlantDrop(cm[1]);}else{var kw=document.getElementById('klantsel');if(kw)kw.style.display='none';setTimeout(fixSticky,0);}
-  toast('Programma gewisseld naar '+naam+' — als admin zie je alle coaches; rechten per coach regelen we in de echte app');
+  toast('Programma gewisseld naar '+naam+', als admin zie je alle coaches; rechten per coach regelen we in de echte app');
 }
 document.addEventListener('click',function(){
   var pd=document.getElementById('progdrop');
@@ -2606,7 +2607,7 @@ function setLibMode(m,btn){
   document.getElementById('lib-addbtn').textContent = m==='oef' ? '+ Oefening toevoegen' : '+ Template toevoegen';
   document.getElementById('lib-sub').textContent = m==='oef'
     ? 'Jullie eigen bibliotheek, live uit de database. Klanten zien de demo-video bij elke workout.'
-    : 'Templates uit jullie Strivee, live uit de database — klik op een template om titel, tekst of kleur aan te passen.';
+    : 'Templates uit jullie Strivee, live uit de database, klik op een template om titel, tekst of kleur aan te passen.';
   libKleur='';
   legRender();
   libRender();
@@ -2648,7 +2649,7 @@ function legNaam(k,v){
   var raw={};try{raw=JSON.parse(localStorage.getItem('coachapp-legenda')||'{}')}catch(e){}
   raw[k]=v.trim()||LEGDEF[k];
   try{localStorage.setItem('coachapp-legenda',JSON.stringify(raw))}catch(e){}
-  toast('Legenda bijgewerkt — blijft bewaard');
+  toast('Legenda bijgewerkt, blijft bewaard');
 }
 function openTpl(i){
   var o=TPL[i];if(!o)return;tplEditIdx=i;
@@ -2679,7 +2680,7 @@ function tplOpslaan(){
     var l=leesEigenTpl();l.push(nieuw);schrijfEigenTpl(l);
     closeTpl();libRender();
     if(document.getElementById('insmodal').classList.contains('show'))insRender();
-    toast('Nieuwe template opgeslagen — in de echte app gaat dit direct de database in');
+    toast('Nieuwe template opgeslagen, in de echte app gaat dit direct de database in');
     return;
   }
   var o=TPL[tplEditIdx];if(!o)return;
@@ -2697,7 +2698,7 @@ function tplOpslaan(){
   }
   closeTpl();libRender();
   if(document.getElementById('insmodal').classList.contains('show'))insRender();
-  toast('Template aangepast — blijft bewaard; in de echte app direct in de database');
+  toast('Template aangepast, blijft bewaard; in de echte app direct in de database');
 }
 var libZoek='', libPag=0, LIB_PER=50;
 function libFilter(v){libZoek=v.toLowerCase();libPag=0;libRender();}
@@ -2784,7 +2785,7 @@ function exModalOpslaan(){
     exModalEditIdx=-1;
     libRender();
     closeExModal();
-    toast('Oefening bijgewerkt — in de echte app gaat dit direct de database in');
+    toast('Oefening bijgewerkt, in de echte app gaat dit direct de database in');
     return;
   }
   if(!exModalNieuw){closeExModal();toast('Oefening opgeslagen');return;}
@@ -2800,7 +2801,7 @@ function exModalOpslaan(){
   libRender();
   var c=document.getElementById('lib-aantal');if(c)c.textContent=BIEB.length;
   closeExModal();
-  toast('Oefening toegevoegd aan de bibliotheek — in de echte app gaat dit direct de database in');
+  toast('Oefening toegevoegd aan de bibliotheek, in de echte app gaat dit direct de database in');
 }
 /* tekstvelden in de bouwer groeien mee zodat alles zichtbaar is (zoals CoachRx) */
 function groei(t){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';}
@@ -2812,7 +2813,7 @@ function groeiAlles(){document.querySelectorAll('#ib-root textarea').forEach(gro
 /* inline bewerken in de dagcel (zoals CoachRx) */
 var bwCel=null, bwKaart=null;
 function openInlineEdit(card){
-  if(card.dataset.rust){toast('Rustdag — verwijder de kaart (kruisje) als je hier toch wilt plannen');return;}
+  if(card.dataset.rust){toast('Rustdag, verwijder de kaart (kruisje) als je hier toch wilt plannen');return;}
   var cell=card.closest('.mday');
   storeFloats();
   bwCel=cell;bwKaart=card;curCell=cell;
@@ -2934,7 +2935,7 @@ function wkOpslaan(){
   schrijfOpslag(o);
   plakKaart(wkCel,data);
   closeWk();
-  toast('Workout aangepast — blijft bewaard');
+  toast('Workout aangepast, blijft bewaard');
 }
 function wkVerwijderen(){
   if(!wkCel)return;
@@ -2969,7 +2970,7 @@ function kopieerWorkout(el,ev){
   var card=el.closest('.mcard')||el.closest('.mday').querySelector('.mcard');
   if(!card){toast('Geen workout gevonden om te kopiëren');return;}
   KLEMBORD=kaartData(card);
-  toast('Workout gekopieerd — ga naar een lege dag en kies Plakken');
+  toast('Workout gekopieerd, ga naar een lege dag en kies Plakken');
 }
 function plakKaart(cell,data){
   var html='<div class="msc">0/'+data.blk.length+' · '+esc(data.title)+'</div>';
@@ -3075,7 +3076,7 @@ function verplaatsKaartNaar(kaart,cel){
   bindHoverMenus();
   onthoudVerplaatsing(bron&&bron.dataset?bron.dataset.d:null,cel.dataset.d);
   var lbl=cel.querySelector('.dnum2');
-  toast('Workout verplaatst'+(lbl?' naar '+lbl.textContent.trim():'')+' — blijft bewaard');
+  toast('Workout verplaatst'+(lbl?' naar '+lbl.textContent.trim():'')+', blijft bewaard');
 }
 /* verplaats-modus via knop + verwijderen met bevestiging */
 var verplaatsEl=null;
@@ -3155,24 +3156,24 @@ var KPLAN={};
    ['Hyrox Stations',[['A) Ski Erg','4 x 500m<br>rest 1 min','1:58 gem.'],['B) Burpee Broad Jumps','3 x 20m','gedaan'],['C) Sandbag Lunges','3 x 20m @ 20 kg','zwaar']]]
   ]);
   mk('annebel',[1,6],[
-   ['Engine Builder — Row',[['A) Row intervals','5 x 750m @ 2k+8<br>rest 2 min','2:04 gem.'],['B) Bike Erg','10 min @ Z3','62 RPM']]],
-   ['Engine Builder — AMRAP',[['A) AMRAP 20','10 cal echo bike<br>10 KB swings @ 20 kg<br>10 box step-ups','7 rondes + 12'],['B) Core','3 x 45 sec hollow hold','gedaan']]]
+   ['Engine Builder, Row',[['A) Row intervals','5 x 750m @ 2k+8<br>rest 2 min','2:04 gem.'],['B) Bike Erg','10 min @ Z3','62 RPM']]],
+   ['Engine Builder, AMRAP',[['A) AMRAP 20','10 cal echo bike<br>10 KB swings @ 20 kg<br>10 box step-ups','7 rondes + 12'],['B) Core','3 x 45 sec hollow hold','gedaan']]]
   ]);
   mk('masha',[2,6],[
-   ['Olympic — Snatch',[['A) Snatch','werk naar zware single<br>daarna 3 x 2 @ 85%','52 kg'],['B) Snatch Pull','4 x 3 @ 100%','62 kg'],['C) OHS','3 x 5 @ 3010','40 kg']]],
-   ['Olympic — Clean & Jerk',[['A) Clean & Jerk','5 x 1+1 @ 85%<br>rest 2 min','68 kg'],['B) Front Squat','4 x 3 @ 90%','78 kg'],['C) Jerk Dips','3 x 5','88 kg']]]
+   ['Olympic, Snatch',[['A) Snatch','werk naar zware single<br>daarna 3 x 2 @ 85%','52 kg'],['B) Snatch Pull','4 x 3 @ 100%','62 kg'],['C) OHS','3 x 5 @ 3010','40 kg']]],
+   ['Olympic, Clean & Jerk',[['A) Clean & Jerk','5 x 1+1 @ 85%<br>rest 2 min','68 kg'],['B) Front Squat','4 x 3 @ 90%','78 kg'],['C) Jerk Dips','3 x 5','88 kg']]]
   ]);
   mk('stijn',[3,6],[
-   ['Strength Cycle — Squat',[['A) Back Squat','5 x 5 @ 82,5%<br>rest 3 min','142 kg'],['B) Bulgarian Split Squat','3 x 8/8','2x 24 kg'],['C) GHD Raises','3 x 12','gedaan']]],
-   ['Strength Cycle — Pull',[['A) Deadlift','5 x 3 @ 85%<br>rest 3 min','180 kg'],['B) Bench Press','5 x 5 @ 80%','110 kg'],['C) Barbell Row','4 x 8','90 kg']]]
+   ['Strength Cycle, Squat',[['A) Back Squat','5 x 5 @ 82,5%<br>rest 3 min','142 kg'],['B) Bulgarian Split Squat','3 x 8/8','2x 24 kg'],['C) GHD Raises','3 x 12','gedaan']]],
+   ['Strength Cycle, Pull',[['A) Deadlift','5 x 3 @ 85%<br>rest 3 min','180 kg'],['B) Bench Press','5 x 5 @ 80%','110 kg'],['C) Barbell Row','4 x 8','90 kg']]]
   ]);
   mk('tessa',[2,6],[
-   ['Gymnastics — Push',[['A) HSPU','5 x max reps strict<br>rest 2 min','8-7-6-5-5'],['B) Wall Walks','4 x 3','gedaan'],['C) Ring Dips','3 x 10','onbroken']]],
-   ['Gymnastics — Pull',[['A) Muscle-ups','EMOM 8: 2 ring MU','alle rondes'],['B) Rope Climbs','5 x 2 legless','gedaan'],['C) Toes to Bar','3 x 15','onbroken']]]
+   ['Gymnastics, Push',[['A) HSPU','5 x max reps strict<br>rest 2 min','8-7-6-5-5'],['B) Wall Walks','4 x 3','gedaan'],['C) Ring Dips','3 x 10','onbroken']]],
+   ['Gymnastics, Pull',[['A) Muscle-ups','EMOM 8: 2 ring MU','alle rondes'],['B) Rope Climbs','5 x 2 legless','gedaan'],['C) Toes to Bar','3 x 15','onbroken']]]
   ]);
   mk('zoe',[1,6],[
-   ['Comp Prep — Metcon',[['A) For time','21-15-9<br>thrusters @ 42,5 kg<br>chest to bar','6:42'],['B) Accessoire','3 x 12 DB bench','2x 20 kg']]],
-   ['Comp Prep — Long',[['A) 3 rounds for time','800m run<br>30 wall balls<br>20 T2B','19:55'],['B) Sled Sprint','6 x 15m','gedaan']]]
+   ['Comp Prep, Metcon',[['A) For time','21-15-9<br>thrusters @ 42,5 kg<br>chest to bar','6:42'],['B) Accessoire','3 x 12 DB bench','2x 20 kg']]],
+   ['Comp Prep, Long',[['A) 3 rounds for time','800m run<br>30 wall balls<br>20 T2B','19:55'],['B) Sled Sprint','6 x 15m','gedaan']]]
   ]);
 })();
 function leesOpslag(){try{return JSON.parse(localStorage.getItem('coachapp-workouts')||'{}')}catch(e){return {}}}
@@ -3369,7 +3370,7 @@ function herstelKlant(btn,naam){
   rij.remove();
   var cnt=document.getElementById('kl-arch-cnt');
   cnt.textContent=parseInt(cnt.textContent)-1;
-  toast(naam+' teruggezet — staat weer bij Actief');
+  toast(naam+' teruggezet, staat weer bij Actief');
 }
 function openClient(id){
   var c=CLIENTS[id]||CLIENTS.rick;
@@ -3460,12 +3461,12 @@ function pickRest(ev){
   if(curCell.dataset.d){
     var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,rust:1});schrijfOpslag(o);
   }
-  toast('Dag ingesteld als rustdag — blijft bewaard');
+  toast('Dag ingesteld als rustdag, blijft bewaard');
 }
 var insTypeF='all', insKleur='', insDoel='cel';
-var WEEKWOD={naam:'Weekworkout \u00b7 Week 28 \u2014 "Grace"',instructies:'30 clean & jerks voor tijd\nRx: 60/42,5 kg \u00b7 Scaled: 42,5/30 kg\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'};
+var WEEKWOD={naam:'Weekworkout \u00b7 Week 28, "Grace"',instructies:'30 clean & jerks voor tijd\nRx: 60/42,5 kg \u00b7 Scaled: 42,5/30 kg\n\nGedeeld leaderboard: iedereen met deze workout ziet elkaars scores.'};
 function insWeekwod(){
-  var data={title:'Weekworkout \u2014 "Grace"',blk:[[esc(WEEKWOD.naam),esc(WEEKWOD.instructies).replace(/\n/g,'<br>')]],kleur:'blue'};
+  var data={title:'Weekworkout, "Grace"',blk:[[esc(WEEKWOD.naam),esc(WEEKWOD.instructies).replace(/\n/g,'<br>')]],kleur:'blue'};
   if(insDoel==='bouwer'){
     var h=document.getElementById('ib-blokken');
     var sec=maakBlok('ex');h.appendChild(sec);
@@ -3483,7 +3484,7 @@ function insWeekwod(){
     var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:data.title,blk:data.blk,kleur:'blue',week:1});schrijfOpslag(o);
   }
   document.getElementById('insmodal').classList.remove('show');
-  toast('Weekworkout ingevoegd \u2014 het gedeelde leaderboard koppelen we later');
+  toast('Weekworkout ingevoegd, het gedeelde leaderboard koppelen we later');
 }
 function blokHistory(el,ev){
   ev.stopPropagation();
@@ -3564,7 +3565,7 @@ function insInvoegen(i){
     sec.querySelector('.ib-presc').value=o.instructies;
     hernummer();groeiAlles();
     document.getElementById('insmodal').classList.remove('show');
-    toast('Template als blok toegevoegd — pas gerust aan');
+    toast('Template als blok toegevoegd, pas gerust aan');
     return;
   }
   if(!curCell)return;
@@ -3575,18 +3576,18 @@ function insInvoegen(i){
     var op=leesOpslag();(op[curKlant]=op[curKlant]||[]).push({d:curCell.dataset.d,title:o.naam,blk:data.blk,kleur:o.kleur});schrijfOpslag(op);
   }
   document.getElementById('insmodal').classList.remove('show');
-  toast('Template ingevoegd bij '+CLIENTS[curKlant].nm.split(' ')[0]+' — blijft bewaard');
+  toast('Template ingevoegd bij '+CLIENTS[curKlant].nm.split(' ')[0]+', blijft bewaard');
 }
 function closeIns(){document.getElementById('insmodal').classList.remove('show');}
 function pickPaste(ev){
   ev.stopPropagation();storeFloats();
-  if(!KLEMBORD){toast('Nog niets gekopieerd — gebruik het kopieer-icoon op een workout');return;}
+  if(!KLEMBORD){toast('Nog niets gekopieerd, gebruik het kopieer-icoon op een workout');return;}
   if(!curCell)return;
   plakKaart(curCell,KLEMBORD);
   if(curCell.dataset.d){
     var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:KLEMBORD.title,blk:KLEMBORD.blk});schrijfOpslag(o);
   }
-  toast('Workout geplakt — blijft bewaard');
+  toast('Workout geplakt, blijft bewaard');
 }
 function assignProgramDay(ev,name){
   ev.stopPropagation();storeFloats();
@@ -3726,7 +3727,7 @@ function kiesEx(sec,naam){
   if(!ch){ch=document.createElement('div');ch.className='blokchips';sec.appendChild(ch);}
   ch.innerHTML='<span class="vidchip"><svg class="i sm-i"><use href="#i-cam"/></svg> '+esc(naam)+' <span class="x" onclick="chipWeg(this,event)">\u2715</span></span>';
   sec.querySelector('.ib-presc').focus();
-  toast('Demo-video automatisch gekoppeld — de klant ziet hem bij de workout');
+  toast('Demo-video automatisch gekoppeld, de klant ziet hem bij de workout');
 }
 function chipWeg(x,ev){
   ev.stopPropagation();
@@ -3773,7 +3774,7 @@ function saveWorkout(){
     plakKaart(cel,data);
     slaBewerkingOp(cel.dataset.d,data);
     mxVanWorkout(blokken);
-    toast('Workout aangepast — blijft bewaard');
+    toast('Workout aangepast, blijft bewaard');
     return;
   }
   storeFloats();
@@ -3784,7 +3785,7 @@ function saveWorkout(){
     var o=leesOpslag();(o[curKlant]=o[curKlant]||[]).push({d:curCell.dataset.d,title:title,blk:blokken,notes:notes,warmup:warmup,cooldown:cooldown});schrijfOpslag(o);
   }
   mxVanWorkout(blokken);
-  toast('Workout opgeslagen — '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
+  toast('Workout opgeslagen, '+CLIENTS[curKlant].nm.split(' ')[0]+' krijgt een melding, en hij blijft bewaard');
 }
 /* modals */
 function openExModal(nieuw){
@@ -3900,7 +3901,7 @@ function feedTab(el,note){
   el.className='on2';
   var ta=el.closest('.fcomment').querySelector('.fcinput');
   ta.classList.toggle('note',note===1);
-  ta.placeholder = note===1 ? 'Notitie — alleen zichtbaar voor coaches…' : 'Schrijf een reactie…';
+  ta.placeholder = note===1 ? 'Notitie, alleen zichtbaar voor coaches…' : 'Schrijf een reactie…';
 }
 function sendComment(btn){
   var box=btn.closest('.fcomment');
@@ -3914,7 +3915,7 @@ function sendComment(btn){
     '<div><div class="t">'+txt.replace(/</g,'&lt;')+'</div><div class="m">Michel Bakker · zojuist'+(isNote?' · alleen coaches':'')+'</div></div>';
   box.querySelector('.fcmts').appendChild(d);
   ta.value='';
-  toast(isNote?'Notitie opgeslagen — alleen zichtbaar voor coaches':'Reactie verstuurd — Rick krijgt een melding');
+  toast(isNote?'Notitie opgeslagen, alleen zichtbaar voor coaches':'Reactie verstuurd, Rick krijgt een melding');
 }
 /* activity feed: kaarten exact CoachRx, bijladen bij scrollen */
 var FEED_DATA=[
