@@ -431,6 +431,7 @@ h3{font-size:14px;font-weight:700}
 .legchip input:focus{outline:none;border-bottom:1px dashed var(--muted2)}
 label.dienst{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;padding:7px 0;cursor:pointer}
 label.dienst input{width:16px;height:16px;accent-color:var(--accent)}
+.sidepanel textarea{resize:none;overflow:hidden;min-height:112px}
 .mcard.planned{border-color:var(--line)}
 .mcard .msc{font-weight:800;font-size:12px;padding:2px 2px 5px}
 .cblk{background:#eef2f7;border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.42;position:relative;border-left:3px solid transparent}
@@ -3640,10 +3641,12 @@ function fixSticky(){
 window.addEventListener('resize',fixSticky);
 document.addEventListener('input',function(e){
   var t=e.target;
-  if(t&&t.classList&&t.classList.contains('numveld')){
+  if(!t)return;
+  if(t.classList&&t.classList.contains('numveld')){
     var v=t.value.replace(/[^0-9:.,]/g,'');
     if(v!==t.value)t.value=v;
   }
+  if(t.tagName==='TEXTAREA'&&t.closest&&t.closest('.sidepanel'))groei(t);
 });
 /* klik op klant-avatar -> direct naar programma */
 var CLIENTS={
