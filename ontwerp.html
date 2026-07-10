@@ -928,7 +928,7 @@ input[disabled]{cursor:default}
         <button onclick="openPanel('sp-plan');planRender();planReset()"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
         <button onclick="openPanel('sp-notes');notesRender();docsRender()"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
         <button onclick="openPanel('sp-schema');schemaRender()"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
-        <button onclick="openPanel('sp-prio')"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
+        <button onclick="openPanel('sp-prio');prioRender()"><svg class="i"><use href="#i-doc"/></svg> Prioriteiten</button>
         <button onclick="openPanel('sp-equip')"><svg class="i"><use href="#i-gear"/></svg> Materiaal</button>
         <button id="cn-profile" onclick="cview('profile')"><svg class="i"><use href="#i-user"/></svg> Profiel</button>
       </div>
@@ -1037,12 +1037,13 @@ input[disabled]{cursor:default}
     </div>
 
     <div class="sidepanel" id="sp-prio">
-      <div class="sp-head"><h3>Prioriteiten</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <button class="sp-btn" style="margin-bottom:14px" onclick="toast('Nieuwe prioriteit toevoegen')">Prioriteit toevoegen</button>
-      <div class="sp-chip">Side plank-oefeningen <span class="x">&#10005;</span></div>
-      <div class="sp-chip">Single arm carries <span class="x">&#10005;</span></div>
-      <div class="sp-chip">Vetmassa monitoren <span class="x">&#10005;</span></div>
-      <div class="sp-chip">Spiermassa opbouwen <span class="x">&#10005;</span></div>
+      <div class="sp-head"><h3>Priorities</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div class="sp-field"><input id="prio-nieuw" placeholder="Add priority&#8230;" onkeydown="if(event.key==='Enter')prioOpslaan()"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="sp-btn" style="width:auto;padding:9px 16px" onclick="prioOpslaan()">Save priority</button>
+        <button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="document.getElementById('prio-nieuw').value=''">Cancel</button>
+      </div>
+      <div id="prio-lijst"></div>
     </div>
 
     <div class="sidepanel" id="sp-equip">
@@ -2583,6 +2584,41 @@ function planVerwijder(btn,id){
   planRender();
   toast('Plan verwijderd');
 }
+/* Priorities (zoals CoachRx: toevoegen + kruisje) */
+function leesPrio(){try{return JSON.parse(localStorage.getItem('coachapp-prio')||'{}')}catch(e){return{}}}
+function prioVan(){
+  var st=leesPrio();
+  if(st[curKlant])return st[curKlant];
+  return ['Side plank oefeningen','Single arm carries','Vetmassa monitoren','Spiermassa opbouwen'];
+}
+function prioRender(){
+  var host=document.getElementById('prio-lijst');if(!host)return;
+  host.innerHTML=prioVan().map(function(p,i){
+    return '<div class="sp-chip">'+esc(p)+' <span class="x" onclick="prioWeg('+i+')">\u2715</span></div>';
+  }).join('') || '<div class="sm" style="color:#8b919b">Nog geen prioriteiten. Voeg de eerste toe.</div>';
+}
+function prioOpslaan(){
+  var inp=document.getElementById('prio-nieuw');
+  var tekst=inp.value.trim();
+  if(!tekst){toast('Typ eerst een prioriteit');return;}
+  var st=leesPrio();
+  var lijst=st[curKlant]||prioVan().slice();
+  lijst.unshift(tekst);
+  st[curKlant]=lijst;
+  try{localStorage.setItem('coachapp-prio',JSON.stringify(st))}catch(e){}
+  inp.value='';
+  prioRender();
+  toast('Prioriteit opgeslagen, blijft bewaard');
+}
+function prioWeg(i){
+  var st=leesPrio();
+  var lijst=st[curKlant]||prioVan().slice();
+  lijst.splice(i,1);
+  st[curKlant]=lijst;
+  try{localStorage.setItem('coachapp-prio',JSON.stringify(st))}catch(e){}
+  prioRender();
+  toast('Prioriteit verwijderd');
+}
 /* Goals (exact zoals CoachRx Edit goals) */
 var GOALOPTS=['Build Muscle Mass','Increase Strength','Improve Cardiovascular Fitness','Lose Body Fat','Enhance Overall Health','Develop Healthier Habits','Boost Energy Levels','Other (please specify)'];
 function leesGoals(){try{return JSON.parse(localStorage.getItem('coachapp-goals')||'{}')}catch(e){return{}}}
@@ -3068,6 +3104,15 @@ function slaBewerkingOp(datum,data){
 function bwVerwijderen(ev){
   if(ev)ev.stopPropagation();
   if(!bwCel)return;
+  var knop=document.getElementById('ib-verwijder');
+  if(knop&&knop.textContent!=='Zeker weten?'){
+    knop.textContent='Zeker weten?';
+    knop.style.background='var(--bad)';knop.style.color='#fff';
+    toast('Weet je zeker dat je deze workout wilt verwijderen? Klik nog een keer om te bevestigen');
+    setTimeout(function(){if(knop.isConnected&&knop.textContent==='Zeker weten?'){knop.textContent='Verwijderen';knop.style.background='';knop.style.color='var(--bad)';}},3000);
+    return;
+  }
+  if(knop){knop.textContent='Verwijderen';knop.style.background='';knop.style.color='var(--bad)';}
   var cel=bwCel,kaart=bwKaart;
   bwCel=null;bwKaart=null;
   storeFloats();
