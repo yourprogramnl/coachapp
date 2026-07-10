@@ -2122,7 +2122,15 @@ input[disabled]{cursor:default}
 </div>
 
 <script>
+var HASHMAP={dash:'dashboard',clients:'klanten',lib:'bibliotheek',coaches:'coaches',programs:'programmas',program:'programmas',week:'weekworkout',msgs:'berichten'};
+var stilHash=false;
+function zetHash(h){
+  stilHash=true;
+  if(location.hash!=='#'+h)location.hash=h;
+  setTimeout(function(){stilHash=false},0);
+}
 function go(p){
+  if(HASHMAP[p])zetHash(HASHMAP[p]);
   document.querySelectorAll('.page').forEach(function(el){el.classList.remove('active')});
   var page=document.getElementById('p-'+p);
   if(page)page.classList.add('active');
@@ -3736,6 +3744,7 @@ function openCoach(k){
         +'<button class="kebab" style="width:30px">\u22ee</button></div>';
     }).join('');
   }
+  zetHash('coach/'+k);
   go('coachdetail');
 }
 /* klant-dropdown naast programma (Strivee) */
@@ -3841,6 +3850,7 @@ function openClient(id){
   var ms=document.getElementById('mini-sess');
   if(ms){var aant=(c.info.match(/(\d+) sessies/)||[])[1]||'';ms.textContent=aant;ms.setAttribute('data-tip',aant+' sessies afgerond');}
   go('client');cview('cal');
+  zetHash('klant/'+id);
   bouwKal(id);
   markKlant(id);
   toast('Programma van '+c.nm+' geopend');
@@ -4514,6 +4524,16 @@ laadBieb();
 laadTpl();
 document.querySelectorAll('#p-client .cnav button').forEach(function(b){b.setAttribute('data-tip',b.textContent.trim());});
 renderKlantDrop('Michel');
+function routeer(){
+  var h=decodeURIComponent(location.hash.replace('#',''));
+  if(!h)return;
+  if(h.indexOf('klant/')===0){var id=h.split('/')[1];if(CLIENTS[id]){openClient(id);return;}}
+  if(h.indexOf('coach/')===0){var k=h.split('/')[1];if(COACHES[k]){openCoach(k);return;}}
+  var kaart={dashboard:'dash',klanten:'clients',bibliotheek:'lib',coaches:'coaches',programmas:'programs',weekworkout:'week',berichten:'msgs'};
+  if(kaart[h])go(kaart[h]);
+}
+window.addEventListener('hashchange',function(){if(!stilHash)routeer();});
+routeer();
 leeftijdUit();
 fixSticky();
 document.querySelectorAll('.overlay').forEach(function(ov){
