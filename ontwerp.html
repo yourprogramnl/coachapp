@@ -804,7 +804,7 @@ input[disabled]{cursor:default}
     <div style="display:flex;gap:10px;position:relative">
       <button class="btn" onclick="openKlantModal()">+ Klant toevoegen</button>
       <button class="btn ghost" onclick="tagsBeheerMenu(this,event)">Tags beheren</button>
-      <button class="btn ghost">Exporteren</button>
+      <button class="btn ghost" onclick="openExport()">Exporteren</button>
     </div>
   </div>
 
@@ -2006,6 +2006,19 @@ input[disabled]{cursor:default}
   </div>
 </div>
 
+<div class="overlay" id="exportmodal">
+  <div class="modal" style="max-width:560px">
+    <h2 style="margin-bottom:6px">CSV exporteren</h2>
+    <div class="sm muted" style="margin-bottom:10px">Kies de kolommen voor je export.</div>
+    <label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;padding:7px 0;border-bottom:1px solid var(--line2);margin-bottom:8px;cursor:pointer"><input type="checkbox" id="ex-alles" checked onchange="exAlles(this)" style="width:15px;height:15px;accent-color:var(--accent)"> <span id="ex-alles-lbl">Alles deselecteren</span></label>
+    <div id="ex-kolommen" style="display:grid;grid-template-columns:1fr 1fr;gap:1px 20px"></div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="document.getElementById('exportmodal').classList.remove('show')">Annuleren</button>
+      <button class="btn" onclick="exporteerCSV()">Exporteren</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="mxmodal">
   <div class="modal" style="max-width:520px">
     <h2>Add Metric</h2>
@@ -2795,6 +2808,117 @@ function tagMenu(btn,id){
   }).join('')+'<input placeholder="Nieuwe tag + Enter" onkeydown="if(event.key===\'Enter\')tagKies(\''+id+'\',this.value)">';
   m.style.right='40px';m.style.top='40px';m.style.maxHeight='300px';m.style.overflow='auto';
   row.appendChild(m);
+}
+/* CSV-export (zoals CoachRx Export CSV): kolomkeuze + echte download met gekoppelde data */
+var EXPORTKOL=[
+ {k:'id',l:'Klant-ID'},{k:'naam',l:'Naam'},
+ {k:'email',l:'E-mail'},{k:'coach',l:'Coach'},
+ {k:'coachmail',l:'Coach e-mail'},{k:'status',l:'Status'},
+ {k:'start',l:'Startdatum'},{k:'archief',l:'Archiefdatum'},
+ {k:'lengte',l:'Lengte'},{k:'gewicht',l:'Gewicht'},
+ {k:'geslacht',l:'Geslacht'},{k:'geb',l:'Geboortedatum'},
+ {k:'tel',l:'Telefoon'},{k:'tijdzone',l:'Tijdzone'},
+ {k:'plaats',l:'Locatie'},{k:'nood',l:'Noodcontact'},
+ {k:'maat',l:'T-shirtmaat'},{k:'verwezen',l:'Doorverwezen door'},
+ {k:'adres',l:'Adres'},{k:'workouts',l:'Workouts afgerond'},
+ {k:'lifestyle',l:'Lifestyle afgerond'},{k:'streak',l:'Hoogste streak'},
+ {k:'tags',l:'Tags'},{k:'consult',l:'Laatste consult'}
+];
+var EXPORTX={
+ rick:{geslacht:'Man',geb:'28-04-1964',tel:'06 23 49 66 49',plaats:'Amsterdam',nood:'0623496649',maat:'XXL',start:'12-01-2024',streak:9,verwezen:'Vriend(in)',adres:'Voorbeeldstraat 12, Amsterdam'},
+ stefan:{geslacht:'Man',geb:'15-03-1992',tel:'06 11 22 33 44',plaats:'Capelle aan den IJssel',nood:'0611223344',maat:'L',start:'03-06-2024',streak:4,verwezen:'Instagram',adres:'Voorbeeldlaan 3, Capelle aan den IJssel'},
+ aafke:{geslacht:'Vrouw',geb:'02-11-1996',tel:'06 22 33 44 55',plaats:'Rotterdam',nood:'0622334455',maat:'M',start:'22-08-2023',streak:12,verwezen:'Google',adres:'Voorbeeldkade 8, Rotterdam'},
+ annebel:{geslacht:'Vrouw',geb:'19-07-1995',tel:'06 33 44 55 66',plaats:'Nesselande',nood:'0633445566',maat:'S',start:'10-02-2025',streak:6,verwezen:'Instagram',adres:'Voorbeeldplein 5, Rotterdam'},
+ masha:{geslacht:'Vrouw',geb:'05-05-1999',tel:'06 44 55 66 77',plaats:'Capelle aan den IJssel',nood:'0644556677',maat:'S',start:'14-04-2025',streak:3,verwezen:'Vriend(in)',adres:'Voorbeeldweg 21, Capelle aan den IJssel'},
+ stijn:{geslacht:'Man',geb:'27-09-1989',tel:'06 55 66 77 88',plaats:'Krimpen aan den IJssel',nood:'0655667788',maat:'XL',start:'01-03-2022',streak:15,verwezen:'Google',adres:'Voorbeeldhof 2, Krimpen aan den IJssel'},
+ tessa:{geslacht:'Vrouw',geb:'08-12-1993',tel:'06 66 77 88 99',plaats:'Rotterdam',nood:'0666778899',maat:'M',start:'09-10-2024',streak:5,verwezen:'Instagram',adres:'Voorbeeldsingel 14, Rotterdam'},
+ zoe:{geslacht:'Vrouw',geb:'21-06-2001',tel:'06 77 88 99 00',plaats:'Capelle aan den IJssel',nood:'0677889900',maat:'S',start:'05-01-2026',streak:7,verwezen:'Vriend(in)',adres:'Voorbeeldstraat 30, Capelle aan den IJssel'}
+};
+function openExport(){
+  document.getElementById('ex-kolommen').innerHTML=EXPORTKOL.map(function(c,i){
+    return '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;padding:6px 0;cursor:pointer"><input type="checkbox" class="ex-kol" data-k="'+c.k+'" checked onchange="exSync()" style="width:15px;height:15px;accent-color:var(--accent);flex:none"> '+c.l+'</label>';
+  }).join('');
+  document.getElementById('ex-alles').checked=true;
+  document.getElementById('ex-alles-lbl').textContent='Alles deselecteren';
+  document.getElementById('exportmodal').classList.add('show');
+}
+function exAlles(box){
+  document.querySelectorAll('.ex-kol').forEach(function(c){c.checked=box.checked});
+  exSync();
+}
+function exSync(){
+  var alle=[].slice.call(document.querySelectorAll('.ex-kol'));
+  var aan=alle.filter(function(c){return c.checked}).length;
+  var m=document.getElementById('ex-alles');
+  m.checked=aan===alle.length;
+  document.getElementById('ex-alles-lbl').textContent=(aan===alle.length?'Alles deselecteren':'Alles selecteren');
+}
+function exportTags(id,cel){
+  var st=leesTags();
+  var lijst=st[id]||(cel&&cel.dataset.init?JSON.parse(cel.dataset.init):[]);
+  return lijst.map(function(t){return t.n}).join(', ');
+}
+function exportKlantData(){
+  var uit=[];
+  document.querySelectorAll('#kl-actief .trow').forEach(function(row){
+    var id=klantIdVanRij(row);if(!id)return;
+    var c=CLIENTS[id]||{};
+    var m=(c.info||'').match(/(\d+) jaar · (\d+) kg · (\d+) cm/);
+    var s=(c.info||'').match(/(\d+) sessies/);
+    var x=EXPORTX[id]||{};
+    var naam=c.nm||(row.querySelector('.nm')?row.querySelector('.nm').textContent.trim():id);
+    var due=row.children[1]?row.children[1].textContent.trim():'';
+    uit.push({
+      id:id, naam:naam,
+      email:id.replace(/[^a-z0-9]/g,'')+'@coachapp.nl',
+      coach:coachVan(id)||'', coachmail:(coachVan(id)||'').toLowerCase()+'@coachapp.nl',
+      status:'Actief', start:x.start||'', archief:'',
+      lengte:m?m[3]+' cm':'', gewicht:m?m[2]+' kg':'',
+      geslacht:x.geslacht||'', geb:x.geb||'',
+      tel:x.tel||'', tijdzone:'Europe/Amsterdam',
+      plaats:x.plaats||'', nood:x.nood||'',
+      maat:x.maat||'', verwezen:x.verwezen||'',
+      adres:x.adres||'', workouts:s?s[1]:'',
+      lifestyle:'n.v.t.', streak:x.streak!=null?x.streak:'',
+      tags:exportTags(id,row.children[4]), consult:'n.v.t.',
+      _due:due
+    });
+  });
+  document.querySelectorAll('#kl-archief .trow').forEach(function(row){
+    var nm=row.querySelector('.nm');if(!nm)return;
+    var sub=row.querySelector('.sub')?row.querySelector('.sub').textContent:'';
+    var per=sub.match(/Lid van (.+) - (.+)/);
+    uit.push({
+      id:nm.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'),
+      naam:nm.textContent.trim(), email:'', coach:'', coachmail:'',
+      status:'Gearchiveerd', start:per?per[1]:'', archief:per?per[2]:'',
+      lengte:'', gewicht:'', geslacht:'', geb:'', tel:'', tijdzone:'Europe/Amsterdam',
+      plaats:'', nood:'', maat:'', verwezen:'', adres:'', workouts:'',
+      lifestyle:'', streak:'', tags:'', consult:''
+    });
+  });
+  return uit;
+}
+function exporteerCSV(){
+  var kols=[].slice.call(document.querySelectorAll('.ex-kol')).filter(function(c){return c.checked}).map(function(c){return c.dataset.k});
+  if(!kols.length){toast('Kies eerst minstens één kolom');return;}
+  var labels=EXPORTKOL.filter(function(c){return kols.indexOf(c.k)>=0});
+  var data=exportKlantData();
+  function veld(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}
+  var regels=[labels.map(function(c){return veld(c.l)}).join(';')];
+  data.forEach(function(k){
+    regels.push(labels.map(function(c){return veld(k[c.k])}).join(';'));
+  });
+  var d=new Date();
+  var naam='klanten-export-'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.csv';
+  var blob=new Blob(['\ufeff'+regels.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=naam;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
+  document.getElementById('exportmodal').classList.remove('show');
+  toast('CSV gedownload: '+naam+' ('+data.length+' klanten, '+labels.length+' kolommen)');
 }
 /* Tags beheren (zoals CoachRx Manage tags): dropdown + modals */
 function tagsBeheerMenu(btn,ev){
