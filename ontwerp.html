@@ -412,6 +412,9 @@ h3{font-size:14px;font-weight:700}
 .mx-doel{font-size:10.5px;color:#8b919b}
 .client-layout.collapsed .cside{overflow:visible;z-index:70}
 .client-layout.collapsed .cnav{overflow:visible}
+.goalopt{border:1.5px solid #3a3f47;border-radius:8px;padding:11px 12px;font-size:12.5px;font-weight:600;color:#e6e8ea;margin-bottom:9px;cursor:pointer}
+.goalopt:hover{border-color:#565c66}
+.goalopt.aan{border-color:var(--accent)}
 .client-layout.collapsed .cnav button{position:relative}
 .client-layout.collapsed .cnav button::after{content:attr(data-tip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:var(--nav);color:#fff;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .06s;z-index:200;border:1px solid #2c3037}
 .client-layout.collapsed .cnav button:hover::after{opacity:1}
@@ -913,7 +916,7 @@ input[disabled]{cursor:default}
         <button onclick="openPanel('sp-assess')"><svg class="i"><use href="#i-clip"/></svg> Assessment</button>
         <button id="cn-metrics" onclick="openMx()"><svg class="i"><use href="#i-chart"/></svg> Metrics &amp; 1RM</button>
         <button onclick="openPanel('sp-checkin')"><svg class="i"><use href="#i-check"/></svg> Check-ins &amp; consults</button>
-        <button onclick="openPanel('sp-goals')"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
+        <button onclick="openPanel('sp-goals');goalsView()"><svg class="i"><use href="#i-target"/></svg> Doelen</button>
         <button onclick="openPanel('sp-plan')"><svg class="i"><use href="#i-cal"/></svg> Planning &amp; periodisering</button>
         <button onclick="openPanel('sp-notes')"><svg class="i"><use href="#i-doc"/></svg> Notities &amp; documenten</button>
         <button onclick="openPanel('sp-schema')"><svg class="i"><use href="#i-clock"/></svg> Trainingsschema</button>
@@ -969,11 +972,20 @@ input[disabled]{cursor:default}
     </div>
 
     <div class="sidepanel" id="sp-goals">
-      <div class="sp-head"><h3>Doelen</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
-      <button class="sp-btn" style="margin-bottom:14px" onclick="toast('In de echte app bewerk je hier de doelen')">Doelen bewerken</button>
-      <div class="sp-chip">Kracht opbouwen</div>
-      <div class="sp-chip">Vetpercentage verlagen</div>
-      <div class="sp-info" style="margin-top:12px"><b style="color:#c9cdd4">Overige informatie</b><br>Geen</div>
+      <div class="sp-head"><h3>Goals</h3><span class="sp-x" onclick="closePanels()"><svg class="i"><use href="#i-x"/></svg></span></div>
+      <div id="goals-view">
+        <button class="sp-btn" style="margin-bottom:14px" onclick="goalsEdit()">Edit goals</button>
+        <div id="goals-chips"></div>
+        <div class="sp-info" style="margin-top:12px"><b style="color:#c9cdd4">Other information</b><br><span id="goals-other-view">Geen</span></div>
+      </div>
+      <div id="goals-edit" style="display:none">
+        <div id="goals-opts"></div>
+        <div class="sp-field" style="margin-top:8px"><label>Other information</label><textarea id="goals-other"></textarea></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="sp-btn" onclick="goalsSave()">Save</button>
+          <button class="sp-btn ghost" onclick="goalsView()">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <div class="sidepanel" id="sp-plan">
@@ -2162,6 +2174,34 @@ function mxVanWorkout(blokken){
     });
   });
   if(gewijzigd){schrijfMx(st);renderMetrics();vulBalans();}
+}
+/* Goals (exact zoals CoachRx Edit goals) */
+var GOALOPTS=['Build Muscle Mass','Increase Strength','Improve Cardiovascular Fitness','Lose Body Fat','Enhance Overall Health','Develop Healthier Habits','Boost Energy Levels','Other (please specify)'];
+function leesGoals(){try{return JSON.parse(localStorage.getItem('coachapp-goals')||'{}')}catch(e){return{}}}
+function goalsVan(){var g=leesGoals()[curKlant];return g||{sel:['Increase Strength','Lose Body Fat'],other:'Geen'};}
+function goalsView(){
+  var g=goalsVan();
+  document.getElementById('goals-view').style.display='';
+  document.getElementById('goals-edit').style.display='none';
+  document.getElementById('goals-chips').innerHTML=g.sel.filter(function(x){return x!=='Other (please specify)'}).map(function(x){return '<div class="sp-chip">'+esc(x)+'</div>'}).join('')||'<div class="sm" style="color:#8b919b">Nog geen doelen gekozen</div>';
+  document.getElementById('goals-other-view').textContent=g.other||'Geen';
+}
+function goalsEdit(){
+  var g=goalsVan();
+  document.getElementById('goals-view').style.display='none';
+  document.getElementById('goals-edit').style.display='';
+  document.getElementById('goals-opts').innerHTML=GOALOPTS.map(function(o){
+    return '<div class="goalopt'+(g.sel.indexOf(o)>=0?' aan':'')+'" onclick="this.classList.toggle(\'aan\')">'+esc(o)+'</div>';
+  }).join('');
+  document.getElementById('goals-other').value=g.other==='Geen'?'':(g.other||'');
+}
+function goalsSave(){
+  var sel=[].filter.call(document.querySelectorAll('#goals-opts .goalopt'),function(d){return d.classList.contains('aan')}).map(function(d){return d.textContent});
+  var st=leesGoals();
+  st[curKlant]={sel:sel,other:document.getElementById('goals-other').value.trim()||'Geen'};
+  try{localStorage.setItem('coachapp-goals',JSON.stringify(st))}catch(e){}
+  goalsView();
+  toast('Doelen opgeslagen — blijven bewaard; in de echte app direct in de database');
 }
 function assNotes(link){
   var paneel=link.closest('.sidepanel');
