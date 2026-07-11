@@ -346,6 +346,33 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .spark{display:flex;align-items:flex-end;gap:4px;height:44px;margin-top:10px}
 .spark i{flex:1;background:#cfe9f4;border-radius:3px 3px 0 0;min-height:3px}
 .spark i.hi{background:#3eb3e0}
+/* Zijbalk in-/uitklappen (zoals het ontwerp) */
+.collapsebtn{width:34px;height:34px;border-radius:50%;background:#22252b;color:#aab0b8;display:flex;align-items:center;justify-content:center;font-size:15px;border:1px solid #2c3037;padding:0;cursor:pointer;margin:14px 12px 4px auto;flex:none;font-family:inherit}
+.collapsebtn:hover{background:#2c3037;color:#fff}
+.mini-sess{display:none}
+.client-layout.collapsed .cside{width:52px;overflow:visible;z-index:70}
+.client-layout.collapsed .cside .prof{padding:12px 0 10px}
+.client-layout.collapsed .cside .prof .cnm,.client-layout.collapsed .cside .prof .cinfo,.client-layout.collapsed .cside #cs-dagen{display:none}
+.client-layout.collapsed .cside .prof .bigav{width:34px;height:34px;font-size:11px;margin:0 auto}
+.client-layout.collapsed .mini-sess{display:flex;align-items:center;justify-content:center;color:#e6e8ea;font-size:11px;font-weight:800;margin:7px auto 4px;background:#22252b;border-radius:10px;width:34px;padding:3px 0}
+.client-layout.collapsed .cside .streak{display:none}
+.client-layout.collapsed .cnav{overflow:visible}
+.client-layout.collapsed .cnav button{justify-content:center;padding:11px 0;font-size:0;gap:0;position:relative}
+.client-layout.collapsed .cnav .soon{display:none}
+.client-layout.collapsed .cnav button::after{content:attr(data-tip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:#171719;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .06s;z-index:200;border:1px solid #2c3037}
+.client-layout.collapsed .cnav button:hover::after{opacity:1}
+.client-layout.collapsed .collapsebtn{margin:14px auto 4px}
+/* Doelen + notities (zoals het ontwerp) */
+.goalopt{border:1.5px solid #3a3f47;border-radius:8px;padding:11px 12px;font-size:12.5px;font-weight:600;color:#e6e8ea;margin-bottom:9px;cursor:pointer}
+.goalopt:hover{border-color:#565c66}
+.goalopt.aan{border-color:#3eb3e0}
+.sp-chip{display:flex;justify-content:space-between;align-items:center;border:1.5px solid #3eb3e0;border-radius:8px;padding:9px 11px;font-size:12px;font-weight:600;margin-bottom:8px;color:#fff}
+.sp-note{background:#26292f;border-radius:8px;margin-bottom:10px;overflow:hidden}
+.sp-note .nh{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:#2e3238;font-size:11.5px;font-weight:700;color:#fff}
+.sp-note .nh span{display:flex;gap:10px;color:#8f959d}
+.sp-note .nh .i{cursor:pointer}
+.sp-note .nh .i:hover{color:#fff}
+.sp-note .nb{padding:9px 11px;font-size:11.5px;color:#c9cdd4;line-height:1.65;white-space:pre-line}
 .cbar .logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:20px;color:#fff}
 .cbar .logo b{color:var(--accent)}
 .cnav2{display:flex;gap:2px;flex:1;flex-wrap:wrap}
@@ -420,6 +447,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
   <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.8 8S4 4.2 8 4.2 14.2 8 14.2 8 12 11.8 8 11.8 1.8 8 1.8 8z"/><circle cx="8" cy="8" r="1.7"/></symbol>
   <symbol id="i-keys" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8.5" rx="1.5"/><path d="M4 6.5h.01M6.5 6.5h.01M9 6.5h.01M11.5 6.5h.01M4 8.8h.01M6.5 8.8h.01M9 8.8h.01M11.5 8.8h.01M5 11h6"/></symbol>
   <symbol id="i-walk" viewBox="0 0 16 16"><circle cx="8.6" cy="2.8" r="1.3"/><path d="M8.4 4.6 6.6 8l1.8 2-1 3.6M6.6 8 4.8 9.2M8.4 10l2.4 1.2 1 2.4M8.8 6l2 1.4"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 16 16"><path d="M8 13.5h5.5"/><path d="M11 2.5a1.4 1.4 0 0 1 2 2L5 12.5l-2.7.7.7-2.7L11 2.5z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.4 4.2V3h3.2v1.2M4.4 4.6l.7 9.4h5.8l.7-9.4M6.7 7v4.6M9.3 7v4.6"/></symbol>
 </svg>
 <div class="wrap">
 
@@ -1135,18 +1164,21 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const actie=s[0]==="assessment"?"openAssess()":(s[0]==="metrics"?"openMx()":"renderClient('"+s[0]+"')");
-    const later=(s[0]==="assessment"||s[0]==="metrics")?false:s[3];
-    return '<button class="'+(s[0]===panel?'on':'')+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
+    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()"};
+    const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
+    const later=acties[s[0]]?false:s[3];
+    return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
   }).join("");
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
-  c.innerHTML=coachShellHtml('<div class="client-layout">'+
-    '<div class="cside"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
+  c.innerHTML=coachShellHtml('<div class="client-layout'+(sideCollapsed?' collapsed':'')+'">'+
+    '<div class="cside"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'" title="'+naamVan(p)+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
     '<div id="cs-dagen" style="display:none;margin-top:8px"><span class="tag" style="background:#2a2e35;border-color:#33373d;color:#c9cdd4"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span></div></div>'+
+    '<div class="mini-sess" id="cs-minisess" title="Sessies afgerond">…</div>'+
     '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+
     '<div class="streak" style="gap:6px;flex-wrap:wrap" id="cs-pills"><span class="cpill" style="background:#2a2e35;color:#8f959d;font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span></div>'+
-    '<div class="cnav">'+side+'</div></div>'+
+    '<div class="cnav">'+side+'</div>'+
+    '<button class="collapsebtn" title="Zijbalk in-/uitklappen" onclick="toggleSide()"><span id="cl-arrow">'+(sideCollapsed?"→":"←")+'</span></button></div>'+
     '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>');
   const pg=document.getElementById("cpage");if(pg)pg.classList.add("fullbleed");
   ensureLibModals();
@@ -1163,7 +1195,9 @@ async function vulKlantStats(p){
   const ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
   const doneIds=new Set((rq.data||[]).filter(r=>r.status==="completed").map(r=>r.workout_id));
   const el=id=>document.getElementById(id);
-  if(el("cs-sessies"))el("cs-sessies").textContent=ws.filter(w=>doneIds.has(w.id)).length;
+  const sessies=ws.filter(w=>doneIds.has(w.id)).length;
+  if(el("cs-sessies"))el("cs-sessies").textContent=sessies;
+  if(el("cs-minisess")){el("cs-minisess").textContent=sessies;el("cs-minisess").title=sessies+" sessies afgerond";}
   // streak: aaneengesloten weken (t/m deze of vorige week) met minstens één voltooide workout
   const weekSet=new Set(ws.filter(w=>doneIds.has(w.id)).map(w=>ymd(mondayOf(new Date(w.workout_date+"T00:00:00")))));
   let wk=mondayOf(new Date()),streak=0;
@@ -1481,6 +1515,124 @@ function metricsRender(){
     '<div class="metcard"><h3>Herstel</h3><div class="nodata">Nog geen data</div></div>'+
     '<div class="metcard"><h3>Voeding</h3><div class="nodata">Nog geen data</div></div>'+
     '</div><div class="sm muted" style="margin-top:14px">Deze 1RM\'s voeden straks de slimme berekening in de workout-bouwer (bijv. "3 sets @ 70% van 1RM deadlift").</div></div></div>';
+}
+// ---------- Zijbalk in-/uitklappen ----------
+function toggleSide(){
+  sideCollapsed=!sideCollapsed;
+  const lay=document.querySelector(".client-layout");
+  if(lay)lay.classList.toggle("collapsed",sideCollapsed);
+  const a=document.getElementById("cl-arrow");
+  if(a)a.textContent=sideCollapsed?"→":"←";
+}
+// ---------- DOELEN (zoals het ontwerp; opslag in client_info.data.goals) ----------
+const GOALOPTS=["Build Muscle Mass","Increase Strength","Improve Cardiovascular Fitness","Lose Body Fat","Enhance Overall Health","Develop Healthier Habits","Boost Energy Levels","Other (please specify)"];
+let ciData={};
+async function ciLaad(){
+  const{data:rows}=await db.from("client_info").select("*").eq("athlete_id",calClient).limit(1);
+  ciData=(rows&&rows[0]&&rows[0].data)||{};
+}
+async function ciBewaar(){
+  const{error}=await db.from("client_info").upsert({athlete_id:calClient,company_id:ME.profile.company_id,data:ciData,updated_by:ME.user.id},{onConflict:"athlete_id"});
+  return error;
+}
+async function openGoals(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-goals");
+  if(sp){sp.classList.toggle("show");return;}
+  sp=document.createElement("div");sp.id="sp-goals";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Goals</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await ciLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Goals</h3><span class="sp-x" onclick="document.getElementById(\'sp-goals\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div id="goals-view"><button class="sp-btn" style="margin-bottom:14px" onclick="goalsEdit()">Edit goals</button><div id="goals-chips"></div>'+
+    '<div class="sp-info" style="margin-top:12px"><b style="color:#c9cdd4">Other information</b><br><span id="goals-other-view">Geen</span></div></div>'+
+    '<div id="goals-edit" style="display:none"><div id="goals-opts"></div>'+
+    '<div class="sp-field" style="margin-top:8px"><label>Other information</label><textarea id="goals-other"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-top:4px"><button class="sp-btn" onclick="goalsSave()">Save</button><button class="sp-btn ghost" onclick="goalsView()">Cancel</button></div></div>';
+  goalsView();
+}
+function goalsVan(){return ciData.goals||{sel:[],other:""};}
+function goalsView(){
+  const g=goalsVan();
+  const v=document.getElementById("goals-view"),e=document.getElementById("goals-edit");
+  if(!v)return;
+  v.style.display="";e.style.display="none";
+  document.getElementById("goals-chips").innerHTML=g.sel.filter(x=>x!=="Other (please specify)").map(x=>'<div class="sp-chip">'+esc(x)+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen doelen gekozen</div>';
+  document.getElementById("goals-other-view").textContent=g.other||"Geen";
+}
+function goalsEdit(){
+  const g=goalsVan();
+  document.getElementById("goals-view").style.display="none";
+  document.getElementById("goals-edit").style.display="";
+  document.getElementById("goals-opts").innerHTML=GOALOPTS.map(o=>'<div class="goalopt'+(g.sel.includes(o)?" aan":"")+'" onclick="this.classList.toggle(\'aan\')">'+esc(o)+'</div>').join("");
+  document.getElementById("goals-other").value=g.other||"";
+}
+async function goalsSave(){
+  const sel=[...document.querySelectorAll("#goals-opts .goalopt.aan")].map(d=>d.textContent);
+  ciData.goals={sel,other:document.getElementById("goals-other").value.trim()};
+  const err=await ciBewaar();
+  if(err){toast(err.message||"Opslaan mislukt");return;}
+  goalsView();toast("Doelen opgeslagen");
+}
+// ---------- NOTITIES & DOCUMENTEN (zoals het ontwerp; notes-tabel) ----------
+let notesLijst=[],noteEditId=null;
+const vandaagNL=()=>{const d=new Date();return d.getDate()+" "+MAANDVOL[d.getMonth()]+" "+d.getFullYear();};
+const datumNL=iso=>{const d=new Date(iso);return d.getDate()+" "+MAANDVOL[d.getMonth()]+" "+d.getFullYear();};
+async function notesLaad(){
+  const{data}=await db.from("notes").select("*").eq("athlete_id",calClient).order("created_at",{ascending:false});
+  notesLijst=data||[];
+}
+async function openNotes(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-notes");
+  if(sp){sp.classList.toggle("show");return;}
+  sp=document.createElement("div");sp.id="sp-notes";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Notes & Documents</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await notesLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Notes & Documents</h3><span class="sp-x" onclick="document.getElementById(\'sp-notes\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sp-tabs"><button class="on" id="nd-t0" onclick="ndTab(0)">Notes</button><button id="nd-t1" onclick="ndTab(1)">Documents</button></div>'+
+    '<div id="nd-0"><div class="sp-field"><textarea id="note-nieuw" placeholder="Notitie toevoegen (alleen zichtbaar voor coaches)…"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="note-saveknop" onclick="noteOpslaan()">Save</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="noteReset()">Cancel</button></div>'+
+    '<div class="sp-field"><input id="note-zoek" placeholder="Zoek in notities" oninput="notesRender()"></div>'+
+    '<div id="notes-lijst"></div></div>'+
+    '<div id="nd-1" style="display:none"><button class="sp-btn" style="margin-bottom:8px" onclick="toast(\'Documenten uploaden komt in een volgende stap\')">Document uploaden vanaf je computer</button>'+
+    '<div class="sp-info">Standaard alleen zichtbaar voor coaches. Delen met het lid komt samen met de sporter-app.</div></div>';
+  notesRender();
+}
+function ndTab(i){document.getElementById("nd-0").style.display=i===0?"":"none";document.getElementById("nd-1").style.display=i===1?"":"none";document.getElementById("nd-t0").classList.toggle("on",i===0);document.getElementById("nd-t1").classList.toggle("on",i===1);}
+function notesRender(){
+  const host=document.getElementById("notes-lijst");if(!host)return;
+  const zoek=((document.getElementById("note-zoek")||{}).value||"").toLowerCase();
+  const lijst=notesLijst.filter(n=>!zoek||(n.body||"").toLowerCase().includes(zoek)||datumNL(n.created_at).toLowerCase().includes(zoek));
+  host.innerHTML=lijst.map(n=>'<div class="sp-note"><div class="nh">'+esc(datumNL(n.created_at))+
+    ' <span><svg class="i sm-i" onclick="noteBewerk(\''+n.id+'\')"><use href="#i-pen"/></svg><svg class="i sm-i" onclick="noteVerwijder(\''+n.id+'\')"><use href="#i-trash"/></svg></span></div>'+
+    '<div class="nb">'+esc(n.body)+'</div></div>').join("")||'<div class="sm" style="color:#8b919b">'+(zoek?"Geen notities gevonden.":"Nog geen notities. Schrijf de eerste hierboven.")+'</div>';
+}
+function noteReset(){noteEditId=null;const t=document.getElementById("note-nieuw");if(t)t.value="";const b=document.getElementById("note-saveknop");if(b)b.textContent="Save";}
+async function noteOpslaan(){
+  const tekst=(document.getElementById("note-nieuw").value||"").trim();
+  if(!tekst){toast("Schrijf eerst een notitie");return;}
+  let error;
+  if(noteEditId)({error}=await db.from("notes").update({body:tekst}).eq("id",noteEditId));
+  else ({error}=await db.from("notes").insert({athlete_id:calClient,company_id:ME.profile.company_id,author_id:ME.user.id,body:tekst}));
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  const wasEdit=!!noteEditId;
+  noteReset();await notesLaad();notesRender();
+  toast(wasEdit?"Notitie bijgewerkt":"Notitie opgeslagen, alleen zichtbaar voor coaches");
+}
+function noteBewerk(id){
+  const n=notesLijst.find(x=>x.id===id);if(!n)return;
+  noteEditId=id;
+  document.getElementById("note-nieuw").value=n.body;
+  document.getElementById("note-saveknop").textContent="Bijwerken";
+  document.getElementById("note-nieuw").focus();
+}
+async function noteVerwijder(id){
+  if(!confirm("Deze notitie verwijderen?"))return;
+  const{error}=await db.from("notes").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  await notesLaad();notesRender();toast("Notitie verwijderd");
 }
 function prevMonth(){navStep(-1);}
 function nextMonth(){navStep(1);}
