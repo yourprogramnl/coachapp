@@ -267,6 +267,27 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 /* ===== Coach dashboard (naar het ontwerp) ===== */
 .cwrap{--accent:#3eb3e0;--accent-d:#2a9fce;--ok:#27b376;--ok-bg:#e2f6ec;--bad:#e5484d;--bad-bg:#fde9ea;--purple:#8b7cf6;--purple-bg:#eeebfd;--teal-bg:#dff2f8;--nav:#171719;--line:#e7e9ec;--line2:#f0f1f3;--muted:#8a919c;--muted2:#b3b9c2;--card:#fff;--txt:#1d2129;color:var(--txt)}
 .cbar{display:flex;align-items:center;gap:10px;background:var(--nav);color:#fff;height:52px;padding:0 20px;border-radius:12px;margin-bottom:22px}
+/* Volle breedte zoals het ontwerp: donkere balk tegen de randen, inhoud gecentreerd */
+body.coachmode .wrap{max-width:none;padding:0}
+body.coachmode .cbar{border-radius:0;margin-bottom:0;padding:0 26px;position:sticky;top:0;z-index:120}
+body.coachmode #cpage{max-width:1420px;margin:0 auto;padding:24px 26px 70px}
+body.coachmode #cpage.fullbleed{max-width:none;padding:0}
+#cpage.fullbleed .client-layout{border:none;border-radius:0;min-height:calc(100vh - 52px)}
+.progsel{cursor:pointer;position:relative}
+.progsel .car{color:#b3b9c2;font-size:11px;margin-left:4px}
+.progdrop{position:absolute;top:calc(100% + 8px);left:0;z-index:160;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 18px 50px rgba(15,18,22,.18);width:280px;padding:8px;display:none;text-align:left}
+.progdrop.show{display:block}
+.pd-search{display:flex;align-items:center;gap:8px;background:#f2f4f6;border-radius:9px;padding:9px 12px;margin-bottom:8px;color:#b3b9c2}
+.pd-search input{border:none;background:none;flex:1;font-size:12.5px;padding:0;width:auto}
+.pd-lijst{max-height:300px;overflow:auto}
+.pd-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer}
+.pd-row:hover{background:#f4f8fb}
+.pd-badge{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800;flex:none}
+.pd-naam{font-weight:700;font-size:12.5px;flex:1}
+.pd-vink{color:#27b376;display:none}
+.pd-row.actief .pd-vink{display:inline-flex}
+.mday.selectable{cursor:pointer}
+.mday.selectable:hover{background:#fbfdfe}
 .cbar .logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:20px;color:#fff}
 .cbar .logo b{color:var(--accent)}
 .cnav2{display:flex;gap:2px;flex:1;flex-wrap:wrap}
@@ -425,7 +446,7 @@ async function submitAuth(){
   }catch(e){setMsg(e.message||"Er ging iets mis.","err");}
   document.getElementById("go").disabled=false;
 }
-function show(which){document.getElementById("login").classList.toggle("hidden",which!=="login");document.getElementById("app").classList.toggle("hidden",which!=="app");}
+function show(which){if(which!=="app")document.body.classList.remove("coachmode");document.getElementById("login").classList.toggle("hidden",which!=="login");document.getElementById("app").classList.toggle("hidden",which!=="app");}
 async function signOut(){await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
 async function loadApp(){
@@ -486,6 +507,7 @@ async function renderCoach(section){
 }
 function coachGo(sec){coachSection=sec;coachRenderSection();}
 function coachShellHtml(inner){
+  document.body.classList.add("coachmode");
   const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+'</button>').join("");
   const av=esc((ME.profile.first_name||ME.user.email||"?").slice(0,1).toUpperCase());
   return '<div class="cwrap"><div class="cbar"><span class="logo">COACH<b>APP</b></span><div class="cnav2">'+btns+'</div>'+
@@ -1042,7 +1064,13 @@ async function stuurNote(aid,el){
 
 let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0,coachChipNaam="";
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["trends","i-clock","Trends",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",true],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",true],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",true],["sneltoetsen","i-keys","Sneltoetsen",true]];
-function openClient(id){calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";if(!LIB.geladen)libLaad();renderClient("kalender");}
+function openClient(id){
+  calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
+  if(!LIB.geladen)libLaad();
+  renderClient("kalender");
+  const p=coachClients.find(x=>x.id===id);
+  if(p)toast("Programma van "+[p.first_name,p.last_name].filter(Boolean).join(" ")+" geopend");
+}
 function renderClient(panel){
   activePanel=panel;
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
@@ -1051,11 +1079,13 @@ function renderClient(panel){
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
   c.innerHTML=coachShellHtml('<div class="client-layout">'+
-    '<div class="cside"><div class="prof"><div class="bigav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div></div>'+
+    '<div class="cside"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
+    '<div id="cs-dagen" style="display:none;margin-top:8px"><span class="tag" style="background:#2a2e35;border-color:#33373d;color:#c9cdd4"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span></div></div>'+
     '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+
     '<div class="streak" style="gap:6px;flex-wrap:wrap" id="cs-pills"><span class="cpill" style="background:#2a2e35;color:#8f959d;font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span></div>'+
     '<div class="cnav">'+side+'</div></div>'+
     '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>');
+  const pg=document.getElementById("cpage");if(pg)pg.classList.add("fullbleed");
   ensureLibModals();
   vulKlantStats(p);
   if(panel==="kalender")renderMonth();
@@ -1085,6 +1115,10 @@ async function vulKlantStats(p){
     const lbl=open[0].workout_date===td?"vandaag":DAGEN[(d.getDay()+6)%7].toLowerCase();
     el("cs-pills").insertAdjacentHTML("afterbegin",'<span class="cpill bad" style="font-size:10px;padding:2px 8px">workout te doen: '+esc(lbl)+'</span>');
   }
+  // vaste trainingsdagen (laatste 4 weken), zoals "woensdag · zaterdag" in het ontwerp
+  const von=ymd(addDays(new Date(),-27));
+  const dagIdx=[...new Set(ws.filter(w=>w.workout_date>=von&&w.workout_date<=td).map(w=>{const d=new Date(w.workout_date+"T00:00:00");return (d.getDay()+6)%7;}))].sort((a,b)=>a-b);
+  if(dagIdx.length&&el("cs-dagen")){el("cs-dagen-txt").textContent=dagIdx.map(i=>DAGVOL[i]).join(" · ");el("cs-dagen").style.display="";}
   // naam van de coach in de kalender-kop (cache zodat renderMonth hem niet overschrijft)
   if(p.coach_id&&myRole()!=="coach"){
     const{data:cp}=await db.from("profiles").select("first_name").eq("id",p.coach_id).single();
@@ -1292,8 +1326,11 @@ async function renderMonth(){
     '<div class="navarrows"><button onclick="prevMonth()">‹</button><button onclick="nextMonth()">›</button></div>'+
     '<button class="btn ghost sm" onclick="thisMonth()">Vandaag</button>'+
     '<div class="seg">'+seg+'</div>'+
-    '<div class="progsel" style="margin-left:auto"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((myRole()==="coach"?(ME.profile.first_name||"C"):"C").slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">Coach '+esc(myRole()==="coach"?(ME.profile.first_name||""):coachChipNaam)+'</div><div class="pt">1:1</div></div></div>'+
-    '<div class="progsel"><div class="pav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div></div>'+
+    '<div class="progsel" style="margin-left:auto" onclick="toast(\'Programma-weergaven (team/templates) komen later\')"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((myRole()==="coach"?(ME.profile.first_name||"C"):(coachChipNaam||"C")).slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">Coach '+esc(myRole()==="coach"?(ME.profile.first_name||""):coachChipNaam)+'</div><div class="pt">1:1</div></div><span class="car">▾</span></div>'+
+    '<div class="progsel" id="klantsel" onclick="toggleKlantDrop(event)"><div class="pav" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant'+(coachChipNaam||myRole()==="coach"?' · '+esc(myRole()==="coach"?(ME.profile.first_name||""):coachChipNaam)+' ('+coachClients.filter(k=>k.coach_id===p.coach_id).length+')':'')+'</div></div><span class="car">▾</span>'+
+      '<div class="progdrop" id="klantdrop" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een klant…" oninput="filterKlantDrop(this.value)"></div><div class="pd-lijst" id="kd-lijst">'+
+      coachClients.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avStijl(naamVan(k))+'">'+esc(naamVan(k).slice(0,2).toUpperCase())+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
+      '</div></div></div>'+
     '<div class="seg"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
     '<button class="btn ghost sm" title="Print of bewaar als PDF" onclick="window.print()"><svg class="i sm-i"><use href="#i-dl"/></svg> Export PDF</button>'+
@@ -1308,15 +1345,19 @@ async function renderMonth(){
       const d=addDays(gridStart,wk*cols+i),ds=ymd(d),isToday=ds===todayStr(),dim=calView==="maand"&&d.getMonth()!==ref.getMonth(),editing=ds===editDay;
       const dayWos=byDate[ds]||[];
       const dnum=(d.getDate()===1?MAANDKORT[d.getMonth()]+" ":"")+d.getDate();
-      let inner='<div class="mday-top">'+(dayWos.length?'':'<span class="restchip">rust</span>')+'<span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>';
+      // Elke dag: documentje + rust-chip + dagnummer, zoals het ontwerp
+      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();toast(\'Dag-notities komen in een volgende stap\')" style="cursor:pointer"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>';
+      let selectable=false;
       if(editing){
         inner+=dayWos.filter(w=>w.id!==editWid).map(mcardHtml).join("");
         inner+='<div class="ib2" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
-      }else{
-        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Add New</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
+      }else if(dayWos.length){
+        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Add New</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
         inner+=dayWos.map(mcardHtml).join("");
+      }else{
+        selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
       }
-      cells+='<div class="mday'+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'">'+inner+'</div>';
+      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
     }
     weeks+='<div class="mrow"'+gridStyle+'>'+cells+'</div>';
   }
@@ -1342,7 +1383,13 @@ function openDayMenu(ev,ds){
   const addrow=cell.querySelector(".addrow2");
   if(addrow)addrow.insertAdjacentElement("afterend",d);else cell.appendChild(d);
 }
-document.addEventListener("click",e=>{if(!e.target.closest(".daymenu")&&!e.target.closest(".addnewbtn"))document.querySelectorAll(".daymenu").forEach(x=>x.remove());});
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".daymenu")&&!e.target.closest(".addnewbtn")&&!e.target.closest(".mday.selectable"))document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  if(!e.target.closest(".progsel"))document.querySelectorAll(".progdrop.show").forEach(d=>d.classList.remove("show"));
+});
+function dagLeave(cell){const m=cell.querySelector(".daymenu");if(m)m.remove();}
+function toggleKlantDrop(ev){ev.stopPropagation();const d=document.getElementById("klantdrop");if(d)d.classList.toggle("show");}
+function filterKlantDrop(v){const z=(v||"").toLowerCase();document.querySelectorAll("#kd-lijst .pd-row").forEach(r=>{r.style.display=(r.dataset.n||"").includes(z)?"":"none";});}
 function pickWorkout(ev){ev.stopPropagation();startEdit(curDay,0);}
 async function pickRest(ev){
   ev.stopPropagation();
@@ -1479,6 +1526,7 @@ async function saveWorkout(){
 
 // ---------- LID ----------
 async function renderLid(){
+  document.body.classList.remove("coachmode");
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:today}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).eq("workout_date",todayStr());
   const w=(today||[])[0];let body;
