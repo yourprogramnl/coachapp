@@ -572,7 +572,7 @@ function oefBewerk(id){
   document.getElementById("exmodal-video").value=o?(o.youtube_id?"https://youtu.be/"+o.youtube_id:(o.video_url||"")):"";
   document.getElementById("exmodal-msg").textContent="";
   const prev=document.getElementById("exmodal-prev");
-  prev.innerHTML=o&&o.youtube_id?'<div style="cursor:pointer" onclick="this.innerHTML=\'<iframe width=&quot;100%&quot; height=&quot;220&quot; src=&quot;https://www.youtube.com/embed/'+esc(o.youtube_id)+'?autoplay=1&quot; frameborder=&quot;0&quot; allow=&quot;autoplay&quot; allowfullscreen style=&quot;border-radius:10px&quot;></iframe>\'"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/hqdefault.jpg" style="width:100%;border-radius:10px;display:block" alt=""><div class="sm muted" style="margin-top:4px">Klik om de video af te spelen</div></div>':"";
+  prev.innerHTML=o&&o.youtube_id?'<div style="cursor:pointer" onclick="this.innerHTML=\'<iframe width=&quot;100%&quot; height=&quot;220&quot; src=&quot;https://www.youtube.com/embed/'+esc(o.youtube_id)+'?autoplay=1&quot; frameborder=&quot;0&quot; allow=&quot;autoplay&quot; allowfullscreen referrerpolicy=&quot;strict-origin-when-cross-origin&quot; style=&quot;border-radius:10px&quot;></iframe><div class=&quot;sm muted&quot; style=&quot;margin-top:4px&quot;>Speelt niet af? <a href=&quot;https://youtu.be/'+esc(o.youtube_id)+'&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;>Bekijk op YouTube</a></div>\'"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/hqdefault.jpg" style="width:100%;border-radius:10px;display:block" alt=""><div class="sm muted" style="margin-top:4px">Klik om de video af te spelen</div></div>':"";
   const del=document.getElementById("exmodal-del");
   del.innerHTML=(o&&myRole()==="platform_admin")?'<button class="btn ghost sm" onclick="oefVerwijder()">Verwijderen</button>':"";
   document.getElementById("exmodal").classList.add("show");
@@ -800,7 +800,10 @@ function toggleVid(cam){
   vid.classList.add("show");
 }
 function speelAf(el,yt){
-  el.outerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+yt+'?autoplay=1&rel=0" style="width:100%;height:100%;border:0;display:block" allowfullscreen allow="autoplay; encrypted-media"></iframe>';
+  // referrerpolicy is verplicht: zonder afzender-info weigert YouTube met "Fout 153"
+  el.outerHTML='<iframe src="https://www.youtube.com/embed/'+yt+'?autoplay=1&rel=0" style="width:100%;height:100%;border:0;display:block" allowfullscreen allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+  const pop=document.querySelector(".vidpop.show .vp-cap");
+  if(pop)pop.innerHTML='Speelt niet af? <a href="https://youtu.be/'+yt+'" target="_blank" rel="noopener" style="color:#2a9fce">Bekijk op YouTube</a>';
 }
 document.addEventListener("click",e=>{
   if(!e.target.closest(".exdrop")&&!e.target.closest(".exn"))document.querySelectorAll(".exdrop.show").forEach(d=>d.classList.remove("show"));
