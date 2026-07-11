@@ -774,9 +774,9 @@ async function fillDashboard(){
   const cp=document.getElementById("cpage");if(cp)cp.innerHTML=html;
 }
 
-let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0;
+let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0,coachChipNaam="";
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["trends","i-clock","Trends",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",true],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",true],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",true],["sneltoetsen","i-keys","Sneltoetsen",true]];
-function openClient(id){calClient=id;calRef=new Date();editDay=null;editWid=null;if(!LIB.geladen)libLaad();renderClient("kalender");}
+function openClient(id){calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";if(!LIB.geladen)libLaad();renderClient("kalender");}
 function renderClient(panel){
   activePanel=panel;
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
@@ -819,10 +819,10 @@ async function vulKlantStats(p){
     const lbl=open[0].workout_date===td?"vandaag":DAGEN[(d.getDay()+6)%7].toLowerCase();
     el("cs-pills").insertAdjacentHTML("afterbegin",'<span class="cpill bad" style="font-size:10px;padding:2px 8px">workout te doen: '+esc(lbl)+'</span>');
   }
-  // naam van de coach in de kalender-kop
+  // naam van de coach in de kalender-kop (cache zodat renderMonth hem niet overschrijft)
   if(p.coach_id&&myRole()!=="coach"){
     const{data:cp}=await db.from("profiles").select("first_name").eq("id",p.coach_id).single();
-    const cc=el("cs-coach");if(cc&&cp)cc.textContent="Coach "+(cp.first_name||"");
+    if(cp){coachChipNaam=cp.first_name||"";const cc=el("cs-coach");if(cc)cc.textContent="Coach "+coachChipNaam;}
   }
 }
 let calView="maand",hideScores=false;
@@ -1026,7 +1026,7 @@ async function renderMonth(){
     '<div class="navarrows"><button onclick="prevMonth()">‹</button><button onclick="nextMonth()">›</button></div>'+
     '<button class="btn ghost sm" onclick="thisMonth()">Vandaag</button>'+
     '<div class="seg">'+seg+'</div>'+
-    '<div class="progsel" style="margin-left:auto"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((myRole()==="coach"?(ME.profile.first_name||"C"):"C").slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">Coach '+(myRole()==="coach"?esc(ME.profile.first_name||""):"")+'</div><div class="pt">1:1</div></div></div>'+
+    '<div class="progsel" style="margin-left:auto"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((myRole()==="coach"?(ME.profile.first_name||"C"):"C").slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">Coach '+esc(myRole()==="coach"?(ME.profile.first_name||""):coachChipNaam)+'</div><div class="pt">1:1</div></div></div>'+
     '<div class="progsel"><div class="pav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div></div>'+
     '<div class="seg"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
