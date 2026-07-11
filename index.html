@@ -400,13 +400,14 @@ function openClient(id){calClient=id;calRef=new Date();editDay=null;editWid=null
 function toggleSide(){sideCollapsed=!sideCollapsed;renderClient(activePanel);}
 function renderClient(panel){
   activePanel=panel;
-  const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach();
+  const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const collapse='<button class="collapsebtn" onclick="toggleSide()">'+(sideCollapsed?'»':'« inklappen')+'</button>';
   const side=SIDE.map(s=>'<button class="sidebtn'+(s[0]===panel?' on':'')+'" title="'+s[2]+'" onclick="renderClient(\''+s[0]+'\')"><span class="ic">'+s[1]+'</span><span class="txt">'+s[2]+(s[3]?' <span class="soon">later</span>':'')+'</span></button>').join("");
   const c=document.getElementById("content");
-  c.innerHTML='<span class="back" onclick="renderCoach(\'clients\')">‹ Terug naar klanten</span>'+
+  coachSection="clients"; // nav-balk blijft staan, Klanten actief
+  c.innerHTML=coachShellHtml('<span class="back" onclick="renderCoach(\'clients\')">‹ Terug naar klanten</span>'+
     '<div class="clientwrap"><div class="cside'+(sideCollapsed?' collapsed':'')+'">'+collapse+'<div class="cinfo"><div class="av">'+naamVan(p).slice(0,1)+'</div><div><div class="nm">'+naamVan(p)+'</div><div class="sub" style="font-size:11px">'+esc(p.email)+'</div></div></div>'+side+'</div>'+
-    '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>';
+    '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>');
   if(panel==="kalender")renderMonth();
   else{const lbl=(SIDE.find(s=>s[0]===panel)||[])[2]||"Onderdeel";document.getElementById("cmain").innerHTML='<h2>'+esc(lbl)+'</h2><div class="card" style="padding:24px;margin-top:10px"><div class="muted" style="line-height:1.6">Dit onderdeel komt later. We bouwen eerst de kalender en het programmeren helemaal af. Daarna voegen we '+esc(lbl.toLowerCase())+' toe — net als in CoachRx.</div></div>';}
 }
