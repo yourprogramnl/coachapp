@@ -204,6 +204,36 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .daymenu .i{width:17px;height:17px;color:#5d6570}
 .mday.tall{min-height:420px}
 .noscores .loginp,.noscores .okc{display:none!important}
+
+/* ===== Statbar, klantentabel, contact-avatars, feed-rijen (naar het ontwerp) ===== */
+.statbar2{background:#fff;border:1px solid #e7e9ec;border-radius:12px;display:grid;grid-template-columns:repeat(4,1fr);padding:20px 10px;margin-bottom:18px;text-align:center}
+.statbar2 .n{font-size:24px;font-weight:800}
+.statbar2 .n.acc{color:#2a9fce}
+.statbar2 .l{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#8a919c;margin-top:4px}
+.statbar2 select{margin-top:8px;font-size:12px;padding:5px 8px;border:1px solid #e7e9ec;border-radius:7px;background:#fff;width:auto;font-family:inherit}
+.cmav{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11.5px;color:#5d6570;font-weight:600}
+.cmav .bol{width:56px;height:56px;border-radius:50%;background:#4a4f57;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:3px solid #e7e9ec}
+.fbrow{display:flex;gap:11px;padding:12px 2px;border-top:1px solid #f0f1f3;align-items:flex-start}
+.fbrow .fbadge{width:26px;height:26px;border-radius:7px;background:#171719;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.fbrow .fbody{flex:1;min-width:0}
+.fbrow .fbody b{font-size:13px}
+.fbrow .fbody .pr2{font-size:12.5px;color:#5d6570;margin-top:3px;white-space:pre-line;line-height:1.5}
+.fbrow .fbody .loginp{max-width:340px;font-size:12px}
+.fbrow .fside{display:flex;flex-direction:column;gap:8px;align-items:center;color:#b3b9c2;flex:none}
+.fbrow .okc2{width:22px;height:22px;border-radius:6px;border:1.5px solid #27b376;color:#27b376;display:flex;align-items:center;justify-content:center}
+.fbrow .okc2.miss{border-color:#e5484d;color:#e5484d}
+.fscore{font-size:17px;font-weight:800;padding:10px 2px 2px;border-bottom:1px solid #f0f1f3;margin-bottom:2px}
+.kebab{border:none;background:none;color:#8a919c;font-size:16px;cursor:pointer;padding:2px 8px;font-family:inherit}
+.rowicons{display:flex;gap:10px;color:#b3b9c2;align-items:center}
+.rowicons .i{cursor:pointer}
+.rowicons .i:hover{color:#5d6570}
+.wchip{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px}
+.wchip.ok{background:#def4e6;color:#1d9a63}
+.wchip.laat{background:#fbe0e0;color:#e5484d}
+.wchip.leeg{background:#f0f1f3;color:#8a919c;font-weight:600}
+.tagchip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;background:#f0f2f4;color:#4a4f57}
+.tagchip .sq2{width:8px;height:8px;border-radius:2px;flex:none}
+.plusbtn{width:22px;height:22px;border:1px solid #e7e9ec;border-radius:6px;background:#fff;color:#8a919c;cursor:pointer;font-size:12px;line-height:1}
 @media print{
   .cbar,.cside,.calhead .btn,.calhead .seg,.calhead .tgl,.calhead .navarrows,.addrow2,.daymenu,.combtn,.mcard .delx,.toast2{display:none!important}
   body,.cmain{background:#fff!important}
@@ -370,6 +400,8 @@ function resultScoreTxt(r){if(!r)return"";if(r.time_seconds!=null)return Math.fl
 const KLEUREN=[["","geen kleur"],["grijs","grijs"],["roze","roze"],["oranje","oranje"],["geel","geel"],["blauw","blauw"],["groen","groen"]];
 const SCORETYPES=[["text","vrije tekst"],["time","tijd"],["load","gewicht"],["reps","reps"],["rounds_reps","rondes+reps"],["none","geen score"]];
 const selOpts=(list,cur)=>list.map(o=>'<option value="'+o[0]+'"'+(o[0]===(cur||list[0][0])?" selected":"")+'>'+o[1]+'</option>').join("");
+const AVKLEUREN=["linear-gradient(135deg,#38bdf8,#6366f1)","linear-gradient(135deg,#f472b6,#a855f7)","linear-gradient(135deg,#fb923c,#ef4444)","linear-gradient(135deg,#34d399,#0d9488)","linear-gradient(135deg,#a78bfa,#6366f1)","linear-gradient(135deg,#facc15,#f97316)"];
+const avStijl=naam=>{let h=0;for(const c of String(naam||"?"))h=(h*31+c.charCodeAt(0))>>>0;return "background:"+AVKLEUREN[h%AVKLEUREN.length];};
 
 function composePresc(b){
   if(b.kind==="conditioning")return b.notes||"";
@@ -401,6 +433,18 @@ async function loadApp(){
   if(!user){show("login");return;}
   const{data:profile}=await db.from("profiles").select("*").eq("id",user.id).single();
   ME={user,profile:profile||{role:"lid"}};
+  // Uitnodiging inwisselen (?invite=TOKEN in de link): serverside koppeling aan bedrijf/rol/coach
+  const inviteToken=new URLSearchParams(location.search).get("invite");
+  if(inviteToken){
+    const{error}=await db.rpc("redeem_invite",{p_token:inviteToken});
+    history.replaceState(null,"",location.pathname);
+    if(error)toast("Uitnodiging: "+(error.message||"inwisselen mislukt"));
+    else{
+      toast("Uitnodiging geaccepteerd, welkom!");
+      const{data:p2}=await db.from("profiles").select("*").eq("id",user.id).single();
+      if(p2)ME.profile=p2;
+    }
+  }
   const role=ME.profile.role||"lid";
   document.getElementById("roleLabel").textContent=ROLE_NL[role]||role;
   document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();
@@ -450,7 +494,7 @@ function coachShellHtml(inner){
 }
 function coachRenderSection(){
   const c=document.getElementById("content");
-  if(coachSection==="clients"){c.innerHTML=coachShellHtml(klantenHtml());return;}
+  if(coachSection==="clients"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillKlanten();return;}
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}
   if(coachSection==="coaches"){c.innerHTML=coachShellHtml('<h1>Coaches</h1><div class="spin">Laden…</div>');fillCoaches();return;}
   if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
@@ -458,24 +502,157 @@ function coachRenderSection(){
   const titles={programs:"Programma's",week:"Weekworkout",msgs:"Berichten"};
   c.innerHTML=coachShellHtml('<h1>'+esc(titles[coachSection]||"")+'</h1><div class="csoon">Deze sectie bouwen we hierna.<br>We zijn met het <b>Dashboard</b> begonnen; hier vind je straks '+esc((titles[coachSection]||"").toLowerCase())+'.</div>');
 }
-function klantenHtml(){
-  const act=myRole()==="eigenaar"?"bekijken ›":"programmeren ›";
-  const rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">'+act+'</span></div>').join("");
-  return '<h1>Klanten</h1>'+
-    '<div class="cstat" style="margin-bottom:16px"><span class="n">'+coachClients.length+'</span><span class="l">'+(myRole()==="coach"?"Mijn klanten":"Leden van het bedrijf")+'</span></div>'+
-    '<div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div>';
+// ---------- KLANTEN-pagina (naar het ontwerp) ----------
+let KDATA=null,klantPeriode=30,klantZoek="";
+async function fillKlanten(){
+  const ids=coachClients.map(p=>p.id);
+  const td=todayStr(),from90=ymd(addDays(new Date(),-89)),plus14=ymd(addDays(new Date(),14));
+  let ws=[],rs=[],msgs=[];
+  if(ids.length){
+    ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
+    const wids=ws.map(w=>w.id);
+    if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
+    msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
+  }
+  KDATA={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs};
+  klantenRender();
+}
+function klantWorkoutChip(p){
+  const td=todayStr();
+  const mijn=KDATA.ws.filter(w=>w.client_id===p.id);
+  const up=mijn.filter(w=>w.workout_date>=td).sort((a,b)=>a.workout_date.localeCompare(b.workout_date))[0];
+  if(up){
+    const d=new Date(up.workout_date+"T00:00:00");
+    const diff=Math.round((d-new Date(td+"T00:00:00"))/864e5);
+    const lbl=diff===0?"vandaag":(diff<=6?DAGVOL[(d.getDay()+6)%7]:DAGEN[(d.getDay()+6)%7].toLowerCase()+" "+d.getDate()+" "+MAANDKORT[d.getMonth()]);
+    return '<span class="wchip ok">'+esc(lbl)+'</span>';
+  }
+  const late=mijn.filter(w=>w.workout_date<td&&!KDATA.done.has(w.id)).sort((a,b)=>b.workout_date.localeCompare(a.workout_date))[0];
+  if(late){const d=new Date(late.workout_date+"T00:00:00");return '<span class="wchip laat">'+DAGEN[(d.getDay()+6)%7].toLowerCase()+' '+d.getDate()+' '+MAANDKORT[d.getMonth()]+'</span>';}
+  return '<span class="wchip leeg">geen gepland</span>';
+}
+function klantComp(list){
+  const td=todayStr(),fromP=ymd(addDays(new Date(),-(klantPeriode-1)));
+  const sched=KDATA.ws.filter(w=>w.workout_date>=fromP&&w.workout_date<=td&&list.some(c=>c.id===w.client_id));
+  if(!sched.length)return null;
+  return Math.round(sched.filter(w=>KDATA.done.has(w.id)).length/sched.length*100);
+}
+function klantRijen(){
+  const zoek=klantZoek.toLowerCase();
+  const lijst=coachClients.filter(p=>!zoek||naamVan(p).toLowerCase().includes(zoek)||(p.email||"").toLowerCase().includes(zoek)).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
+  return lijst.map(p=>{
+    const wp=klantComp([p]);
+    return '<div class="trow click" onclick="openClient(\''+p.id+'\')">'+
+      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(p)+'</div><div class="sm muted">Laatste consult: n.v.t.</div></div></div>'+
+      '<div style="flex:1.2">'+klantWorkoutChip(p)+'</div>'+
+      '<div style="flex:1.2"><span class="wchip leeg">niet ingesteld</span></div>'+
+      '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
+      '<div style="flex:1.6" onclick="event.stopPropagation()"><button class="plusbtn" onclick="toast(\'Tags komen in een volgende stap\')">+</button></div>'+
+      '<button class="kebab" onclick="event.stopPropagation();toast(\'Opties komen later\')">⋮</button></div>';
+  }).join("");
+}
+function klantZoekF(v){klantZoek=v;const h=document.getElementById("klantrows");if(h)h.innerHTML=klantRijen()||'<div class="trow"><span class="muted">Geen klanten gevonden.</span></div>';}
+function klantenRender(){
+  const cp=document.getElementById("cpage");if(!cp||!KDATA)return;
+  const msgIds=new Set(KDATA.msgs.map(m=>m.athlete_id));
+  const totaal=klantComp(coachClients);
+  const cmTot=coachClients.length?Math.round(coachClients.filter(p=>msgIds.has(p.id)).length/coachClients.length*100):null;
+  cp.innerHTML='<div class="statbar2">'+
+    '<div><div class="n">'+coachClients.length+'</div><div class="l">Actieve klanten</div></div>'+
+    '<div><div class="n acc">'+(totaal==null?'–':totaal+'%')+'</div><div class="l">Compliance</div><div><select onchange="klantPeriode=parseInt(this.value);klantenRender()">'+[7,30,90].map(n=>'<option value="'+n+'"'+(klantPeriode===n?' selected':'')+'>Workout: '+n+' dagen</option>').join('')+'</select></div></div>'+
+    '<div><div class="n">–</div><div class="l">Consult-rate</div></div>'+
+    '<div><div class="n acc">'+(cmTot==null?'–':cmTot+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
+    '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'+
+      '<div class="search2"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek op naam of tag…" value="'+esc(klantZoek)+'" oninput="klantZoekF(this.value)"></div>'+
+      '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="toast(\'Tags beheren komt in een volgende stap\')">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
+    '<div class="ctabs"><button class="on">Actief <span style="font-weight:600;color:#8a919c">'+coachClients.length+'</span></button><button onclick="toast(\'Archief komt in een volgende stap\')">Archief <span style="font-weight:600;color:#8a919c">0</span></button></div>'+
+    '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1.2">Lifestyle</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
+    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div></div>';
+}
+function exportKlanten(){
+  const td=todayStr();
+  const kop="Naam;E-mail;Volgende workout;Compliance ("+klantPeriode+" dagen)";
+  const regels=coachClients.map(p=>{
+    const wp=klantComp([p]);
+    const up=KDATA.ws.filter(w=>w.client_id===p.id&&w.workout_date>=td).sort((a,b)=>a.workout_date.localeCompare(b.workout_date))[0];
+    return [naamVan(p).replace(/;/g,","),p.email||"",up?up.workout_date:"-",wp==null?"-":wp+"%"].join(";");
+  });
+  const blob=new Blob(["﻿"+kop+"\n"+regels.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="klanten.csv";a.click();URL.revokeObjectURL(a.href);
+  toast("klanten.csv gedownload");
 }
 async function fillCoaches(){
   let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
   const{data:coaches}=await q;
-  const rows=(coaches||[]).map(p=>{
-    const n=coachClients.filter(k=>k.coach_id===p.id).length;
-    return '<div class="row"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email||"")+'</div></div><span class="tag">'+esc(ROLE_NL[p.role]||p.role)+'</span><span class="tag">'+n+' klanten</span></div>';
+  // Prestaties per coach: compliance (30 dagen) en contactmomenten (deze week) van zijn klanten
+  const ids=coachClients.map(p=>p.id);
+  const td=todayStr(),from30=ymd(addDays(new Date(),-29));
+  let ws=[],rs=[],msgs=[];
+  if(ids.length){
+    ws=((await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from30).lte("workout_date",td)).data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+    const wids=ws.map(w=>w.id);
+    if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
+    msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
+  }
+  const doneWo=new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id));
+  const gesprokenIds=new Set(msgs.map(m=>m.athlete_id));
+  const compVan=list=>{const sched=ws.filter(w=>list.some(c=>c.id===w.client_id));if(!sched.length)return null;return Math.round(sched.filter(w=>doneWo.has(w.id)).length/sched.length*100);};
+  const totaalComp=compVan(coachClients);
+  const totaalCm=coachClients.length?Math.round(coachClients.filter(p=>gesprokenIds.has(p.id)).length/coachClients.length*100):null;
+  const rows=(coaches||[]).sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
+    const kl=coachClients.filter(k=>k.coach_id===c.id);
+    const wp=compVan(kl);
+    const cm=kl.length?Math.round(kl.filter(p=>gesprokenIds.has(p.id)).length/kl.length*100):null;
+    const rol=c.role==="eigenaar"?'<span class="cpill purple">Eigenaar</span>':'<span class="cpill teal">Coach</span>';
+    return '<div class="trow"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avStijl(naamVan(c))+'">'+esc(naamVan(c).slice(0,2).toUpperCase())+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
+      '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
+      '<div style="flex:1" class="muted">–</div>'+
+      '<div style="flex:1.2">'+(cm==null?'<span class="muted">0%</span>':'<b style="color:'+(cm>=70?'#1d9a63':'#8a919c')+'">'+cm+'%</b>')+'</div>'+
+      '<div style="flex:1">'+rol+'</div>'+
+      '<button class="kebab" onclick="toast(\'Opties komen later\')">⋮</button></div>';
   }).join("");
   const cp=document.getElementById("cpage");
-  if(cp)cp.innerHTML='<h1>Coaches</h1><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen coaches.</span></div>')+'</div>';
+  if(!cp)return;
+  cp.innerHTML='<div class="statbar2">'+
+    '<div><div class="n">'+coachClients.length+'</div><div class="l">Klanten totaal</div></div>'+
+    '<div><div class="n acc">'+(totaalComp==null?'–':totaalComp+'%')+'</div><div class="l">Compliance</div></div>'+
+    '<div><div class="n">–</div><div class="l">Consult-rate</div></div>'+
+    '<div><div class="n acc">'+(totaalCm==null?'–':totaalCm+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h1 style="margin:0">Coaches</h1><button class="btn" onclick="openInvModal(\'coach\')">+ Coach toevoegen</button></div>'+
+    '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1">Workout %</div><div style="flex:1">Consult-rate</div><div style="flex:1.2">Contactmomenten</div><div style="flex:1">Rol</div><div style="width:30px"></div></div>'+
+    (rows||'<div class="trow"><span class="muted">Nog geen coaches.</span></div>')+'</div>';
 }
+// ---------- Uitnodigen (klant of coach) via de invites-tabel ----------
+let invRol="lid";
+async function openInvModal(rol){
+  ensureLibModals();invRol=rol;
+  document.getElementById("inv-titel").textContent=rol==="coach"?"Coach toevoegen":"Klant toevoegen";
+  document.getElementById("inv-coach-veld").style.display=rol==="coach"?"none":"";
+  document.getElementById("inv-lid-veld").style.display=rol==="coach"?"none":"";
+  ["inv-vn","inv-an","inv-email"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("inv-result").style.display="none";
+  document.getElementById("inv-maak").style.display="";
+  document.getElementById("inv-msg").textContent="";
+  document.getElementById("invmodal").classList.add("show");
+  if(rol!=="coach"){
+    const{data:cs}=await db.from("profiles").select("id,first_name,last_name,email").in("role",["coach","eigenaar"]).eq("company_id",ME.profile.company_id);
+    document.getElementById("inv-coach").innerHTML=(cs||[]).map(c=>'<option value="'+c.id+'"'+(c.id===ME.user.id?" selected":"")+'>'+naamVan(c)+'</option>').join("");
+  }
+}
+async function invAanmaken(){
+  const vn=document.getElementById("inv-vn").value.trim(),an=document.getElementById("inv-an").value.trim(),em=document.getElementById("inv-email").value.trim();
+  const msg=document.getElementById("inv-msg");
+  if(!em){msg.textContent="Vul een e-mailadres in.";return;}
+  const rec={company_id:ME.profile.company_id,coach_id:invRol==="coach"?null:document.getElementById("inv-coach").value||null,email:em,first_name:vn||null,last_name:an||null,role:invRol,membership_type:invRol==="coach"?null:document.getElementById("inv-type").value,created_by:ME.user.id,expires_at:new Date(Date.now()+14*864e5).toISOString()};
+  const{data,error}=await db.from("invites").insert(rec).select().single();
+  if(error){msg.textContent=error.message||"Aanmaken mislukt";return;}
+  document.getElementById("inv-link").value=location.origin+location.pathname+"?invite="+data.token;
+  document.getElementById("inv-result").style.display="";
+  document.getElementById("inv-maak").style.display="none";
+  msg.textContent="";
+}
+function kopieerInvLink(){const i=document.getElementById("inv-link");i.select();navigator.clipboard.writeText(i.value).then(()=>toast("Link gekopieerd"),()=>toast("Kopiëren lukte niet, selecteer de link zelf"));}
 async function fillCompanies(){
   const{data:companies}=await db.from("companies").select("*").order("created_at");
   const rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc((co.name||"?").slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
@@ -540,7 +717,16 @@ function ensureLibModals(){
       '<div class="seg" id="ins-types"><button class="on" onclick="insType(\'all\',this)">Alles</button><button onclick="insType(\'warmup\',this)">Warm-ups</button><button onclick="insType(\'week\',this)">Weekworkouts</button><button onclick="insType(\'cooldown\',this)">Cooldowns</button><button onclick="insType(\'other\',this)">Workouts</button></div></div>'+
       '<div id="ins-kleuren" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center"></div>'+
       '<div style="max-height:52vh;overflow:auto;border:1px solid #e7e9ec;border-radius:10px"><div id="ins-lijst"></div></div>'+
-      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="closeIns()">Sluiten</button></div></div></div>';
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="closeIns()">Sluiten</button></div></div></div>'+
+    '<div class="lmodal" id="invmodal"><div class="box"><h3 id="inv-titel">Klant toevoegen</h3>'+
+      '<div class="field"><label>Voornaam</label><input id="inv-vn"></div>'+
+      '<div class="field"><label>Achternaam</label><input id="inv-an"></div>'+
+      '<div class="field"><label>E-mailadres</label><input id="inv-email" type="email" placeholder="naam@voorbeeld.nl"></div>'+
+      '<div class="field" id="inv-coach-veld"><label>Coach</label><select id="inv-coach"></select></div>'+
+      '<div class="field" id="inv-lid-veld"><label>Lidmaatschap</label><select id="inv-type"><option value="one_on_one">1-op-1 klant</option><option value="free_blog">Gratis blog-lid</option></select></div>'+
+      '<div id="inv-result" style="display:none;margin-bottom:12px"><div class="sm" style="margin-bottom:6px;font-weight:700">Uitnodigingslink (14 dagen geldig)</div><div style="display:flex;gap:6px"><input id="inv-link" readonly style="flex:1;font-size:11.5px"><button class="btn sm" onclick="kopieerInvLink()">Kopieer</button></div><div class="sm muted" style="margin-top:6px">Stuur deze link zelf naar de klant. Die maakt er een eigen account mee aan en hangt dan meteen aan het juiste bedrijf en de juiste coach.</div></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" id="inv-maak" onclick="invAanmaken()">Uitnodiging aanmaken</button><button class="btn ghost" onclick="document.getElementById(\'invmodal\').classList.remove(\'show\')">Sluiten</button></div>'+
+      '<div class="msg" id="inv-msg"></div></div></div>';
   document.body.appendChild(d);
 }
 async function libLaad(){
@@ -717,7 +903,7 @@ async function fillDashboard(){
   }
   const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
   if(ME.profile.company_id){
-    blog=((await db.from("workouts").select("id,title,workout_date").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
+    blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
   DASH={ws,rs,msgs,tasks,blog,blogRes};
@@ -750,7 +936,7 @@ function dashRender(){
     }
   });
   const attnRows=attn.filter(a=>dashFilter==="alles"||(dashFilter==="tedoen"&&a.teDoen));
-  const attnHtml=attnRows.length?'<div class="attn-card">'+attnRows.map(a=>'<div class="attn-row click" onclick="openClient(\''+a.p.id+'\')"><div class="cavc">'+esc(naamVan(a.p).slice(0,2).toUpperCase())+'</div><div class="nm">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div></div>').join("")+'</div>'
+  const attnHtml=attnRows.length?'<div class="attn-card">'+attnRows.map(a=>'<div class="attn-row click" onclick="openClient(\''+a.p.id+'\')"><div class="cavc" style="'+avStijl(naamVan(a.p))+'">'+esc(naamVan(a.p).slice(0,2).toUpperCase())+'</div><div class="nm">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div><div class="rowicons"><svg class="i sm-i" onclick="event.stopPropagation();toast(\'Berichten komen later\')"><use href="#i-chat"/></svg><svg class="i sm-i"><use href="#i-eye"/></svg><svg class="i sm-i"><use href="#i-cal"/></svg></div></div>').join("")+'</div>'
     :'<div class="attn-card"><div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist of nog moet doen, zie je het hier.</div></div>';
   const chips='<div style="display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap">'+
     '<span class="fchip'+(dashFilter==="alles"?" on":"")+'" onclick="dashSetFilter(\'alles\')">Alles</span>'+
@@ -763,59 +949,68 @@ function dashRender(){
   const cmPct=coachClients.length?Math.round(gesproken/coachClients.length*100):0;
   const mon=mondayOf(new Date());
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2)+"-"+mon.getFullYear();
-  const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten ('+cmPct+'%)</h2>'+
-    '<div class="sm muted" style="margin-bottom:8px">'+gesproken+' van '+coachClients.length+' klanten deze week gesproken · week van maandag '+monLbl+'</div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+coachClients.map(p=>'<span class="fchip" style="display:inline-flex;align-items:center;gap:6px"><span class="cavc" style="width:20px;height:20px;font-size:8px">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</span>').join("")+'</div>';
+  const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten <span class="muted" style="font-weight:600">('+cmPct+'%)</span></h2>'+
+    '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+coachClients.length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
+    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+coachClients.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten
   const met=echte.filter(w=>rs.some(r=>r.workout_id===w.id)).slice(0,6);
   const feedHtml=met.length?met.map(w=>{
     const p=byId[w.client_id]||{};
     const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     let done=0;
-    const blokjes=blocks.map(b=>{
-      const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
+    const rij=(badge,titel,tekst,r)=>{
       const sc=resultScoreTxt(r);
-      return '<div class="cblk'+(b.color?" k-"+esc(b.color):"")+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+(r?'<span class="okc'+(r.status==="missed"?" miss":"")+'"><svg class="i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'')+'</div>';
-    }).join("");
-    return '<div class="feedcard"><div class="fh"><div class="cavc">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Due '+esc(w.workout_date)+'</div></div><b style="font-size:12px">'+done+'/'+blocks.length+'</b></div>'+
-      (w.warmup?'<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>':'')+blokjes+
-      '<div class="notesend" style="display:flex;gap:6px;margin-top:8px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')">💬 Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
+      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+'</div>'+
+        '<div class="fside">'+(r?'<span class="okc2'+(r.status==="missed"?" miss":"")+'"><svg class="i sm-i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'')+'<svg class="i sm-i" onclick="toast(\'History komt in een volgende stap\')" style="cursor:pointer"><use href="#i-hist"/></svg></div></div>';
+    };
+    let rows="";
+    if(w.warmup)rows+=rij("W","Warmup",w.warmup,null);
+    blocks.forEach(b=>{
+      const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
+      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r);
+    });
+    return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Due '+esc(w.workout_date)+'</div></div></div>'+
+      '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
+      '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
-  // Mijn cijfers met 7/30/90 dagen
+  // Mijn cijfers met 7/30/90 dagen (dropdown zoals het ontwerp)
   const fromP=ymd(addDays(new Date(),-(dashPeriode-1)));
   const sched=echte.filter(w=>w.workout_date>=fromP&&w.workout_date<=td);
   const done=sched.filter(w=>doneWo.has(w.id)).length;
   const pct=sched.length?Math.round(done/sched.length*100):null;
   const ringStyle=pct==null?'background:#e5e8eb':'background:conic-gradient(var(--accent) 0 '+pct+'%, #e5e8eb '+pct+'% 100%)';
-  const ringHtml='<div class="ctabs" style="margin-bottom:10px">'+[7,30,90].map(n=>'<button class="'+(dashPeriode===n?"on":"")+'" onclick="dashSetPeriode('+n+')">'+n+' dagen</button>').join("")+'</div>'+
-    '<div class="statecard"><div class="ring" style="'+ringStyle+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
-    '<div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">'+(pct==null?'Geen geplande workouts in deze periode.':'Aandeel van de voorgeschreven workouts dat je klanten echt deden ('+dashPeriode+' dagen).')+'</div></div></div>';
+  const perSel='<select onchange="dashSetPeriode(parseInt(this.value))" style="width:auto;font-size:12px;padding:5px 8px">'+[7,30,90].map(n=>'<option value="'+n+'"'+(dashPeriode===n?" selected":"")+'>'+n+' dagen</option>').join("")+'</select>';
+  const ringHtml='<div class="statecard"><div class="ring" style="'+ringStyle+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
+    '<div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">'+(pct==null?'Geen geplande workouts in deze periode.':'Percentage van de voorgeschreven workouts dat je klanten echt gedaan hebben.')+'</div></div></div>';
   // Mijn taken (echt, uit de database)
   const open=tasks.filter(t=>!t.done),af=tasks.filter(t=>t.done);
   const lijst=dashTaken==="open"?open:af;
   const taakRows=lijst.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:7px 4px;border-bottom:1px solid #f0f1f3"><input type="checkbox" '+(t.done?"checked":"")+' onchange="taakToggle(\''+t.id+'\',this.checked)" style="width:15px;height:15px;flex:none"><span style="flex:1;font-size:12.5px;'+(t.done?"text-decoration:line-through;color:#8a919c":"")+'">'+esc(t.body)+'</span><span style="color:#b3b9c2;cursor:pointer;padding:0 4px" onclick="taakWeg(\''+t.id+'\')">×</span></div>').join("");
-  const takenHtml='<div style="display:flex;gap:6px;margin-bottom:9px"><input id="taak-inp" placeholder="Nieuwe taak…" style="flex:1;padding:8px 10px;font-size:12.5px" onkeydown="if(event.key===\'Enter\')taakToevoegen()"><button class="btn sm" onclick="taakToevoegen()">+ Taak</button></div>'+
-    '<div class="ctabs" style="margin-bottom:8px"><button class="'+(dashTaken==="open"?"on":"")+'" onclick="dashSetTaken(\'open\')">Open ('+open.length+')</button><button class="'+(dashTaken==="af"?"on":"")+'" onclick="dashSetTaken(\'af\')">Afgerond ('+af.length+')</button></div>'+
-    '<div class="statecard" style="display:block;padding:6px 12px">'+(taakRows||'<div class="cempty" style="padding:12px 4px">'+(dashTaken==="open"?"Alles afgerond. Voeg hierboven een taak toe.":"Nog geen afgeronde taken.")+'</div>')+'</div>';
+  const takenHtml='<div style="display:flex;gap:8px;margin-bottom:9px"><span class="fchip'+(dashTaken==="open"?" on":"")+'" onclick="dashSetTaken(\'open\')">Open'+(open.length?' ('+open.length+')':'')+'</span><span class="fchip'+(dashTaken==="af"?" on":"")+'" onclick="dashSetTaken(\'af\')">Afgerond'+(af.length?' ('+af.length+')':'')+'</span></div>'+
+    '<div id="taak-row" style="display:none;gap:6px;margin-bottom:9px"><input id="taak-inp" placeholder="Nieuwe taak…" style="flex:1;padding:8px 10px;font-size:12.5px" onkeydown="if(event.key===\'Enter\')taakToevoegen()"><button class="btn sm" onclick="taakToevoegen()">Opslaan</button></div>'+
+    '<div class="statecard" style="display:block;padding:6px 12px">'+(taakRows||'<div class="cempty" style="padding:16px 4px">'+(dashTaken==="open"?'Alles afgerond.<br><a style="color:var(--accent);cursor:pointer;font-weight:700" onclick="taakInvoer()">Klik hier</a> om een nieuwe taak te maken.':'Nog geen afgeronde taken.')+'</div>')+'</div>';
   // Workout van de week
   const deelnemers=new Set(blogRes.map(r=>r.athlete_id)).size;
   const vandaagN=blogRes.filter(r=>(r.created_at||"").slice(0,10)===td).length;
-  const weekHtml=blog?'<div class="statecard" style="display:block"><div style="font-weight:700;font-size:13px">'+esc(blog.title||"Weekworkout")+'</div><div class="sm muted" style="margin:4px 0 10px">'+esc(blog.workout_date)+' · '+deelnemers+' deelnemers · '+vandaagN+' scores vandaag</div><button class="btn sm" onclick="coachGo(\'week\')">Bekijk leaderboard</button></div>'
+  const blogB=((blog||{}).blocks||[]).slice().sort((a,b)=>a.sort-b.sort)[0]||null;
+  const blogSub=(blogB?(blogB.prescription||blogB.exercise||"").split("\n")[0]+" · ":"")+deelnemers+" deelnemers · "+vandaagN+" scores vandaag";
+  const weekHtml=blog?'<div class="statecard" style="display:block"><div style="font-weight:800;font-size:14px">"'+esc(blog.title||"Weekworkout")+'"</div><div class="sm muted" style="margin:4px 0 12px">'+esc(blogSub)+'</div><button class="btn sm" onclick="coachGo(\'week\')">Bekijk leaderboard</button></div>'
     :'<div class="statecard" style="display:block"><div class="cempty" style="padding:8px 4px">Nog geen weekworkout ingepland.</div></div>';
   cp.innerHTML='<h1>Dashboard</h1><div class="dashgrid">'+
     '<div class="panel">'+
       '<div class="ctabs"><button class="on">Aandacht nodig</button><button onclick="toast(\'Inzichten komen later\')">Inzichten</button></div>'+
       chips+attnHtml+cmHtml+
-      '<div style="display:flex;align-items:center;gap:14px;margin:22px 0 6px"><h2 style="margin:0">Activiteit</h2><div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
+      '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px"><h2 style="margin:0">Activiteit</h2><div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
       feedHtml+
     '</div>'+
     '<div>'+
-      '<div class="sideblock"><div class="shead"><h2>Mijn cijfers</h2></div>'+ringHtml+'</div>'+
-      '<div class="sideblock"><div class="shead"><h2>Mijn taken</h2></div>'+takenHtml+'</div>'+
+      '<div class="sideblock"><div class="shead"><h2>Mijn cijfers</h2>'+perSel+'</div>'+ringHtml+'</div>'+
+      '<div class="sideblock"><div class="shead"><h2>Mijn taken</h2><button class="btn sm" onclick="taakInvoer()">+ Taak</button></div>'+takenHtml+'</div>'+
       '<div class="sideblock"><div class="shead"><h2>Workout van de week</h2>'+(blog?'<span class="cpill ok">live</span>':'')+'</div>'+weekHtml+'</div>'+
     '</div>'+
   '</div>';
 }
+function taakInvoer(){const r=document.getElementById("taak-row");if(!r)return;r.style.display="flex";const i=document.getElementById("taak-inp");if(i)i.focus();}
 async function taakToevoegen(){
   const inp=document.getElementById("taak-inp");const v=(inp.value||"").trim();if(!v)return;
   const{data,error}=await db.from("tasks").insert({company_id:ME.profile.company_id,owner_id:ME.user.id,body:v}).select().single();
