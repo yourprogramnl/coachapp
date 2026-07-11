@@ -274,7 +274,9 @@ body.coachmode .cbar{border-radius:0;margin-bottom:0;padding:0 26px;position:sti
 body.coachmode #cpage{max-width:1420px;margin:0 auto;padding:24px 26px 70px}
 body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 #cpage.fullbleed .client-layout{border:none;border-radius:0;min-height:calc(100vh - 52px);overflow:visible}
-#cpage.fullbleed .cside-in{position:sticky;top:52px;height:calc(100vh - 52px);min-height:0;overflow:auto}
+#cpage.fullbleed .cside-in{position:sticky;top:52px;height:calc(100vh - 52px);min-height:0;overflow-y:auto;overflow-x:hidden}
+/* ingeklapt: geen eigen scrollbalk, zodat de tooltips naast de balk zichtbaar zijn */
+#cpage.fullbleed .client-layout.collapsed .cside-in{overflow:visible}
 .progsel{cursor:pointer;position:relative}
 .progsel .car{color:#b3b9c2;font-size:11px;margin-left:4px}
 .progdrop{position:absolute;top:calc(100% + 8px);left:0;z-index:160;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 18px 50px rgba(15,18,22,.18);width:280px;padding:8px;display:none;text-align:left}
@@ -1256,7 +1258,7 @@ let kalWeken=10,kalBusy=false,kalScrollBound=false,kalLabelMaand=null,kalScrollD
 const DAGVOL=["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"];
 function kalSetView(v){calView=v;editDay=null;editWid=null;if(v==="maand")kalScrollDoel="top";renderMonth();}
 function kalLabelUpdate(){
-  // het bovenste zichtbare element (weekrij of maandbalk) bepaalt het label
+  // het label = de maand-sectie waarin de bovenste zichtbare rij valt
   const kop=document.querySelector("#calwrap .mhead7");
   // als de dagenbalk niet plakt (mobiel) geldt de bovenrand van het scherm
   const grens=Math.max(kop?kop.getBoundingClientRect().bottom+8:150,12);
@@ -1265,14 +1267,17 @@ function kalLabelUpdate(){
     const lbl=document.getElementById("mnd-label");
     if(lbl){const t=MAANDVOL[d.getMonth()];lbl.textContent=t.charAt(0).toUpperCase()+t.slice(1)+" "+d.getFullYear();}
   };
+  const vanLabel=el=>{const p=(el.dataset.manchor||"").split("-");if(p.length===3)zet(new Date(parseInt(p[1],10),parseInt(p[2],10),1));};
+  let sectie=null; // laatste maandbalk die al boven de kop is doorgeschoven
   for(const el of document.querySelectorAll("#calwrap .mrow[data-d], #calwrap .mlabel")){
-    if(el.getBoundingClientRect().bottom<=grens)continue;
+    const onderGrens=el.getBoundingClientRect().bottom>grens;
     if(el.classList.contains("mlabel")){
-      const p=(el.dataset.manchor||"").split("-");
-      if(p.length===3)zet(new Date(parseInt(p[1],10),parseInt(p[2],10),1));
-    }else{
-      zet(addDays(new Date(el.dataset.d+"T00:00:00"),3));
+      if(!onderGrens){sectie=el;continue;}
+      vanLabel(el);return; // maandbalk zelf bovenaan in beeld
     }
+    if(!onderGrens)continue;
+    if(sectie)vanLabel(sectie); // rij hoort bij de laatst gepasseerde maandbalk
+    else zet(new Date(calRef.getFullYear(),calRef.getMonth(),1)); // vóór de eerste balk = startmaand
     return;
   }
 }
