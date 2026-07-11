@@ -48,18 +48,19 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .i{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;vertical-align:-2px}
 .i.sm-i{width:13px;height:13px}
 .client-layout{display:flex;background:#fff;border:1px solid #e7e9ec;border-radius:12px;overflow:hidden;min-height:640px}
-.cside{width:230px;flex-shrink:0;background:#16181c;color:#e6e8ea;padding:20px 0 16px;display:flex;flex-direction:column}
-.cside .prof{padding:0 18px 14px;border-bottom:1px solid #2a2d33}
-.cside .bigav{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;margin-bottom:10px}
-.cside .cnm{font-weight:700;font-size:14px}
-.cside .cinfo{font-size:11.5px;color:#8f959d;margin-top:5px;line-height:1.6}
-.cside .streak{display:flex;align-items:center;gap:7px;font-size:12px;color:#c9cdd4;padding:11px 18px;border-bottom:1px solid #2a2d33}
-.cnav{padding:8px;flex:1;overflow:auto}
-.cnav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8.5px 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:#aab0b8;background:none;border:none;cursor:pointer;font-family:inherit}
+.cside{width:230px;flex-shrink:0;background:#16181c;color:#e6e8ea}
+.cside-in{padding:14px 0 8px;display:flex;flex-direction:column;min-height:100%}
+.cside .prof{padding:0 16px 10px;border-bottom:1px solid #2a2d33}
+.cside .bigav{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;margin-bottom:8px}
+.cside .cnm{font-weight:700;font-size:13px}
+.cside .cinfo{font-size:11px;color:#8f959d;margin-top:4px;line-height:1.5}
+.cside .streak{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#c9cdd4;padding:7px 16px;border-bottom:1px solid #2a2d33}
+.cnav{padding:6px;flex:1}
+.cnav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:6px 10px;border-radius:7px;font-size:12px;font-weight:600;color:#aab0b8;background:none;border:none;cursor:pointer;font-family:inherit}
 .cnav button:hover{background:#22252b;color:#fff}
 .cnav button.on{background:#2a2e35;color:#fff}
-.cnav .i{width:14px;height:14px}
-.cnav .soon{margin-left:auto;font-size:9px;color:#6b7280;border:1px solid #33373d;border-radius:6px;padding:1px 5px}
+.cnav .i{width:13px;height:13px}
+.cnav .soon{margin-left:auto;font-size:8.5px;color:#6b7280;border:1px solid #33373d;border-radius:6px;padding:1px 5px}
 .cmain{flex:1;min-width:0;display:flex;flex-direction:column;background:#f6f7f8}
 .calhead{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid #e7e9ec;flex-wrap:wrap}
 .calhead .month{font-size:16px;font-weight:800}
@@ -273,7 +274,7 @@ body.coachmode .cbar{border-radius:0;margin-bottom:0;padding:0 26px;position:sti
 body.coachmode #cpage{max-width:1420px;margin:0 auto;padding:24px 26px 70px}
 body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 #cpage.fullbleed .client-layout{border:none;border-radius:0;min-height:calc(100vh - 52px);overflow:visible}
-#cpage.fullbleed .cside{position:sticky;top:52px;align-self:flex-start;max-height:calc(100vh - 52px);overflow:auto}
+#cpage.fullbleed .cside-in{position:sticky;top:52px;height:calc(100vh - 52px);min-height:0;overflow:auto}
 .progsel{cursor:pointer;position:relative}
 .progsel .car{color:#b3b9c2;font-size:11px;margin-left:4px}
 .progdrop{position:absolute;top:calc(100% + 8px);left:0;z-index:160;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 18px 50px rgba(15,18,22,.18);width:280px;padding:8px;display:none;text-align:left}
@@ -347,7 +348,7 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .spark i{flex:1;background:#cfe9f4;border-radius:3px 3px 0 0;min-height:3px}
 .spark i.hi{background:#3eb3e0}
 /* Zijbalk in-/uitklappen (zoals het ontwerp) */
-.collapsebtn{width:34px;height:34px;border-radius:50%;background:#22252b;color:#aab0b8;display:flex;align-items:center;justify-content:center;font-size:15px;border:1px solid #2c3037;padding:0;cursor:pointer;margin:14px 12px 4px auto;flex:none;font-family:inherit}
+.collapsebtn{width:30px;height:30px;border-radius:50%;background:#22252b;color:#aab0b8;display:flex;align-items:center;justify-content:center;font-size:14px;border:1px solid #2c3037;padding:0;cursor:pointer;margin:8px 12px 2px auto;flex:none;font-family:inherit}
 .collapsebtn:hover{background:#2c3037;color:#fff}
 .mini-sess{display:none}
 .client-layout.collapsed .cside{width:52px;overflow:visible;z-index:70}
@@ -1199,13 +1200,13 @@ function renderClient(panel){
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
   c.innerHTML=coachShellHtml('<div class="client-layout'+(sideCollapsed?' collapsed':'')+'">'+
-    '<div class="cside"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'" title="'+naamVan(p)+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
+    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'" title="'+naamVan(p)+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
     '<div id="cs-dagen" style="display:none;margin-top:8px"><span class="tag" style="background:#2a2e35;border-color:#33373d;color:#c9cdd4"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span></div></div>'+
     '<div class="mini-sess" id="cs-minisess" title="Sessies afgerond">…</div>'+
     '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+
     '<div class="streak" style="gap:6px;flex-wrap:wrap" id="cs-pills"><span class="cpill" style="background:#2a2e35;color:#8f959d;font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span></div>'+
     '<div class="cnav">'+side+'</div>'+
-    '<button class="collapsebtn" title="Zijbalk in-/uitklappen" onclick="toggleSide()"><span id="cl-arrow">'+(sideCollapsed?"→":"←")+'</span></button></div>'+
+    '<button class="collapsebtn" title="Zijbalk in-/uitklappen" onclick="toggleSide()"><span id="cl-arrow">'+(sideCollapsed?"→":"←")+'</span></button></div></div>'+
     '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>');
   const pg=document.getElementById("cpage");if(pg)pg.classList.add("fullbleed");
   ensureLibModals();
