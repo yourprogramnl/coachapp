@@ -373,6 +373,16 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .sp-note .nh .i{cursor:pointer}
 .sp-note .nh .i:hover{color:#fff}
 .sp-note .nb{padding:9px 11px;font-size:11.5px;color:#c9cdd4;line-height:1.65;white-space:pre-line}
+.sp-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:12px;color:#e6e8ea}
+.ampm{display:flex;gap:6px}
+.ampm button{border:1px solid #3a3f47;border-radius:6px;padding:3px 10px;font-size:10.5px;font-weight:700;color:#8f959d;background:none;cursor:pointer;font-family:inherit}
+.ampm button.on{background:#3eb3e0;border-color:#3eb3e0;color:#fff}
+.sp-dark{background:#2e3238;border-radius:8px 8px 0 0;padding:8px 11px;font-size:12px;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.sp-dark .i{cursor:pointer;color:#8f959d}
+.sp-dark .i:hover{color:#fff}
+.sp-list{background:#26292f;border-radius:0 0 8px 8px;padding:10px 12px;font-size:11px;color:#c9cdd4;line-height:1.85;max-height:330px;overflow:auto}
+.sp-chip .x{color:#8f959d;cursor:pointer}
+.sp-chip .x:hover{color:#fff}
 .cbar .logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:20px;color:#fff}
 .cbar .logo b{color:var(--accent)}
 .cnav2{display:flex;gap:2px;flex:1;flex-wrap:wrap}
@@ -1150,7 +1160,7 @@ async function stuurNote(aid,el){
 }
 
 let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0,coachChipNaam="";
-const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["trends","i-clock","Trends",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",true],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",true],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",true],["sneltoetsen","i-keys","Sneltoetsen",true]];
+const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",true],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",true],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",true],["sneltoetsen","i-keys","Sneltoetsen",true]];
 function openClient(id){
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
   kalWeken=10;kalScrollDoel="top";kalLabelMaand=null;prevScrollY=null;
@@ -1164,7 +1174,7 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()"};
+    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()"};
     const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
     const later=acties[s[0]]?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
@@ -1633,6 +1643,122 @@ async function noteVerwijder(id){
   const{error}=await db.from("notes").delete().eq("id",id);
   if(error){toast(error.message);return;}
   await notesLaad();notesRender();toast("Notitie verwijderd");
+}
+// ---------- TRAININGSSCHEMA (zoals het ontwerp; client_info.data.schema) ----------
+const SCHEMA_DAGEN=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
+const SCHEMA_DELEN=["AM","PM"];
+async function openSchema(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-schema");
+  if(sp){sp.classList.toggle("show");return;}
+  sp=document.createElement("div");sp.id="sp-schema";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Training Schedule</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await ciLaad();
+  const sch=ciData.schema||{};
+  sp.innerHTML='<div class="sp-head"><h3>Training Schedule</h3><span class="sp-x" onclick="document.getElementById(\'sp-schema\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sm" style="color:#8b919b;margin-bottom:12px">Zo weet je wanneer dit lid kan trainen.</div>'+
+    '<div id="schema-dagen">'+SCHEMA_DAGEN.map(dag=>{
+      const aan=sch[dag]||[];
+      return '<div class="sp-row">'+dag+'<div class="ampm">'+SCHEMA_DELEN.map(deel=>'<button class="'+(aan.includes(deel)?"on":"")+'" onclick="this.classList.toggle(\'on\')">'+deel+'</button>').join("")+'</div></div>';
+    }).join("")+'</div>'+
+    '<button class="sp-btn" style="margin-top:14px" onclick="schemaOpslaan()">Save schedule</button>';
+}
+async function schemaOpslaan(){
+  const sch={};
+  document.querySelectorAll("#schema-dagen .sp-row").forEach((rij,i)=>{
+    const aan=[...rij.querySelectorAll(".ampm button")].filter(b=>b.classList.contains("on")).map(b=>b.textContent);
+    if(aan.length)sch[SCHEMA_DAGEN[i]]=aan;
+  });
+  ciData.schema=sch;
+  const err=await ciBewaar();
+  if(err){toast(err.message||"Opslaan mislukt");return;}
+  toast("Trainingsschema opgeslagen");
+}
+// ---------- PRIORITEITEN (zoals het ontwerp; client_info.data.prio) ----------
+async function openPrio(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-prio");
+  if(sp){sp.classList.toggle("show");return;}
+  sp=document.createElement("div");sp.id="sp-prio";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Priorities</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await ciLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Priorities</h3><span class="sp-x" onclick="document.getElementById(\'sp-prio\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sp-field"><input id="prio-nieuw" placeholder="Prioriteit toevoegen…" onkeydown="if(event.key===\'Enter\')prioOpslaan()"></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="prioOpslaan()">Save priority</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="document.getElementById(\'prio-nieuw\').value=\'\'">Cancel</button></div>'+
+    '<div id="prio-lijst"></div>';
+  prioRender();
+}
+function prioRender(){
+  const host=document.getElementById("prio-lijst");if(!host)return;
+  const lijst=ciData.prio||[];
+  host.innerHTML=lijst.map((p,i)=>'<div class="sp-chip">'+esc(p)+' <span class="x" onclick="prioWeg('+i+')">✕</span></div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen prioriteiten. Voeg de eerste toe.</div>';
+}
+async function prioOpslaan(){
+  const inp=document.getElementById("prio-nieuw");
+  const tekst=(inp.value||"").trim();
+  if(!tekst){toast("Typ eerst een prioriteit");return;}
+  ciData.prio=[tekst,...(ciData.prio||[])];
+  const err=await ciBewaar();
+  if(err){toast(err.message||"Opslaan mislukt");return;}
+  inp.value="";prioRender();toast("Prioriteit opgeslagen");
+}
+async function prioWeg(i){
+  (ciData.prio||[]).splice(i,1);
+  const err=await ciBewaar();
+  if(err){toast(err.message||"Opslaan mislukt");return;}
+  prioRender();
+}
+// ---------- MATERIAAL (zoals het ontwerp; client_info.data.materiaal) ----------
+let equipEditId=null;
+async function openEquip(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-equip");
+  if(sp){sp.classList.toggle("show");return;}
+  sp=document.createElement("div");sp.id="sp-equip";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Equipment Lists</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await ciLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Equipment Lists</h3><span class="sp-x" onclick="document.getElementById(\'sp-equip\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<button class="sp-btn" style="margin-bottom:14px" onclick="equipForm()">Add equipment</button>'+
+    '<div id="equip-form" style="display:none">'+
+    '<div class="sp-field"><label>Location</label><input id="eq-loc" placeholder="Bijv. gym, thuis, op reis…"></div>'+
+    '<div class="sp-field"><label>Equipment</label><textarea id="eq-items" placeholder="Materiaal, één per regel…" style="min-height:100px"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="equipOpslaan()">Save equipment</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="equipFormSluit()">Cancel</button></div></div>'+
+    '<div id="equip-lijst"></div>';
+  equipRender();
+}
+function equipRender(){
+  const host=document.getElementById("equip-lijst");if(!host)return;
+  const lijst=ciData.materiaal||[];
+  host.innerHTML=lijst.map(e=>'<div class="sp-dark">'+esc(e.loc)+' <svg class="i sm-i" onclick="equipBewerk(\''+e.id+'\')"><use href="#i-gear"/></svg></div><div class="sp-list">'+esc(e.items||"").replace(/\n/g,"<br>")+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen materiaallijsten. Voeg de eerste toe.</div>';
+}
+function equipForm(){
+  equipEditId=null;
+  document.getElementById("eq-loc").value="";
+  document.getElementById("eq-items").value="";
+  document.getElementById("equip-form").style.display="";
+  document.getElementById("eq-loc").focus();
+}
+function equipFormSluit(){equipEditId=null;const f=document.getElementById("equip-form");if(f)f.style.display="none";}
+function equipBewerk(id){
+  const e=(ciData.materiaal||[]).find(x=>String(x.id)===String(id));if(!e)return;
+  equipEditId=e.id;
+  document.getElementById("eq-loc").value=e.loc;
+  document.getElementById("eq-items").value=e.items||"";
+  document.getElementById("equip-form").style.display="";
+}
+async function equipOpslaan(){
+  const loc=document.getElementById("eq-loc").value.trim();
+  const items=document.getElementById("eq-items").value.trim();
+  if(!loc){toast("Vul eerst een locatie in (bijv. gym, thuis, op reis)");return;}
+  ciData.materiaal=ciData.materiaal||[];
+  if(equipEditId){ciData.materiaal.forEach(e=>{if(String(e.id)===String(equipEditId)){e.loc=loc;e.items=items;}});}
+  else ciData.materiaal.unshift({id:crypto.randomUUID(),loc,items});
+  const err=await ciBewaar();
+  if(err){toast(err.message||"Opslaan mislukt");return;}
+  equipFormSluit();equipRender();toast("Materiaallijst opgeslagen");
 }
 function prevMonth(){navStep(-1);}
 function nextMonth(){navStep(1);}
