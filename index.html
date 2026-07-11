@@ -166,6 +166,42 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .vidchip .x{color:#b3b9c2;cursor:pointer}
 .ic-btn.has-video{color:#2a9fce}
 .cblk.k-yellow{background:#fdf4d5}.cblk.k-blue{background:#e0edfd}.cblk.k-purple{background:#ece4fb}.cblk.k-red{background:#fbe0e0}.cblk.k-green{background:#def4e6}.cblk.k-orange{background:#fdeada}
+
+/* ===== Bouwer in ontwerp-stijl (ib2) + dag-menu + superset-cirkels ===== */
+.ib2{background:#fff;border:1.5px solid #3eb3e0;border-radius:12px;padding:9px;font-size:12px;box-shadow:0 14px 40px rgba(15,18,22,.10);text-align:left;margin-bottom:6px}
+.ib2 .sec{background:#f6f7f8;border-radius:9px;padding:9px 10px;margin-bottom:8px;position:relative;border:none}
+.ib2 input,.ib2 textarea{width:100%;border:none;background:none;font-size:12px;padding:3px 0;resize:none;font-family:inherit;color:#1d2129;min-height:22px;overflow:hidden}
+.ib2 ::placeholder{color:#b3b9c2}
+.ib2 .row-title{font-weight:800}
+.ib2 .demolink{font-size:11px;color:#b3b9c2;cursor:pointer;padding:3px 0}
+.ib2 .demolink:hover{color:#2a9fce}
+.ib2 .exhead{display:flex;align-items:center;gap:7px}
+.ib2 .exhead .lbl-badge{background:none;color:#2a9fce;font-weight:800;font-size:12.5px;flex:none;min-width:0;height:auto;padding:0;display:inline;border-radius:0}
+.ib2 .exhead .lbl-badge::after{content:")"}
+.ib2 .exhead input{font-weight:700}
+.ib2 .extools{display:flex;gap:6px;color:#b3b9c2;margin-left:auto;flex:none;align-items:center}
+.ib2 .extools .ic-btn{color:#b3b9c2}
+.ib2 .extools .ic-btn:hover{color:#5d6570}
+.ib2 .extools .ic-btn.has-video{color:#2a9fce}
+.ib2 .corner{position:absolute;top:8px;right:9px;display:flex;gap:8px;color:#b3b9c2}
+.ib2 .addbtns{display:flex;gap:6px;margin-bottom:8px}
+.ib2 .addbtns button{flex:1;border:1px solid #e7e9ec;border-radius:8px;padding:8px 0;font-size:11.5px;font-weight:700;background:#fff;cursor:pointer;font-family:inherit;color:#1d2129}
+.ib2 .addbtns button:hover{border-color:#b3b9c2}
+.ib2 .addbtns .iconly{flex:0 0 34px;display:flex;align-items:center;justify-content:center;color:#8a919c}
+.ib2 .foot{display:flex;gap:8px;flex-wrap:wrap}
+.ib2 .foot .save{background:#3eb3e0;color:#fff;font-weight:700;border-radius:8px;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit}
+.ib2 .foot .save:hover{background:#2a9fce}
+.ib2 .foot .cancel{border:1px solid #e7e9ec;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;background:#fff;cursor:pointer;font-family:inherit;color:#1d2129}
+.ib2 .exrow{border:none;padding:9px 10px;margin-bottom:0}
+.ib2 .exrow.linked{border-left:none}
+.ib2 .f-opts select{border:1px solid #e7e9ec;width:auto}
+.sslink{display:flex;justify-content:center;align-items:center;width:24px;height:24px;border:1px solid #e7e9ec;border-radius:50%;background:#fff;cursor:pointer;margin:-2px auto 3px;position:relative;z-index:3;color:#8a919c}
+.sslink:hover{border-color:#9aa0a8}
+.sslink.aan{border-color:#3eb3e0;color:#2a9fce;background:#eaf6fb}
+.daymenu{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 14px 40px rgba(15,18,22,.14);margin-bottom:8px}
+.daymenu button{display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px 6px;border-radius:9px;font-size:11px;font-weight:700;color:#4a4f57;background:none;border:none;cursor:pointer;font-family:inherit}
+.daymenu button:hover{background:#f0f1f3}
+.daymenu .i{width:17px;height:17px;color:#5d6570}
 /* builder popover (zoals CoachRx-kaart) */
 .builderin{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:11px;margin-bottom:6px;box-shadow:0 8px 24px rgba(20,40,90,.10)}
 .bp-sec{background:#f1f4f8;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
@@ -260,6 +296,11 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
   <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.4" y="5.4" width="8" height="8.4" rx="1.4"/><path d="M10.6 3H4a1.5 1.5 0 0 0-1.5 1.5V11"/></symbol>
   <symbol id="i-dl" viewBox="0 0 16 16"><path d="M8 2.5v7.5M8 10 5.4 7.4M8 10l2.6-2.6M2.8 12.6h10.4"/></symbol>
   <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 16 16"><rect x="1.8" y="4.2" width="8.4" height="7.6" rx="1.5"/><path d="M10.2 7.2 14 5v6l-3.8-2.2"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 1 1 1.6 3.9"/><path d="M2.3 8.5 2.5 6l2.3 1.2M8 5.4v2.8l1.9 1.2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.8 8S4 4.2 8 4.2 14.2 8 14.2 8 12 11.8 8 11.8 1.8 8 1.8 8z"/><circle cx="8" cy="8" r="1.7"/></symbol>
+  <symbol id="i-keys" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8.5" rx="1.5"/><path d="M4 6.5h.01M6.5 6.5h.01M9 6.5h.01M11.5 6.5h.01M4 8.8h.01M6.5 8.8h.01M9 8.8h.01M11.5 8.8h.01M5 11h6"/></symbol>
+  <symbol id="i-walk" viewBox="0 0 16 16"><circle cx="8.6" cy="2.8" r="1.3"/><path d="M8.4 4.6 6.6 8l1.8 2-1 3.6M6.6 8 4.8 9.2M8.4 10l2.4 1.2 1 2.4M8.8 6l2 1.4"/></symbol>
 </svg>
 <div class="wrap">
 
@@ -403,7 +444,7 @@ function coachRenderSection(){
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}
   if(coachSection==="coaches"){c.innerHTML=coachShellHtml('<h1>Coaches</h1><div class="spin">Laden…</div>');fillCoaches();return;}
   if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
-  if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());libLaad();libLijst();return;}
+  if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());ensureLibModals();libLaad();libLijst();return;}
   const titles={programs:"Programma's",week:"Weekworkout",msgs:"Berichten"};
   c.innerHTML=coachShellHtml('<h1>'+esc(titles[coachSection]||"")+'</h1><div class="csoon">Deze sectie bouwen we hierna.<br>We zijn met het <b>Dashboard</b> begonnen; hier vind je straks '+esc((titles[coachSection]||"").toLowerCase())+'.</div>');
 }
@@ -462,8 +503,13 @@ function libShellHtml(){
         '<div id="lib-lijst"><div class="cempty">Bibliotheek laden…</div></div>'+
         '<div id="lib-pag" style="display:flex;gap:6px;justify-content:center;align-items:center;padding:14px;flex-wrap:wrap"></div>'+
       '</div>'+
-    '</div></div>'+
-    '<div class="lmodal" id="exmodal"><div class="box"><h3 id="exmodal-titel">Oefening bewerken</h3>'+
+    '</div></div>';
+}
+// De popups staan los van de bibliotheek-pagina, zodat ze ook vanuit de kalender werken
+function ensureLibModals(){
+  if(document.getElementById("libmodals"))return;
+  const d=document.createElement("div");d.id="libmodals";
+  d.innerHTML='<div class="lmodal" id="exmodal"><div class="box"><h3 id="exmodal-titel">Oefening bewerken</h3>'+
       '<div class="field"><label>Naam</label><input id="exmodal-naam"></div>'+
       '<div class="field"><label>Video (YouTube-link of andere video-URL)</label><input id="exmodal-video" placeholder="https://youtu.be/…"></div>'+
       '<div id="exmodal-prev" style="margin-bottom:14px"></div>'+
@@ -475,7 +521,17 @@ function libShellHtml(){
       '<div class="field"><label>Kleur</label><div class="kleurdots" id="tpl-kleuren"></div></div>'+
       '<div class="field"><label>Instructies</label><textarea id="tpl-instr" style="min-height:140px"></textarea></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
-      '<div class="msg" id="tplmodal-msg"></div></div></div>';
+      '<div class="msg" id="tplmodal-msg"></div></div></div>'+
+    '<div class="lmodal" id="insmodal" style="z-index:390"><div class="box" style="width:960px;max-width:96vw">'+
+      '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Template invoegen <span class="sm muted" id="ins-dag" style="font-weight:600;font-size:12.5px"></span></h3>'+
+      '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'+
+      '<div class="search2" style="max-width:none;flex:1;min-width:220px"><input id="ins-zoek" placeholder="Zoek op naam, tekst of kleurnaam (bijv. kracht)…" oninput="insRender()"></div>'+
+      '<button class="btn" style="white-space:nowrap" onclick="tplBewerk(null)">+ Nieuwe template</button>'+
+      '<div class="seg" id="ins-types"><button class="on" onclick="insType(\'all\',this)">Alles</button><button onclick="insType(\'warmup\',this)">Warm-ups</button><button onclick="insType(\'week\',this)">Weekworkouts</button><button onclick="insType(\'cooldown\',this)">Cooldowns</button><button onclick="insType(\'other\',this)">Workouts</button></div></div>'+
+      '<div id="ins-kleuren" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center"></div>'+
+      '<div style="max-height:52vh;overflow:auto;border:1px solid #e7e9ec;border-radius:10px"><div id="ins-lijst"></div></div>'+
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="closeIns()">Sluiten</button></div></div></div>';
+  document.body.appendChild(d);
 }
 async function libLaad(){
   if(LIB.geladen||LIB.busy){libKop();return;}
@@ -628,6 +684,7 @@ async function tplOpslaan(){
   if(fout){msg.textContent=fout.message||"Opslaan mislukt.";msg.className="msg err";return;}
   LIB.geladen=false;libModalDicht();toast(wasEdit?"Template bijgewerkt":"Template toegevoegd");
   await libLaad();
+  const im=document.getElementById("insmodal");if(im&&im.classList.contains("show"))insRender();
 }
 async function tplVerwijder(){
   if(!LIB.editTpl||!confirm("Deze template verwijderen?"))return;
@@ -708,21 +765,55 @@ async function fillDashboard(){
 }
 
 let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0;
-const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",true],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",true],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",true]];
+const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["trends","i-clock","Trends",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",true],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",true],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",true],["sneltoetsen","i-keys","Sneltoetsen",true]];
 function openClient(id){calClient=id;calRef=new Date();editDay=null;editWid=null;if(!LIB.geladen)libLaad();renderClient("kalender");}
 function renderClient(panel){
   activePanel=panel;
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
-  const side=SIDE.map(s=>'<button class="'+(s[0]===panel?'on':'')+'" onclick="renderClient(\''+s[0]+'\')"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(s[3]?'<span class="soon">later</span>':'')+'</button>').join("");
+  const side=SIDE.map(s=>'<button class="'+(s[0]===panel?'on':'')+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="renderClient(\''+s[0]+'\')"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(s[3]?'<span class="soon">later</span>':'')+'</button>').join("");
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
   c.innerHTML=coachShellHtml('<div class="client-layout">'+
-    '<div class="cside"><div class="prof"><div class="bigav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'</div></div>'+
+    '<div class="cside"><div class="prof"><div class="bigav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div></div>'+
+    '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+
+    '<div class="streak" style="gap:6px;flex-wrap:wrap" id="cs-pills"><span class="cpill" style="background:#2a2e35;color:#8f959d;font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span></div>'+
     '<div class="cnav">'+side+'</div></div>'+
     '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>');
+  ensureLibModals();
+  vulKlantStats(p);
   if(panel==="kalender")renderMonth();
   else{const lbl=(SIDE.find(s=>s[0]===panel)||[])[2]||"Onderdeel";document.getElementById("cmain").innerHTML='<div style="padding:24px"><h2>'+esc(lbl)+'</h2><div class="card" style="padding:24px;margin-top:10px;max-width:560px"><div class="muted" style="line-height:1.6">Dit onderdeel komt later. We bouwen eerst de kalender en het programmeren helemaal af. Daarna voegen we '+esc(lbl.toLowerCase())+' toe, net als in het ontwerp.</div></div></div>';}
+}
+// Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
+async function vulKlantStats(p){
+  const[wq,rq]=await Promise.all([
+    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id),
+    db.from("results").select("workout_id,status").eq("athlete_id",p.id)
+  ]);
+  const ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+  const doneIds=new Set((rq.data||[]).filter(r=>r.status==="completed").map(r=>r.workout_id));
+  const el=id=>document.getElementById(id);
+  if(el("cs-sessies"))el("cs-sessies").textContent=ws.filter(w=>doneIds.has(w.id)).length;
+  // streak: aaneengesloten weken (t/m deze of vorige week) met minstens één voltooide workout
+  const weekSet=new Set(ws.filter(w=>doneIds.has(w.id)).map(w=>ymd(mondayOf(new Date(w.workout_date+"T00:00:00")))));
+  let wk=mondayOf(new Date()),streak=0;
+  if(!weekSet.has(ymd(wk)))wk=addDays(wk,-7);
+  while(weekSet.has(ymd(wk))){streak++;wk=addDays(wk,-7);}
+  if(el("cs-streak"))el("cs-streak").textContent=streak+(streak===1?" week":" weken");
+  // workout te doen deze week
+  const td=todayStr(),mon=ymd(mondayOf(new Date())),sun=ymd(addDays(mondayOf(new Date()),6));
+  const open=ws.filter(w=>w.workout_date>=mon&&w.workout_date<=sun&&!doneIds.has(w.id)).sort((a,b)=>a.workout_date.localeCompare(b.workout_date));
+  if(open.length&&el("cs-pills")){
+    const d=new Date(open[0].workout_date+"T00:00:00");
+    const lbl=open[0].workout_date===td?"vandaag":DAGEN[(d.getDay()+6)%7].toLowerCase();
+    el("cs-pills").insertAdjacentHTML("afterbegin",'<span class="cpill bad" style="font-size:10px;padding:2px 8px">workout te doen: '+esc(lbl)+'</span>');
+  }
+  // naam van de coach in de kalender-kop
+  if(p.coach_id&&myRole()!=="coach"){
+    const{data:cp}=await db.from("profiles").select("first_name").eq("id",p.coach_id).single();
+    const cc=el("cs-coach");if(cc&&cp)cc.textContent="Coach "+(cp.first_name||"");
+  }
 }
 function prevMonth(){editDay=null;editWid=null;calRef=new Date(calRef.getFullYear(),calRef.getMonth()-1,1);renderMonth();}
 function nextMonth(){editDay=null;editWid=null;calRef=new Date(calRef.getFullYear(),calRef.getMonth()+1,1);renderMonth();}
@@ -746,8 +837,8 @@ function kiesBlokKleur(el,k){
 }
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div><select class="f-score" title="Scoretype: bepaalt het invoerveld van de sporter" style="margin-left:auto;flex:0 0 auto">'+selOpts(SCORETYPES,b.score_type)+'</select></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-oefid="'+(b.oefening_id||"")+'"><div class="exr-head"><span class="lbl-badge">A</span><input class="exn" placeholder="Exercise Name" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)"><span class="exr-tools"><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></span><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false">🎥</button></div><input class="f-presc" placeholder="Tempo, Reps, Sets, Rest" value="'+esc(b.prescription||composePresc(b))+'">'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
-function condRow(b){b=b||{};return '<div class="exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'"><div class="exr-head"><span class="lbl-badge">D</span><input class="exn" placeholder="Conditioning Name" value="'+esc(b.exercise||"")+'"><span class="exr-tools"><button class="ic-btn lnkb'+(b.linked?' on':'')+'" title="Superset met vorige" onclick="toggleLink(this)">🔗</button><button class="ic-btn" title="Omhoog" onclick="moveRow(this,-1)">↑</button><button class="ic-btn" title="Omlaag" onclick="moveRow(this,1)">↓</button><button class="ic-btn" title="Dupliceer" onclick="dupRow(this)">⧉</button><button class="ic-btn" title="Verwijder" onclick="delRow(this)">×</button></span></div><textarea class="f-desc" placeholder="Conditioning description, notes, etc">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-oefid="'+(b.oefening_id||"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" autocomplete="off"><span class="extools"><button class="ic-btn" title="History" onclick="toast(\'History komt in een volgende stap\');return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="History" onclick="toast(\'History komt in een volgende stap\');return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=(r.querySelector(".f-score")||{}).value||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;if(kind==="conditioning")return{kind,linked,exercise,color,score_type,notes:(r.querySelector(".f-desc").value||"").trim()};return{kind:"exercise",linked,exercise,color,score_type,oefening_id,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
@@ -810,16 +901,24 @@ document.addEventListener("click",e=>{
   if(!e.target.closest(".vidpop")&&!e.target.closest(".cam"))document.querySelectorAll(".vidpop.show").forEach(d=>d.classList.remove("show"));
 });
 function relabel(){
-  const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length)return;
+  const host=document.getElementById("exrows");if(!host)return;
+  host.querySelectorAll(".sslink").forEach(x=>x.remove());
+  const rows=[...host.querySelectorAll(".exrow")];if(!rows.length)return;
   rows[0].dataset.linked="0";rows[0].classList.remove("linked");
   let groups=[];
   rows.forEach((r,i)=>{if(i>0&&r.dataset.linked==="1"){groups[groups.length-1].push(r);}else{groups.push([r]);}});
   groups.forEach((g,gi)=>{const L=String.fromCharCode(65+gi);g.forEach((r,pos)=>{const bd=r.querySelector(".lbl-badge");if(bd)bd.textContent=g.length>1?L+(pos+1):L;});});
-  rows.forEach((r,i)=>{const lb=r.querySelector(".lnkb");if(lb){lb.style.display=i===0?"none":"";lb.classList.toggle("on",r.dataset.linked==="1");}});
+  // superset-cirkels tussen de blokken (zoals het ontwerp)
+  rows.forEach((r,i)=>{
+    if(i===rows.length-1)return;
+    const d=document.createElement("div");
+    d.className="sslink"+(rows[i+1].dataset.linked==="1"?" aan":"");
+    d.title="Koppel als superset";
+    d.innerHTML='<svg class="i sm-i"><use href="#i-link"/></svg>';
+    d.onclick=ev=>{ev.stopPropagation();const nxt=rows[i+1];const on=nxt.dataset.linked!=="1";nxt.dataset.linked=on?"1":"0";nxt.classList.toggle("linked",on);relabel();};
+    r.parentNode.insertBefore(d,rows[i+1]);
+  });
 }
-function toggleLink(btn){const r=btn.closest(".exrow");const on=r.dataset.linked!=="1";r.dataset.linked=on?"1":"0";r.classList.toggle("linked",on);relabel();}
-function moveRow(btn,dir){const r=btn.closest(".exrow");if(dir<0){const p=r.previousElementSibling;if(p)r.parentNode.insertBefore(r,p);}else{const n=r.nextElementSibling;if(n)r.parentNode.insertBefore(n,r);}relabel();}
-function dupRow(btn){const r=btn.closest(".exrow");const o=rowToObj(r);r.insertAdjacentHTML("afterend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();}
 function delRow(btn){btn.closest(".exrow").remove();relabel();}
 function addExBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRow({}));relabel();}
 function addCondBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRow({}));relabel();}
@@ -828,25 +927,33 @@ function dupLast(){const rows=[...document.querySelectorAll("#exrows .exrow")];i
 function inlineBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   let rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
-  return '<div class="bp-sec">'+
-      '<div class="titlerow"><input id="w_title" class="ibt" placeholder="Title" value="'+esc(w.title||"")+'"><button class="iconbtn" title="Voorbeeld">👁</button><button class="iconbtn" title="Video toevoegen">🎥</button></div>'+
-      '<input id="w_notes" class="ibs" placeholder="Coach&#39;s Notes" value="'+esc(w.coach_notes||"")+'">'+
-      '<input id="w_warmup" class="ibs" placeholder="Add warmup..." value="'+esc(w.warmup||"")+'">'+
-      '<div class="demolink">Add demo videos to warmup</div>'+
+  return '<div class="sec">'+
+      '<div class="corner"><span title="Zichtbaar voor de sporter"><svg class="i sm-i"><use href="#i-eye"/></svg></span><span title="Video toevoegen"><svg class="i sm-i"><use href="#i-cam"/></svg></span></div>'+
+      '<input id="w_title" class="row-title" placeholder="Titel" value="'+esc(w.title||"")+'">'+
+      '<textarea id="w_notes" rows="1" placeholder="Coach&#39;s notes">'+esc(w.coach_notes||"")+'</textarea>'+
+      '<div style="border-top:1px solid #e7e9ec;margin:6px 0 4px"></div>'+
+      '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
+      '<div class="demolink">Demo-video&#39;s aan warming-up toevoegen</div>'+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="bprow"><button class="btn ghost addbtn" onclick="addExBtn()">+ Exercise</button><button class="btn ghost addbtn" onclick="addCondBtn()">+ Conditioning</button><button class="ic-btn" title="Dupliceer laatste" onclick="dupLast()" style="font-size:16px">⧉</button></div>'+
-    '<div class="bp-sec"><input id="w_cooldown" class="ibs" style="margin-top:0" placeholder="Add cooldown..." value="'+esc(w.cooldown||"")+'"><div class="demolink">Add demo videos to cooldown</div></div>'+
-    '<div class="bprow"><button class="btn" id="saveW" onclick="saveWorkout()">Save Workout</button><button class="btn ghost" onclick="cancelEdit()">Cancel</button></div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea><div class="demolink">Demo-video&#39;s aan cooldown toevoegen</div></div>'+
+    '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+'</div>'+
     '<div class="msg" id="wmsg" style="font-size:11px;min-height:0"></div>';
 }
 function startEdit(ds,idx){editWid=null;editDay=ds;editIdx=idx;renderMonth();}
 function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wid;editDay=w.workout_date;editIdx=idx;renderMonth();}
 function cancelEdit(){editWid=null;editDay=null;renderMonth();}
 
-let monthResults={};
+let monthResults={},monthByDate={};
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
+    return '<div class="mcard planned" onclick="editWorkout(\''+w.id+'\',0)">'+
+      '<div class="msc"><span style="color:#27b376">Rest Day</span><span class="delx" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')">×</span></div>'+
+      '<div class="cblk"><div class="pr" style="color:#8a919c">No instructions</div></div>'+
+      '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
+  }
   let done=0,total=0,inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{
@@ -874,7 +981,7 @@ async function renderMonth(){
   const ref=calRef,first=new Date(ref.getFullYear(),ref.getMonth(),1);
   const gridStart=mondayOf(first),gridEnd=addDays(gridStart,41);
   const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
-  monthWorkouts={};const byDate={};(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
+  monthWorkouts={};monthByDate={};const byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
   // Gelogde resultaten van dit lid voor de zichtbare workouts (per blok)
   monthResults={};
   const wids=(workouts||[]).map(w=>w.id);
@@ -889,7 +996,8 @@ async function renderMonth(){
     '<div class="navarrows"><button onclick="prevMonth()">‹</button><button onclick="nextMonth()">›</button></div>'+
     '<button class="btn ghost sm" onclick="thisMonth()">Vandaag</button>'+
     '<div class="seg"><button onclick="toast(\'Dag-weergave komt in de volgende stap\')">Dag</button><button onclick="toast(\'Week-weergave komt in de volgende stap\')">Week</button><button class="on">Maand</button></div>'+
-    '<div class="progsel" style="margin-left:auto"><div class="pav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div></div>'+
+    '<div class="progsel" style="margin-left:auto"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((myRole()==="coach"?(ME.profile.first_name||"C"):"C").slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">Coach '+(myRole()==="coach"?esc(ME.profile.first_name||""):"")+'</div><div class="pt">1:1</div></div></div>'+
+    '<div class="progsel"><div class="pav">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div></div>'+
     '<div class="seg"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button></div>'+
     '<button class="tgl" onclick="toast(\'Zonder scores komt in een volgende stap\')"><span class="sw"></span> Zonder scores</button>'+
     '<button class="btn ghost sm" onclick="toast(\'Export PDF komt in een volgende stap\')"><svg class="i sm-i"><use href="#i-dl"/></svg> Export PDF</button>'+
@@ -904,9 +1012,9 @@ async function renderMonth(){
       let inner='<div class="mday-top">'+(dayWos.length?'':'<span class="restchip">rust</span>')+'<span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>';
       if(editing){
         inner+=dayWos.filter(w=>w.id!==editWid).map(mcardHtml).join("");
-        inner+='<div class="builderin">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
+        inner+='<div class="ib2" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else{
-        inner+='<div class="addrow2"><button class="addnewbtn" onclick="startEdit(\''+ds+'\','+i+')">+ Add New</button><button class="sqbtn" onclick="toast(\'Workout kopiëren komt in een volgende stap\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
+        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Add New</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
         inner+=dayWos.map(mcardHtml).join("");
       }
       cells+='<div class="mday'+(isToday?' today-cell':'')+(dim?' dim2':'')+'">'+inner+'</div>';
@@ -914,9 +1022,138 @@ async function renderMonth(){
     weeks+='<div class="mrow">'+cells+'</div>';
   }
   m.innerHTML=calhead+'<div class="calscroll"><div class="mhead7">'+head+'</div>'+weeks+'</div>';
-  if(editDay)relabel();
+  if(editDay){relabel();groei();}
 }
 async function delWorkout(wid){if(!confirm("Deze workout verwijderen?"))return;await db.from("workouts").delete().eq("id",wid);if(editWid===wid){editWid=null;editDay=null;}renderMonth();}
+
+// ---------- Dag-menu, klembord en Template invoegen (zoals het ontwerp) ----------
+let curDay=null,KLEMBORD=null,insDoel="cel",insTypeF="all",insKleur="",insBlog=[];
+function groei(){document.querySelectorAll(".ib2 textarea").forEach(t=>{t.style.height="auto";t.style.height=t.scrollHeight+"px";});}
+document.addEventListener("input",e=>{if(e.target.matches&&e.target.matches(".ib2 textarea")){e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}});
+function openDayMenu(ev,ds){
+  ev.stopPropagation();
+  curDay=ds;
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  const cell=ev.target.closest(".mday");if(!cell)return;
+  const d=document.createElement("div");d.className="daymenu";
+  d.innerHTML='<button title="Workout toevoegen" onclick="pickWorkout(event)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
+    '<button title="Dag op rustdag zetten" onclick="pickRest(event)"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>'+
+    '<button title="Template of weekworkout invoegen" onclick="pickProgram(event)"><svg class="i"><use href="#i-doc"/></svg> Programma</button>'+
+    '<button title="Gekopieerde workout plakken" onclick="pickPaste(event)"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>';
+  const addrow=cell.querySelector(".addrow2");
+  if(addrow)addrow.insertAdjacentElement("afterend",d);else cell.appendChild(d);
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".daymenu")&&!e.target.closest(".addnewbtn"))document.querySelectorAll(".daymenu").forEach(x=>x.remove());});
+function pickWorkout(ev){ev.stopPropagation();startEdit(curDay,0);}
+async function pickRest(ev){
+  ev.stopPropagation();
+  const{error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:"Rest Day"});
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  toast("Dag ingesteld als rustdag");renderMonth();
+}
+function kopieerDag(ds){
+  const wos=monthByDate[ds]||[];
+  if(!wos.length){toast("Geen workout op deze dag om te kopiëren");return;}
+  const w=wos[0];
+  KLEMBORD={title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+    blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id}))};
+  toast("Workout gekopieerd, ga naar een dag en kies Plakken");
+}
+async function pickPaste(ev){
+  ev.stopPropagation();
+  if(!KLEMBORD){toast("Nog niets gekopieerd, gebruik het kopieer-icoon bij een dag met workout");return;}
+  const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:KLEMBORD.title,coach_notes:KLEMBORD.coach_notes,warmup:KLEMBORD.warmup,cooldown:KLEMBORD.cooldown}).select().single();
+  if(error){toast(error.message||"Plakken mislukt");return;}
+  if(KLEMBORD.blocks.length){
+    const{error:be}=await db.from("blocks").insert(KLEMBORD.blocks.map(b=>Object.assign({workout_id:w.id},b)));
+    if(be){toast(be.message);return;}
+  }
+  toast("Workout geplakt");renderMonth();
+}
+async function laadInsBlog(){
+  if(!ME.profile.company_id){insBlog=[];return;}
+  const{data}=await db.from("workouts").select("*, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(10);
+  insBlog=data||[];
+}
+async function pickProgram(ev){ev.stopPropagation();insDoel="cel";await openInsModal("op "+curDay);}
+function openInsBouwer(){insDoel="bouwer";openInsModal("als blok in deze workout");}
+async function openInsModal(lbl){
+  ensureLibModals();
+  insTypeF="all";insKleur="";
+  document.getElementById("ins-dag").textContent=lbl;
+  const z=document.getElementById("ins-zoek");if(z)z.value="";
+  document.querySelectorAll("#ins-types button").forEach((b,i)=>b.classList.toggle("on",i===0));
+  document.getElementById("insmodal").classList.add("show");
+  document.getElementById("ins-lijst").innerHTML='<div class="cempty">Templates laden…</div>';
+  if(!LIB.geladen)await libLaad();
+  if(!insBlog.length)await laadInsBlog();
+  insKleurenRender();insRender();
+}
+function closeIns(){const m=document.getElementById("insmodal");if(m)m.classList.remove("show");}
+function insType(t,btn){insTypeF=t;document.querySelectorAll("#ins-types button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");insRender();}
+function insKleurenRender(){document.getElementById("ins-kleuren").innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(insKleur===k?" aan":"")+'" onclick="insKleurF(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("");}
+function insKleurF(k){insKleur=insKleur===k?"":k;insKleurenRender();insRender();}
+function insRender(){
+  const host=document.getElementById("ins-lijst");if(!host)return;
+  const v=(document.getElementById("ins-zoek").value||"").toLowerCase().trim();
+  const weekRij=w=>{
+    const txt=[w.warmup,...(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>(b.exercise||"")+(b.prescription?"\n"+b.prescription:"")),w.cooldown].filter(Boolean).join("\n\n");
+    return '<div class="trow" style="align-items:flex-start;background:#f0f8fc"><div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR.blue+'"></span></div>'+
+      '<div style="flex:1.6"><b>'+esc(w.title||"Weekworkout")+'</b><div class="sm muted" style="margin-top:2px">weekworkout · gedeeld leaderboard · '+esc(w.workout_date||"")+'</div></div>'+
+      '<div style="flex:2.4" class="sm muted">'+esc(txt).replace(/\n/g,"<br>")+'</div>'+
+      '<button class="btn sm" style="width:86px;justify-content:center" onclick="insWeekwod(\''+w.id+'\')">Invoegen</button></div>';
+  };
+  if(insTypeF==="week"){
+    host.innerHTML=insBlog.filter(w=>!v||(w.title||"").toLowerCase().includes(v)).map(weekRij).join("")||'<div class="cempty">Nog geen weekworkouts in de database.</div>';
+    return;
+  }
+  const hits=LIB.tpl.filter(o=>{
+    if(insTypeF!=="all"&&o.type!==insTypeF)return false;
+    if(insKleur&&o.kleur!==insKleur)return false;
+    if(!v)return true;
+    return (o.naam||"").toLowerCase().includes(v)||(o.instructies||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v)||(LEGNAAM[o.kleur]||"").toLowerCase().includes(v);
+  });
+  let vast="";
+  if(insTypeF==="all"&&insBlog.length&&!insKleur&&(!v||(insBlog[0].title||"").toLowerCase().includes(v)))vast=weekRij(insBlog[0]);
+  host.innerHTML=vast+hits.map(o=>{
+    const soort=o.type==="warmup"?"warm-up":(o.type==="cooldown"?"cooldown":"workout");
+    return '<div class="trow" style="align-items:flex-start"><div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'+
+      '<div style="flex:1.6"><b>'+esc(o.naam)+'</b><div class="sm muted" style="margin-top:2px">'+soort+' · '+esc(LEGNAAM[o.kleur]||"")+'</div></div>'+
+      '<div style="flex:2.4" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
+      '<button class="btn sm" style="width:86px;justify-content:center" onclick="insInvoegen('+o.id+')">Invoegen</button></div>';
+  }).join("")||'<div class="cempty">Geen templates gevonden.</div>';
+}
+async function insInvoegen(id){
+  const o=LIB.tpl.find(x=>x.id===id);if(!o)return;
+  const kleur=TPLKLEUREN.includes(o.kleur)?o.kleur:null;
+  if(insDoel==="bouwer"){
+    const host=document.getElementById("exrows");
+    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:o.naam,prescription:o.instructies,color:kleur}));relabel();groei();}
+    closeIns();toast("Template als blok toegevoegd, pas gerust aan");return;
+  }
+  const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:o.naam}).select().single();
+  if(error){toast(error.message||"Invoegen mislukt");return;}
+  const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text"});
+  if(be){toast(be.message);return;}
+  closeIns();toast("Template ingevoegd");renderMonth();
+}
+async function insWeekwod(id){
+  const w=insBlog.find(x=>x.id===id);if(!w)return;
+  const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  if(insDoel==="bouwer"){
+    const txt=blocks.map(b=>(b.label?b.label+") ":"")+(b.exercise||"")+(b.prescription?"\n"+b.prescription:"")).join("\n\n");
+    const host=document.getElementById("exrows");
+    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:w.title,prescription:txt,color:"blue"}));relabel();groei();}
+    closeIns();toast("Weekworkout als blok toegevoegd");return;
+  }
+  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown}).select().single();
+  if(error){toast(error.message||"Invoegen mislukt");return;}
+  if(blocks.length){
+    const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
+    if(be){toast(be.message);return;}
+  }
+  closeIns();toast("Weekworkout ingevoegd; het gedeelde leaderboard koppelen we in een volgende stap");renderMonth();
+}
 
 async function saveWorkout(){
   const g=id=>document.getElementById(id);
