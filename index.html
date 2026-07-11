@@ -376,7 +376,7 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .sp-note .nb{padding:9px 11px;font-size:11.5px;color:#c9cdd4;line-height:1.65;white-space:pre-line}
 .sp-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:12px;color:#e6e8ea}
 .ampm{display:flex;gap:6px}
-.ampm button{border:1px solid #3a3f47;border-radius:6px;padding:3px 10px;font-size:10.5px;font-weight:700;color:#8f959d;background:none;cursor:pointer;font-family:inherit}
+.ampm button{border:1px solid #3a3f47;border-radius:6px;padding:3px 7px;font-size:9.5px;font-weight:700;color:#8f959d;background:none;cursor:pointer;font-family:inherit}
 .ampm button.on{background:#3eb3e0;border-color:#3eb3e0;color:#fff}
 .sp-dark{background:#2e3238;border-radius:8px 8px 0 0;padding:8px 11px;font-size:12px;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-top:10px}
 .sp-dark .i{cursor:pointer;color:#8f959d}
@@ -1319,7 +1319,9 @@ let assData={};
 async function openAssess(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-assess");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-assess";sp.className="sidepanel show";
   sp.innerHTML='<div class="sp-head"><h3>Assessment</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
@@ -1427,15 +1429,17 @@ function mxWaarde(naam){
 async function openMx(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-mx");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-mx";sp.className="sidepanel show";
   sp.innerHTML='<div class="sp-head"><h3>Metrics</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
   await mxLaad();
   sp.innerHTML='<div class="sp-head"><h3>Metrics</h3><span class="sp-x" onclick="document.getElementById(\'sp-mx\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">'+
-    '<button class="sp-btn" style="width:auto;padding:9px 14px" onclick="metricsView()">View structural balance</button>'+
-    '<button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal(\'\')">+ Add</button></div>'+
+    '<button class="sp-btn" style="width:auto;padding:9px 14px" onclick="metricsView()">Bekijk structural balance</button>'+
+    '<button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal(\'\')">+ Toevoegen</button></div>'+
     '<div id="mx-groepen"></div>';
   mxRender();
 }
@@ -1446,7 +1450,7 @@ function mxRender(){
   for(const g in groepen){
     html+='<div class="mx-hd" onclick="mxToggle(\''+g.replace(/'/g,"\\'")+'\')"><span>'+esc(g)+'</span><span class="plus" title="Meting toevoegen" onclick="event.stopPropagation();openMxModal(\'\')">+</span></div>';
     if(mxOpen[g]){
-      html+='<div class="mx-cols"><div style="flex:1.7">Name</div><div style="flex:.6">Current</div><div style="flex:.4;text-align:right">+/-</div></div>';
+      html+='<div class="mx-cols"><div style="flex:1.7">Naam</div><div style="flex:.6">Huidig</div><div style="flex:.4;text-align:right">+/-</div></div>';
       groepen[g].forEach(naam=>{
         const w=mxWaarde(naam);
         let pm="–",pmKl="#8b919b";
@@ -1544,6 +1548,8 @@ function metricsRender(){
     '<div class="metcard"><h3>Voeding</h3><div class="nodata">Nog geen data</div></div>'+
     '</div><div class="sm muted" style="margin-top:14px">Deze 1RM\'s voeden straks de slimme berekening in de workout-bouwer (bijv. "3 sets @ 70% van 1RM deadlift").</div></div></div>';
 }
+// Eén zijpaneel tegelijk open: de rest klapt dicht
+function sluitPanelen(){document.querySelectorAll(".sidepanel.show").forEach(p=>p.classList.remove("show"));}
 // ---------- Zijbalk in-/uitklappen ----------
 function toggleSide(){
   sideCollapsed=!sideCollapsed;
@@ -1553,7 +1559,7 @@ function toggleSide(){
   if(a)a.textContent=sideCollapsed?"→":"←";
 }
 // ---------- DOELEN (zoals het ontwerp; opslag in client_info.data.goals) ----------
-const GOALOPTS=["Build Muscle Mass","Increase Strength","Improve Cardiovascular Fitness","Lose Body Fat","Enhance Overall Health","Develop Healthier Habits","Boost Energy Levels","Other (please specify)"];
+const GOALOPTS=["Spiermassa opbouwen","Sterker worden","Conditie verbeteren","Vetmassa verliezen","Gezondheid verbeteren","Gezondere gewoontes ontwikkelen","Meer energie","Anders (zie toelichting)"];
 let ciData={};
 async function ciLaad(){
   const{data:rows}=await db.from("client_info").select("*").eq("athlete_id",calClient).limit(1);
@@ -1566,17 +1572,19 @@ async function ciBewaar(){
 async function openGoals(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-goals");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-goals";sp.className="sidepanel show";
-  sp.innerHTML='<div class="sp-head"><h3>Goals</h3></div><div class="sp-info">Laden…</div>';
+  sp.innerHTML='<div class="sp-head"><h3>Doelen</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
   await ciLaad();
-  sp.innerHTML='<div class="sp-head"><h3>Goals</h3><span class="sp-x" onclick="document.getElementById(\'sp-goals\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
-    '<div id="goals-view"><button class="sp-btn" style="margin-bottom:14px" onclick="goalsEdit()">Edit goals</button><div id="goals-chips"></div>'+
-    '<div class="sp-info" style="margin-top:12px"><b style="color:#c9cdd4">Other information</b><br><span id="goals-other-view">Geen</span></div></div>'+
+  sp.innerHTML='<div class="sp-head"><h3>Doelen</h3><span class="sp-x" onclick="document.getElementById(\'sp-goals\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div id="goals-view"><button class="sp-btn" style="margin-bottom:14px" onclick="goalsEdit()">Doelen bewerken</button><div id="goals-chips"></div>'+
+    '<div class="sp-info" style="margin-top:12px"><b style="color:#c9cdd4">Toelichting</b><br><span id="goals-other-view">Geen</span></div></div>'+
     '<div id="goals-edit" style="display:none"><div id="goals-opts"></div>'+
-    '<div class="sp-field" style="margin-top:8px"><label>Other information</label><textarea id="goals-other"></textarea></div>'+
-    '<div style="display:flex;gap:8px;margin-top:4px"><button class="sp-btn" onclick="goalsSave()">Save</button><button class="sp-btn ghost" onclick="goalsView()">Cancel</button></div></div>';
+    '<div class="sp-field" style="margin-top:8px"><label>Toelichting</label><textarea id="goals-other"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-top:4px"><button class="sp-btn" onclick="goalsSave()">Opslaan</button><button class="sp-btn ghost" onclick="goalsView()">Annuleren</button></div></div>';
   goalsView();
 }
 function goalsVan(){return ciData.goals||{sel:[],other:""};}
@@ -1585,7 +1593,7 @@ function goalsView(){
   const v=document.getElementById("goals-view"),e=document.getElementById("goals-edit");
   if(!v)return;
   v.style.display="";e.style.display="none";
-  document.getElementById("goals-chips").innerHTML=g.sel.filter(x=>x!=="Other (please specify)").map(x=>'<div class="sp-chip">'+esc(x)+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen doelen gekozen</div>';
+  document.getElementById("goals-chips").innerHTML=g.sel.filter(x=>x!=="Anders (zie toelichting)").map(x=>'<div class="sp-chip">'+esc(x)+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen doelen gekozen</div>';
   document.getElementById("goals-other-view").textContent=g.other||"Geen";
 }
 function goalsEdit(){
@@ -1613,15 +1621,17 @@ async function notesLaad(){
 async function openNotes(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-notes");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-notes";sp.className="sidepanel show";
-  sp.innerHTML='<div class="sp-head"><h3>Notes & Documents</h3></div><div class="sp-info">Laden…</div>';
+  sp.innerHTML='<div class="sp-head"><h3>Notities & documenten</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
   await notesLaad();
-  sp.innerHTML='<div class="sp-head"><h3>Notes & Documents</h3><span class="sp-x" onclick="document.getElementById(\'sp-notes\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
-    '<div class="sp-tabs"><button class="on" id="nd-t0" onclick="ndTab(0)">Notes</button><button id="nd-t1" onclick="ndTab(1)">Documents</button></div>'+
+  sp.innerHTML='<div class="sp-head"><h3>Notities & documenten</h3><span class="sp-x" onclick="document.getElementById(\'sp-notes\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sp-tabs"><button class="on" id="nd-t0" onclick="ndTab(0)">Notities</button><button id="nd-t1" onclick="ndTab(1)">Documenten</button></div>'+
     '<div id="nd-0"><div class="sp-field"><textarea id="note-nieuw" placeholder="Notitie toevoegen (alleen zichtbaar voor coaches)…"></textarea></div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="note-saveknop" onclick="noteOpslaan()">Save</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="noteReset()">Cancel</button></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="note-saveknop" onclick="noteOpslaan()">Opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="noteReset()">Annuleren</button></div>'+
     '<div class="sp-field"><input id="note-zoek" placeholder="Zoek in notities" oninput="notesRender()"></div>'+
     '<div id="notes-lijst"></div></div>'+
     '<div id="nd-1" style="display:none"><button class="sp-btn" style="margin-bottom:8px" onclick="toast(\'Documenten uploaden komt in een volgende stap\')">Document uploaden vanaf je computer</button>'+
@@ -1637,7 +1647,7 @@ function notesRender(){
     ' <span><svg class="i sm-i" onclick="noteBewerk(\''+n.id+'\')"><use href="#i-pen"/></svg><svg class="i sm-i" onclick="noteVerwijder(\''+n.id+'\')"><use href="#i-trash"/></svg></span></div>'+
     '<div class="nb">'+esc(n.body)+'</div></div>').join("")||'<div class="sm" style="color:#8b919b">'+(zoek?"Geen notities gevonden.":"Nog geen notities. Schrijf de eerste hierboven.")+'</div>';
 }
-function noteReset(){noteEditId=null;const t=document.getElementById("note-nieuw");if(t)t.value="";const b=document.getElementById("note-saveknop");if(b)b.textContent="Save";}
+function noteReset(){noteEditId=null;const t=document.getElementById("note-nieuw");if(t)t.value="";const b=document.getElementById("note-saveknop");if(b)b.textContent="Opslaan";}
 async function noteOpslaan(){
   const tekst=(document.getElementById("note-nieuw").value||"").trim();
   if(!tekst){toast("Schrijf eerst een notitie");return;}
@@ -1664,23 +1674,25 @@ async function noteVerwijder(id){
 }
 // ---------- TRAININGSSCHEMA (zoals het ontwerp; client_info.data.schema) ----------
 const SCHEMA_DAGEN=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
-const SCHEMA_DELEN=["AM","PM"];
+const SCHEMA_DELEN=["Ochtend","Middag","Avond"];
 async function openSchema(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-schema");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-schema";sp.className="sidepanel show";
-  sp.innerHTML='<div class="sp-head"><h3>Training Schedule</h3></div><div class="sp-info">Laden…</div>';
+  sp.innerHTML='<div class="sp-head"><h3>Trainingsschema</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
   await ciLaad();
   const sch=ciData.schema||{};
-  sp.innerHTML='<div class="sp-head"><h3>Training Schedule</h3><span class="sp-x" onclick="document.getElementById(\'sp-schema\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+  sp.innerHTML='<div class="sp-head"><h3>Trainingsschema</h3><span class="sp-x" onclick="document.getElementById(\'sp-schema\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div class="sm" style="color:#8b919b;margin-bottom:12px">Zo weet je wanneer dit lid kan trainen.</div>'+
     '<div id="schema-dagen">'+SCHEMA_DAGEN.map(dag=>{
       const aan=sch[dag]||[];
       return '<div class="sp-row">'+dag+'<div class="ampm">'+SCHEMA_DELEN.map(deel=>'<button class="'+(aan.includes(deel)?"on":"")+'" onclick="this.classList.toggle(\'on\')">'+deel+'</button>').join("")+'</div></div>';
     }).join("")+'</div>'+
-    '<button class="sp-btn" style="margin-top:14px" onclick="schemaOpslaan()">Save schedule</button>';
+    '<button class="sp-btn" style="margin-top:14px" onclick="schemaOpslaan()">Schema opslaan</button>';
 }
 async function schemaOpslaan(){
   const sch={};
@@ -1697,14 +1709,16 @@ async function schemaOpslaan(){
 async function openPrio(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-prio");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-prio";sp.className="sidepanel show";
-  sp.innerHTML='<div class="sp-head"><h3>Priorities</h3></div><div class="sp-info">Laden…</div>';
+  sp.innerHTML='<div class="sp-head"><h3>Prioriteiten</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
   await ciLaad();
-  sp.innerHTML='<div class="sp-head"><h3>Priorities</h3><span class="sp-x" onclick="document.getElementById(\'sp-prio\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+  sp.innerHTML='<div class="sp-head"><h3>Prioriteiten</h3><span class="sp-x" onclick="document.getElementById(\'sp-prio\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div class="sp-field"><input id="prio-nieuw" placeholder="Prioriteit toevoegen…" onkeydown="if(event.key===\'Enter\')prioOpslaan()"></div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="prioOpslaan()">Save priority</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="document.getElementById(\'prio-nieuw\').value=\'\'">Cancel</button></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="prioOpslaan()">Prioriteit opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="document.getElementById(\'prio-nieuw\').value=\'\'">Annuleren</button></div>'+
     '<div id="prio-lijst"></div>';
   prioRender();
 }
@@ -1733,17 +1747,19 @@ let equipEditId=null;
 async function openEquip(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-equip");
-  if(sp){sp.classList.toggle("show");return;}
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
   sp=document.createElement("div");sp.id="sp-equip";sp.className="sidepanel show";
-  sp.innerHTML='<div class="sp-head"><h3>Equipment Lists</h3></div><div class="sp-info">Laden…</div>';
+  sp.innerHTML='<div class="sp-head"><h3>Materiaallijsten</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
   await ciLaad();
-  sp.innerHTML='<div class="sp-head"><h3>Equipment Lists</h3><span class="sp-x" onclick="document.getElementById(\'sp-equip\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
-    '<button class="sp-btn" style="margin-bottom:14px" onclick="equipForm()">Add equipment</button>'+
+  sp.innerHTML='<div class="sp-head"><h3>Materiaallijsten</h3><span class="sp-x" onclick="document.getElementById(\'sp-equip\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<button class="sp-btn" style="margin-bottom:14px" onclick="equipForm()">+ Materiaal toevoegen</button>'+
     '<div id="equip-form" style="display:none">'+
-    '<div class="sp-field"><label>Location</label><input id="eq-loc" placeholder="Bijv. gym, thuis, op reis…"></div>'+
-    '<div class="sp-field"><label>Equipment</label><textarea id="eq-items" placeholder="Materiaal, één per regel…" style="min-height:100px"></textarea></div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="equipOpslaan()">Save equipment</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="equipFormSluit()">Cancel</button></div></div>'+
+    '<div class="sp-field"><label>Locatie</label><input id="eq-loc" placeholder="Bijv. gym, thuis, op reis…"></div>'+
+    '<div class="sp-field"><label>Materiaal</label><textarea id="eq-items" placeholder="Materiaal, één per regel…" style="min-height:100px"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="equipOpslaan()">Materiaal opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="equipFormSluit()">Annuleren</button></div></div>'+
     '<div id="equip-lijst"></div>';
   equipRender();
 }
