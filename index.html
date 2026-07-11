@@ -704,74 +704,145 @@ async function tplVerwijder(){
   await libLaad();
 }
 
+let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null;
 async function fillDashboard(){
   const ids=coachClients.map(p=>p.id);
-  const byId={};coachClients.forEach(p=>byId[p.id]=p);
-  const today=new Date(),from30=ymd(addDays(today,-29)),from7=ymd(addDays(today,-6)),td=todayStr();
-  // Data ophalen (alleen als er klanten zijn)
-  let workouts=[],doneWo=new Set(),feed=[],blogWo=null;
+  const td=todayStr(),from90=ymd(addDays(new Date(),-89));
+  let ws=[],rs=[],msgs=[],blog=null,blogRes=[];
   if(ids.length){
-    const wq=await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from30).lte("workout_date",td).order("workout_date");
-    workouts=wq.data||[];
-    const rq=await db.from("results").select("workout_id,status").in("athlete_id",ids);
-    (rq.data||[]).forEach(r=>{if(r.status==="completed")doneWo.add(r.workout_id);});
-    const fq=await db.from("results").select("id,status,score_text,time_seconds,load_kg,reps,rounds,created_at,athlete_id,workouts(title),blocks(exercise,label)").in("athlete_id",ids).order("created_at",{ascending:false}).limit(12);
-    feed=fq.data||[];
+    ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
+    const wids=ws.map(w=>w.id);
+    if(wids.length)rs=(await db.from("results").select("*").in("workout_id",wids)).data||[];
+    msgs=(await db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
   }
+  const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
   if(ME.profile.company_id){
-    const bq=await db.from("workouts").select("id,title,workout_date").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1);
-    blogWo=(bq.data||[])[0]||null;
+    blog=((await db.from("workouts").select("id,title,workout_date").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
+    if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
-  // Aandacht nodig: klanten met een geplande workout (laatste 7 dagen t/m vandaag) zonder voltooid resultaat
-  const attn=[];
+  DASH={ws,rs,msgs,tasks,blog,blogRes};
+  dashRender();
+}
+function dashSetFilter(f){if(f==="lifestyle"||f==="consult"){toast("Lifestyle en consults komen later");return;}dashFilter=f;dashRender();}
+function dashSetPeriode(n){dashPeriode=n;dashRender();}
+function dashSetTaken(t){dashTaken=t;dashRender();}
+function dashRender(){
+  const cp=document.getElementById("cpage");if(!cp||!DASH)return;
+  const{ws,rs,msgs,tasks,blog,blogRes}=DASH;
+  const td=todayStr(),from7=ymd(addDays(new Date(),-6));
+  const byId={};coachClients.forEach(p=>byId[p.id]=p);
+  const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+  const doneWo=new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id));
+  const resByBlock={};rs.forEach(r=>resByBlock[r.block_id]=r);
+  // Aandacht nodig
+  const attn=[];let nTeDoen=0;
   coachClients.forEach(p=>{
-    const wos=workouts.filter(w=>w.client_id===p.id);
-    const recent=wos.filter(w=>w.workout_date>=from7&&w.workout_date<=td);
-    const teDoen=recent.some(w=>!doneWo.has(w.id));
-    // gemist: 2 meest recente geplande dagen vóór vandaag beide zonder voltooid resultaat
+    const wos=echte.filter(w=>w.client_id===p.id);
+    const teDoen=wos.some(w=>w.workout_date>=from7&&w.workout_date<=td&&!doneWo.has(w.id));
     const past=wos.filter(w=>w.workout_date<td).sort((a,b)=>b.workout_date.localeCompare(a.workout_date));
-    const gemist=past.length>=2&&!doneWo.has(past[0].id)&&!doneWo.has(past[1].id);
-    if(teDoen||gemist){
+    let miss=0;for(const w of past){if(doneWo.has(w.id))break;miss++;}
+    if(teDoen)nTeDoen++;
+    if(teDoen||miss>=2){
       const pills=[];
       if(teDoen)pills.push('<span class="cpill teal">Workout te doen</span>');
-      if(gemist)pills.push('<span class="cpill bad">2x gemist op rij</span>');
-      attn.push('<div class="attn-row click" onclick="openClient(\''+p.id+'\')"><div class="cavc">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="nm">'+naamVan(p)+'</div><div class="pills">'+pills.join("")+'</div></div>');
+      if(miss>=2)pills.push('<span class="cpill bad">'+miss+'x gemist op rij</span>');
+      attn.push({p,pills,teDoen});
     }
   });
-  const attnHtml=attn.length?'<div class="attn-card">'+attn.join("")+'</div>'
+  const attnRows=attn.filter(a=>dashFilter==="alles"||(dashFilter==="tedoen"&&a.teDoen));
+  const attnHtml=attnRows.length?'<div class="attn-card">'+attnRows.map(a=>'<div class="attn-row click" onclick="openClient(\''+a.p.id+'\')"><div class="cavc">'+esc(naamVan(a.p).slice(0,2).toUpperCase())+'</div><div class="nm">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div></div>').join("")+'</div>'
     :'<div class="attn-card"><div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist of nog moet doen, zie je het hier.</div></div>';
-  // Compliance (30 dagen)
-  const sched=workouts.filter(w=>w.workout_date<=td);
+  const chips='<div style="display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap">'+
+    '<span class="fchip'+(dashFilter==="alles"?" on":"")+'" onclick="dashSetFilter(\'alles\')">Alles</span>'+
+    '<span class="fchip'+(dashFilter==="tedoen"?" on":"")+'" onclick="dashSetFilter(\'tedoen\')">Workout te doen ('+nTeDoen+')</span>'+
+    '<span class="fchip" onclick="dashSetFilter(\'lifestyle\')">Lifestyle (0)</span>'+
+    '<span class="fchip" onclick="dashSetFilter(\'consult\')">Consult (0)</span></div>';
+  // Contactmomenten: chat-berichten deze week per klant
+  const msgCount={};msgs.forEach(m=>msgCount[m.athlete_id]=(msgCount[m.athlete_id]||0)+1);
+  const gesproken=coachClients.filter(p=>msgCount[p.id]).length;
+  const cmPct=coachClients.length?Math.round(gesproken/coachClients.length*100):0;
+  const mon=mondayOf(new Date());
+  const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2)+"-"+mon.getFullYear();
+  const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten ('+cmPct+'%)</h2>'+
+    '<div class="sm muted" style="margin-bottom:8px">'+gesproken+' van '+coachClients.length+' klanten deze week gesproken · week van maandag '+monLbl+'</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+coachClients.map(p=>'<span class="fchip" style="display:inline-flex;align-items:center;gap:6px"><span class="cavc" style="width:20px;height:20px;font-size:8px">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</span>').join("")+'</div>';
+  // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten
+  const met=echte.filter(w=>rs.some(r=>r.workout_id===w.id)).slice(0,6);
+  const feedHtml=met.length?met.map(w=>{
+    const p=byId[w.client_id]||{};
+    const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+    let done=0;
+    const blokjes=blocks.map(b=>{
+      const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
+      const sc=resultScoreTxt(r);
+      return '<div class="cblk'+(b.color?" k-"+esc(b.color):"")+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+(r?'<span class="okc'+(r.status==="missed"?" miss":"")+'"><svg class="i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'')+'</div>';
+    }).join("");
+    return '<div class="feedcard"><div class="fh"><div class="cavc">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Due '+esc(w.workout_date)+'</div></div><b style="font-size:12px">'+done+'/'+blocks.length+'</b></div>'+
+      (w.warmup?'<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>':'')+blokjes+
+      '<div class="notesend" style="display:flex;gap:6px;margin-top:8px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')">💬 Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
+  }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
+  // Mijn cijfers met 7/30/90 dagen
+  const fromP=ymd(addDays(new Date(),-(dashPeriode-1)));
+  const sched=echte.filter(w=>w.workout_date>=fromP&&w.workout_date<=td);
   const done=sched.filter(w=>doneWo.has(w.id)).length;
   const pct=sched.length?Math.round(done/sched.length*100):null;
   const ringStyle=pct==null?'background:#e5e8eb':'background:conic-gradient(var(--accent) 0 '+pct+'%, #e5e8eb '+pct+'% 100%)';
-  const ringHtml='<div class="statecard"><div class="ring" style="'+ringStyle+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
-    '<div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">'+(pct==null?'Nog geen geplande workouts om te meten.':'Aandeel van de voorgeschreven workouts dat je klanten echt deden (30 dagen).')+'</div></div></div>';
-  // Activiteitenfeed
-  const scoreTxt=r=>{if(r.time_seconds!=null)return Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60);if(r.load_kg!=null)return r.load_kg+" kg";if(r.rounds!=null)return r.rounds+" rondes"+(r.reps!=null?" + "+r.reps:"");if(r.reps!=null)return r.reps+" reps";return r.score_text||"";};
-  const feedHtml=feed.length?feed.map(r=>{const p=byId[r.athlete_id]||{};const b=r.blocks||{};const w=r.workouts||{};const sc=scoreTxt(r);
-      return '<div class="feedcard"><div class="fh"><div class="cavc">'+esc((naamVan(p)||"?").slice(0,2).toUpperCase())+'</div><div><b>'+esc(naamVan(p)||"Sporter")+'</b><div class="sm muted">'+esc(w.title||"Workout")+'</div></div></div>'+
-      '<div class="feedblock"><div class="bic">'+esc(b.label||"•")+'</div><div><b>'+esc(b.exercise||"Onderdeel")+'</b>'+(sc?'<div class="desc">'+esc(sc)+'</div>':'')+(r.status==="missed"?'<div class="desc" style="color:var(--bad)">Gemist</div>':'')+'</div></div></div>';
-    }).join("")
-    :'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
-  // Weekworkout-blok
-  const weekHtml=blogWo?'<div class="statecard" style="display:block"><div style="font-weight:700;font-size:13px">'+esc(blogWo.title||"Weekworkout")+'</div><div class="sm muted" style="margin:4px 0 10px">Openbare workout · '+esc(blogWo.workout_date)+'</div><button class="btn sm" onclick="coachGo(\'week\')">Bekijk leaderboard</button></div>'
+  const ringHtml='<div class="ctabs" style="margin-bottom:10px">'+[7,30,90].map(n=>'<button class="'+(dashPeriode===n?"on":"")+'" onclick="dashSetPeriode('+n+')">'+n+' dagen</button>').join("")+'</div>'+
+    '<div class="statecard"><div class="ring" style="'+ringStyle+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
+    '<div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">'+(pct==null?'Geen geplande workouts in deze periode.':'Aandeel van de voorgeschreven workouts dat je klanten echt deden ('+dashPeriode+' dagen).')+'</div></div></div>';
+  // Mijn taken (echt, uit de database)
+  const open=tasks.filter(t=>!t.done),af=tasks.filter(t=>t.done);
+  const lijst=dashTaken==="open"?open:af;
+  const taakRows=lijst.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:7px 4px;border-bottom:1px solid #f0f1f3"><input type="checkbox" '+(t.done?"checked":"")+' onchange="taakToggle(\''+t.id+'\',this.checked)" style="width:15px;height:15px;flex:none"><span style="flex:1;font-size:12.5px;'+(t.done?"text-decoration:line-through;color:#8a919c":"")+'">'+esc(t.body)+'</span><span style="color:#b3b9c2;cursor:pointer;padding:0 4px" onclick="taakWeg(\''+t.id+'\')">×</span></div>').join("");
+  const takenHtml='<div style="display:flex;gap:6px;margin-bottom:9px"><input id="taak-inp" placeholder="Nieuwe taak…" style="flex:1;padding:8px 10px;font-size:12.5px" onkeydown="if(event.key===\'Enter\')taakToevoegen()"><button class="btn sm" onclick="taakToevoegen()">+ Taak</button></div>'+
+    '<div class="ctabs" style="margin-bottom:8px"><button class="'+(dashTaken==="open"?"on":"")+'" onclick="dashSetTaken(\'open\')">Open ('+open.length+')</button><button class="'+(dashTaken==="af"?"on":"")+'" onclick="dashSetTaken(\'af\')">Afgerond ('+af.length+')</button></div>'+
+    '<div class="statecard" style="display:block;padding:6px 12px">'+(taakRows||'<div class="cempty" style="padding:12px 4px">'+(dashTaken==="open"?"Alles afgerond. Voeg hierboven een taak toe.":"Nog geen afgeronde taken.")+'</div>')+'</div>';
+  // Workout van de week
+  const deelnemers=new Set(blogRes.map(r=>r.athlete_id)).size;
+  const vandaagN=blogRes.filter(r=>(r.created_at||"").slice(0,10)===td).length;
+  const weekHtml=blog?'<div class="statecard" style="display:block"><div style="font-weight:700;font-size:13px">'+esc(blog.title||"Weekworkout")+'</div><div class="sm muted" style="margin:4px 0 10px">'+esc(blog.workout_date)+' · '+deelnemers+' deelnemers · '+vandaagN+' scores vandaag</div><button class="btn sm" onclick="coachGo(\'week\')">Bekijk leaderboard</button></div>'
     :'<div class="statecard" style="display:block"><div class="cempty" style="padding:8px 4px">Nog geen weekworkout ingepland.</div></div>';
-
-  const html='<h1>Dashboard</h1><div class="dashgrid">'+
+  cp.innerHTML='<h1>Dashboard</h1><div class="dashgrid">'+
     '<div class="panel">'+
-      '<div class="ctabs"><button class="on">Aandacht nodig</button><button title="Komt later">Inzichten</button></div>'+
-      attnHtml+
-      '<h2 style="margin:22px 0 6px">Activiteit</h2>'+
+      '<div class="ctabs"><button class="on">Aandacht nodig</button><button onclick="toast(\'Inzichten komen later\')">Inzichten</button></div>'+
+      chips+attnHtml+cmHtml+
+      '<div style="display:flex;align-items:center;gap:14px;margin:22px 0 6px"><h2 style="margin:0">Activiteit</h2><div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
       feedHtml+
     '</div>'+
     '<div>'+
       '<div class="sideblock"><div class="shead"><h2>Mijn cijfers</h2></div>'+ringHtml+'</div>'+
-      '<div class="sideblock"><div class="shead"><h2>Mijn taken</h2></div><div class="statecard" style="display:block"><div class="cempty">Taken komen later.</div></div></div>'+
-      '<div class="sideblock"><div class="shead"><h2>Workout van de week</h2>'+(blogWo?'<span class="cpill ok">live</span>':'')+'</div>'+weekHtml+'</div>'+
+      '<div class="sideblock"><div class="shead"><h2>Mijn taken</h2></div>'+takenHtml+'</div>'+
+      '<div class="sideblock"><div class="shead"><h2>Workout van de week</h2>'+(blog?'<span class="cpill ok">live</span>':'')+'</div>'+weekHtml+'</div>'+
     '</div>'+
   '</div>';
-  const cp=document.getElementById("cpage");if(cp)cp.innerHTML=html;
+}
+async function taakToevoegen(){
+  const inp=document.getElementById("taak-inp");const v=(inp.value||"").trim();if(!v)return;
+  const{data,error}=await db.from("tasks").insert({company_id:ME.profile.company_id,owner_id:ME.user.id,body:v}).select().single();
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  DASH.tasks.unshift(data);dashTaken="open";dashRender();
+}
+async function taakToggle(id,done){
+  const{error}=await db.from("tasks").update({done}).eq("id",id);
+  if(error){toast(error.message);return;}
+  DASH.tasks.forEach(t=>{if(t.id===id)t.done=done;});dashRender();
+}
+async function taakWeg(id){
+  const{error}=await db.from("tasks").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  DASH.tasks=DASH.tasks.filter(t=>t.id!==id);dashRender();
+}
+// Note op een activiteit = chatbericht naar de sporter (messages-tabel)
+async function stuurNote(aid,el){
+  const row=el.closest(".notesend");const inp=row.querySelector("input");
+  const v=(inp.value||"").trim();if(!v)return;
+  const p=coachClients.find(x=>x.id===aid)||{};
+  const{error}=await db.from("messages").insert({company_id:ME.profile.company_id,athlete_id:aid,sender_id:ME.user.id,body:v});
+  if(error){toast(error.message||"Versturen mislukt");return;}
+  inp.value="";
+  toast("Berichtje verstuurd naar "+(p.first_name||"de sporter")+", komt in de chat");
+  DASH.msgs.push({athlete_id:aid,created_at:new Date().toISOString()});
+  dashRender();
 }
 
 let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0,coachChipNaam="";
