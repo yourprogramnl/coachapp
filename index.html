@@ -115,6 +115,29 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .f-opts select{flex:1;font-size:11px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--txt);width:auto}
 .toast2{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#171719;color:#fff;font-size:12.5px;padding:10px 18px;border-radius:9px;z-index:500;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast2.show{opacity:.95}
+
+/* ===== Bibliotheek (naar het ontwerp) ===== */
+.libgrid{display:grid;grid-template-columns:200px 1fr;gap:18px;align-items:start}
+@media(max-width:820px){.libgrid{grid-template-columns:1fr}}
+.libnav{padding:10px;display:flex;flex-direction:column;gap:2px}
+.libnav button{display:flex;align-items:center;gap:9px;text-align:left;padding:9px 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:#5d6570;background:none;border:none;cursor:pointer;font-family:inherit}
+.libnav button:hover{background:#f0f2f4}
+.libnav button.on{background:#171719;color:#fff}
+.thead{display:flex;align-items:center;padding:10px 18px;background:#f2f4f6;border-bottom:1px solid #e7e9ec;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#8a919c;gap:12px}
+.trow{display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid #f0f1f3;gap:12px}
+.trow:last-child{border-bottom:none}
+.search2{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e7e9ec;border-radius:8px;padding:9px 13px;flex:1;max-width:520px;color:#b3b9c2}
+.search2 input{border:none;flex:1;background:none;color:#1d2129;padding:0;width:auto}
+.srcbadge{min-width:26px;height:22px;padding:0 4px;border-radius:6px;background:#171719;color:#fff;font-size:8px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.legchip{display:inline-flex;align-items:center;gap:6px;border:1px solid #e7e9ec;border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer;background:#fff;color:#5d6570}
+.legchip.aan{border-color:#171719;background:#171719;color:#fff}
+.lmodal{position:fixed;inset:0;background:rgba(15,18,22,.55);display:none;align-items:center;justify-content:center;z-index:400}
+.lmodal.show{display:flex}
+.lmodal .box{background:#fff;border-radius:14px;padding:20px;width:460px;max-width:92vw;max-height:88vh;overflow:auto}
+.lmodal h3{margin-bottom:12px}
+.kleurdots{display:flex;gap:10px;margin:6px 0 14px}
+.kleurdots span{width:26px;height:26px;border-radius:50%;cursor:pointer;display:inline-block}
+.kleurdots span.aan{outline:3px solid #171719;outline-offset:2px}
 /* builder popover (zoals CoachRx-kaart) */
 .builderin{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:11px;margin-bottom:6px;box-shadow:0 8px 24px rgba(20,40,90,.10)}
 .bp-sec{background:#f1f4f8;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
@@ -352,7 +375,8 @@ function coachRenderSection(){
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}
   if(coachSection==="coaches"){c.innerHTML=coachShellHtml('<h1>Coaches</h1><div class="spin">Laden…</div>');fillCoaches();return;}
   if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
-  const titles={library:"Bibliotheek",programs:"Programma's",week:"Weekworkout",msgs:"Berichten"};
+  if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());libLaad();libLijst();return;}
+  const titles={programs:"Programma's",week:"Weekworkout",msgs:"Berichten"};
   c.innerHTML=coachShellHtml('<h1>'+esc(titles[coachSection]||"")+'</h1><div class="csoon">Deze sectie bouwen we hierna.<br>We zijn met het <b>Dashboard</b> begonnen; hier vind je straks '+esc((titles[coachSection]||"").toLowerCase())+'.</div>');
 }
 function klantenHtml(){
@@ -378,6 +402,211 @@ async function fillCompanies(){
   const rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc((co.name||"?").slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
   const cp=document.getElementById("cpage");
   if(cp)cp.innerHTML='<h1>Bedrijven</h1><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
+}
+
+// ---------- BIBLIOTHEEK (live uit oefeningen + templates) ----------
+const TPLKLEUR={yellow:"#eab308",blue:"#3b82f6",purple:"#8b5cf6",red:"#ef4444",green:"#22c55e",orange:"#f97316",gray:"#9ca3af"};
+const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
+const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
+const LIB_PER=50;
+let LIB={oef:[],tpl:[],mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,tplKleur:"yellow"};
+const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);return m?m[1]:null;};
+
+function libShellHtml(){
+  const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["cooldown","Cooldowns"]]
+    .map(m=>'<button class="'+(LIB.mode===m[0]?"on":"")+'" onclick="libZetMode(\''+m[0]+'\')">'+m[1]+'</button>').join("");
+  return '<h1>Bibliotheek</h1><div class="libgrid">'+
+    '<div class="card libnav">'+nav+'<button onclick="toast(\'Programma-templates komen in een volgende stap\')">Programma-templates</button></div>'+
+    '<div>'+
+      '<div class="card" style="padding:18px 18px 0;border-radius:10px 10px 0 0">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">'+
+          '<div><h2 style="font-size:16px"><span id="lib-titel">Oefeningen</span> <span class="cpill teal" id="lib-aantal">…</span></h2>'+
+          '<div class="sm muted" style="font-size:12.5px;margin-top:3px" id="lib-sub"></div></div>'+
+          '<button class="btn" id="lib-addbtn" onclick="libNieuw()">+ Oefening toevoegen</button>'+
+        '</div>'+
+        '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">'+
+          '<div class="search2"><input id="lib-zoek" placeholder="Zoek op naam of tag…" oninput="libFilter(this.value)"></div>'+
+        '</div>'+
+        '<div id="lib-legenda" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center"></div>'+
+      '</div>'+
+      '<div class="card" style="border-radius:0 0 10px 10px;border-top:none">'+
+        '<div class="thead" id="lib-thead"></div>'+
+        '<div id="lib-lijst"><div class="cempty">Bibliotheek laden…</div></div>'+
+        '<div id="lib-pag" style="display:flex;gap:6px;justify-content:center;align-items:center;padding:14px;flex-wrap:wrap"></div>'+
+      '</div>'+
+    '</div></div>'+
+    '<div class="lmodal" id="exmodal"><div class="box"><h3 id="exmodal-titel">Oefening bewerken</h3>'+
+      '<div class="field"><label>Naam</label><input id="exmodal-naam"></div>'+
+      '<div class="field"><label>Video (YouTube-link of andere video-URL)</label><input id="exmodal-video" placeholder="https://youtu.be/…"></div>'+
+      '<div id="exmodal-prev" style="margin-bottom:14px"></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" onclick="exOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="exmodal-del" style="margin-left:auto"></span></div>'+
+      '<div class="msg" id="exmodal-msg"></div></div></div>'+
+    '<div class="lmodal" id="tplmodal"><div class="box"><h3 id="tplmodal-titel">Template bewerken</h3>'+
+      '<div class="field"><label>Naam</label><input id="tpl-naam"></div>'+
+      '<div class="field"><label>Soort</label><select id="tpl-type"><option value="warmup">Warming-up</option><option value="other">Workout</option><option value="cooldown">Cooldown</option></select></div>'+
+      '<div class="field"><label>Kleur</label><div class="kleurdots" id="tpl-kleuren"></div></div>'+
+      '<div class="field"><label>Instructies</label><textarea id="tpl-instr" style="min-height:140px"></textarea></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
+      '<div class="msg" id="tplmodal-msg"></div></div></div>';
+}
+async function libLaad(){
+  if(LIB.geladen||LIB.busy){libKop();return;}
+  LIB.busy=true;
+  let alles=[],from=0;
+  while(true){
+    const{data,error}=await db.from("oefeningen").select("id,naam,youtube_id,video_url,tags,bron").order("naam").range(from,from+999);
+    if(error){LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';return;}
+    alles=alles.concat(data||[]);
+    if(!data||data.length<1000)break;
+    from+=1000;
+  }
+  const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach").order("naam");
+  LIB.oef=alles;LIB.tpl=tpl||[];LIB.geladen=true;LIB.busy=false;
+  libLijst();
+}
+function libZetMode(m){LIB.mode=m;LIB.zoek="";LIB.pag=0;LIB.kleur="";const z=document.getElementById("lib-zoek");if(z)z.value="";coachRenderSection();}
+function libFilter(v){LIB.zoek=(v||"").toLowerCase();LIB.pag=0;libLijst();}
+function libGa(p){LIB.pag=p;libLijst();}
+function libKleurFilter(k){LIB.kleur=LIB.kleur===k?"":k;LIB.pag=0;libLijst();}
+function libKop(){
+  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns"};
+  const t=document.getElementById("lib-titel");if(t)t.textContent=titels[LIB.mode];
+  const s=document.getElementById("lib-sub");if(s)s.textContent=LIB.mode==="oef"
+    ?"Jullie eigen videobibliotheek, live uit de database. Sporters zien de demo-video bij elke workout."
+    :"Templates uit jullie Strivee, live uit de database. Klik op een template om naam, tekst of kleur aan te passen.";
+  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":"+ Template toevoegen";
+  const leg=document.getElementById("lib-legenda");
+  if(leg){
+    if(LIB.mode==="oef"){leg.style.display="none";}
+    else{
+      leg.style.display="flex";
+      leg.innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
+    }
+  }
+}
+function libLijst(){
+  libKop();
+  const host=document.getElementById("lib-lijst"),thead=document.getElementById("lib-thead"),pag=document.getElementById("lib-pag"),cnt=document.getElementById("lib-aantal");
+  if(!host)return;
+  if(!LIB.geladen){host.innerHTML='<div class="cempty">Bibliotheek laden…</div>';return;}
+  if(LIB.mode!=="oef"){
+    if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div>';
+    const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
+    const hits=LIB.tpl.filter(o=>o.type===type&&(!LIB.kleur||o.kleur===LIB.kleur)&&(!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.instructies||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)));
+    if(cnt)cnt.textContent=hits.length+" templates";
+    host.innerHTML=hits.map(o=>{
+      const tg=(o.tags||[]).slice(0,2).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
+      return '<div class="trow" style="align-items:flex-start;cursor:pointer" onclick="tplBewerk('+o.id+')">'+
+        '<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'+
+        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b></div>'+
+        '<div style="flex:2.6" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
+        '<div style="flex:1.2">'+tg+'</div></div>';
+    }).join("")||'<div class="cempty">Geen templates gevonden.</div>';
+    if(pag)pag.innerHTML="";
+    return;
+  }
+  if(thead)thead.innerHTML='<div style="width:74px">Media</div><div style="flex:2.6">Oefening</div><div style="flex:1.6">Tags</div><div style="flex:.7">Van</div><div style="flex:.8">Video</div><div style="width:70px"></div>';
+  if(cnt)cnt.textContent=LIB.oef.length+" video's";
+  const hits=LIB.oef.filter(o=>!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek));
+  const pages=Math.max(1,Math.ceil(hits.length/LIB_PER));
+  if(LIB.pag>=pages)LIB.pag=pages-1;
+  const deel=hits.slice(LIB.pag*LIB_PER,(LIB.pag+1)*LIB_PER);
+  host.innerHTML=deel.map(o=>{
+    const tags=(o.tags||[]).slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
+    const thumb=o.youtube_id?'<img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" loading="lazy" style="width:64px;height:40px;object-fit:cover;border-radius:6px;display:block">':'<div style="width:64px;height:40px;border-radius:6px;background:#f4f4f5"></div>';
+    const link=o.youtube_id?'<a class="cpill teal" href="https://youtu.be/'+esc(o.youtube_id)+'" target="_blank" rel="noopener" style="text-decoration:none" onclick="event.stopPropagation()">YouTube</a>':(o.video_url?'<a class="cpill teal" href="'+esc(o.video_url)+'" target="_blank" rel="noopener" style="text-decoration:none" onclick="event.stopPropagation()">video</a>':'<span class="cpill" style="background:#f4f4f5;color:#8a919c">geen</span>');
+    const bron=o.bron==="coachrx"?"CRx":(o.bron&&o.bron!=="eigen"?String(o.bron).toUpperCase().slice(0,4):"");
+    return '<div class="trow" style="cursor:pointer" onclick="oefBewerk('+o.id+')">'+
+      '<div style="width:74px">'+thumb+'</div>'+
+      '<div style="flex:2.6"><b>'+esc(o.naam)+'</b></div>'+
+      '<div style="flex:1.6">'+tags+'</div>'+
+      '<div style="flex:.7">'+(bron?'<span class="srcbadge">'+esc(bron)+'</span>':"")+'</div>'+
+      '<div style="flex:.8">'+link+'</div>'+
+      '<div style="width:70px"><button class="btn ghost sm">Bewerk</button></div></div>';
+  }).join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
+  if(!pag)return;
+  if(pages<=1){pag.innerHTML="";return;}
+  let kn='<button class="btn ghost sm" '+(LIB.pag===0?"disabled":'onclick="libGa('+(LIB.pag-1)+')"')+'>‹</button>';
+  for(let p=0;p<pages;p++){
+    if(p===0||p===pages-1||Math.abs(p-LIB.pag)<=2)kn+='<button class="btn sm '+(p===LIB.pag?"":"ghost")+'" onclick="libGa('+p+')">'+(p+1)+'</button>';
+    else if((p===1&&LIB.pag>3)||(p===pages-2&&LIB.pag<pages-4))kn+='<span class="muted">…</span>';
+  }
+  kn+='<button class="btn ghost sm" '+(LIB.pag===pages-1?"disabled":'onclick="libGa('+(LIB.pag+1)+')"')+'>›</button>';
+  pag.innerHTML=kn;
+}
+function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");LIB.editOef=null;LIB.editTpl=null;}
+function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else tplBewerk(null);}
+function oefBewerk(id){
+  LIB.editOef=id;
+  const o=id?LIB.oef.find(x=>x.id===id):null;
+  document.getElementById("exmodal-titel").textContent=o?"Oefening bewerken":"Nieuwe oefening";
+  document.getElementById("exmodal-naam").value=o?o.naam:"";
+  document.getElementById("exmodal-video").value=o?(o.youtube_id?"https://youtu.be/"+o.youtube_id:(o.video_url||"")):"";
+  document.getElementById("exmodal-msg").textContent="";
+  const prev=document.getElementById("exmodal-prev");
+  prev.innerHTML=o&&o.youtube_id?'<div style="cursor:pointer" onclick="this.innerHTML=\'<iframe width=&quot;100%&quot; height=&quot;220&quot; src=&quot;https://www.youtube.com/embed/'+esc(o.youtube_id)+'?autoplay=1&quot; frameborder=&quot;0&quot; allow=&quot;autoplay&quot; allowfullscreen style=&quot;border-radius:10px&quot;></iframe>\'"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/hqdefault.jpg" style="width:100%;border-radius:10px;display:block" alt=""><div class="sm muted" style="margin-top:4px">Klik om de video af te spelen</div></div>':"";
+  const del=document.getElementById("exmodal-del");
+  del.innerHTML=(o&&myRole()==="platform_admin")?'<button class="btn ghost sm" onclick="oefVerwijder()">Verwijderen</button>':"";
+  document.getElementById("exmodal").classList.add("show");
+}
+async function exOpslaan(){
+  const naam=document.getElementById("exmodal-naam").value.trim();
+  const video=document.getElementById("exmodal-video").value.trim();
+  const msg=document.getElementById("exmodal-msg");
+  if(!naam){msg.textContent="Vul een naam in.";msg.className="msg err";return;}
+  const yt=ytIdVan(video);
+  const velden={naam,youtube_id:yt||"",video_url:yt?"":(video||"")};
+  const wasEdit=!!LIB.editOef;
+  let fout=null;
+  if(wasEdit){const{error}=await db.from("oefeningen").update(velden).eq("id",LIB.editOef);fout=error;}
+  else{velden.tags=["eigen"];velden.bron="eigen";const{error}=await db.from("oefeningen").insert(velden);fout=error;}
+  if(fout){msg.textContent=fout.message||"Opslaan mislukt.";msg.className="msg err";return;}
+  LIB.geladen=false;libModalDicht();toast(wasEdit?"Oefening bijgewerkt":"Oefening toegevoegd");
+  await libLaad();
+}
+async function oefVerwijder(){
+  if(!LIB.editOef||!confirm("Deze oefening verwijderen?"))return;
+  const{error}=await db.from("oefeningen").delete().eq("id",LIB.editOef);
+  if(error){const msg=document.getElementById("exmodal-msg");msg.textContent=error.message;msg.className="msg err";return;}
+  LIB.geladen=false;libModalDicht();toast("Oefening verwijderd");
+  await libLaad();
+}
+function tplKleurDots(){
+  document.getElementById("tpl-kleuren").innerHTML=TPLKLEUREN.map(k=>'<span class="'+(k===LIB.tplKleur?"aan":"")+'" title="'+LEGNAAM[k]+'" onclick="LIB.tplKleur=\''+k+'\';tplKleurDots()" style="background:'+TPLKLEUR[k]+'"></span>').join("");
+}
+function tplBewerk(id){
+  LIB.editTpl=id;
+  const o=id?LIB.tpl.find(x=>x.id===id):null;
+  document.getElementById("tplmodal-titel").textContent=o?"Template bewerken":"Nieuwe template";
+  document.getElementById("tpl-naam").value=o?o.naam:"";
+  document.getElementById("tpl-instr").value=o?(o.instructies||""):"";
+  document.getElementById("tpl-type").value=o?(o.type||"other"):(LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other"));
+  document.getElementById("tplmodal-msg").textContent="";
+  LIB.tplKleur=o&&TPLKLEUREN.includes(o.kleur)?o.kleur:"yellow";
+  tplKleurDots();
+  const del=document.getElementById("tplmodal-del");
+  del.innerHTML=(o&&myRole()==="platform_admin")?'<button class="btn ghost sm" onclick="tplVerwijder()">Verwijderen</button>':"";
+  document.getElementById("tplmodal").classList.add("show");
+}
+async function tplOpslaan(){
+  const naam=document.getElementById("tpl-naam").value.trim();
+  const msg=document.getElementById("tplmodal-msg");
+  if(!naam){msg.textContent="Vul een naam in.";msg.className="msg err";return;}
+  const velden={naam,instructies:document.getElementById("tpl-instr").value,type:document.getElementById("tpl-type").value,kleur:LIB.tplKleur};
+  const wasEdit=!!LIB.editTpl;
+  let fout=null;
+  if(wasEdit){const{error}=await db.from("templates").update(velden).eq("id",LIB.editTpl);fout=error;}
+  else{velden.tags=[];velden.coach=ME.profile.first_name||"";const{error}=await db.from("templates").insert(velden);fout=error;}
+  if(fout){msg.textContent=fout.message||"Opslaan mislukt.";msg.className="msg err";return;}
+  LIB.geladen=false;libModalDicht();toast(wasEdit?"Template bijgewerkt":"Template toegevoegd");
+  await libLaad();
+}
+async function tplVerwijder(){
+  if(!LIB.editTpl||!confirm("Deze template verwijderen?"))return;
+  const{error}=await db.from("templates").delete().eq("id",LIB.editTpl);
+  if(error){const msg=document.getElementById("tplmodal-msg");msg.textContent=error.message;msg.className="msg err";return;}
+  LIB.geladen=false;libModalDicht();toast("Template verwijderd");
+  await libLaad();
 }
 
 async function fillDashboard(){
