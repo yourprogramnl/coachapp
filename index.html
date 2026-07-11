@@ -248,41 +248,34 @@ async function loadApp(){
   document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();
   show("app");
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="";
-  if(role==="platform_admin")renderAdmin();
-  else if(role==="eigenaar")renderEigenaar();
-  else if(role==="coach")renderCoach();
-  else renderLid();
+  if(role==="lid")renderLid();
+  else renderCoach("dash");
 }
 function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
 const naamVan=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
 
-async function renderAdmin(){
-  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
-  const{data:companies}=await db.from("companies").select("*").order("created_at");
-  let rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc(co.name.slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
-  c.innerHTML=header("Welkom, "+ME.user.email,"Platform-admin — bedrijven die het product gebruiken")+
-    '<div class="stats"><div class="stat"><div class="n acc">'+(companies||[]).length+'</div><div class="l">Bedrijven</div></div></div>'+
-    '<h3>Bedrijven</h3><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
-}
-async function renderEigenaar(){
-  const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
-  const{data:people}=await db.from("profiles").select("*").eq("company_id",ME.profile.company_id);
-  const coaches=(people||[]).filter(p=>p.role==="coach"||p.role==="eigenaar");
-  const leden=(people||[]).filter(p=>p.role==="lid");
-  c.innerHTML=header("Eigenaar-overzicht","Alle coaches en leden van je bedrijf")+
-    '<div class="stats"><div class="stat"><div class="n acc">'+coaches.length+'</div><div class="l">Coaches</div></div><div class="stat"><div class="n">'+leden.length+'</div><div class="l">Leden</div></div></div>'+
-    '<h3>Coaches</h3><div class="card">'+(coaches.map(p=>'<div class="row"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+ROLE_NL[p.role]+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen coaches.</span></div>')+'</div>'+
-    '<h3>Leden</h3><div class="card">'+(leden.map(p=>'<div class="row"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.membership_type||"")+'</div></div></div>').join("")||'<div class="row"><span class="muted">Nog geen leden.</span></div>')+'</div>';
-}
-
-// ---------- COACH ----------
+// ---------- COACH / EIGENAAR / ADMIN — gedeeld dashboard ----------
 let coachClients=[],coachExercises=[],monthWorkouts={},sideCollapsed=false,coachSection="dash";
 
+const myRole=()=>(ME.profile&&ME.profile.role)||"lid";
+// Tabs per rol: coach ziet geen "Coaches"; platform_admin krijgt extra "Bedrijven"
+function cnavItems(){
+  const role=myRole();
+  const n=[["dash","Dashboard"],["clients","Klanten"],["library","Bibliotheek"]];
+  if(role!=="coach")n.push(["coaches","Coaches"]);
+  n.push(["programs","Programma's"],["week","Weekworkout"],["msgs","Berichten"]);
+  if(role==="platform_admin")n.push(["companies","Bedrijven"]);
+  return n;
+}
 async function renderCoach(section){
   coachSection=section||"dash";
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="none";
   const c=document.getElementById("content");c.innerHTML='<div class="cwrap"><div class="spin">Laden…</div></div>';
-  const{data:clients}=await db.from("profiles").select("*").eq("coach_id",ME.user.id).eq("role","lid");
+  // Coach: eigen klanten. Eigenaar/admin: alle leden van het bedrijf.
+  let q=db.from("profiles").select("*").eq("role","lid");
+  if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);
+  else if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  const{data:clients}=await q;
   coachClients=clients||[];
   const{data:exs}=await db.from("exercises").select("name").order("name");
   coachExercises=exs||[];
@@ -290,26 +283,45 @@ async function renderCoach(section){
   coachRenderSection();
 }
 function coachGo(sec){coachSection=sec;coachRenderSection();}
-const CNAV=[["dash","Dashboard"],["clients","Klanten"],["library","Bibliotheek"],["coaches","Coaches"],["programs","Programma's"],["week","Weekworkout"],["msgs","Berichten"]];
 function coachShellHtml(inner){
-  const btns=CNAV.map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+'</button>').join("");
+  const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+'</button>').join("");
   const av=esc((ME.profile.first_name||ME.user.email||"?").slice(0,1).toUpperCase());
   return '<div class="cwrap"><div class="cbar"><span class="logo">COACH<b>APP</b></span><div class="cnav2">'+btns+'</div>'+
-    '<div class="cbar-right"><div class="cav">'+av+'</div><button class="lo" onclick="signOut()">Uitloggen</button></div></div>'+
+    '<div class="cbar-right"><span style="font-size:10px;color:#8f959d;font-weight:700;text-transform:uppercase;letter-spacing:.6px">'+esc(ROLE_NL[myRole()]||"")+'</span><div class="cav">'+av+'</div><button class="lo" onclick="signOut()">Uitloggen</button></div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
 }
 function coachRenderSection(){
   const c=document.getElementById("content");
   if(coachSection==="clients"){c.innerHTML=coachShellHtml(klantenHtml());return;}
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}
-  const titles={library:"Bibliotheek",coaches:"Coaches",programs:"Programma's",week:"Weekworkout",msgs:"Berichten"};
+  if(coachSection==="coaches"){c.innerHTML=coachShellHtml('<h1>Coaches</h1><div class="spin">Laden…</div>');fillCoaches();return;}
+  if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
+  const titles={library:"Bibliotheek",programs:"Programma's",week:"Weekworkout",msgs:"Berichten"};
   c.innerHTML=coachShellHtml('<h1>'+esc(titles[coachSection]||"")+'</h1><div class="csoon">Deze sectie bouwen we hierna.<br>We zijn met het <b>Dashboard</b> begonnen; hier vind je straks '+esc((titles[coachSection]||"").toLowerCase())+'.</div>');
 }
 function klantenHtml(){
-  const rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">programmeren ›</span></div>').join("");
+  const act=myRole()==="eigenaar"?"bekijken ›":"programmeren ›";
+  const rows=coachClients.map(p=>'<div class="row click" onclick="openClient(\''+p.id+'\')"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email)+'</div></div><span class="tag">'+act+'</span></div>').join("");
   return '<h1>Klanten</h1>'+
-    '<div class="cstat" style="margin-bottom:16px"><span class="n">'+coachClients.length+'</span><span class="l">Mijn klanten</span></div>'+
+    '<div class="cstat" style="margin-bottom:16px"><span class="n">'+coachClients.length+'</span><span class="l">'+(myRole()==="coach"?"Mijn klanten":"Leden van het bedrijf")+'</span></div>'+
     '<div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div>';
+}
+async function fillCoaches(){
+  let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
+  if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  const{data:coaches}=await q;
+  const rows=(coaches||[]).map(p=>{
+    const n=coachClients.filter(k=>k.coach_id===p.id).length;
+    return '<div class="row"><div class="av">'+naamVan(p).slice(0,1)+'</div><div style="flex:1"><div class="nm">'+naamVan(p)+'</div><div class="sub">'+esc(p.email||"")+'</div></div><span class="tag">'+esc(ROLE_NL[p.role]||p.role)+'</span><span class="tag">'+n+' klanten</span></div>';
+  }).join("");
+  const cp=document.getElementById("cpage");
+  if(cp)cp.innerHTML='<h1>Coaches</h1><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen coaches.</span></div>')+'</div>';
+}
+async function fillCompanies(){
+  const{data:companies}=await db.from("companies").select("*").order("created_at");
+  const rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc((co.name||"?").slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
+  const cp=document.getElementById("cpage");
+  if(cp)cp.innerHTML='<h1>Bedrijven</h1><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
 }
 
 async function fillDashboard(){
