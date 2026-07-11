@@ -318,6 +318,34 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .ass-noteslink{display:block;color:#3eb3e0;font-size:12px;font-weight:600;cursor:pointer;margin-top:7px}
 .ass-noteslink:hover{text-decoration:underline}
 .ass-notes{margin-top:7px}
+/* Metrics & 1RM (zoals het ontwerp) */
+.mx-hd{display:flex;justify-content:space-between;align-items:center;background:#3a3f47;color:#e6e8ea;border-radius:8px;padding:11px 13px;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px}
+.mx-hd .plus{font-size:16px;cursor:pointer;padding:0 4px;color:#c9cdd4}
+.mx-hd .plus:hover{color:#fff}
+.mx-cols{display:flex;color:#8b919b;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:10px 11px 5px}
+.mx-row{display:flex;align-items:center;padding:10px 11px;border-bottom:1px solid #24272c;font-size:12.5px;color:#e6e8ea;cursor:pointer}
+.mx-row:hover{background:#22252b}
+.mx-naam{flex:1.7;display:flex;align-items:center;gap:8px;line-height:1.3}
+.mx-cur{flex:.6}
+.mx-pm{flex:.4;text-align:right;font-weight:700}
+.metgrid{display:grid;grid-template-columns:280px 1fr;flex:1;background:#f6f7f8}
+.metlist{background:#fff;border-right:1px solid #e7e9ec;overflow:auto;max-height:calc(100vh - 120px)}
+.metlist .mlh{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid #e7e9ec}
+.metlist .grp{padding:8px 15px;background:#f2f4f6;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#8a919c;display:flex;justify-content:space-between}
+.metrow{display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid #f0f1f3;font-size:12.5px;cursor:pointer}
+.metrow:hover{background:#fafbfc}
+.metrow .mv{font-weight:700}
+.metrow .mv.na{color:#b3b9c2;font-weight:400}
+.metmain{padding:18px}
+.metcards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.metcard{background:#fff;border:1px solid #e7e9ec;border-radius:12px;padding:16px;min-height:130px}
+.metcard h3{margin-bottom:10px;font-size:13.5px}
+.metcard .nodata{border:1px dashed #e7e9ec;border-radius:8px;color:#b3b9c2;font-size:11.5px;text-align:center;padding:14px 6px}
+.metcard .val{font-size:22px;font-weight:800}
+.metcard .delta{font-size:11.5px;color:#27b376;font-weight:700}
+.spark{display:flex;align-items:flex-end;gap:4px;height:44px;margin-top:10px}
+.spark i{flex:1;background:#cfe9f4;border-radius:3px 3px 0 0;min-height:3px}
+.spark i.hi{background:#3eb3e0}
 .cbar .logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:20px;color:#fff}
 .cbar .logo b{color:var(--accent)}
 .cnav2{display:flex;gap:2px;flex:1;flex-wrap:wrap}
@@ -1107,8 +1135,8 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const actie=s[0]==="assessment"?"openAssess()":"renderClient('"+s[0]+"')";
-    const later=s[0]==="assessment"?false:s[3];
+    const actie=s[0]==="assessment"?"openAssess()":(s[0]==="metrics"?"openMx()":"renderClient('"+s[0]+"')");
+    const later=(s[0]==="assessment"||s[0]==="metrics")?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
   }).join("");
   const c=document.getElementById("content");
@@ -1304,6 +1332,155 @@ async function assOpslaan(){
   assData=doc;
   if(msg)msg.textContent="";
   toast("Assessment opgeslagen");
+}
+// ---------- METRICS & 1RM (zoals het ontwerp; waarden uit de metrics-tabel) ----------
+const METRICS_DEF={
+ "Resistance":["Air Squat","Back Squat 1RM","CGBP 1RM","Clean 1RM","DB External Rotation 8RM","DB Powell Raise 8RM","DB Prone Row 6RM","Deadlift","Front Leaning Rest","Front Squat 1RM","Goblet Squat 20RM","Power Clean 1RM","Power Snatch 1RM","Push-up","Reverse Plank","RFESS","Seated DB OH Press 6RM","Side Plank Left","Side Plank Right","Snatch 1RM","Sorenson Hold","Strict Dip","Strict Knees to Elbow","Strict Press 1RM","Strict Pullup","Thruster 1RM","Unloaded RFESS","Weighted Pull-up 1RM","Weighted Strict Dip 1RM"],
+ "Energy System Beginner":["10 minute AirBike","5k Row","60min Row","AirBike Weight Conversion"],
+ "Energy System Intermediate":["2k Row","30/30 Row (Row 1)","30/30 Row (Row 2)","30/30 Row (Row 3)","30/30 Row (Row 4)","3K running","500m Row","60 sec AirBike","60 sec Row","90min AMRAP","Row/Burpee Over Erg"],
+ "Energy System Advanced":["18 min AMRAP","Back Squat Neuromuscular Efficiency (NME)","Constant Variance (Set 1: A,B,C,D,E,F)","Constant Variance (Set 2: D,E,F,C,B,A)","Constant Variance (Set 3: B,D,E,A,F,C)","Constant Variance (Set 4: F,A,D,E,C,B)","Constant Variance (Set 5: C,F,B,D,A,E)","Power Clean/Burpee Repeat (Set 1)","Power Clean/Burpee Repeat (Set 2)","Push/Pull","Row/KBS/Burpee (Set 1)","Row/KBS/Burpee (Set 2)","Row/KBS/Burpee (Set 3)","Strict PU + Strict HSPU (PU)","Strict PU + Strict HSPU (sHSPU)"],
+ "OPEX Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
+};
+let mxData=[],mxOpen={},balKeuze="Deadlift";
+async function mxLaad(){
+  const{data}=await db.from("metrics").select("*").eq("athlete_id",calClient).order("measured_at");
+  mxData=data||[];
+}
+// per metric-naam: alle metingen (oplopend), laatste en voorlaatste waarde
+function mxHist(naam){return mxData.filter(m=>m.metric===naam);}
+function mxGroepen(){
+  const uit={};
+  for(const g in METRICS_DEF)uit[g]=METRICS_DEF[g].slice();
+  const bekend=new Set(Object.values(METRICS_DEF).flat());
+  const eigen=[...new Set(mxData.map(m=>m.metric))].filter(n=>!bekend.has(n));
+  if(eigen.length)uit["Eigen metrics"]=eigen;
+  return uit;
+}
+function mxWaarde(naam){
+  const h=mxHist(naam);
+  if(!h.length)return null;
+  const cur=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
+  return{cur,vorig,unit:cur.unit||""};
+}
+async function openMx(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-mx");
+  if(sp){sp.classList.toggle("show");return;}
+  sp=document.createElement("div");sp.id="sp-mx";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Metrics</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await mxLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Metrics</h3><span class="sp-x" onclick="document.getElementById(\'sp-mx\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">'+
+    '<button class="sp-btn" style="width:auto;padding:9px 14px" onclick="metricsView()">View structural balance</button>'+
+    '<button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal(\'\')">+ Add</button></div>'+
+    '<div id="mx-groepen"></div>';
+  mxRender();
+}
+function mxToggle(g){mxOpen[g]=!mxOpen[g];mxRender();}
+function mxRender(){
+  const host=document.getElementById("mx-groepen");if(!host)return;
+  const groepen=mxGroepen();let html="";
+  for(const g in groepen){
+    html+='<div class="mx-hd" onclick="mxToggle(\''+g.replace(/'/g,"\\'")+'\')"><span>'+esc(g)+'</span><span class="plus" title="Meting toevoegen" onclick="event.stopPropagation();openMxModal(\'\')">+</span></div>';
+    if(mxOpen[g]){
+      html+='<div class="mx-cols"><div style="flex:1.7">Name</div><div style="flex:.6">Current</div><div style="flex:.4;text-align:right">+/-</div></div>';
+      groepen[g].forEach(naam=>{
+        const w=mxWaarde(naam);
+        let pm="–",pmKl="#8b919b";
+        if(w&&w.vorig&&w.cur.value!=null&&w.vorig.value!=null&&w.cur.value!==w.vorig.value){
+          const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
+          pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
+        }
+        html+='<div class="mx-row" onclick="openMxModal(\''+naam.replace(/'/g,"\\'")+'\')"><div class="mx-naam">'+esc(naam)+'</div><div class="mx-cur">'+(w?esc(String(w.cur.value))+" "+esc(w.unit):"—")+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
+      });
+    }
+  }
+  host.innerHTML=html;
+}
+function ensureMxModal(){
+  if(document.getElementById("mxmodal"))return;
+  const alle=Object.values(METRICS_DEF).flat();
+  const d=document.createElement("div");
+  d.innerHTML='<div class="lmodal" id="mxmodal"><div class="box"><h3>Meting toevoegen</h3>'+
+    '<div class="field"><label>Metric</label><input id="mx-naam" list="mxlijst" placeholder="Bijv. Deadlift"><datalist id="mxlijst">'+alle.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist></div>'+
+    '<div class="field"><label>Waarde (alleen een getal, bijv. 141 of 13.45)</label><input id="mx-waarde" inputmode="decimal"></div>'+
+    '<div class="field"><label>Eenheid</label><select id="mx-unit"><option>kg</option><option>reps</option><option>sec</option><option>min</option><option>cal</option><option>%</option><option>m</option></select></div>'+
+    '<div class="field"><label>Datum</label><input id="mx-datum" type="date"></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn" onclick="mxOpslaan()">Opslaan</button><button class="btn ghost" onclick="document.getElementById(\'mxmodal\').classList.remove(\'show\')">Annuleren</button></div>'+
+    '<div class="msg" id="mx-msg"></div></div></div>';
+  document.body.appendChild(d.firstChild);
+}
+function openMxModal(naam){
+  ensureMxModal();
+  document.getElementById("mx-naam").value=naam||"";
+  document.getElementById("mx-waarde").value="";
+  document.getElementById("mx-datum").value=todayStr();
+  document.getElementById("mx-msg").textContent="";
+  document.getElementById("mxmodal").classList.add("show");
+  document.getElementById(naam?"mx-waarde":"mx-naam").focus();
+}
+async function mxOpslaan(){
+  const naam=document.getElementById("mx-naam").value.trim();
+  const ruw=document.getElementById("mx-waarde").value.trim().replace(",",".");
+  const waarde=parseFloat(ruw);
+  const msg=document.getElementById("mx-msg");
+  if(!naam){msg.textContent="Vul een metric-naam in.";return;}
+  if(isNaN(waarde)){msg.textContent="Vul een getal in als waarde.";return;}
+  const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:waarde,unit:document.getElementById("mx-unit").value,measured_at:document.getElementById("mx-datum").value||todayStr(),created_by:ME.user.id});
+  if(error){msg.textContent=error.message||"Opslaan mislukt";return;}
+  document.getElementById("mxmodal").classList.remove("show");
+  toast("Meting opgeslagen");
+  await mxLaad();
+  mxRender();
+  if(activePanel==="metrics")metricsRender();
+}
+// Structural balance-weergave in het hoofdvlak
+async function metricsView(){
+  activePanel="metrics";
+  const m=document.getElementById("cmain");if(!m)return;
+  m.innerHTML='<div class="spin">Laden…</div>';
+  await mxLaad();
+  metricsRender();
+}
+function balKies(naam){balKeuze=naam;metricsRender();}
+function metricsRender(){
+  const m=document.getElementById("cmain");if(!m||activePanel!=="metrics")return;
+  const rijen=(mxGroepen()["Resistance"]||[]).map(naam=>{
+    const w=mxWaarde(naam);
+    const act=naam===balKeuze;
+    const val=w?'<span class="mv">'+esc(String(w.cur.value))+' '+esc(w.unit)+'</span>':'<span class="mv na">—</span>';
+    return '<div class="metrow"'+(act?' style="background:#f0f8fc"':'')+' onclick="balKies(\''+naam.replace(/'/g,"\\'")+'\')"><span>'+(act?'<b>'+esc(naam)+'</b>':esc(naam))+'</span>'+val+'</div>';
+  }).join("");
+  const w=mxWaarde(balKeuze);
+  let waarde="—",delta="",spark="";
+  if(w){
+    waarde=w.cur.value+" "+(w.unit||"");
+    if(w.vorig&&w.vorig.value!=null&&w.vorig.value!==w.cur.value){
+      const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
+      delta=(d>0?"+":"")+d+" "+(w.unit||"")+" sinds vorige meting";
+    }
+    const hist=mxHist(balKeuze).slice(-6);
+    const max=Math.max(...hist.map(h=>h.value||0),1);
+    spark=hist.map((h,i)=>'<i'+(i===hist.length-1?' class="hi"':'')+' style="height:'+Math.max(6,Math.round((h.value||0)/max*100))+'%" title="'+esc(h.measured_at)+': '+esc(String(h.value))+'"></i>').join("");
+  }
+  m.innerHTML='<div class="calhead"><span class="month">Metrics & 1RM</span>'+
+    '<div class="seg" style="margin-left:auto"><button onclick="toast(\'Dag/week/maand-trends komen later\')">Dag</button><button class="on">Week</button><button onclick="toast(\'Dag/week/maand-trends komen later\')">Maand</button></div>'+
+    '<button class="btn ghost sm" onclick="toast(\'Aanpassen komt later\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Aanpassen</button></div>'+
+    '<div class="metgrid"><div class="metlist">'+
+    '<div class="mlh"><b class="sm">Krachtwaarden</b><button class="btn sm" onclick="openMxModal(\'\')">+ Voeg toe</button></div>'+
+    '<div style="padding:10px 15px;border-bottom:1px solid #f0f1f3"><button class="btn ghost sm" style="width:100%;justify-content:center" onclick="openMx()">Metrics-paneel openen</button></div>'+
+    '<div class="grp"><span>Naam</span><span>Huidig</span></div>'+
+    '<div id="bal-lijst">'+rijen+'</div></div>'+
+    '<div class="metmain"><div class="metcards">'+
+    '<div class="metcard" style="grid-column:span 2"><h3>'+esc(balKeuze)+' <span class="muted sm" style="font-weight:400">· laatste 6 metingen</span></h3>'+
+    '<div class="val">'+esc(waarde)+' <span class="delta">'+esc(delta)+'</span></div>'+
+    (spark?'<div class="spark">'+spark+'</div>':'<div class="nodata" style="border:1px dashed #e7e9ec;border-radius:8px;color:#b3b9c2;font-size:11.5px;text-align:center;padding:14px 6px;margin-top:10px">Nog geen metingen. Voeg de eerste toe via + Voeg toe.</div>')+'</div>'+
+    '<div class="metcard"><h3>Readiness</h3><div class="nodata">Nog geen data</div></div>'+
+    '<div class="metcard"><h3>Slaap</h3><div class="nodata">Nog geen data</div></div>'+
+    '<div class="metcard"><h3>Herstel</h3><div class="nodata">Nog geen data</div></div>'+
+    '<div class="metcard"><h3>Voeding</h3><div class="nodata">Nog geen data</div></div>'+
+    '</div><div class="sm muted" style="margin-top:14px">Deze 1RM\'s voeden straks de slimme berekening in de workout-bouwer (bijv. "3 sets @ 70% van 1RM deadlift").</div></div></div>';
 }
 function prevMonth(){navStep(-1);}
 function nextMonth(){navStep(1);}
