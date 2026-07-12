@@ -14,6 +14,9 @@ function openClient(id){
 }
 function renderClient(panel){
   activePanel=panel;
+  // Verberg de algemene bovenbalk (belangrijk bij binnenkomen via een deep-link, waar
+  // renderCoach niet is gedraaid) — anders staan er twee balken en valt de inklap-pijl buiten beeld.
+  const _tb=document.querySelector(".topbar");if(_tb)_tb.style.display="none";
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
