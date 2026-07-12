@@ -523,7 +523,7 @@ async function pickRest(ev){
   toast("Dag ingesteld als rustdag");renderMonth();
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
-function wTemplate(w){return {title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
   blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
@@ -536,11 +536,18 @@ function kopieerWorkout(wid){
   KLEMBORD=[wTemplate(w)];
   toast("Workout gekopieerd, ga naar een dag en kies Plakken");
 }
+// Datum n dagen na een YYYY-MM-DD (midden op de dag, veilig voor zomertijd).
+function ymdPlus(base,days){const d=new Date(base+"T12:00:00");d.setDate(d.getDate()+days);return ymd(d);}
+function dagenTussen(a,b){return Math.round((new Date(a+"T12:00:00")-new Date(b+"T12:00:00"))/86400000);}
 async function pickPaste(ev){
   ev.stopPropagation();
   if(!KLEMBORD||!KLEMBORD.length){toast("Nog niets gekopieerd, gebruik het kopieer-icoon of selecteer workouts");return;}
+  // Behoud de onderlinge dag-afstand: vroegste kopie op de gekozen dag, de rest met dezelfde offset.
+  const base=KLEMBORD.reduce((m,t)=>(t.date&&(m===null||t.date<m)?t.date:m),null);
   for(const t of KLEMBORD){
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown}).select().single();
+    const off=(t.date&&base)?dagenTussen(t.date,base):0;
+    const datum=off?ymdPlus(curDay,off):curDay;
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
