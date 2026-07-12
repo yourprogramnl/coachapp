@@ -926,7 +926,11 @@ async function openEquip(){
 function equipRender(){
   const host=document.getElementById("equip-lijst");if(!host)return;
   const lijst=ciData.materiaal||[];
-  host.innerHTML=lijst.map(e=>'<div class="sp-dark">'+esc(e.loc)+' <svg class="i sm-i" onclick="equipBewerk(\''+e.id+'\')"><use href="#i-gear"/></svg></div><div class="sp-list">'+esc(e.items||"").replace(/\n/g,"<br>")+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen materiaallijsten. Voeg de eerste toe.</div>';
+  host.innerHTML=lijst.map(e=>'<div class="sp-dark"><span>'+esc(e.loc)+'</span>'+
+    '<span style="display:flex;gap:12px;align-items:center">'+
+    '<svg class="i sm-i" title="Bewerken" onclick="equipBewerk(\''+e.id+'\')"><use href="#i-gear"/></svg>'+
+    '<svg class="i sm-i" title="Verwijderen" onclick="equipVerwijder(\''+e.id+'\')"><use href="#i-trash"/></svg></span></div>'+
+    '<div class="sp-list">'+esc(e.items||"").replace(/\n/g,"<br>")+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen materiaallijsten. Voeg de eerste toe.</div>';
 }
 function equipForm(){
   equipEditId=null;
@@ -953,6 +957,15 @@ async function equipOpslaan(){
   const err=await ciBewaar();
   if(err){toast(err.message||"Opslaan mislukt");return;}
   equipFormSluit();equipRender();toast("Materiaallijst opgeslagen");
+}
+async function equipVerwijder(id){
+  const e=(ciData.materiaal||[]).find(x=>String(x.id)===String(id));if(!e)return;
+  if(!confirm('Materiaallijst "'+e.loc+'" verwijderen?'))return;
+  ciData.materiaal=(ciData.materiaal||[]).filter(x=>String(x.id)!==String(id));
+  const err=await ciBewaar();
+  if(err){toast(err.message||"Verwijderen mislukt");return;}
+  if(String(equipEditId)===String(id))equipFormSluit(); // sluit het formulier als je de bewerkte lijst wist
+  equipRender();toast("Materiaallijst verwijderd");
 }
 // ---------- PROFIEL (volledige pagina in cmain, zoals CoachRx) ----------
 const GENDEROPTS=[["man","Man"],["vrouw","Vrouw"],["anders","Anders"]];
