@@ -187,6 +187,16 @@ const MX_VIDEO_OVERRIDE={
   "CGBP 1RM":"jU6EA4j5r2A","DB Prone Row 6RM":"Sm8O4hjJr9M","Seated DB OH Press 6RM":"RgkzQ008m3I",
   "Strict Pullup":"jgFel4wZl3I","RFESS":"8kvZmrlOo2M","Unloaded RFESS":"3fxmRoIE_fk"
 };
+// Testbeschrijving bij het vraagteken op Advanced-metrics (zelfde tooltip als bij OPEX Body).
+// De werkregels (A. 15 WB, 20/14# ...) laten we in de CoachRx-notatie staan; coaches kennen die zo.
+const MX_TIP_CV="In deze test voert de klant het onderstaande werk zo snel mogelijk per set uit. Constant Variance onderzoekt de herhaalbaarheid van dynamische, matig tot laag belaste contracties, via spieruithoudingsvermogen en aanpassing aan taakvariatie. De onderdelen weerspiegelen matige tot lagere belastingen en aeroob werk op hogere snelheid.";
+const MX_TIP={
+  "Constant Variance (Set 1: A,B,C,D,E,F)":MX_TIP_CV+"\n\nSet 1 (A,B,C,D,E,F):\nA. 15 WB, 20/14#, 10/9'\nB. 15 KBS, 53/35#\nC. 15 BJSD, 24/20'\nD. 15 HPS, 75/55#\nE. 15 Burpees w/ oh clap\nF. 60 DUs",
+  "Constant Variance (Set 2: D,E,F,C,B,A)":MX_TIP_CV+"\n\nSet 2 (D,E,F,C,B,A):\nD. 15 HPS, 75/55#\nE. 15 Burpees w/ oh clap\nF. 60 DUs\nC. 15 BJSD, 24/20'\nB. 15 KBS, 53/35#\nA. 15 WB, 20/14#, 10/9'",
+  "Constant Variance (Set 3: B,D,E,A,F,C)":MX_TIP_CV+"\n\nSet 3 (B,D,E,A,F,C):\nB. 15 KBS, 53/35#\nD. 15 HPS, 75/55#\nE. 15 Burpees w/ oh clap\nA. 15 WB, 20/14#, 10/9'\nF. 60 DUs\nC. 15 BJSD, 24/20'",
+  "Constant Variance (Set 4: F,A,D,E,C,B)":MX_TIP_CV+"\n\nSet 4 (F,A,D,E,C,B):\nF. 60 DUs\nA. 15 WB, 20/14#, 10/9'\nD. 15 HPS, 75/55#\nE. 15 Burpees w/ oh clap\nC. 15 BJSD, 24/20'\nB. 15 KBS, 53/35#",
+  "Constant Variance (Set 5: C,F,B,D,A,E)":MX_TIP_CV+"\n\nSet 5 (C,F,B,D,A,E):\nC. 15 BJSD, 24/20'\nF. 60 DUs\nB. 15 KBS, 53/35#\nD. 15 HPS, 75/55#\nA. 15 WB, 20/14#, 10/9'\nE. 15 Burpees w/ oh clap"
+};
 async function mxLaad(){
   const{data}=await db.from("metrics").select("*").eq("athlete_id",calClient).order("measured_at");
   mxData=data||[];
@@ -225,7 +235,11 @@ const MX_TYPE={
   "5k Row":"time","2k Row":"time","500m Row":"time","3K running":"time",
   "60min Row":"m","60 sec Row":"m",
   "30/30 Row (Row 1)":"m","30/30 Row (Row 2)":"m","30/30 Row (Row 3)":"m","30/30 Row (Row 4)":"m",
-  "60 sec AirBike":"cal"
+  "60 sec AirBike":"cal",
+  // Constant Variance: elke set zo snel mogelijk = tijd-resultaat.
+  "Constant Variance (Set 1: A,B,C,D,E,F)":"time","Constant Variance (Set 2: D,E,F,C,B,A)":"time",
+  "Constant Variance (Set 3: B,D,E,A,F,C)":"time","Constant Variance (Set 4: F,A,D,E,C,B)":"time",
+  "Constant Variance (Set 5: C,F,B,D,A,E)":"time"
 };
 function mxType(naam){
   if(MX_TYPE[naam])return MX_TYPE[naam];
@@ -285,7 +299,9 @@ function mxRender(){
         const nEsc=naam.replace(/'/g,"\\'");
         // Camera met demo-video alleen bij Resistance (bewegingen); de andere blokken hebben geen video.
         const cam=(g==="Resistance")?'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span>':'';
-        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+cam+'</div><div class="mx-cur">'+curTxt+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
+        // Vraagteken met testbeschrijving (hover), net als bij OPEX Body. Klik niet doorlaten naar de rij.
+        const tip=MX_TIP[naam]?' <span class="ass-help" data-tip="'+esc(MX_TIP[naam])+'" onclick="event.stopPropagation()">?</span>':'';
+        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+tip+cam+'</div><div class="mx-cur">'+curTxt+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
       });
     }
   }
@@ -368,7 +384,8 @@ function mxDetailRender(){
       actie='<button class="btn" onclick="mxDetailFormOpen()">Nieuw resultaat</button>';
     }
   }
-  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="mxDetailTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+'</span></div>'+
+  const dTip=MX_TIP[naam]?' <span class="ass-help" data-tip="'+esc(MX_TIP[naam])+'">?</span>':'';
+  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="mxDetailTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+dTip+'</span></div>'+
     '<div style="padding:22px 24px;max-width:820px;overflow:auto">'+
     '<div style="margin-bottom:20px"><div class="sm muted">Huidig</div><div style="font-size:26px;font-weight:800;color:var(--accent)">'+curTxt+'</div></div>'+
     actie+
