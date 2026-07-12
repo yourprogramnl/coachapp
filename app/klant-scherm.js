@@ -378,7 +378,7 @@ async function renderMonth(opts){
   const gridStyle=cols===1?' style="grid-template-columns:1fr"':'';
   let weeks="";
   for(let wk=0;wk<cellCount/cols;wk++){
-    let cells="";
+    let cells="",editCol=-1;
     for(let i=0;i<cols;i++){
       const d=addDays(gridStart,wk*cols+i),ds=ymd(d),isToday=ds===todayStr(),dim=calView==="maand"&&d.getMonth()!==ref.getMonth(),editing=ds===editDay;
       const dayWos=byDate[ds]||[];
@@ -387,6 +387,7 @@ async function renderMonth(opts){
       let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();toast(\'Dag-notities komen in een volgende stap\')" style="cursor:pointer"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>';
       let selectable=false;
       if(editing){
+        editCol=i; // deze kolom breder maken zodat de bouwer meer ruimte krijgt
         inner+=dayWos.filter(w=>w.id!==editWid).map(mcardHtml).join("");
         inner+='<div class="ib2" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else if(dayWos.length){
@@ -409,7 +410,13 @@ async function renderMonth(opts){
         }
       }
     }
-    weeks+='<div class="mrow" data-d="'+ymd(addDays(gridStart,wk*cols))+'"'+gridStyle+'>'+cells+'</div>';
+    // Bouwer open? geef die kolom in deze rij meer breedte (zoals CoachRx) voor beter overzicht.
+    let rowStyle=gridStyle;
+    if(cols===7&&editCol>=0){
+      const parts=[];for(let c=0;c<7;c++)parts.push(c===editCol?"1.9fr":"1fr");
+      rowStyle=' style="grid-template-columns:'+parts.join(" ")+'"';
+    }
+    weeks+='<div class="mrow" data-d="'+ymd(addDays(gridStart,wk*cols))+'"'+rowStyle+'>'+cells+'</div>';
   }
   if(activePanel!=="kalender")return;
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';

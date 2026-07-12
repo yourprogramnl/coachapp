@@ -100,7 +100,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .mday{border-right:1px solid #f0f1f3;border-bottom:1px solid #e7e9ec;min-height:122px;padding:3px 4px 6px;background:#fff;position:relative}
 .mday:last-child{border-right:none}
 .mday.dim2{background:#fafbfc}
-.mday-top{display:flex;align-items:center;gap:5px;padding:3px 3px 5px;color:#b3b9c2}
+.mday-top{display:flex;align-items:center;gap:5px;margin:-3px -4px 6px;padding:4px 8px;background:#f4f5f7;border-bottom:1px solid #e7e9ec;color:#b3b9c2}
 .mday-top .i{width:12px;height:12px}
 .restchip{border:1px solid #e7e9ec;border-radius:999px;padding:0 7px;font-size:9.5px;font-weight:600;color:#8a919c;line-height:15px}
 .dnum2{margin-left:auto;font-size:12px;font-weight:700;color:#1d2129}
