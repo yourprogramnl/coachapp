@@ -40,7 +40,7 @@ function renderClient(panel){
   ensureLibModals();
   vulKlantStats(p);
   if(panel==="kalender")renderMonth();
-  else if(panel==="profiel")renderProfielPagina();
+  else if(panel==="profiel"){pfTab="profiel";renderProfielPagina();}
   else{const lbl=(SIDE.find(s=>s[0]===panel)||[])[2]||"Onderdeel";document.getElementById("cmain").innerHTML='<div style="padding:24px"><h2>'+esc(lbl)+'</h2><div class="card" style="padding:24px;margin-top:10px;max-width:560px"><div class="muted" style="line-height:1.6">Dit onderdeel komt later. We bouwen eerst de kalender en het programmeren helemaal af. Daarna voegen we '+esc(lbl.toLowerCase())+' toe, net als in het ontwerp.</div></div></div>';}
 }
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data

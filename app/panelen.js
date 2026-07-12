@@ -1007,14 +1007,24 @@ function pfLeeftijdUpdate(){
   const lft=leeftijdVan(bd);
   el.value=(lft!=null)?(lft+" jaar"):"";
 }
+let pfTab="profiel";
+function pfSwitchTab(t){pfTab=t;renderProfielPagina();}
 function renderProfielPagina(){
   const cm=document.getElementById("cmain");if(!cm)return;
   const p=coachClients.find(x=>x.id===calClient);if(!p)return;
+  const tabs=[["profiel","Profiel"],["progress","Voortgangsfoto's"],["intake","Intakeformulier"]];
+  cm.innerHTML='<div class="pftabbar">'+tabs.map(t=>'<button class="pftab'+(pfTab===t[0]?" on":"")+'" onclick="pfSwitchTab(\''+t[0]+'\')">'+esc(t[1])+'</button>').join("")+'</div><div id="pf-body"></div>';
+  if(pfTab==="progress"){pfRenderProgress(p);return;}
+  if(pfTab==="intake"){pfRenderIntake(p);return;}
+  pfRenderProfiel(p);
+}
+function pfRenderProfiel(p){
+  const body=document.getElementById("pf-body");if(!body)return;
   const naam=naamVan(p);
   const{min,max}=pfGeboortegrenzen();
   const minBd=ymd(min),maxBd=ymd(max);
   const lftNu=leeftijdVan(p.birth_date);
-  cm.innerHTML='<div class="pfwrap">'+
+  body.innerHTML='<div class="pfwrap">'+
     '<div class="pfav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
     '<input type="file" id="pf-fotofile" accept="image/*" style="display:none" onchange="avatarUpload(this)">'+
     '<div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm" id="pf-fotoknop" onclick="document.getElementById(\'pf-fotofile\').click()">Kies een afbeelding</button></div>'+
@@ -1121,4 +1131,153 @@ async function avatarUpload(input){
   profielHeaderVerversen(p);
   if(knop){knop.disabled=false;knop.textContent="Kies een afbeelding";}
   toast("Profielfoto bijgewerkt");
+}
+// ---------- INTAKEFORMULIER (tab in profiel; intake-tabel, zichtbaar+bewerkbaar voor coach én lid) ----------
+// Stabiele sleutels per vraag zodat wijzigen van de tekst opgeslagen antwoorden niet breekt.
+const INTAKE_SECTIES=[
+  {titel:"Gezondheid",vragen:[
+    ["gz_klachten","Heb je medische klachten of blessures (nu of in het verleden)? Noem ze en geef relevante details."],
+    ["gz_allergie","Heb je bekende allergieën voor medicijnen, voeding of omgeving?"],
+    ["gz_medicijnen","Gebruik je medicijnen? Zo ja, welke?"],
+    ["gz_supplementen","Gebruik je supplementen (eiwitpoeder, vitamines, mineralen, creatine of anders)?"],
+    ["gz_ziek","Hoe vaak per jaar ben je ziek?"],
+    ["gz_ontlasting","Hoeveel ontlasting heb je per dag?"],
+    ["gz_opgeblazen","Heb je last van winderigheid of een opgeblazen gevoel?"],
+    ["gz_menstruatie","Beschrijf je menstruatiecyclus (alleen voor vrouwen)."]
+  ]},
+  {titel:"Sport & ervaring",vragen:[
+    ["sp_waarom","Waarom wil je een fitnesscoach?"],
+    ["sp_hoelang","Hoe lang sport je al consequent?"],
+    ["sp_dagen","Als je nu sport, hoeveel dagen per week?"],
+    ["sp_ervaring","Welke ervaring heb je met training en sport?"]
+  ]},
+  {titel:"Slaap & herstel",vragen:[
+    ["sl_uren","Hoeveel uur (aaneengesloten) slaap krijg je per nacht?"],
+    ["sl_inslapen","Hoe laat val je in slaap?"],
+    ["sl_opstaan","Hoe laat word je wakker?"],
+    ["sl_cijfer","Beoordeel je slaap op een schaal van 1-5 (5 = het best)."],
+    ["hs_energie","Hoe zijn je energieniveaus door de dag heen? (1-10)"],
+    ["hs_stress","Hoe hoog is je stressniveau? (1-5, 5 = meest gestrest)"]
+  ]},
+  {titel:"Voeding",vragen:[
+    ["vd_programma","Volg je nu of heb je ooit een voedingsprogramma gevolgd? Zo ja, wat werkte wel, wat niet en waarom?"],
+    ["vd_water","Hoeveel water drink je per dag?"]
+  ]},
+  {titel:"Werk & leefstijl",vragen:[
+    ["wk_beroep","Wat is je huidige beroep?"],
+    ["wk_schema","Wat is je werkschema (dagen/uren)?"]
+  ]},
+  {titel:"Doelen",vragen:[
+    ["dl_lang","Wat zijn je langetermijndoelen?"]
+  ]},
+  {titel:"Alleen voor wedstrijdatleten (CrossFit / functional fitness)",vragen:[
+    ["ws_sessies","Hoeveel trainingssessies doe je per dag en per week?"]
+  ]}
+];
+let intakeData={answers:{},notes:""};
+async function intakeLaad(){
+  const{data}=await db.from("intake").select("*").eq("athlete_id",calClient).maybeSingle();
+  intakeData=data?{answers:data.answers||{},notes:data.notes||""}:{answers:{},notes:""};
+}
+async function pfRenderIntake(p){
+  const body=document.getElementById("pf-body");if(!body)return;
+  body.innerHTML='<div class="pfwrap"><div class="sp-info">Laden…</div></div>';
+  await intakeLaad();
+  if(pfTab!=="intake")return; // tab is intussen gewisseld
+  let html='<div class="pfwrap"><div style="font-weight:800;font-size:16px">Intakeformulier</div>'+
+    '<div class="sm muted" style="margin:4px 0 8px">Zichtbaar voor de coach en de klant. Je kunt de antwoorden hier invullen of aanpassen, bijvoorbeeld tijdens het intakegesprek.</div>';
+  INTAKE_SECTIES.forEach(sec=>{
+    html+='<div style="font-weight:800;font-size:13px;margin:18px 0 8px;color:var(--accent)">'+esc(sec.titel)+'</div>';
+    sec.vragen.forEach(q=>{
+      html+='<div class="field"><label>'+esc(q[1])+'</label><textarea id="intake-'+q[0]+'" style="min-height:52px">'+esc(intakeData.answers[q[0]]||"")+'</textarea></div>';
+    });
+  });
+  html+='<div style="font-weight:800;font-size:13px;margin:18px 0 8px;color:var(--accent)">Overige notities</div>'+
+    '<div class="field"><textarea id="intake-notes" placeholder="Ruimte voor alles wat verder relevant is…" style="min-height:80px">'+esc(intakeData.notes||"")+'</textarea></div>'+
+    '<div class="mfoot" style="display:flex;justify-content:flex-end;border-top:1px solid var(--line);padding-top:16px;margin-top:16px"><button class="btn" onclick="intakeOpslaan()">Intake opslaan</button></div></div>';
+  body.innerHTML=html;
+}
+async function intakeOpslaan(){
+  const answers={};
+  INTAKE_SECTIES.forEach(sec=>sec.vragen.forEach(q=>{
+    const el=document.getElementById("intake-"+q[0]);const v=el?el.value.trim():"";
+    if(v)answers[q[0]]=v;
+  }));
+  const notes=(document.getElementById("intake-notes").value||"").trim()||null;
+  const row={athlete_id:calClient,company_id:ME.profile.company_id,answers,notes,updated_by:ME.user.id,updated_at:new Date().toISOString()};
+  const{error}=await db.from("intake").upsert(row,{onConflict:"athlete_id"});
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  intakeData={answers,notes:notes||""};
+  toast("Intake opgeslagen");
+}
+// ---------- VOORTGANGSFOTO'S (tab in profiel; progress_photos-tabel + private 'progress'-bucket) ----------
+let progressData=[];
+const PROGRESS_MAX=10485760; // 10 MB
+async function progressLaad(){
+  const{data}=await db.from("progress_photos").select("*").eq("athlete_id",calClient).order("taken_on",{ascending:false}).order("created_at",{ascending:false});
+  progressData=data||[];
+}
+function progressFormToggle(){const f=document.getElementById("progress-form");if(f)f.style.display=f.style.display==="none"?"":"none";}
+async function pfRenderProgress(p){
+  const body=document.getElementById("pf-body");if(!body)return;
+  body.innerHTML='<div class="pfwrap"><div class="sp-info">Laden…</div></div>';
+  await progressLaad();
+  if(pfTab!=="progress")return;
+  // Signed URL's voor de miniaturen (private bucket).
+  const paths=progressData.map(x=>x.storage_path);
+  const urlMap={};
+  if(paths.length){const{data:signed}=await db.storage.from("progress").createSignedUrls(paths,3600);(signed||[]).forEach((s,i)=>{if(s&&s.signedUrl)urlMap[paths[i]]=s.signedUrl;});}
+  const groepen={};progressData.forEach(x=>{(groepen[x.taken_on]=groepen[x.taken_on]||[]).push(x);});
+  const datums=Object.keys(groepen).sort().reverse();
+  let html='<div class="pfwrap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:800;font-size:16px">Voortgangsfoto\'s</div>'+
+    '<button class="btn" onclick="progressFormToggle()">+ Voortgangsfoto\'s toevoegen</button></div>'+
+    '<div id="progress-form" style="display:none;border:1px solid var(--line);border-radius:12px;padding:14px;margin:6px 0 12px">'+
+      '<div class="field" style="max-width:220px"><label>Datum</label><input type="date" id="progress-datum" value="'+ymd(new Date())+'" max="'+ymd(new Date())+'"></div>'+
+      '<input type="file" id="progress-files" accept="image/*" multiple style="display:none" onchange="progressUpload()">'+
+      '<button class="btn ghost sm" onclick="document.getElementById(\'progress-files\').click()">Foto\'s kiezen van je computer</button>'+
+      '<span class="sm muted" id="progress-status" style="margin-left:10px"></span>'+
+      '<div class="sm muted" style="margin-top:8px">Meerdere foto\'s tegelijk mag. Maximaal 10 MB per foto.</div></div>';
+  if(!datums.length)html+='<div class="sm muted" style="padding:14px 0">Nog geen voortgangsfoto\'s. Voeg de eerste toe.</div>';
+  datums.forEach(d=>{
+    html+='<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center"><b>'+esc(datumNL(d))+'</b><span class="sm muted">'+groepen[d].length+' foto'+(groepen[d].length===1?"":"\'s")+'</span></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+
+      groepen[d].map(x=>{const u=urlMap[x.storage_path];
+        return '<div class="progthumb">'+(u?'<img src="'+esc(u)+'" alt="" onclick="window.open(\''+esc(u)+'\',\'_blank\',\'noopener\')">':'<span class="sm muted">geen<br>preview</span>')+
+        '<span class="progdel" title="Verwijderen" onclick="progressVerwijder(\''+x.id+'\')">✕</span></div>';}).join("")+
+      '</div></div>';
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+async function progressUpload(){
+  const input=document.getElementById("progress-files");
+  const files=[...(input.files||[])];input.value="";
+  if(!files.length)return;
+  const datum=(document.getElementById("progress-datum")||{}).value||ymd(new Date());
+  const st=document.getElementById("progress-status");
+  let ok=0;
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    if(!/^image\//.test(f.type||"")){toast(f.name+" is geen afbeelding");continue;}
+    if(f.size>PROGRESS_MAX){toast(f.name+" is te groot (max 10 MB)");continue;}
+    if(st)st.textContent="Uploaden "+(i+1)+"/"+files.length+"…";
+    const ext=((f.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,""))||"jpg";
+    const path=ME.profile.company_id+"/"+calClient+"/"+crypto.randomUUID()+"."+ext;
+    const{error:upErr}=await db.storage.from("progress").upload(path,f,{contentType:f.type});
+    if(upErr){toast(upErr.message||"Upload mislukt");continue;}
+    const{error}=await db.from("progress_photos").insert({athlete_id:calClient,company_id:ME.profile.company_id,taken_on:datum,storage_path:path,created_by:ME.user.id});
+    if(error){await db.storage.from("progress").remove([path]);toast(error.message||"Opslaan mislukt");continue;}
+    ok++;
+  }
+  if(st)st.textContent="";
+  toast(ok?ok+" foto"+(ok===1?"":"'s")+" toegevoegd":"Geen foto's toegevoegd");
+  pfRenderProgress(coachClients.find(x=>x.id===calClient));
+}
+async function progressVerwijder(id){
+  const x=progressData.find(y=>y.id===id);if(!x)return;
+  if(!confirm("Deze foto verwijderen?"))return;
+  const{error}=await db.from("progress_photos").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  await db.storage.from("progress").remove([x.storage_path]);
+  pfRenderProgress(coachClients.find(y=>y.id===calClient));
 }
