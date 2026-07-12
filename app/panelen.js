@@ -173,12 +173,28 @@ const METRICS_DEF={
  "OPEX Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
 };
 let mxData=[],mxOpen={},balKeuze="Deadlift";
-// Detailscherm-state + koppeling OPEX Body → Assessment (zodat je body-waarden maar op één plek invult)
+// Detailscherm-state + koppeling naar Assessment (zodat je deze waarden maar op één plek invult).
+// [sectie, veld] verwijst naar assessments.data[sectie][veld] (body = OPEX Body, move = OPEX Move).
 let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
-const MX_BODY_VELD={"Weight":"gewicht","Bodyfat Percentage":"vet","Skeletal Muscle Mass":"spier","Basal Metabolic Rate":"metab"};
+const MX_ASS_VELD={
+  "Weight":["body","gewicht"],"Bodyfat Percentage":["body","vet"],"Skeletal Muscle Mass":["body","spier"],"Basal Metabolic Rate":["body","metab"],
+  "Air Squat":["move","airsquat"],"Front Leaning Rest":["move","frontplank"],"Reverse Plank":["move","reverseplank"],"Side Plank Left":["move","sideplank_l"],"Side Plank Right":["move","sideplank_r"]
+};
+// Vaste videokoppeling voor oefeningen die niet automatisch op naam te vinden zijn.
+const MX_VIDEO_OVERRIDE={
+  "CGBP 1RM":"jU6EA4j5r2A","DB Prone Row 6RM":"Sm8O4hjJr9M","Seated DB OH Press 6RM":"RgkzQ008m3I",
+  "Strict Pullup":"jgFel4wZl3I","RFESS":"8kvZmrlOo2M","Unloaded RFESS":"3fxmRoIE_fk"
+};
 async function mxLaad(){
   const{data}=await db.from("metrics").select("*").eq("athlete_id",calClient).order("measured_at");
   mxData=data||[];
+  const{data:ass}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on");
+  mxAss=ass||[];
+}
+// Metingen van een aan Assessment gekoppelde metric: [{v,d}] uit de assessments (oplopend op datum).
+function mxAssPunten(naam){
+  const veld=MX_ASS_VELD[naam];if(!veld)return null;
+  return (mxAss||[]).map(a=>({v:((a.data&&a.data[veld[0]])||{})[veld[1]],d:a.assessed_on})).filter(p=>p.v!=null&&p.v!=="");
 }
 // per metric-naam: alle metingen (oplopend), laatste en voorlaatste waarde
 function mxHist(naam){return mxData.filter(m=>m.metric===naam);}
@@ -222,16 +238,24 @@ function mxRender(){
     if(mxOpen[g]){
       html+='<div class="mx-cols"><div style="flex:1.7">Naam</div><div style="flex:.6">Huidig</div><div style="flex:.4;text-align:right">+/-</div></div>';
       groepen[g].forEach(naam=>{
-        const w=mxWaarde(naam);
-        let pm="–",pmKl="#8b919b";
-        if(w&&w.vorig&&w.cur.value!=null&&w.vorig.value!=null&&w.cur.value!==w.vorig.value){
-          const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
-          pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
+        let curTxt="—",pm="–",pmKl="#8b919b";
+        if(MX_ASS_VELD[naam]){
+          // Waarde komt uit Assessment (niet dubbel invoeren)
+          const pts=mxAssPunten(naam);
+          if(pts&&pts.length)curTxt=esc(String(pts[pts.length-1].v));
+        }else{
+          const w=mxWaarde(naam);
+          if(w){curTxt=esc(String(w.cur.value))+" "+esc(w.unit);
+            if(w.vorig&&w.cur.value!=null&&w.vorig.value!=null&&w.cur.value!==w.vorig.value){
+              const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
+              pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
+            }
+          }
         }
         const nEsc=naam.replace(/'/g,"\\'");
         // Camera met demo-video alleen bij Resistance (bewegingen); de andere blokken hebben geen video.
         const cam=(g==="Resistance")?'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span>':'';
-        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+cam+'</div><div class="mx-cur">'+(w?esc(String(w.cur.value))+" "+esc(w.unit):"—")+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
+        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+cam+'</div><div class="mx-cur">'+curTxt+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
       });
     }
   }
@@ -241,6 +265,7 @@ function mxRender(){
 // Namen als "Back Squat 1RM" of "Goblet Squat 20RM" matchen op de basisnaam.
 function metricNorm(s){return String(s||"").toLowerCase().replace(/\d+\s*rm\b/g,"").replace(/\([^)]*\)/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();}
 function metricVideo(naam){
+  if(MX_VIDEO_OVERRIDE[naam])return{youtube_id:MX_VIDEO_OVERRIDE[naam]};
   if(typeof LIB==="undefined"||!LIB||!LIB.oef||!LIB.oef.length)return null;
   const base=metricNorm(naam);if(!base)return null;
   let hit=LIB.oef.find(o=>metricNorm(o.naam)===base);
@@ -270,18 +295,23 @@ async function mxOpenDetail(naam){
   if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient+"/metric/"+encodeURIComponent(naam));
   const m=document.getElementById("cmain");if(m)m.innerHTML='<div class="spin">Laden…</div>';
   await mxLaad();
-  if(MX_BODY_VELD[naam]){const{data}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on");mxAss=data||[];}
   mxDetailRender();
+}
+async function mxAanpassenInAss(){
+  const veld=MX_ASS_VELD[mxDetailNaam];
+  await openAssess();
+  if(veld&&veld[0]==="move")assTab(1);
 }
 function mxDetailRender(){
   const m=document.getElementById("cmain");if(!m||activePanel!=="metric-detail"||!mxDetailNaam)return;
-  const naam=mxDetailNaam,bodyVeld=MX_BODY_VELD[naam];
+  const naam=mxDetailNaam,assVeld=MX_ASS_VELD[naam];
   let curTxt="—",histRows="",actie="";
-  if(bodyVeld){
-    const punten=mxAss.map(a=>({v:((a.data&&a.data.body)||{})[bodyVeld],d:a.assessed_on})).filter(p=>p.v!=null&&p.v!=="");
+  if(assVeld){
+    const blok=assVeld[0]==="body"?"OPEX Body":"OPEX Move";
+    const punten=mxAssPunten(naam);
     if(punten.length)curTxt=esc(String(punten[punten.length-1].v));
     histRows=punten.slice().reverse().map(p=>'<div class="mh-row"><div class="mh-v">'+esc(String(p.v))+'</div><div class="mh-d">'+esc(assDatumNL(p.d))+'</div><div class="mh-n"><span class="muted sm">uit Assessment</span></div><div class="mh-x"></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen metingen. Vul ze in bij Assessment.</div>';
-    actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment (OPEX Body), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="openAssess()">Aanpassen in Assessment</button>';
+    actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment ('+blok+'), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="mxAanpassenInAss()">Aanpassen in Assessment</button>';
   }else{
     const hist=mxHist(naam),w=mxWaarde(naam);
     if(w)curTxt=esc(String(w.cur.value))+" "+esc(w.unit||"");
