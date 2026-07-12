@@ -3,13 +3,21 @@
 // Prioriteiten, Materiaal en de Profiel-pagina. Plus de zijbalk in-/uitklappen.
 // ---------- ASSESSMENT (OPEX Body / Move / Work), zoals het ontwerp ----------
 const ASS_MOVE=[
-  ["scratch","Scratch Test","Hoe uit te voeren:\nBreng één arm boven het hoofd en reik achter de nek naar je bovenrug, terwijl de andere arm van onderen omhoog komt — beide met gesloten vuist (haakgreep).\n\nLet op:\nSymmetrie links-rechts\nBovenarm kan in lijn met de romp blijven zonder in te zakken in de core\nStrategieën om het bewegingsbereik te halen (romp & nek)\nOnvermogen om het schouderblad in te trekken\nOnvermogen in schouder-extensie bij het overhead gaan\nVerkeerde uitlijning van de wervelkolom\nVoer minstens 3 herhalingen uit"],
+  ["scratch","Scratch Test","Hoe uit te voeren:\nBreng één arm boven het hoofd en reik achter de nek naar je bovenrug, terwijl de andere arm van onderen omhoog komt. Beide met gesloten vuist (haakgreep).\n\nLet op:\nSymmetrie links-rechts\nBovenarm kan in lijn met de romp blijven zonder in te zakken in de core\nStrategieën om het bewegingsbereik te halen (romp en nek)\nOnvermogen om het schouderblad in te trekken\nOnvermogen in schouder-extensie bij het overhead gaan\nVerkeerde uitlijning van de wervelkolom\nVoer minstens 3 herhalingen uit"],
   ["airsquat","Air Squat","Hoe uit te voeren:\nKies een voetstand die comfortabel voelt.\nArmen boven het hoofd in een \"Y\"-positie, naar buiten gedraaid (extern geroteerd).\nZak met je zwaartepunt naar de vloer terwijl je zo rechtop mogelijk blijft.\nVoer minstens 3 herhalingen uit.\n\nLet op:\nRomp- en lage-rug-extensie vastgehouden\nSymmetrie van links naar rechts\nHeupverschuiving (hip shift)\nUitlijning van de heupen\nVoeten plat\nHanden komen vóór de voeten"],
   ["toetouch","Toe Touch Test","Hoe uit te voeren:\nMet de voeten tegen elkaar en de knieën op slot zo ver mogelijk voorover buigen, zonder dat er buiging in de knie ontstaat.\n\nLet op:\nGewicht verschuift naar de hielen zonder dat de voeten bewegen\nNormale kromming van de wervelkolom\nBenen blijven de hele tijd gestrekt\nSymmetrie van links naar rechts\nZorg dat de nek meebuigt met de rug\nVermogen om de tenen te bereiken"],
   ["lunge","Lunge Test","Hoe uit te voeren:\nZittend op de grond, plak een stukje tape bij de enkel en een tweede bij de trochanter major (heupbeen).\nSta met de tenen achter de (trochanter-)lijn en stap naar voren om de hiel vóór de lijn te plaatsen, armen in een \"genie\"-positie.\nLet op: de benen staan op heupbreedte, niet op één lijn.\nZak tot de achterste knie de vloer raakt en kom dan terug naar de startpositie.\nVoer minstens 3 herhalingen per been uit.\n\nLet op:\nSymmetrie links-rechts\nKnie volgt een neutrale lijn\nRomp blijft hoog in de excentrische en concentrische fase\nStabiliteit, balans en controle\nBekken blijft per zijde in lijn en beweegt per herhaling naar voren\nVoorste voet is plat, op de tenen bij de achterste voet"],
-  ["slr","Straight Leg Raise Test","Liggend been gestrekt heffen tot 70 graden"]
+  ["slr","Straight Leg Raise Test","Hoe uit te voeren:\nLig op je rug, armen langs het lichaam met de handpalmen omhoog. Hef één been zo hoog mogelijk zonder de knie te buigen, terwijl het andere been op de vloer blijft en de tenen omhoog getrokken zijn (dorsiflexie).\nVoer de beweging minstens drie keer uit, aan beide kanten.\n\nLet op:\nSymmetrie links-rechts\nVoeten blijven de hele tijd in dorsiflexie\nHiel komt voorbij de knie"]
 ];
-const ASS_TIJD=[["frontplank","Front Plank/Front Leaning Rest","Vasthouden in seconden"],["reverseplank","Reverse Plank","Omgekeerde plank, heupen hoog"],["sideplank_r","Side Plank Right","Zijwaartse plank rechts"],["sideplank_l","Side Plank Left","Zijwaartse plank links"]];
+const ASS_TIJD=[
+  ["frontplank","Front Plank/Front Leaning Rest","Hoe uit te voeren:\nBegin in een vierpunts-kniestand (handen onder de schouders, knieën onder de heupen) en strek beide benen één voor één, steunend op je tenen.\nSpan je romp aan, hoofd neutraal.\nStart de timer.\n\nLet op:\nProtractie behouden in de bovenrug\nSymmetrie links-rechts\nAanspanning de hele tijd behouden\nVermogen om 60 seconden een goede positie vast te houden"],
+  ["reverseplank","Reverse Plank","Hoe uit te voeren:\nZit met je benen gestrekt, hielen op de grond en handen recht onder of iets achter je schouders, vingers wijzen naar achteren. Druk je hielen en handpalmen in de grond en breng je heupen omhoog richting het plafond, tot je lichaam een rechte lijn vormt van je enkels tot je schouders.\nStart de timer.\n\nLet op:\nRetractie behouden in de bovenrug\nSymmetrie links-rechts\nVermogen om schouder-extensie vast te houden\nRechte lijn van enkels tot schouders\nVermogen om 60 seconden een goede positie vast te houden"],
+  ["sideplank_r","Side Plank Right","Hoe uit te voeren:\nLig op je zij met de onderarm plat op de vloer, de onderste elleboog recht onder de schouder en beide benen gestrekt in één lange lijn.\nBegin met de niet-dominante arm onder.\nMet de voeten op elkaar gestapeld en het hoofd neutraal, til je je heupen van de vloer en vorm je een rechte lijn van hoofd tot voeten.\nStart de timer.\n\nLet op:\nHoud een rechte lijn van hoofd tot voeten\nVermogen om 90 seconden per kant een goede positie vast te houden\nSymmetrie links-rechts"],
+  ["sideplank_l","Side Plank Left","Hoe uit te voeren:\nLig op je zij met de onderarm plat op de vloer, de onderste elleboog recht onder de schouder en beide benen gestrekt in één lange lijn.\nBegin met de niet-dominante arm onder.\nMet de voeten op elkaar gestapeld en het hoofd neutraal, til je je heupen van de vloer en vorm je een rechte lijn van hoofd tot voeten.\nStart de timer.\n\nLet op:\nHoud een rechte lijn van hoofd tot voeten\nVermogen om 90 seconden per kant een goede positie vast te houden\nSymmetrie links-rechts"]
+];
+// OPEX Body-uitleg (bij de vraagtekens op het eerste tabblad)
+const ASS_TIP_VET="Man 10-20%, vrouw 18-28%.\nDit zijn ranges die aangeven dat een man of vrouw gezond is. Het zijn geen indicatoren van een geoptimaliseerde lichaamssamenstelling en komen niet altijd overeen met de ideale lichaamssamenstelling van je klant. Bespreek met je klanten het verschil tussen gezondheid en geoptimaliseerde esthetiek.";
+const ASS_TIP_SHAPE="Om te bepalen welke \"shape\" je klant heeft, kijk je naar het onderdeel Muscle Fat Analysis op de InBody-uitdraai. Het is de vorm die de 3 balken samen maken (C, I of D).";
 let assData={},assLijst=[],assHuidigId=null,assDatum="",assTabIdx=0;
 const assDatumNL=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MAANDVOL[d.getMonth()]+" "+d.getFullYear();};
 // Hover-uitleg bij de assessment-vraagtekens (vast gepositioneerd → niet geknipt door de zijbalk).
@@ -77,7 +85,7 @@ function assVal(pad,std){const d=pad.split(".").reduce((o,k)=>o&&o[k]!=null?o[k]
 function assVeldRij(n,v){return '<div class="sp-field ass-extra" style="display:flex;gap:6px"><input class="xn" placeholder="Naam veld" value="'+esc(n||"")+'" style="flex:1"><input class="xv" placeholder="Waarde" value="'+esc(v||"")+'" style="flex:1"></div>';}
 function assHtml(d){
   d=d||{};const b=d.body||{},mv=d.move||{},wk=d.work||{};
-  const veld=(lbl,id,val)=>'<div class="sp-field"><label>'+lbl+'</label><input id="'+id+'" value="'+esc(val==null?"":val)+'"></div>';
+  const veld=(lbl,id,val,tip)=>'<div class="sp-field"><label>'+lbl+(tip?' <span class="ass-help" data-tip="'+esc(tip)+'">?</span>':'')+'</label><input id="'+id+'" value="'+esc(val==null?"":val)+'"></div>';
   const extraHtml=lijst=>(lijst||[]).map(x=>assVeldRij(x.n,x.v)).join("");
   const moveTests=ASS_MOVE.map(t=>{
     const cur=mv[t[0]]||"",nt=mv[t[0]+"_n"]||"";
@@ -100,10 +108,10 @@ function assHtml(d){
     '<div class="sp-tabs"><button class="on" id="ass-t0" onclick="assTab(0)">OPEX Body</button><button id="ass-t1" onclick="assTab(1)">OPEX Move</button><button id="ass-t2" onclick="assTab(2)">OPEX Work</button></div>'+
     '<div id="ass-0">'+
       veld("Lichaamsgewicht","as-gewicht",b.gewicht)+
-      veld("Vetpercentage","as-vet",b.vet)+
+      veld("Vetpercentage","as-vet",b.vet,ASS_TIP_VET)+
       veld("Skeletspiermassa","as-spier",b.spier)+
       veld("Basaal metabolisme","as-metab",b.metab)+
-      '<div class="sp-field"><label>Muscle fat-analyse</label><select id="as-shape">'+["","C-shape","D-shape","I-shape"].map(s=>'<option'+(b.shape===s?" selected":"")+'>'+s+'</option>').join("")+'</select></div>'+
+      '<div class="sp-field"><label>Muscle fat-analyse <span class="ass-help" data-tip="'+esc(ASS_TIP_SHAPE)+'">?</span></label><select id="as-shape">'+["","C-shape","D-shape","I-shape"].map(s=>'<option'+(b.shape===s?" selected":"")+'>'+s+'</option>').join("")+'</select></div>'+
       '<div class="sp-field"><label>Notities OPEX Body</label><textarea id="as-bodynotes">'+esc(b.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-0">'+extraHtml(b.extra)+'</div>'+
     '</div>'+
