@@ -129,6 +129,15 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .mcard .cardtools button.mv{cursor:grab}
 .mcard .cardtools button.mv:active{cursor:grabbing}
 .mday.dragover{background:#eaf7fd;box-shadow:inset 0 0 0 2px #6ec4e8}
+/* Geschiedenis-zoeker (History-knop in de bouwer) */
+.histcard{background:#f6f7f8;border-radius:10px;padding:11px 13px;margin-bottom:10px}
+.histcard .hh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.histcard .hh b{font-size:13.5px;color:#1d2129}
+.histcard .hbody{font-size:12.5px;color:#1d2129;line-height:1.5}
+.histcard .hlabel{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;background:#e7e9ec;border-radius:6px;font-weight:800;font-size:11px;color:#5d6570;margin-right:7px;vertical-align:middle}
+.histcard .hpr{color:#5d6570;margin-top:4px;white-space:pre-wrap;border-left:3px solid #e7a44a;padding-left:8px}
+#hist-tabs b{margin-left:5px;font-size:11px;background:#e7e9ec;color:#5d6570;border-radius:999px;padding:0 6px;font-weight:800}
+#hist-tabs button.on b{background:#cdeafd;color:#1d6f9c}
 #selbar{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f1113;color:#fff;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:11px;font-size:13px;box-shadow:0 14px 44px rgba(0,0,0,.4);z-index:200}
 #selbar .n{background:#3eb3e0;color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
 #selbar .lnk{background:none;border:none;color:#8fd3ef;cursor:pointer;font-size:13px;font-family:inherit;padding:0 4px}

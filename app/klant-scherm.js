@@ -184,8 +184,8 @@ function kiesBlokKleur(el,k){
 }
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" autocomplete="off"><span class="extools"><button class="ic-btn" title="History" onclick="toast(\'History komt in een volgende stap\');return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
-function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="History" onclick="toast(\'History komt in een volgende stap\');return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;if(kind==="conditioning")return{kind,linked,exercise,color,score_type,notes:(r.querySelector(".f-desc").value||"").trim()};return{kind:"exercise",linked,exercise,color,score_type,oefening_id,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
@@ -379,6 +379,74 @@ async function dropDay(ev,ds){
   if(error){toast(error.message||"Verplaatsen mislukt");return;}
   if(editWid===wid){editWid=null;editDay=null;}
   toast("Workout verplaatst");renderMonth();
+}
+// ---------- GESCHIEDENIS-ZOeker (History-knop): wat deed dit lid eerder? ----------
+let histTabF="oef",histTimer=null,histData={oef:[],wo:[],mx:[]};
+function ensureHistModal(){
+  if(document.getElementById("histmodal"))return;
+  const wrap=document.createElement("div");
+  wrap.innerHTML='<div class="lmodal" id="histmodal" style="z-index:420"><div class="box" style="width:720px;max-width:96vw">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h3 style="margin:0">Zoek in geschiedenis</h3>'+
+    '<span onclick="closeHist()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap"><div class="search2" style="flex:1;max-width:none;min-width:220px"><input id="hist-zoek" placeholder="Zoek een oefening, workout of metric…" oninput="histZoekDebounce()"></div>'+
+    '<label class="pf-toggle" style="margin:0;white-space:nowrap"><input type="checkbox" id="hist-exact" checked onchange="histZoek()"><span class="pf-sw"></span> Alleen exacte match</label></div>'+
+    '<div class="seg" id="hist-tabs" style="margin-bottom:12px"><button class="on" onclick="histTab(\'oef\')">Oefeningen <b id="hist-c-oef">0</b></button><button onclick="histTab(\'wo\')">Workouts <b id="hist-c-wo">0</b></button><button onclick="histTab(\'mx\')">Metrics <b id="hist-c-mx">0</b></button></div>'+
+    '<div id="hist-lijst" style="max-height:56vh;overflow:auto"></div>'+
+    '</div></div>';
+  document.body.appendChild(wrap.firstChild);
+  document.getElementById("histmodal").addEventListener("click",e=>{if(e.target.id==="histmodal")closeHist();});
+}
+function openHistory(name){
+  ensureHistModal();
+  histTabF="oef";
+  const inp=document.getElementById("hist-zoek");if(inp)inp.value=(name||"").trim();
+  const ex=document.getElementById("hist-exact");if(ex)ex.checked=true;
+  document.querySelectorAll("#hist-tabs button").forEach((b,i)=>b.classList.toggle("on",i===0));
+  document.getElementById("histmodal").classList.add("show");
+  histZoek();
+  if(inp){inp.focus();inp.select();}
+}
+function closeHist(){const m=document.getElementById("histmodal");if(m)m.classList.remove("show");}
+function histZoekDebounce(){clearTimeout(histTimer);histTimer=setTimeout(histZoek,250);}
+function histCountsZet(a,b,c){const s=(id,n)=>{const el=document.getElementById(id);if(el)el.textContent=n;};s("hist-c-oef",a);s("hist-c-wo",b);s("hist-c-mx",c);}
+async function histZoek(){
+  const inp=document.getElementById("hist-zoek");if(!inp)return;
+  const q=(inp.value||"").trim();
+  const exact=!!(document.getElementById("hist-exact")||{}).checked;
+  const host=document.getElementById("hist-lijst");
+  if(q.length<2){histData={oef:[],wo:[],mx:[]};histCountsZet(0,0,0);if(host)host.innerHTML='<div class="cempty">Typ minstens 2 tekens om te zoeken.</div>';return;}
+  if(host)host.innerHTML='<div class="cempty">Zoeken…</div>';
+  const pat=exact?q:"%"+q+"%";
+  // Oefeningen: workouts van dit lid met een blok waarvan de oefeningsnaam matcht (blocks!inner filtert de blokken).
+  const{data:wrows}=await db.from("workouts").select("id,title,workout_date,blocks!inner(label,exercise,prescription,notes)").eq("client_id",calClient).ilike("blocks.exercise",pat).order("workout_date",{ascending:false}).limit(60);
+  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes})));
+  // Workouts op titel
+  const{data:worows}=await db.from("workouts").select("id,title,workout_date").eq("client_id",calClient).ilike("title",pat).order("workout_date",{ascending:false}).limit(60);
+  const wo=(worows||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+  // Metrics op naam
+  const{data:mrows}=await db.from("metrics").select("*").eq("athlete_id",calClient).ilike("metric",pat).order("measured_at",{ascending:false}).limit(60);
+  const mx=mrows||[];
+  histData={oef,wo,mx};
+  histCountsZet(oef.length,wo.length,mx.length);
+  histRender();
+}
+function histTab(t){
+  histTabF=t;
+  const btns=document.querySelectorAll("#hist-tabs button");btns.forEach(b=>b.classList.remove("on"));
+  const idx={oef:0,wo:1,mx:2}[t];if(btns[idx])btns[idx].classList.add("on");
+  histRender();
+}
+function histRender(){
+  const host=document.getElementById("hist-lijst");if(!host)return;
+  if(histTabF==="oef"){
+    host.innerHTML=histData.oef.map(b=>'<div class="histcard"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+'</span></div>'+
+      '<div class="hbody"><span class="hlabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
+      (b.prescription?'<div class="hpr">'+esc(b.prescription)+'</div>':'')+(b.notes?'<div class="hpr">'+esc(b.notes)+'</div>':'')+'</div></div>').join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
+  }else if(histTabF==="wo"){
+    host.innerHTML=histData.wo.map(w=>'<div class="histcard"><div class="hh"><b>'+esc(w.title||"Workout")+'</b><span class="sm muted">'+esc(w.workout_date?datumNL(w.workout_date):"")+'</span></div></div>').join("")||'<div class="cempty">Geen workouts gevonden.</div>';
+  }else{
+    host.innerHTML=histData.mx.map(m=>'<div class="histcard"><div class="hh"><b>'+esc(m.metric||"")+'</b><span class="sm muted">'+esc(m.measured_at?datumNL(m.measured_at):"")+'</span></div><div class="hbody">'+esc((m.value!=null?String(m.value):(m.value_text||""))+(m.unit?" "+m.unit:""))+'</div></div>').join("")||'<div class="cempty">Geen metrics gevonden.</div>';
+  }
 }
 async function renderMonth(opts){
   if(activePanel!=="kalender")return;
