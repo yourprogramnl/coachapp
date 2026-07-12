@@ -4,7 +4,17 @@
 // ---------- ASSESSMENT (OPEX Body / Move / Work), zoals het ontwerp ----------
 const ASS_MOVE=[["scratch","Scratch Test","Schoudermobiliteit: handen achter de rug naar elkaar reiken"],["airsquat","Air Squat","Diepe squat met armen vooruit, hielen aan de grond"],["toetouch","Toe Touch Test","Gestrekte benen, vingertoppen naar de tenen"],["lunge","Lunge Test","Uitvalspas met romp rechtop en knie naar de vloer"],["slr","Straight Leg Raise Test","Liggend been gestrekt heffen tot 70 graden"]];
 const ASS_TIJD=[["frontplank","Front Plank/Front Leaning Rest","Vasthouden in seconden"],["reverseplank","Reverse Plank","Omgekeerde plank, heupen hoog"],["sideplank_r","Side Plank Right","Zijwaartse plank rechts"],["sideplank_l","Side Plank Left","Zijwaartse plank links"]];
-let assData={};
+let assData={},assLijst=[],assHuidigId=null,assDatum="",assTabIdx=0;
+const assDatumNL=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MAANDVOL[d.getMonth()]+" "+d.getFullYear();};
+async function assLaad(){
+  const{data}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on",{ascending:false});
+  assLijst=data||[];
+}
+// Open de nieuwste meting, of een lege nieuwe als er nog geen is.
+function assZetHuidig(row){
+  if(row){assHuidigId=row.id;assData=JSON.parse(JSON.stringify(row.data||{}));assDatum=row.assessed_on;}
+  else{assHuidigId=null;assData={};assDatum=ymd(new Date());}
+}
 async function openAssess(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-assess");
@@ -14,9 +24,34 @@ async function openAssess(){
   sp=document.createElement("div");sp.id="sp-assess";sp.className="sidepanel show";
   sp.innerHTML='<div class="sp-head"><h3>Assessment</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
-  const{data:rows}=await db.from("assessments").select("*").eq("athlete_id",calClient).limit(1);
-  assData=(rows&&rows[0]&&rows[0].data)||{};
+  await assLaad();
+  assTabIdx=0;
+  assZetHuidig(assLijst[0]||null);
+  assTeken();
+}
+// Herteken het paneel op basis van de huidige state en herstel het actieve tabblad.
+function assTeken(){
+  const sp=document.getElementById("sp-assess");if(!sp)return;
   sp.innerHTML=assHtml(assData);
+  assTab(assTabIdx);
+}
+// Wissel naar een eerdere meting.
+function assKies(id){
+  const row=assLijst.find(a=>a.id===id);if(!row)return;
+  assZetHuidig(row);assTeken();
+}
+// Start een nieuwe meting, vooringevuld met de waarden van de meest recente.
+function assNieuw(){
+  assData=assLijst[0]?JSON.parse(JSON.stringify(assLijst[0].data||{})):{};
+  assHuidigId=null;assDatum=ymd(new Date());assTeken();
+}
+async function assVerwijder(){
+  if(!assHuidigId){toast("Deze meting is nog niet opgeslagen");return;}
+  if(!confirm("Deze meting verwijderen?"))return;
+  const{error}=await db.from("assessments").delete().eq("id",assHuidigId);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  await assLaad();assZetHuidig(assLijst[0]||null);assTeken();
+  toast("Meting verwijderd");
 }
 function assVal(pad,std){const d=pad.split(".").reduce((o,k)=>o&&o[k]!=null?o[k]:null,assData);return d==null?(std||""):d;}
 function assVeldRij(n,v){return '<div class="sp-field ass-extra" style="display:flex;gap:6px"><input class="xn" placeholder="Naam veld" value="'+esc(n||"")+'" style="flex:1"><input class="xv" placeholder="Waarde" value="'+esc(v||"")+'" style="flex:1"></div>';}
@@ -32,7 +67,16 @@ function assHtml(d){
       '<textarea class="ass-notes" data-k="'+t[0]+'" style="'+(nt?"":"display:none")+'">'+esc(nt)+'</textarea></div>';
   }).join("");
   const tijden=ASS_TIJD.map(t=>'<div class="sp-field"><label>'+t[1]+' <span class="ass-help" title="'+esc(t[2])+'">?</span></label><input id="as-'+t[0]+'" placeholder="0:00" value="'+esc(mv[t[0]]||"")+'"></div>').join("");
+  // Geschiedenisbalk: kies een eerdere meting of start een nieuwe
+  const histOpts=assLijst.map(a=>'<option value="'+a.id+'"'+(a.id===assHuidigId?" selected":"")+'>'+esc(assDatumNL(a.assessed_on))+'</option>').join("");
+  const histRij=assLijst.length?'<div class="sp-field"><label>Meting</label><div style="display:flex;gap:6px;align-items:center">'+
+    '<select id="ass-history" onchange="assKies(this.value)" style="flex:1;min-width:0">'+(assHuidigId?"":'<option value="" selected>Nieuwe meting</option>')+histOpts+'</select>'+
+    '<button class="sp-btn ghost" style="width:auto;padding:8px 12px;white-space:nowrap" onclick="assNieuw()">+ Nieuw</button></div></div>':'';
+  const datumVeld='<div class="sp-field"><label>Datum meting</label><input type="date" id="as-datum" value="'+esc(assDatum||"")+'" style="color-scheme:dark"></div>';
+  const saveLabel=assHuidigId?"Wijzigingen opslaan":"Meting opslaan";
+  const delBtn=assHuidigId?'<button class="sp-btn ghost" onclick="assVerwijder()">Verwijderen</button>':"";
   return '<div class="sp-head"><h3>Assessment</h3><span class="sp-x" onclick="document.getElementById(\'sp-assess\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    histRij+datumVeld+
     '<div class="sp-tabs"><button class="on" id="ass-t0" onclick="assTab(0)">OPEX Body</button><button id="ass-t1" onclick="assTab(1)">OPEX Move</button><button id="ass-t2" onclick="assTab(2)">OPEX Work</button></div>'+
     '<div id="ass-0">'+
       veld("Lichaamsgewicht","as-gewicht",b.gewicht)+
@@ -56,10 +100,10 @@ function assHtml(d){
       '<div id="ass-extra-2">'+extraHtml(wk.extra)+'</div>'+
       '<button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldBij(2)">Voeg veld toe</button>'+
     '</div>'+
-    '<div style="display:flex;gap:8px"><button class="sp-btn" onclick="assOpslaan()">Assessment opslaan</button><button class="sp-btn ghost" onclick="toast(\'Exporteren komt in een volgende stap\')">Exporteer als PDF</button></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="sp-btn" onclick="assOpslaan()">'+saveLabel+'</button>'+delBtn+'<button class="sp-btn ghost" onclick="toast(\'Exporteren komt in een volgende stap\')">Exporteer als PDF</button></div>'+
     '<div class="sp-info" id="ass-msg" style="margin-top:10px"></div>';
 }
-function assTab(i){[0,1,2].forEach(x=>{document.getElementById("ass-"+x).style.display=x===i?"":"none";document.getElementById("ass-t"+x).classList.toggle("on",x===i);});}
+function assTab(i){assTabIdx=i;[0,1,2].forEach(x=>{document.getElementById("ass-"+x).style.display=x===i?"":"none";document.getElementById("ass-t"+x).classList.toggle("on",x===i);});}
 function assNotes(el){const t=el.nextElementSibling;if(!t)return;t.style.display=t.style.display==="none"?"":"none";if(t.style.display!=="none")t.focus();}
 function assVeldBij(i){document.getElementById("ass-extra-"+i).insertAdjacentHTML("beforeend",assVeldRij("",""));}
 function assExtraLees(i){return [...document.querySelectorAll("#ass-extra-"+i+" .ass-extra")].map(r=>({n:r.querySelector(".xn").value.trim(),v:r.querySelector(".xv").value.trim()})).filter(x=>x.n||x.v);}
@@ -79,12 +123,21 @@ async function assOpslaan(){
     move,
     work:{cals:g("as-cals"),conv:g("as-conv"),notes:g("as-worknotes"),extra:assExtraLees(2)}
   };
-  const{error}=await db.from("assessments").upsert({athlete_id:calClient,company_id:ME.profile.company_id,data:doc,updated_by:ME.user.id},{onConflict:"athlete_id"});
+  const datum=(document.getElementById("as-datum")||{}).value||ymd(new Date());
+  const wasNieuw=!assHuidigId;
+  let error,savedId=assHuidigId;
+  if(assHuidigId){
+    ({error}=await db.from("assessments").update({data:doc,assessed_on:datum,updated_by:ME.user.id}).eq("id",assHuidigId));
+  }else{
+    const{data:ins,error:e2}=await db.from("assessments").insert({athlete_id:calClient,company_id:ME.profile.company_id,data:doc,assessed_on:datum,updated_by:ME.user.id}).select().single();
+    error=e2;if(ins)savedId=ins.id;
+  }
   const msg=document.getElementById("ass-msg");
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
-  assData=doc;
-  if(msg)msg.textContent="";
-  toast("Assessment opgeslagen");
+  await assLaad();
+  assZetHuidig(assLijst.find(a=>a.id===savedId)||assLijst[0]||null);
+  assTeken();
+  toast(wasNieuw?"Meting opgeslagen":"Meting bijgewerkt");
 }
 // ---------- METRICS & 1RM (zoals het ontwerp; waarden uit de metrics-tabel) ----------
 const METRICS_DEF={
