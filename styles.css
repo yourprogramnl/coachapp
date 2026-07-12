@@ -187,6 +187,8 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .ib2{background:#fff;border:1.5px solid #3eb3e0;border-radius:12px;padding:9px;font-size:12px;box-shadow:0 14px 40px rgba(15,18,22,.10);text-align:left;margin-bottom:6px}
 .ib2 .sec{background:#f6f7f8;border-radius:9px;padding:9px 10px;margin-bottom:8px;position:relative;border:none}
 .ib2 input,.ib2 textarea{width:100%;border:none;background:none;font-size:12px;padding:3px 0;resize:none;font-family:inherit;color:#1d2129;min-height:22px;overflow:hidden}
+/* Geen focus-ring bij typen; je typt gewoon in het veld, netter zoals CoachRx */
+.ib2 input:focus,.ib2 textarea:focus,.ib2 select:focus{outline:none}
 .ib2 ::placeholder{color:#b3b9c2}
 .ib2 .row-title{font-weight:800}
 .ib2 .demolink{font-size:11px;color:#b3b9c2;cursor:pointer;padding:3px 0}
