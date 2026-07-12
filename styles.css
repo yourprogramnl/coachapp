@@ -19,6 +19,13 @@ label{font-size:13px;font-weight:600;color:var(--muted)}
 .pfwrap{max-width:780px;margin:22px auto;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:28px}
 .pfav{width:76px;height:76px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;margin:0 auto 12px}
 .pfgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
+/* Zichtbaarheid-instellingen: schakelaars */
+.pf-toggle{display:flex;align-items:center;gap:10px;font-size:12.5px;margin:11px 0;cursor:pointer;color:var(--txt)}
+.pf-toggle input{display:none}
+.pf-sw{width:34px;height:19px;border-radius:19px;background:#c7ccd3;position:relative;transition:background .15s;flex-shrink:0}
+.pf-sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left .15s}
+.pf-toggle input:checked + .pf-sw{background:var(--accent)}
+.pf-toggle input:checked + .pf-sw::after{left:17px}
 .tabs{display:flex;gap:6px;margin-bottom:16px}
 .tabs button{flex:1;padding:9px;border-radius:9px;background:#f1f4f8;border:1px solid var(--line);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit}
 .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}

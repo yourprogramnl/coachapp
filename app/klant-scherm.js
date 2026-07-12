@@ -28,7 +28,7 @@ function renderClient(panel){
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
   c.innerHTML=coachShellHtml('<div class="client-layout'+(sideCollapsed?' collapsed':'')+'">'+
-    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'" title="'+naamVan(p)+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm" id="cs-cnm">'+naamVan(p)+'</div><div class="cinfo"><span id="cs-profielregel" style="display:'+(profielRegel(p)?"":"none")+'">'+esc(profielRegel(p))+'<br></span><span id="cs-email">'+esc(p.email||"")+'</span><br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
+    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avFotoStyle(p)+'" title="'+naamVan(p)+'">'+avFotoText(p)+'</div><div class="cnm" id="cs-cnm">'+naamVan(p)+'</div><div class="cinfo"><span id="cs-profielregel" style="display:'+(profielRegel(p)?"":"none")+'">'+esc(profielRegel(p))+'<br></span><span id="cs-email">'+esc(p.email||"")+'</span><br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
     '<div id="cs-dagen" style="display:none;margin-top:8px"><span class="tag" style="background:#2a2e35;border-color:#33373d;color:#c9cdd4"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span></div></div>'+
     '<div class="mini-sess" id="cs-minisess" title="Sessies afgerond">…</div>'+
     '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+

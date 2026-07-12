@@ -41,3 +41,6 @@ function composePresc(b){
 // Gedeelde render-helpers (gebruikt door alle schermen)
 function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
 const naamVan=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
+// Avatar: toon de profielfoto (avatar_url) als die er is, anders een gekleurde cirkel met initialen.
+const avFotoStyle=p=>(p&&p.avatar_url)?("background-image:url('"+esc(p.avatar_url)+"');background-size:cover;background-position:center"):avStijl(naamVan(p));
+const avFotoText=p=>(p&&p.avatar_url)?"":esc(naamVan(p).slice(0,2).toUpperCase());

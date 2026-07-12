@@ -1015,8 +1015,9 @@ function renderProfielPagina(){
   const minBd=ymd(min),maxBd=ymd(max);
   const lftNu=leeftijdVan(p.birth_date);
   cm.innerHTML='<div class="pfwrap">'+
-    '<div class="pfav" style="'+avStijl(naam)+'">'+esc(naam.slice(0,2).toUpperCase())+'</div>'+
-    '<div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm" onclick="toast(\'Profielfoto uploaden komt in een volgende stap\')">Kies een afbeelding</button></div>'+
+    '<div class="pfav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
+    '<input type="file" id="pf-fotofile" accept="image/*" style="display:none" onchange="avatarUpload(this)">'+
+    '<div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm" id="pf-fotoknop" onclick="document.getElementById(\'pf-fotofile\').click()">Kies een afbeelding</button></div>'+
     '<div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:20px" id="pf-naam-label">'+esc(naam)+'</div>'+
     '<div class="pfgrid">'+
       '<div class="field"><label>Voornaam *</label><input id="pf-voornaam" value="'+esc(p.first_name||"")+'"></div>'+
@@ -1031,7 +1032,16 @@ function renderProfielPagina(){
       '<div class="field"><label>Noodcontact</label><input id="pf-noodcontact" value="'+esc(p.emergency_contact||"")+'" placeholder="Naam en/of telefoonnummer"></div>'+
     '</div>'+
     '<div class="field" style="margin-top:2px"><label>Notitie</label><textarea id="pf-notitie" placeholder="Vrije notitie…">'+esc(p.profile_note||"")+'</textarea></div>'+
-    '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:6px">'+
+    '<div style="border-top:1px solid var(--line);margin-top:18px;padding-top:14px">'+
+      '<div style="font-weight:800;font-size:13px;margin-bottom:4px">Zichtbaarheid voor het lid</div>'+
+      '<div class="sm muted" style="margin-bottom:8px">Bepaalt wat het lid straks in de sporter-app mag. Wordt afgedwongen zodra de sporter-app er is.</div>'+
+      '<label class="pf-toggle"><input type="checkbox" id="pf-comments"'+(p.comments_readonly?" checked":"")+'><span class="pf-sw"></span> Reacties alleen-lezen voor het lid</label>'+
+      '<label class="pf-toggle"><input type="checkbox" id="pf-messages"'+(p.messages_readonly?" checked":"")+'><span class="pf-sw"></span> Berichten alleen-lezen voor het lid</label>'+
+      '<label class="pf-toggle"><input type="checkbox" id="pf-uploads"'+(p.disable_uploads?" checked":"")+'><span class="pf-sw"></span> Uploads door het lid uitschakelen</label>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px"><span style="font-size:12.5px">Workouts zichtbaar tot</span><input type="number" id="pf-daysahead" min="0" value="'+esc(p.workouts_days_ahead!=null?p.workouts_days_ahead:"")+'" style="width:80px"><span class="sm muted">dagen vooruit (0 = geen limiet)</span></div>'+
+      '<label class="pf-toggle"><input type="checkbox" id="pf-weekonly"'+(p.future_workouts_week_only?" checked":"")+'><span class="pf-sw"></span> Alleen toekomstige workouts tonen als ze in de huidige week vallen</label>'+
+    '</div>'+
+    '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px">'+
       '<button class="btn ghost" onclick="renderClient(\'kalender\')">Annuleren</button>'+
       '<button class="btn" onclick="profielOpslaan()">Profiel opslaan</button>'+
     '</div>'+
@@ -1054,7 +1064,12 @@ async function profielOpslaan(){
     height_cm:lengteRaw?Number(lengteRaw):null,
     weight_kg:gewichtRaw?Number(gewichtRaw):null,
     emergency_contact:document.getElementById("pf-noodcontact").value.trim()||null,
-    profile_note:document.getElementById("pf-notitie").value.trim()||null
+    profile_note:document.getElementById("pf-notitie").value.trim()||null,
+    comments_readonly:document.getElementById("pf-comments").checked,
+    messages_readonly:document.getElementById("pf-messages").checked,
+    disable_uploads:document.getElementById("pf-uploads").checked,
+    workouts_days_ahead:(()=>{const v=(document.getElementById("pf-daysahead").value||"").trim();return v===""?null:Math.max(0,parseInt(v,10)||0);})(),
+    future_workouts_week_only:document.getElementById("pf-weekonly").checked
   };
   const{data,error}=await db.from("profiles").update(upd).eq("id",calClient).select().single();
   if(error){toast(error.message||"Opslaan mislukt");return;}
@@ -1064,7 +1079,7 @@ async function profielOpslaan(){
   const naam=naamVan(p);
   const lbl=document.getElementById("pf-naam-label");if(lbl)lbl.textContent=naam;
   const av=document.querySelector(".pfwrap .pfav");
-  if(av){av.textContent=esc(naam.slice(0,2).toUpperCase());av.setAttribute("style",avStijl(naam));}
+  if(av){av.textContent=avFotoText(p);av.setAttribute("style",avFotoStyle(p));}
   toast("Profiel opgeslagen");
 }
 function profielHeaderVerversen(p){
@@ -1072,8 +1087,38 @@ function profielHeaderVerversen(p){
   const naam=naamVan(p);
   const cnm=document.getElementById("cs-cnm");if(cnm)cnm.textContent=naam;
   const av=document.querySelector(".cside .bigav");
-  if(av){av.textContent=esc(naam.slice(0,2).toUpperCase());av.setAttribute("style",avStijl(naam));av.title=naam;}
+  if(av){av.textContent=avFotoText(p);av.setAttribute("style",avFotoStyle(p));av.title=naam;}
   const pr=document.getElementById("cs-profielregel");
   if(pr){const regel=profielRegel(p);pr.style.display=regel?"":"none";pr.innerHTML=regel?esc(regel)+"<br>":"";}
   const em=document.getElementById("cs-email");if(em)em.textContent=p.email||"";
+}
+// Profielfoto uploaden naar de publieke 'avatars'-bucket; avatar_url op profiles wijst naar de publieke URL.
+async function avatarUpload(input){
+  const file=input.files&&input.files[0];input.value="";
+  if(!file)return;
+  if(!/^image\//.test(file.type||"")){toast("Kies een afbeelding");return;}
+  if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
+  const p=coachClients.find(x=>x.id===calClient);if(!p)return;
+  const knop=document.getElementById("pf-fotoknop");
+  if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
+  const ext=((file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,""))||"jpg";
+  const path=ME.profile.company_id+"/"+calClient+"/"+crypto.randomUUID()+"."+ext;
+  const{error:upErr}=await db.storage.from("avatars").upload(path,file,{contentType:file.type,upsert:false});
+  if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Kies een afbeelding";}return;}
+  const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
+  const url=(pub&&pub.publicUrl)?pub.publicUrl:null;
+  const oud=p.avatar_url;
+  const{data,error}=await db.from("profiles").update({avatar_url:url}).eq("id",calClient).select().single();
+  if(error){
+    await db.storage.from("avatars").remove([path]); // geen wees-bestand achterlaten
+    toast(error.message||"Opslaan mislukt");if(knop){knop.disabled=false;knop.textContent="Kies een afbeelding";}return;
+  }
+  Object.assign(p,data);
+  // oude foto opruimen (pad zit na '/avatars/' in de oude URL)
+  if(oud){const m=String(oud).split("/avatars/");if(m[1])db.storage.from("avatars").remove([decodeURIComponent(m[1])]);}
+  const pfav=document.querySelector(".pfwrap .pfav");
+  if(pfav){pfav.textContent=avFotoText(p);pfav.setAttribute("style",avFotoStyle(p));}
+  profielHeaderVerversen(p);
+  if(knop){knop.disabled=false;knop.textContent="Kies een afbeelding";}
+  toast("Profielfoto bijgewerkt");
 }
