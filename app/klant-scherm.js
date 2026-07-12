@@ -288,9 +288,9 @@ function inlineBuilderHtml(w){
     '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+'</div>'+
     '<div class="msg" id="wmsg" style="font-size:11px;min-height:0"></div>';
 }
-function startEdit(ds,idx){editWid=null;editDay=ds;editIdx=idx;renderMonth();}
-function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wid;editDay=w.workout_date;editIdx=idx;renderMonth();}
-function cancelEdit(){editWid=null;editDay=null;renderMonth();}
+function startEdit(ds,idx){editWid=null;editDay=ds;editIdx=idx;renderMonth({skipFetch:true});}
+function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wid;editDay=w.workout_date;editIdx=idx;renderMonth({skipFetch:true});}
+function cancelEdit(){editWid=null;editDay=null;renderMonth({skipFetch:true});}
 
 let monthResults={},monthByDate={};
 function mcardHtml(w){
@@ -322,9 +322,14 @@ function mcardHtml(w){
     '<div class="msc"><span>'+done+'/'+total+' · '+esc(w.title||"Workout")+'</span><span class="delx" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')">×</span></div>'+inner+
     '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
 }
-async function renderMonth(){
+async function renderMonth(opts){
   if(activePanel!=="kalender")return;
-  const id=calClient;const m=document.getElementById("cmain");if(!m)return;m.innerHTML='<div class="spin">Laden…</div>';
+  const id=calClient;const m=document.getElementById("cmain");if(!m)return;
+  const alGetekend=!!document.getElementById("calwrap");
+  // skipFetch: her-render zonder database-oproep (bouwer openen/sluiten verandert geen data)
+  const skipFetch=!!(opts&&opts.skipFetch)&&alGetekend&&monthByDate;
+  // Alleen bij de eerste opbouw een spinner tonen; her-renders houden de kalender staan (geen herlaad-flits)
+  if(!alGetekend)m.innerHTML='<div class="spin">Laden…</div>';
   const p=coachClients.find(x=>x.id===id)||{};
   const ref=calRef;
   // Weergave bepaalt het bereik: maand = 6 weken, week = 7 dagen, dag = 1 dag
@@ -333,14 +338,19 @@ async function renderMonth(){
   else if(calView==="week"){gridStart=mondayOf(ref);cellCount=7;cols=7;}
   else{gridStart=new Date(ref);gridStart.setHours(0,0,0,0);cellCount=1;cols=1;}
   const gridEnd=addDays(gridStart,cellCount-1);
-  const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
-  monthWorkouts={};monthByDate={};const byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
-  // Gelogde resultaten van dit lid voor de zichtbare workouts (per blok)
-  monthResults={};
-  const wids=(workouts||[]).map(w=>w.id);
-  if(wids.length){
-    const{data:res}=await db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids);
-    (res||[]).forEach(r=>{monthResults[r.block_id]=r;});
+  let byDate;
+  if(skipFetch){
+    byDate=monthByDate; // hergebruik de al geladen workouts/results, geen database-oproep
+  }else{
+    const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
+    monthWorkouts={};monthByDate={};byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
+    // Gelogde resultaten van dit lid voor de zichtbare workouts (per blok)
+    monthResults={};
+    const wids=(workouts||[]).map(w=>w.id);
+    if(wids.length){
+      const{data:res}=await db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids);
+      (res||[]).forEach(r=>{monthResults[r.block_id]=r;});
+    }
   }
   const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   let label;
