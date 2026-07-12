@@ -296,8 +296,8 @@ let monthResults={},monthByDate={};
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
-    return '<div class="mcard planned" onclick="editWorkout(\''+w.id+'\',0)">'+
-      '<div class="msc"><span style="color:#27b376">Rest Day</span><span class="delx" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')">×</span></div>'+
+    return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
+      '<div class="msc"><span style="color:#27b376">Rest Day</span></div>'+
       '<div class="cblk"><div class="pr" style="color:#8a919c">No instructions</div></div>'+
       '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
   }
@@ -318,9 +318,44 @@ function mcardHtml(w){
       '</div>';
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard'+(done===0?' planned':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+
-    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span><span class="delx" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')">×</span></span></div>'+inner+
+  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
+    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
+}
+// Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
+function cardTools(w){
+  return '<input type="checkbox" class="cardsel"'+(selWids.has(w.id)?' checked':'')+' title="Selecteren" onclick="event.stopPropagation();toggleSelect(this,\''+w.id+'\')">'+
+    '<span class="cardtools" onclick="event.stopPropagation()">'+
+    '<button title="Bewerken" onclick="event.stopPropagation();editWorkout(\''+w.id+'\',0)"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
+    '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    '<button title="Verwijderen" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
+    '</span>';
+}
+function toggleSelect(cb,wid){if(cb.checked)selWids.add(wid);else selWids.delete(wid);const card=cb.closest(".mcard");if(card)card.classList.toggle("selected",cb.checked);selBarUpdate();}
+function selClear(){selWids.clear();document.querySelectorAll(".mcard.selected").forEach(c=>c.classList.remove("selected"));document.querySelectorAll(".cardsel:checked").forEach(c=>c.checked=false);selBarUpdate();}
+function selKopieer(){
+  const ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean);
+  if(!ws.length){toast("Niets geselecteerd");return;}
+  KLEMBORD=ws.map(wTemplate);
+  toast(ws.length+" workout"+(ws.length>1?"s":"")+" gekopieerd, ga naar een dag en kies Plakken");
+}
+async function selVerwijder(){
+  const ids=[...selWids];
+  if(!ids.length)return;
+  if(!confirm(ids.length+" workout"+(ids.length>1?"s":"")+" verwijderen?"))return;
+  const{error}=await db.from("workouts").delete().in("id",ids);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  if(ids.includes(editWid)){editWid=null;editDay=null;}
+  selWids.clear();selBarUpdate();
+  toast(ids.length+" verwijderd");renderMonth();
+}
+function selBarUpdate(){
+  let bar=document.getElementById("selbar");
+  if(!selWids.size){if(bar)bar.remove();return;}
+  if(!bar){bar=document.createElement("div");bar.id="selbar";document.body.appendChild(bar);}
+  bar.innerHTML='<span class="n">'+selWids.size+'</span><span>geselecteerd</span><button class="lnk" onclick="selClear()">Selectie wissen</button>'+
+    '<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    '<button class="ic" title="Verwijderen" onclick="selVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
 }
 async function renderMonth(opts){
   if(activePanel!=="kalender")return;
@@ -421,6 +456,7 @@ async function renderMonth(opts){
   if(activePanel!=="kalender")return;
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';
   if(editDay){relabel();groei();}
+  selBarUpdate();
   if(calView==="maand"){
     kalScrollBind();
     // dagenbalk plakt onder de (variabele) kalenderkop
@@ -433,7 +469,7 @@ async function renderMonth(opts){
 async function delWorkout(wid){if(!confirm("Deze workout verwijderen?"))return;await db.from("workouts").delete().eq("id",wid);if(editWid===wid){editWid=null;editDay=null;}renderMonth();}
 
 // ---------- Dag-menu, klembord en Template invoegen (zoals het ontwerp) ----------
-let curDay=null,KLEMBORD=null,insDoel="cel",insTypeF="all",insKleur="",insBlog=[];
+let curDay=null,KLEMBORD=null,insDoel="cel",insTypeF="all",insKleur="",insBlog=[],selWids=new Set();
 function groei(){document.querySelectorAll(".ib2 textarea").forEach(t=>{t.style.height="auto";t.style.height=t.scrollHeight+"px";});}
 document.addEventListener("input",e=>{if(e.target.matches&&e.target.matches(".ib2 textarea")){e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}});
 function openDayMenu(ev,ds){
@@ -463,24 +499,29 @@ async function pickRest(ev){
   if(error){toast(error.message||"Opslaan mislukt");return;}
   toast("Dag ingesteld als rustdag");renderMonth();
 }
+// Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
+function wTemplate(w){return {title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
   if(!wos.length){toast("Geen workout op deze dag om te kopiëren");return;}
-  const w=wos[0];
-  KLEMBORD={title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
-    blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id}))};
+  KLEMBORD=wos.map(wTemplate);
+  toast((KLEMBORD.length>1?KLEMBORD.length+" workouts":"Workout")+" gekopieerd, ga naar een dag en kies Plakken");
+}
+function kopieerWorkout(wid){
+  const w=monthWorkouts[wid];if(!w)return;
+  KLEMBORD=[wTemplate(w)];
   toast("Workout gekopieerd, ga naar een dag en kies Plakken");
 }
 async function pickPaste(ev){
   ev.stopPropagation();
-  if(!KLEMBORD){toast("Nog niets gekopieerd, gebruik het kopieer-icoon bij een dag met workout");return;}
-  const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:KLEMBORD.title,coach_notes:KLEMBORD.coach_notes,warmup:KLEMBORD.warmup,cooldown:KLEMBORD.cooldown}).select().single();
-  if(error){toast(error.message||"Plakken mislukt");return;}
-  if(KLEMBORD.blocks.length){
-    const{error:be}=await db.from("blocks").insert(KLEMBORD.blocks.map(b=>Object.assign({workout_id:w.id},b)));
-    if(be){toast(be.message);return;}
+  if(!KLEMBORD||!KLEMBORD.length){toast("Nog niets gekopieerd, gebruik het kopieer-icoon of selecteer workouts");return;}
+  for(const t of KLEMBORD){
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown}).select().single();
+    if(error){toast(error.message||"Plakken mislukt");return;}
+    if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
-  toast("Workout geplakt");renderMonth();
+  toast(KLEMBORD.length>1?KLEMBORD.length+" workouts geplakt":"Workout geplakt");renderMonth();
 }
 async function laadInsBlog(){
   if(!ME.profile.company_id){insBlog=[];return;}
