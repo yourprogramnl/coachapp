@@ -225,11 +225,39 @@ function mxRender(){
           const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
           pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
         }
-        html+='<div class="mx-row" onclick="openMxModal(\''+naam.replace(/'/g,"\\'")+'\')"><div class="mx-naam">'+esc(naam)+'</div><div class="mx-cur">'+(w?esc(String(w.cur.value))+" "+esc(w.unit):"—")+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
+        const nEsc=naam.replace(/'/g,"\\'");
+        html+='<div class="mx-row" onclick="openMxModal(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span></div><div class="mx-cur">'+(w?esc(String(w.cur.value))+" "+esc(w.unit):"—")+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
       });
     }
   }
   host.innerHTML=html;
+}
+// Zoek een demo-video uit de bibliotheek (oefeningen) bij een metric-naam.
+// Namen als "Back Squat 1RM" of "Goblet Squat 20RM" matchen op de basisnaam.
+function metricNorm(s){return String(s||"").toLowerCase().replace(/\d+\s*rm\b/g,"").replace(/\([^)]*\)/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();}
+function metricVideo(naam){
+  if(typeof LIB==="undefined"||!LIB||!LIB.oef||!LIB.oef.length)return null;
+  const base=metricNorm(naam);if(!base)return null;
+  let hit=LIB.oef.find(o=>metricNorm(o.naam)===base);
+  if(!hit)hit=LIB.oef.find(o=>{const n=metricNorm(o.naam);return n&&(n.startsWith(base)||base.startsWith(n));});
+  if(!hit)hit=LIB.oef.find(o=>{const n=metricNorm(o.naam);return n&&n.length>3&&(base.includes(n)||n.includes(base));});
+  return hit||null;
+}
+// Videopopover bij het camera-icoon (vast gepositioneerd → niet geknipt door de zijbalk).
+function mxVid(ev,naam){
+  ev.stopPropagation();
+  const o=metricVideo(naam),yt=o&&o.youtube_id?o.youtube_id:"";
+  let pop=document.getElementById("mxvid");
+  if(!pop){pop=document.createElement("div");pop.id="mxvid";pop.className="vidpop";pop.style.position="fixed";document.body.appendChild(pop);}
+  pop.innerHTML='<span class="vp-x" onclick="event.stopPropagation();document.getElementById(\'mxvid\').classList.remove(\'show\')">✕</span><div class="vt">'+esc(naam)+'</div><div class="vprev">'+
+    (yt?'<div onclick="event.stopPropagation();speelAf(this,\''+esc(yt)+'\')" style="width:100%;height:100%;position:relative;cursor:pointer"><img src="https://i.ytimg.com/vi/'+esc(yt)+'/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover;display:block" alt=""><span class="pbtn"></span></div>'
+      :(o&&o.video_url?'<div class="vlabel">Video: <a href="'+esc(o.video_url)+'" target="_blank" rel="noopener" style="color:#fff">open in nieuw tabblad</a></div>':'<div class="vlabel">Geen video gevonden bij deze oefening</div>'))+
+    '</div><div class="vp-cap">'+(yt?"Klik op de video om af te spelen":(o&&o.video_url?"Externe video":"Geen demo-video gevonden"))+'</div>';
+  pop.classList.add("show");
+  const r=ev.currentTarget.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let left=r.right+8;if(left+pw>window.innerWidth-8)left=r.left-pw-8;if(left<8)left=8;
+  let top=r.top;if(top+ph>window.innerHeight-8)top=window.innerHeight-ph-8;if(top<8)top=8;
+  pop.style.left=left+"px";pop.style.top=top+"px";
 }
 function ensureMxModal(){
   if(document.getElementById("mxmodal"))return;
