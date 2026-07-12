@@ -20,7 +20,7 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()"};
+    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()"};
     const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
     const later=acties[s[0]]?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
@@ -728,3 +728,116 @@ async function saveWorkout(){
     editWid=null;editDay=null;renderMonth();
   }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";g("saveW").disabled=false;}
 }
+
+// ---------- SNELTOETSEN (zoals het ontwerp: sneller programmeren) ----------
+// Groepen met [label, toetsen]. Toetsen door spaties gescheiden = combinatie.
+const SNELTOETSEN=[
+ ["Kalender",[
+  ["Sneltoetsen tonen","?"],
+  ["Naar vandaag","T"],
+  ["Vorige maand","←"],
+  ["Volgende maand","→"],
+  ["Workout toevoegen (dag-menu open)","Enter"],
+  ["Rustdag (dag-menu open)","R"],
+  ["Alles sluiten","Esc"]
+ ]],
+ ["Bouwer",[
+  ["Workout opslaan","Ctrl Enter"],
+  ["Bouwer sluiten","Esc"],
+  ["Oefening-blok toevoegen","Ctrl Shift O"],
+  ["Conditioning-blok toevoegen","Ctrl Shift K"]
+ ]],
+ ["Panelen",[
+  ["Assessment","A"],
+  ["Metrics & 1RM","M"],
+  ["Doelen","G"],
+  ["Notities & documenten","N"],
+  ["Chat / berichten","C"],
+  ["Trainingsschema","S"],
+  ["Prioriteiten","P"],
+  ["Materiaal","E"],
+  ["Planning & periodisering","Shift P"],
+  ["Check-ins & consults","Shift C"]
+ ]],
+ ["Weergaven",[
+  ["Klantprofiel","Shift U"],
+  ["Klant wisselen","J"],
+  ["Zijbalk in/uitklappen","\\"]
+ ]]
+];
+function keysRender(){
+  const host=document.getElementById("keys-lijst");if(!host)return;
+  host.innerHTML=SNELTOETSEN.map(g=>'<div class="keygroep">'+esc(g[0])+'</div>'+
+    g[1].map(r=>'<div class="keyrow"><span>'+esc(r[0])+'</span><span>'+
+      r[1].split(" ").map(k=>'<span class="kbd">'+esc(k)+'</span>').join("")+'</span></div>').join("")
+  ).join("");
+}
+// Het Sneltoetsen-zijpaneel (zelfde patroon als de andere panelen).
+function openKeys(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-keys");
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");keysRender();return;}
+  sp=document.createElement("div");sp.id="sp-keys";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Sneltoetsen</h3></div><div id="keys-lijst"></div>'+
+    '<div class="sp-info" style="margin-top:14px">Paneel-toetsen werken als je niet in een tekstveld typt. De bouwer-toetsen (met Ctrl) werken ook tijdens het typen.</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  keysRender();
+}
+// Globale sneltoetsen, alleen actief op het klant-scherm.
+document.addEventListener("keydown",e=>{
+  if(!calClient||!document.querySelector(".client-layout"))return;
+  const tag=(e.target.tagName||"").toLowerCase();
+  const typt=tag==="input"||tag==="textarea"||tag==="select"||e.target.isContentEditable;
+  const k=(e.key||"").toLowerCase();
+  const bouwerOpen=!!document.getElementById("exrows");
+  // Bouwer-toetsen: met Ctrl/Cmd, werken OOK tijdens het typen.
+  if(e.ctrlKey||e.metaKey){
+    if(bouwerOpen){
+      if(k==="enter"){e.preventDefault();saveWorkout();return;}
+      if(e.shiftKey&&k==="o"){e.preventDefault();addExBtn();return;}
+      if(e.shiftKey&&k==="k"){e.preventDefault();addCondBtn();return;}
+    }
+    return; // overige Ctrl-combinaties met rust laten (kopiëren/plakken enz.)
+  }
+  // Esc sluit alles: bouwer, panelen, dag-menu, dropdowns en popups.
+  if(e.key==="Escape"){
+    if(bouwerOpen)cancelEdit();
+    document.querySelectorAll(".sidepanel.show").forEach(p=>p.classList.remove("show"));
+    document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+    document.querySelectorAll(".progdrop.show,.lmodal.show,.exdrop.show,.vidpop.show").forEach(x=>x.classList.remove("show"));
+    return;
+  }
+  if(typt)return; // vanaf hier: alleen als je niet in een veld typt
+  if(e.altKey)return;
+  // Achter een open modal (templates/geschiedenis/metrics) geen paneel-toetsen afvuren.
+  if(document.querySelector(".lmodal.show"))return;
+  if(e.key==="?"){e.preventDefault();openKeys();return;}
+  if(e.key==="Enter"){
+    if(document.querySelector(".daymenu")&&curDay){e.preventDefault();pickWorkout({stopPropagation:function(){}});}
+    return;
+  }
+  if(e.key==="ArrowLeft"){if(activePanel==="kalender"&&calView==="maand"){e.preventDefault();prevMonth();}return;}
+  if(e.key==="ArrowRight"){if(activePanel==="kalender"&&calView==="maand"){e.preventDefault();nextMonth();}return;}
+  if(e.shiftKey){
+    if(k==="u"){e.preventDefault();renderClient("profiel");}
+    else if(k==="p"){e.preventDefault();openPlan();}
+    else if(k==="c"){e.preventDefault();openCheckin();}
+    return;
+  }
+  if(k==="a"){e.preventDefault();openAssess();}
+  else if(k==="m"){e.preventDefault();openMx();}
+  else if(k==="g"){e.preventDefault();openGoals();}
+  else if(k==="n"){e.preventDefault();openNotes();}
+  else if(k==="c"){e.preventDefault();openChatPop();}
+  else if(k==="s"){e.preventDefault();openSchema();}
+  else if(k==="p"){e.preventDefault();openPrio();}
+  else if(k==="e"){e.preventDefault();openEquip();}
+  else if(k==="j"){e.preventDefault();toggleKlantDrop({stopPropagation:function(){}});}
+  else if(k==="\\"){e.preventDefault();toggleSide();}
+  else if(k==="t"){e.preventDefault();if(activePanel==="kalender")thisMonth();else renderClient("kalender");}
+  else if(k==="r"){
+    if(document.querySelector(".daymenu")&&curDay){e.preventDefault();pickRest({stopPropagation:function(){}});}
+  }
+});

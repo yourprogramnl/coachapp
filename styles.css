@@ -364,6 +364,10 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .sp-btn:hover{background:#2a9fce}
 .sp-btn.ghost{background:#26292f;color:#e6e8ea;border:1px solid #3a3f47}
 .sp-info{font-size:11px;color:#8f959d;margin:6px 0 12px}
+/* Sneltoetsen-paneel (zoals het ontwerp) */
+.keyrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;font-size:12.5px;color:#e6e8ea}
+.keygroep{font-size:13px;font-weight:800;color:#fff;margin:14px 0 4px}
+.kbd{background:#26292f;border:1px solid #3a3f47;border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;color:#c9cdd4;margin-left:4px;white-space:nowrap}
 .ass-pf{display:flex;gap:20px;margin-top:7px}
 .ass-pf label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#e6e8ea;font-weight:600;margin:0}
 .ass-pf input{width:auto}
