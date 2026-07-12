@@ -361,6 +361,68 @@ async function noteVerwijder(id){
   if(error){toast(error.message);return;}
   await notesLaad();notesRender();toast("Notitie verwijderd");
 }
+// ---------- CHECK-INS & CONSULTS (consult-logboek, coach-only; consults-tabel) ----------
+// De check-in-kant (sporter vult periodiek iets in) komt met de sporter-app; hier nu
+// alleen het consult-logboek: contactmomenten/gesprekken vastleggen.
+let consultLijst=[],consultEditId=null;
+const consultDatumNL=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MAANDVOL[d.getMonth()]+" "+d.getFullYear();};
+async function consultLaad(){
+  const{data}=await db.from("consults").select("*").eq("athlete_id",calClient).order("consult_date",{ascending:false});
+  consultLijst=data||[];
+}
+async function openCheckin(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-checkin");
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
+  sp=document.createElement("div");sp.id="sp-checkin";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Check-ins &amp; consults</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await consultLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Check-ins &amp; consults</h3><span class="sp-x" onclick="document.getElementById(\'sp-checkin\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sp-info">Leg hier je contactmomenten met deze klant vast (consult, gesprek, telefoontje). De vragenlijst-check-ins die de sporter zelf invult, komen samen met de sporter-app.</div>'+
+    '<div class="sp-field"><label>Datum</label><input type="date" id="consult-datum" style="color-scheme:dark"></div>'+
+    '<div class="sp-field"><label>Notitie (wat is er besproken?)</label><textarea id="consult-notes" placeholder="Bijv. voortgangsgesprek: doelen bijgesteld, blessure besproken"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="consult-saveknop" onclick="consultOpslaan()">Opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="consultReset()">Annuleren</button></div>'+
+    '<div class="sp-info">Alleen zichtbaar voor coaches. Nieuwste bovenaan.</div>'+
+    '<div id="consult-lijst"></div>';
+  document.getElementById("consult-datum").value=ymd(new Date());
+  consultRender();
+}
+function consultRender(){
+  const host=document.getElementById("consult-lijst");if(!host)return;
+  host.innerHTML=consultLijst.map(c=>'<div class="sp-note"><div class="nh">'+esc(consultDatumNL(c.consult_date))+
+    ' <span><svg class="i sm-i" style="cursor:pointer" onclick="consultBewerk(\''+c.id+'\')"><use href="#i-pen"/></svg><svg class="i sm-i" style="cursor:pointer" onclick="consultVerwijder(\''+c.id+'\')"><use href="#i-trash"/></svg></span></div>'+
+    (c.notes?'<div class="nb">'+esc(c.notes)+'</div>':'')+'</div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen consults vastgelegd. Voeg het eerste contactmoment toe.</div>';
+}
+function consultReset(){consultEditId=null;const d=document.getElementById("consult-datum"),n=document.getElementById("consult-notes"),b=document.getElementById("consult-saveknop");if(d)d.value=ymd(new Date());if(n)n.value="";if(b)b.textContent="Opslaan";}
+async function consultOpslaan(){
+  const datum=document.getElementById("consult-datum").value||null;
+  const notes=(document.getElementById("consult-notes").value||"").trim();
+  if(!datum){toast("Kies eerst een datum");return;}
+  let error;
+  if(consultEditId)({error}=await db.from("consults").update({consult_date:datum,notes:notes,updated_at:new Date().toISOString()}).eq("id",consultEditId));
+  else ({error}=await db.from("consults").insert({athlete_id:calClient,company_id:ME.profile.company_id,author_id:ME.user.id,consult_date:datum,notes:notes}));
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  const wasEdit=!!consultEditId;
+  consultReset();await consultLaad();consultRender();
+  toast(wasEdit?"Consult bijgewerkt":"Consult vastgelegd, alleen zichtbaar voor coaches");
+}
+function consultBewerk(id){
+  const c=consultLijst.find(x=>x.id===id);if(!c)return;
+  consultEditId=id;
+  document.getElementById("consult-datum").value=c.consult_date||"";
+  document.getElementById("consult-notes").value=c.notes||"";
+  document.getElementById("consult-saveknop").textContent="Bijwerken";
+  document.getElementById("consult-notes").focus();
+}
+async function consultVerwijder(id){
+  if(!confirm("Dit consult verwijderen?"))return;
+  const{error}=await db.from("consults").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  await consultLaad();consultRender();toast("Consult verwijderd");
+}
 // ---------- PLANNING & PERIODISERING (coach-only; plans-tabel) ----------
 let planLijst=[],planEditId=null;
 const planDatumNL=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MAANDKORT[d.getMonth()]+" "+d.getFullYear();};
