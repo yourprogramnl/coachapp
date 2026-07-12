@@ -2,10 +2,30 @@
 // Assessment, Metrics & 1RM, Doelen, Notities & documenten, Trainingsschema,
 // Prioriteiten, Materiaal en de Profiel-pagina. Plus de zijbalk in-/uitklappen.
 // ---------- ASSESSMENT (OPEX Body / Move / Work), zoals het ontwerp ----------
-const ASS_MOVE=[["scratch","Scratch Test","Schoudermobiliteit: handen achter de rug naar elkaar reiken"],["airsquat","Air Squat","Diepe squat met armen vooruit, hielen aan de grond"],["toetouch","Toe Touch Test","Gestrekte benen, vingertoppen naar de tenen"],["lunge","Lunge Test","Uitvalspas met romp rechtop en knie naar de vloer"],["slr","Straight Leg Raise Test","Liggend been gestrekt heffen tot 70 graden"]];
+const ASS_MOVE=[
+  ["scratch","Scratch Test","Hoe uit te voeren:\nBreng één arm boven het hoofd en reik achter de nek naar je bovenrug, terwijl de andere arm van onderen omhoog komt — beide met gesloten vuist (haakgreep).\n\nLet op:\nSymmetrie links-rechts\nBovenarm kan in lijn met de romp blijven zonder in te zakken in de core\nStrategieën om het bewegingsbereik te halen (romp & nek)\nOnvermogen om het schouderblad in te trekken\nOnvermogen in schouder-extensie bij het overhead gaan\nVerkeerde uitlijning van de wervelkolom\nVoer minstens 3 herhalingen uit"],
+  ["airsquat","Air Squat","Hoe uit te voeren:\nKies een voetstand die comfortabel voelt.\nArmen boven het hoofd in een \"Y\"-positie, naar buiten gedraaid (extern geroteerd).\nZak met je zwaartepunt naar de vloer terwijl je zo rechtop mogelijk blijft.\nVoer minstens 3 herhalingen uit.\n\nLet op:\nRomp- en lage-rug-extensie vastgehouden\nSymmetrie van links naar rechts\nHeupverschuiving (hip shift)\nUitlijning van de heupen\nVoeten plat\nHanden komen vóór de voeten"],
+  ["toetouch","Toe Touch Test","Hoe uit te voeren:\nMet de voeten tegen elkaar en de knieën op slot zo ver mogelijk voorover buigen, zonder dat er buiging in de knie ontstaat.\n\nLet op:\nGewicht verschuift naar de hielen zonder dat de voeten bewegen\nNormale kromming van de wervelkolom\nBenen blijven de hele tijd gestrekt\nSymmetrie van links naar rechts\nZorg dat de nek meebuigt met de rug\nVermogen om de tenen te bereiken"],
+  ["lunge","Lunge Test","Hoe uit te voeren:\nZittend op de grond, plak een stukje tape bij de enkel en een tweede bij de trochanter major (heupbeen).\nSta met de tenen achter de (trochanter-)lijn en stap naar voren om de hiel vóór de lijn te plaatsen, armen in een \"genie\"-positie.\nLet op: de benen staan op heupbreedte, niet op één lijn.\nZak tot de achterste knie de vloer raakt en kom dan terug naar de startpositie.\nVoer minstens 3 herhalingen per been uit.\n\nLet op:\nSymmetrie links-rechts\nKnie volgt een neutrale lijn\nRomp blijft hoog in de excentrische en concentrische fase\nStabiliteit, balans en controle\nBekken blijft per zijde in lijn en beweegt per herhaling naar voren\nVoorste voet is plat, op de tenen bij de achterste voet"],
+  ["slr","Straight Leg Raise Test","Liggend been gestrekt heffen tot 70 graden"]
+];
 const ASS_TIJD=[["frontplank","Front Plank/Front Leaning Rest","Vasthouden in seconden"],["reverseplank","Reverse Plank","Omgekeerde plank, heupen hoog"],["sideplank_r","Side Plank Right","Zijwaartse plank rechts"],["sideplank_l","Side Plank Left","Zijwaartse plank links"]];
 let assData={},assLijst=[],assHuidigId=null,assDatum="",assTabIdx=0;
 const assDatumNL=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MAANDVOL[d.getMonth()]+" "+d.getFullYear();};
+// Hover-uitleg bij de assessment-vraagtekens (vast gepositioneerd → niet geknipt door de zijbalk).
+let assTipEl=null;
+function assTipToon(el){
+  const txt=el.getAttribute("data-tip");if(!txt)return;
+  if(!assTipEl){assTipEl=document.createElement("div");assTipEl.id="asstip";document.body.appendChild(assTipEl);}
+  assTipEl.textContent=txt;assTipEl.classList.add("show");
+  const r=el.getBoundingClientRect(),tw=assTipEl.offsetWidth,th=assTipEl.offsetHeight;
+  let left=r.right+10;if(left+tw>window.innerWidth-8)left=r.left-tw-10;if(left<8)left=8;
+  let top=r.top+r.height/2-th/2;if(top<8)top=8;if(top+th>window.innerHeight-8)top=window.innerHeight-th-8;
+  assTipEl.style.left=left+"px";assTipEl.style.top=top+"px";
+}
+function assTipWeg(){if(assTipEl)assTipEl.classList.remove("show");}
+document.addEventListener("mouseover",e=>{const h=e.target.closest&&e.target.closest(".ass-help");if(h)assTipToon(h);});
+document.addEventListener("mouseout",e=>{const h=e.target.closest&&e.target.closest(".ass-help");if(h)assTipWeg();});
 async function assLaad(){
   const{data}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on",{ascending:false});
   assLijst=data||[];
@@ -61,12 +81,12 @@ function assHtml(d){
   const extraHtml=lijst=>(lijst||[]).map(x=>assVeldRij(x.n,x.v)).join("");
   const moveTests=ASS_MOVE.map(t=>{
     const cur=mv[t[0]]||"",nt=mv[t[0]+"_n"]||"";
-    return '<div class="sp-field"><label>'+t[1]+' <span class="ass-help" title="'+esc(t[2])+'">?</span></label>'+
+    return '<div class="sp-field"><label>'+t[1]+' <span class="ass-help" data-tip="'+esc(t[2])+'">?</span></label>'+
       '<div class="ass-pf"><label><input type="radio" name="mv-'+t[0]+'" value="pass"'+(cur==="pass"?" checked":"")+'> Pass</label><label><input type="radio" name="mv-'+t[0]+'" value="fail"'+(cur==="fail"?" checked":"")+'> Fail</label></div>'+
       '<span class="ass-noteslink" onclick="assNotes(this)">'+(nt?"Notities bewerken":"Notitie toevoegen")+'</span>'+
       '<textarea class="ass-notes" data-k="'+t[0]+'" style="'+(nt?"":"display:none")+'">'+esc(nt)+'</textarea></div>';
   }).join("");
-  const tijden=ASS_TIJD.map(t=>'<div class="sp-field"><label>'+t[1]+' <span class="ass-help" title="'+esc(t[2])+'">?</span></label><input id="as-'+t[0]+'" placeholder="0:00" value="'+esc(mv[t[0]]||"")+'"></div>').join("");
+  const tijden=ASS_TIJD.map(t=>'<div class="sp-field"><label>'+t[1]+' <span class="ass-help" data-tip="'+esc(t[2])+'">?</span></label><input id="as-'+t[0]+'" placeholder="0:00" value="'+esc(mv[t[0]]||"")+'"></div>').join("");
   // Geschiedenisbalk: kies een eerdere meting of start een nieuwe
   const histOpts=assLijst.map(a=>'<option value="'+a.id+'"'+(a.id===assHuidigId?" selected":"")+'>'+esc(assDatumNL(a.assessed_on))+'</option>').join("");
   const histRij=assLijst.length?'<div class="sp-field"><label>Meting</label><div style="display:flex;gap:6px;align-items:center">'+
@@ -86,19 +106,16 @@ function assHtml(d){
       '<div class="sp-field"><label>Muscle fat-analyse</label><select id="as-shape">'+["","C-shape","D-shape","I-shape"].map(s=>'<option'+(b.shape===s?" selected":"")+'>'+s+'</option>').join("")+'</select></div>'+
       '<div class="sp-field"><label>Notities OPEX Body</label><textarea id="as-bodynotes">'+esc(b.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-0">'+extraHtml(b.extra)+'</div>'+
-      '<button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldBij(0)">Voeg veld toe</button>'+
     '</div>'+
     '<div id="ass-1" style="display:none">'+moveTests+tijden+
       '<div class="sp-field"><label>OPEX Move Notes</label><textarea id="as-movenotes">'+esc(mv.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-1">'+extraHtml(mv.extra)+'</div>'+
-      '<button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldBij(1)">Voeg veld toe</button>'+
     '</div>'+
     '<div id="ass-2" style="display:none">'+
       veld("Airbike 10 min cals","as-cals",wk.cals)+
       veld("Airbike weight conversion","as-conv",wk.conv)+
       '<div class="sp-field"><label>OPEX Work Notes</label><textarea id="as-worknotes">'+esc(wk.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-2">'+extraHtml(wk.extra)+'</div>'+
-      '<button class="sp-btn ghost" style="margin-bottom:12px" onclick="assVeldBij(2)">Voeg veld toe</button>'+
     '</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="sp-btn" onclick="assOpslaan()">'+saveLabel+'</button>'+delBtn+'<button class="sp-btn ghost" onclick="toast(\'Exporteren komt in een volgende stap\')">Exporteer als PDF</button></div>'+
     '<div class="sp-info" id="ass-msg" style="margin-top:10px"></div>';
