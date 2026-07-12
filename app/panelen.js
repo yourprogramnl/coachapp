@@ -258,6 +258,16 @@ async function ciBewaar(){
   const{error}=await db.from("client_info").upsert({athlete_id:calClient,company_id:ME.profile.company_id,data:ciData,updated_by:ME.user.id},{onConflict:"athlete_id"});
   return error;
 }
+// Coach-only dossier (client_private): NIET leesbaar voor het lid. Nu voor Prioriteiten.
+let cpData={};
+async function cpLaad(){
+  const{data:rows}=await db.from("client_private").select("*").eq("athlete_id",calClient).limit(1);
+  cpData=(rows&&rows[0]&&rows[0].data)||{};
+}
+async function cpBewaar(){
+  const{error}=await db.from("client_private").upsert({athlete_id:calClient,company_id:ME.profile.company_id,data:cpData,updated_by:ME.user.id},{onConflict:"athlete_id"});
+  return error;
+}
 async function openGoals(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-goals");
@@ -521,7 +531,7 @@ async function schemaOpslaan(){
   if(err){toast(err.message||"Opslaan mislukt");return;}
   toast("Trainingsschema opgeslagen");
 }
-// ---------- PRIORITEITEN (zoals het ontwerp; client_info.data.prio) ----------
+// ---------- PRIORITEITEN (coach-only; client_private.data.prio — NIET voor het lid) ----------
 async function openPrio(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-prio");
@@ -531,30 +541,31 @@ async function openPrio(){
   sp=document.createElement("div");sp.id="sp-prio";sp.className="sidepanel show";
   sp.innerHTML='<div class="sp-head"><h3>Prioriteiten</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
-  await ciLaad();
+  await cpLaad();
   sp.innerHTML='<div class="sp-head"><h3>Prioriteiten</h3><span class="sp-x" onclick="document.getElementById(\'sp-prio\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div class="sp-field"><input id="prio-nieuw" placeholder="Prioriteit toevoegen…" onkeydown="if(event.key===\'Enter\')prioOpslaan()"></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="prioOpslaan()">Prioriteit opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="document.getElementById(\'prio-nieuw\').value=\'\'">Annuleren</button></div>'+
+    '<div class="sp-info">Alleen zichtbaar voor coaches.</div>'+
     '<div id="prio-lijst"></div>';
   prioRender();
 }
 function prioRender(){
   const host=document.getElementById("prio-lijst");if(!host)return;
-  const lijst=ciData.prio||[];
+  const lijst=cpData.prio||[];
   host.innerHTML=lijst.map((p,i)=>'<div class="sp-chip">'+esc(p)+' <span class="x" onclick="prioWeg('+i+')">✕</span></div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen prioriteiten. Voeg de eerste toe.</div>';
 }
 async function prioOpslaan(){
   const inp=document.getElementById("prio-nieuw");
   const tekst=(inp.value||"").trim();
   if(!tekst){toast("Typ eerst een prioriteit");return;}
-  ciData.prio=[tekst,...(ciData.prio||[])];
-  const err=await ciBewaar();
+  cpData.prio=[tekst,...(cpData.prio||[])];
+  const err=await cpBewaar();
   if(err){toast(err.message||"Opslaan mislukt");return;}
   inp.value="";prioRender();toast("Prioriteit opgeslagen");
 }
 async function prioWeg(i){
-  (ciData.prio||[]).splice(i,1);
-  const err=await ciBewaar();
+  (cpData.prio||[]).splice(i,1);
+  const err=await cpBewaar();
   if(err){toast(err.message||"Opslaan mislukt");return;}
   prioRender();
 }
