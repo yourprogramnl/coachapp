@@ -1194,7 +1194,7 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",berichten:"openChatPop()"};
+    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",berichten:"openChatPop()",profiel:"openProfiel()"};
     const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
     const later=acties[s[0]]?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
@@ -1202,7 +1202,7 @@ function renderClient(panel){
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
   c.innerHTML=coachShellHtml('<div class="client-layout'+(sideCollapsed?' collapsed':'')+'">'+
-    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'" title="'+naamVan(p)+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm">'+naamVan(p)+'</div><div class="cinfo">'+esc(p.email||"")+'<br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
+    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avStijl(naamVan(p))+'" title="'+naamVan(p)+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div class="cnm" id="cs-cnm">'+naamVan(p)+'</div><div class="cinfo"><span id="cs-profielregel" style="display:'+(profielRegel(p)?"":"none")+'">'+esc(profielRegel(p))+'<br></span><span id="cs-email">'+esc(p.email||"")+'</span><br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
     '<div id="cs-dagen" style="display:none;margin-top:8px"><span class="tag" style="background:#2a2e35;border-color:#33373d;color:#c9cdd4"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span></div></div>'+
     '<div class="mini-sess" id="cs-minisess" title="Sessies afgerond">…</div>'+
     '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+
@@ -1798,6 +1798,79 @@ async function equipOpslaan(){
   const err=await ciBewaar();
   if(err){toast(err.message||"Opslaan mislukt");return;}
   equipFormSluit();equipRender();toast("Materiaallijst opgeslagen");
+}
+// ---------- PROFIEL (bekijken/bewerken; velden op profiles) ----------
+const GENDEROPTS=[["man","Man"],["vrouw","Vrouw"],["anders","Anders"]];
+function leeftijdVan(bd){
+  if(!bd)return null;
+  const d=new Date(bd+"T00:00:00"),t=new Date();
+  let age=t.getFullYear()-d.getFullYear();
+  const m=t.getMonth()-d.getMonth();
+  if(m<0||(m===0&&t.getDate()<d.getDate()))age--;
+  return age>=0?age:null;
+}
+function profielRegel(p){
+  const parts=[];
+  const lft=leeftijdVan(p.birth_date);
+  if(lft!=null)parts.push(lft+" jaar");
+  if(p.weight_kg)parts.push(p.weight_kg+" kg");
+  if(p.height_cm)parts.push(p.height_cm+" cm");
+  return parts.join(" · ");
+}
+async function openProfiel(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-profiel");
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
+  const p=coachClients.find(x=>x.id===calClient);if(!p)return;
+  sp=document.createElement("div");sp.id="sp-profiel";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Profiel</h3><span class="sp-x" onclick="document.getElementById(\'sp-profiel\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sp-field"><label>Voornaam *</label><input id="pf-voornaam" value="'+esc(p.first_name||"")+'"></div>'+
+    '<div class="sp-field"><label>Achternaam *</label><input id="pf-achternaam" value="'+esc(p.last_name||"")+'"></div>'+
+    '<div class="sp-field"><label>E-mail</label><input value="'+esc(p.email||"")+'" readonly style="opacity:.6;cursor:default"></div>'+
+    '<div class="sp-field"><label>Geslacht</label><select id="pf-geslacht"><option value="">–</option>'+GENDEROPTS.map(g=>'<option value="'+g[0]+'"'+(p.gender===g[0]?" selected":"")+'>'+g[1]+'</option>').join("")+'</select></div>'+
+    '<div class="sp-field"><label>Geboortedatum</label><input type="date" id="pf-geboortedatum" value="'+esc(p.birth_date||"")+'" min="1926-01-01" max="'+ymd(new Date())+'"></div>'+
+    '<div class="sp-field"><label>Lengte (cm)</label><input type="number" id="pf-lengte" value="'+esc(p.height_cm||"")+'" min="1" max="259"></div>'+
+    '<div class="sp-field"><label>Gewicht (kg)</label><input type="number" id="pf-gewicht" value="'+esc(p.weight_kg||"")+'" min="1" max="399" step="0.1"></div>'+
+    '<div class="sp-field"><label>Eenheden</label><input value="Metrisch" readonly style="opacity:.6;cursor:default"></div>'+
+    '<div class="sp-field"><label>Noodcontact</label><input id="pf-noodcontact" value="'+esc(p.emergency_contact||"")+'" placeholder="Naam en/of telefoonnummer"></div>'+
+    '<div class="sp-field"><label>Notitie</label><textarea id="pf-notitie" placeholder="Vrije notitie…">'+esc(p.profile_note||"")+'</textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:6px"><button class="sp-btn" style="width:auto;padding:9px 16px" onclick="profielOpslaan()">Opslaan</button></div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+}
+async function profielOpslaan(){
+  const voornaam=document.getElementById("pf-voornaam").value.trim();
+  const achternaam=document.getElementById("pf-achternaam").value.trim();
+  if(!voornaam||!achternaam){toast("Voornaam en achternaam zijn verplicht");return;}
+  const lengteRaw=document.getElementById("pf-lengte").value.trim();
+  const gewichtRaw=document.getElementById("pf-gewicht").value.trim();
+  const upd={
+    first_name:voornaam,
+    last_name:achternaam,
+    gender:document.getElementById("pf-geslacht").value||null,
+    birth_date:document.getElementById("pf-geboortedatum").value||null,
+    height_cm:lengteRaw?Number(lengteRaw):null,
+    weight_kg:gewichtRaw?Number(gewichtRaw):null,
+    emergency_contact:document.getElementById("pf-noodcontact").value.trim()||null,
+    profile_note:document.getElementById("pf-notitie").value.trim()||null
+  };
+  const{data,error}=await db.from("profiles").update(upd).eq("id",calClient).select().single();
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  const p=coachClients.find(x=>x.id===calClient);
+  if(p)Object.assign(p,data);
+  profielHeaderVerversen(p);
+  toast("Profiel opgeslagen");
+}
+function profielHeaderVerversen(p){
+  if(!p)return;
+  const naam=naamVan(p);
+  const cnm=document.getElementById("cs-cnm");if(cnm)cnm.textContent=naam;
+  const av=document.querySelector(".cside .bigav");
+  if(av){av.textContent=esc(naam.slice(0,2).toUpperCase());av.setAttribute("style",avStijl(naam));av.title=naam;}
+  const pr=document.getElementById("cs-profielregel");
+  if(pr){const regel=profielRegel(p);pr.style.display=regel?"":"none";pr.innerHTML=regel?esc(regel)+"<br>":"";}
+  const em=document.getElementById("cs-email");if(em)em.textContent=p.email||"";
 }
 // ---------- CHAT-POPUP (zoals CoachRx Message; messages-tabel + realtime) ----------
 let chatKanaal=null,chatAthlete=null;
