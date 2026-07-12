@@ -267,6 +267,7 @@ function mxVid(ev,naam){
 // ---------- Metric-detailscherm (in het hoofdvlak; historie + resultaat toevoegen, zoals CoachRx) ----------
 async function mxOpenDetail(naam){
   mxDetailNaam=naam;mxDetailForm=false;activePanel="metric-detail";
+  if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient+"/metric/"+encodeURIComponent(naam));
   const m=document.getElementById("cmain");if(m)m.innerHTML='<div class="spin">Laden…</div>';
   await mxLaad();
   if(MX_BODY_VELD[naam]){const{data}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on");mxAss=data||[];}
@@ -298,13 +299,14 @@ function mxDetailRender(){
       actie='<button class="btn" onclick="mxDetailFormOpen()">Nieuw resultaat</button>';
     }
   }
-  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="renderClient(\'kalender\')">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+'</span></div>'+
+  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="mxDetailTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+'</span></div>'+
     '<div style="padding:22px 24px;max-width:820px;overflow:auto">'+
     '<div style="margin-bottom:20px"><div class="sm muted">Huidig</div><div style="font-size:26px;font-weight:800;color:var(--accent)">'+curTxt+'</div></div>'+
     actie+
     '<h3 style="margin-top:26px">Geschiedenis</h3><div class="mh-head"><span class="mh-v">Resultaat</span><span class="mh-d">Datum</span><span class="mh-n">Notitie</span><span class="mh-x"></span></div>'+histRows+
     '</div>';
 }
+function mxDetailTerug(){mxDetailNaam=null;if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient);renderClient("kalender");}
 function mxDetailFormOpen(){mxDetailForm=true;mxDetailRender();const el=document.getElementById("mxd-waarde");if(el)el.focus();}
 function mxDetailFormSluit(){mxDetailForm=false;mxDetailRender();}
 async function mxDetailOpslaan(){

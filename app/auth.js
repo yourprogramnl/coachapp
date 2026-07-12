@@ -40,5 +40,5 @@ async function loadApp(){
   show("app");
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="";
   if(role==="lid")renderLid();
-  else renderCoach(sectionFromHash());
+  else routeHash();
 }

@@ -21,6 +21,39 @@ function sectionFromHash(){
   const geldig=cnavItems().map(n=>n[0]);
   return geldig.includes(h)?h:"dash";
 }
+// De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
+function parseHash(){
+  const h=(location.hash||"").replace(/^#/,""),p=h.split("/");
+  if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null};
+  const geldig=cnavItems().map(n=>n[0]);
+  return{type:"section",section:geldig.includes(h)?h:"dash"};
+}
+// Zet de link zonder de router opnieuw te laten vuren (eigen wijziging).
+let hashZelf=false;
+function setHash(h){h=String(h);if((location.hash||"").replace(/^#/,"")===h)return;hashZelf=true;location.hash=h;}
+// Zorg dat de klantenlijst geladen is (nodig om een klant uit de link te openen).
+async function ensureClients(){
+  if(coachClients&&coachClients.length)return;
+  let q=db.from("profiles").select("*").eq("role","lid");
+  if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);
+  else if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  const{data}=await q;coachClients=data||[];
+}
+// Toon wat er in de link staat: een sectie of een geopende klant (evt. met metric-detail).
+async function routeHash(){
+  if(myRole()==="lid")return;
+  const r=parseHash();
+  if(r.type==="client"){
+    await ensureClients();
+    if((coachClients||[]).some(x=>x.id===r.id)){
+      if(!(typeof calClient!=="undefined"&&calClient===r.id&&document.querySelector(".client-layout")))openClient(r.id);
+      if(r.metric){openMx();mxOpenDetail(r.metric);}
+      return;
+    }
+    renderCoach("clients");return;
+  }
+  renderCoach(r.section);
+}
 async function renderCoach(section){
   coachSection=section||"dash";
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="none";
@@ -36,12 +69,13 @@ async function renderCoach(section){
   const dl=document.getElementById("exlist");if(dl)dl.innerHTML=coachExercises.map(e=>'<option value="'+esc(e.name)+'">').join("");
   coachRenderSection();
 }
-function coachGo(sec){coachSection=sec;if((location.hash||"").replace(/^#/,"")!==sec)location.hash=sec;coachRenderSection();}
-// Vooruit/terug in de browser of een handmatig aangepaste link volgen
+function coachGo(sec){coachSection=sec;setHash(sec);coachRenderSection();}
+// Vooruit/terug in de browser of een handmatig aangepaste link volgen.
+// Eigen wijzigingen (via setHash) slaan we over.
 window.addEventListener("hashchange",()=>{
+  if(hashZelf){hashZelf=false;return;}
   if(myRole()==="lid")return;
-  const sec=sectionFromHash();
-  if(sec!==coachSection){coachSection=sec;coachRenderSection();}
+  routeHash();
 });
 function coachShellHtml(inner){
   document.body.classList.add("coachmode");

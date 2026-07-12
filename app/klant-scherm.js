@@ -7,6 +7,7 @@ function openClient(id){
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
   kalWeken=10;kalScrollDoel="top";kalLabelMaand=null;prevScrollY=null;
   if(!LIB.geladen)libLaad();
+  setHash("klant/"+id);
   renderClient("kalender");
   const p=coachClients.find(x=>x.id===id);
   if(p)toast("Programma van "+[p.first_name,p.last_name].filter(Boolean).join(" ")+" geopend");
@@ -319,6 +320,7 @@ function mcardHtml(w){
     '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
 }
 async function renderMonth(){
+  if(activePanel!=="kalender")return;
   const id=calClient;const m=document.getElementById("cmain");if(!m)return;m.innerHTML='<div class="spin">Laden…</div>';
   const p=coachClients.find(x=>x.id===id)||{};
   const ref=calRef;
@@ -396,6 +398,7 @@ async function renderMonth(){
     }
     weeks+='<div class="mrow" data-d="'+ymd(addDays(gridStart,wk*cols))+'"'+gridStyle+'>'+cells+'</div>';
   }
+  if(activePanel!=="kalender")return;
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';
   if(editDay){relabel();groei();}
   if(calView==="maand"){
