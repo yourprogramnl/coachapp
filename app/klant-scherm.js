@@ -327,6 +327,7 @@ function cardTools(w){
   return '<input type="checkbox" class="cardsel"'+(selWids.has(w.id)?' checked':'')+' title="Selecteren" onclick="event.stopPropagation();toggleSelect(this,\''+w.id+'\')">'+
     '<span class="cardtools" onclick="event.stopPropagation()">'+
     '<button title="Bewerken" onclick="event.stopPropagation();editWorkout(\''+w.id+'\',0)"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
+    '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
     '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button title="Verwijderen" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
     '</span>';
@@ -356,6 +357,28 @@ function selBarUpdate(){
   bar.innerHTML='<span class="n">'+selWids.size+'</span><span>geselecteerd</span><button class="lnk" onclick="selClear()">Selectie wissen</button>'+
     '<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button class="ic" title="Verwijderen" onclick="selVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
+}
+// Slepen van een workout naar een andere dag (via de move-greep in het zweefmenu).
+function dragStart(ev,wid){
+  dragWid=wid;
+  try{ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",wid);}catch(e){}
+  const card=ev.target.closest(".mcard");
+  if(card&&ev.dataTransfer.setDragImage)ev.dataTransfer.setDragImage(card,24,18);
+}
+function dragEnd(){dragWid=null;document.querySelectorAll(".mday.dragover").forEach(c=>c.classList.remove("dragover"));}
+function dragOver(ev,cell){if(!dragWid)return;ev.preventDefault();cell.classList.add("dragover");}
+function dragLeave(cell){cell.classList.remove("dragover");}
+async function dropDay(ev,ds){
+  ev.preventDefault();
+  document.querySelectorAll(".mday.dragover").forEach(c=>c.classList.remove("dragover"));
+  const wid=dragWid;dragWid=null;
+  if(!wid)return;
+  const w=monthWorkouts[wid];
+  if(!w||w.workout_date===ds)return; // niks te doen als je op dezelfde dag loslaat
+  const{error}=await db.from("workouts").update({workout_date:ds}).eq("id",wid);
+  if(error){toast(error.message||"Verplaatsen mislukt");return;}
+  if(editWid===wid){editWid=null;editDay=null;}
+  toast("Workout verplaatst");renderMonth();
 }
 async function renderMonth(opts){
   if(activePanel!=="kalender")return;
@@ -431,7 +454,7 @@ async function renderMonth(opts){
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
       }
-      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
+      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
     }
     // maand-scheidingsbalk vóór de week waarin een nieuwe maand begint (zoals CoachRx)
     if(calView==="maand"&&wk>0){
@@ -469,7 +492,7 @@ async function renderMonth(opts){
 async function delWorkout(wid){if(!confirm("Deze workout verwijderen?"))return;await db.from("workouts").delete().eq("id",wid);if(editWid===wid){editWid=null;editDay=null;}renderMonth();}
 
 // ---------- Dag-menu, klembord en Template invoegen (zoals het ontwerp) ----------
-let curDay=null,KLEMBORD=null,insDoel="cel",insTypeF="all",insKleur="",insBlog=[],selWids=new Set();
+let curDay=null,KLEMBORD=null,insDoel="cel",insTypeF="all",insKleur="",insBlog=[],selWids=new Set(),dragWid=null;
 function groei(){document.querySelectorAll(".ib2 textarea").forEach(t=>{t.style.height="auto";t.style.height=t.scrollHeight+"px";});}
 document.addEventListener("input",e=>{if(e.target.matches&&e.target.matches(".ib2 textarea")){e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}});
 function openDayMenu(ev,ds){
