@@ -179,7 +179,8 @@ let mxData=[],mxOpen={},balKeuze="Deadlift";
 let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
 const MX_ASS_VELD={
   "Weight":["body","gewicht"],"Bodyfat Percentage":["body","vet"],"Skeletal Muscle Mass":["body","spier"],"Basal Metabolic Rate":["body","metab"],
-  "Air Squat":["move","airsquat"],"Front Leaning Rest":["move","frontplank"],"Reverse Plank":["move","reverseplank"],"Side Plank Left":["move","sideplank_l"],"Side Plank Right":["move","sideplank_r"],"Push-up":["move","pushup"]
+  "Air Squat":["move","airsquat"],"Front Leaning Rest":["move","frontplank"],"Reverse Plank":["move","reverseplank"],"Side Plank Left":["move","sideplank_l"],"Side Plank Right":["move","sideplank_r"],"Push-up":["move","pushup"],
+  "10 minute AirBike":["work","cals"],"AirBike Weight Conversion":["work","conv"]
 };
 // Vaste videokoppeling voor oefeningen die niet automatisch op naam te vinden zijn.
 const MX_VIDEO_OVERRIDE={
@@ -215,7 +216,8 @@ function mxWaarde(naam){
 }
 // Invoertype per metric bij het toevoegen van een resultaat.
 // Standaard: Resistance = kg (getal); overige blokken/eigen metrics = vrije eenheid.
-const MX_TYPE={"Sorenson Hold":"time","Strict Dip":"passfail","Unloaded RFESS":"passfail"};
+// Waarden: "time", "passfail", of een vaste eenheid (kg/m/cal/...). Resistance zonder eigen type = kg.
+const MX_TYPE={"Sorenson Hold":"time","Strict Dip":"passfail","Unloaded RFESS":"passfail","5k Row":"m","60min Row":"m"};
 function mxType(naam){
   if(MX_TYPE[naam])return MX_TYPE[naam];
   if((METRICS_DEF["Resistance"]||[]).includes(naam))return "kg";
@@ -319,14 +321,14 @@ async function mxOpenDetail(naam){
 async function mxAanpassenInAss(){
   const veld=MX_ASS_VELD[mxDetailNaam];
   await openAssess();
-  if(veld&&veld[0]==="move")assTab(1);
+  if(veld){if(veld[0]==="move")assTab(1);else if(veld[0]==="work")assTab(2);}
 }
 function mxDetailRender(){
   const m=document.getElementById("cmain");if(!m||activePanel!=="metric-detail"||!mxDetailNaam)return;
   const naam=mxDetailNaam,assVeld=MX_ASS_VELD[naam];
   let curTxt="—",histRows="",actie="";
   if(assVeld){
-    const blok=assVeld[0]==="body"?"OPEX Body":"OPEX Move";
+    const blok={body:"OPEX Body",move:"OPEX Move",work:"OPEX Work"}[assVeld[0]]||"Assessment";
     const punten=mxAssPunten(naam);
     if(punten.length)curTxt=esc(String(punten[punten.length-1].v));
     histRows=punten.slice().reverse().map(p=>'<div class="mh-row"><div class="mh-v">'+esc(String(p.v))+'</div><div class="mh-d">'+esc(assDatumNL(p.d))+'</div><div class="mh-n"><span class="muted sm">uit Assessment</span></div><div class="mh-x"></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen metingen. Vul ze in bij Assessment.</div>';
@@ -342,10 +344,11 @@ function mxDetailRender(){
         invoer='<div class="mxd-pf"><label><input type="radio" name="mxd-pf" value="pass"> Pass</label><label><input type="radio" name="mxd-pf" value="fail"> Fail</label></div>';
       }else if(t==="time"){
         invoer='<input id="mxd-waarde" placeholder="mm:ss (bijv. 1:30)" style="width:150px">';
-      }else if(t==="kg"){
-        invoer='<div style="display:flex;align-items:center;gap:6px"><input id="mxd-waarde" placeholder="Resultaat" inputmode="decimal" style="width:130px"><span style="color:#5d6570;font-weight:600">kg</span></div>';
-      }else{
+      }else if(t==="vrij"){
         invoer='<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:130px"><select id="mxd-unit" style="width:90px">'+["kg","reps","sec","min","cal","%","m"].map(u=>'<option'+(((hist[hist.length-1]||{}).unit||"kg")===u?" selected":"")+'>'+u+'</option>').join("")+'</select>';
+      }else{
+        // Vaste eenheid (kg, m, cal, …)
+        invoer='<div style="display:flex;align-items:center;gap:6px"><input id="mxd-waarde" placeholder="Resultaat" inputmode="decimal" style="width:130px"><span style="color:#5d6570;font-weight:600">'+esc(t)+'</span></div>';
       }
       actie='<div class="bp-sec" style="max-width:640px"><b>Nieuw resultaat</b><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px">'+
         invoer+'<input id="mxd-datum" type="date" value="'+todayStr()+'" style="width:160px"></div>'+
@@ -378,14 +381,15 @@ async function mxDetailOpslaan(){
     const sec=mxTijdNaarSec(g("mxd-waarde"));
     if(!sec){if(msg)msg.textContent="Vul een tijd in (mm:ss).";return;}
     velden.value=sec;velden.unit="sec";
-  }else if(t==="kg"){
-    const w=parseFloat((g("mxd-waarde")||"").trim().replace(",","."));
-    if(isNaN(w)){if(msg)msg.textContent="Vul een getal in (kg).";return;}
-    velden.value=w;velden.unit="kg";
-  }else{
+  }else if(t==="vrij"){
     const w=parseFloat((g("mxd-waarde")||"").trim().replace(",","."));
     if(isNaN(w)){if(msg)msg.textContent="Vul een getal in als resultaat.";return;}
     velden.value=w;velden.unit=g("mxd-unit")||null;
+  }else{
+    // Vaste eenheid (kg, m, cal, …)
+    const w=parseFloat((g("mxd-waarde")||"").trim().replace(",","."));
+    if(isNaN(w)){if(msg)msg.textContent="Vul een getal in ("+t+").";return;}
+    velden.value=w;velden.unit=t;
   }
   const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:velden.value,value_text:velden.value_text,unit:velden.unit,measured_at:g("mxd-datum")||todayStr(),note:(g("mxd-note")||"").trim()||null,created_by:ME.user.id});
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
