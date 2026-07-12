@@ -606,16 +606,19 @@ async function openNotes(){
   sp=document.createElement("div");sp.id="sp-notes";sp.className="sidepanel show";
   sp.innerHTML='<div class="sp-head"><h3>Notities & documenten</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
-  await notesLaad();
+  await notesLaad();await docsLaad();
   sp.innerHTML='<div class="sp-head"><h3>Notities & documenten</h3><span class="sp-x" onclick="document.getElementById(\'sp-notes\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div class="sp-tabs"><button class="on" id="nd-t0" onclick="ndTab(0)">Notities</button><button id="nd-t1" onclick="ndTab(1)">Documenten</button></div>'+
     '<div id="nd-0"><div class="sp-field"><textarea id="note-nieuw" placeholder="Notitie toevoegen (alleen zichtbaar voor coaches)…"></textarea></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="note-saveknop" onclick="noteOpslaan()">Opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="noteReset()">Annuleren</button></div>'+
     '<div class="sp-field"><input id="note-zoek" placeholder="Zoek in notities" oninput="notesRender()"></div>'+
     '<div id="notes-lijst"></div></div>'+
-    '<div id="nd-1" style="display:none"><button class="sp-btn" style="margin-bottom:8px" onclick="toast(\'Documenten uploaden komt in een volgende stap\')">Document uploaden vanaf je computer</button>'+
-    '<div class="sp-info">Standaard alleen zichtbaar voor coaches. Delen met het lid komt samen met de sporter-app.</div></div>';
-  notesRender();
+    '<div id="nd-1" style="display:none">'+
+    '<input type="file" id="doc-file" style="display:none" onchange="docUpload(this)">'+
+    '<button class="sp-btn" id="doc-uploadknop" style="margin-bottom:8px" onclick="document.getElementById(\'doc-file\').click()">Document uploaden vanaf je computer</button>'+
+    '<div class="sp-info" style="margin-bottom:12px">Standaard alleen zichtbaar voor coaches. Maximaal 25 MB per bestand. Delen met het lid komt samen met de sporter-app.</div>'+
+    '<div id="docs-lijst"></div></div>';
+  notesRender();docsRender();
 }
 function ndTab(i){document.getElementById("nd-0").style.display=i===0?"":"none";document.getElementById("nd-1").style.display=i===1?"":"none";document.getElementById("nd-t0").classList.toggle("on",i===0);document.getElementById("nd-t1").classList.toggle("on",i===1);}
 function notesRender(){
@@ -650,6 +653,56 @@ async function noteVerwijder(id){
   const{error}=await db.from("notes").delete().eq("id",id);
   if(error){toast(error.message);return;}
   await notesLaad();notesRender();toast("Notitie verwijderd");
+}
+// ---------- DOCUMENTEN (upload naar Storage-bucket 'documents'; metadata in de documents-tabel) ----------
+let docsLijst=[];
+const DOC_MAX=26214400; // 25 MB, gelijk aan de bucketlimiet
+const docBytesNL=b=>{if(b==null)return"";if(b<1024)return b+" B";if(b<1048576)return Math.round(b/1024)+" KB";return (Math.round(b/104857.6)/10)+" MB";};
+async function docsLaad(){
+  const{data}=await db.from("documents").select("*").eq("athlete_id",calClient).order("created_at",{ascending:false});
+  docsLijst=data||[];
+}
+function docsRender(){
+  const host=document.getElementById("docs-lijst");if(!host)return;
+  host.innerHTML=docsLijst.map(d=>'<div class="sp-note"><div class="nh">'+esc(datumNL(d.created_at))+
+    ' <span><svg class="i sm-i" onclick="docVerwijder(\''+d.id+'\')"><use href="#i-trash"/></svg></span></div>'+
+    '<div class="nb"><a href="#" onclick="docOpen(\''+d.id+'\');return false" style="color:var(--accent);text-decoration:none">'+
+    '<svg class="i sm-i" style="vertical-align:-2px;margin-right:4px"><use href="#i-doc"/></svg>'+esc(d.file_name)+'</a>'+
+    (d.size_bytes?' <span class="sm" style="color:#8b919b">· '+docBytesNL(d.size_bytes)+'</span>':'')+'</div></div>').join("")
+    ||'<div class="sm" style="color:#8b919b">Nog geen documenten. Upload het eerste hierboven.</div>';
+}
+async function docUpload(input){
+  const file=input.files&&input.files[0];input.value="";
+  if(!file)return;
+  if(file.size>DOC_MAX){toast("Bestand is te groot (max 25 MB)");return;}
+  const knop=document.getElementById("doc-uploadknop");
+  if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
+  // Pad: {company_id}/{athlete_id}/{uuid}-bestandsnaam. De storage-policy controleert de eerste twee mappen.
+  const safe=file.name.replace(/[^\w.\- ]+/g,"_");
+  const path=ME.profile.company_id+"/"+calClient+"/"+crypto.randomUUID()+"-"+safe;
+  const{error:upErr}=await db.storage.from("documents").upload(path,file,{contentType:file.type||undefined,upsert:false});
+  if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Document uploaden vanaf je computer";}return;}
+  const{error}=await db.from("documents").insert({athlete_id:calClient,company_id:ME.profile.company_id,author_id:ME.user.id,storage_path:path,file_name:file.name,mime_type:file.type||null,size_bytes:file.size});
+  if(error){
+    await db.storage.from("documents").remove([path]); // geen wees-bestand achterlaten
+    toast(error.message||"Opslaan mislukt");if(knop){knop.disabled=false;knop.textContent="Document uploaden vanaf je computer";}return;
+  }
+  if(knop){knop.disabled=false;knop.textContent="Document uploaden vanaf je computer";}
+  await docsLaad();docsRender();toast("Document geüpload");
+}
+async function docOpen(id){
+  const d=docsLijst.find(x=>x.id===id);if(!d)return;
+  const{data,error}=await db.storage.from("documents").createSignedUrl(d.storage_path,120);
+  if(error||!data){toast((error&&error.message)||"Kon bestand niet openen");return;}
+  window.open(data.signedUrl,"_blank","noopener");
+}
+async function docVerwijder(id){
+  const d=docsLijst.find(x=>x.id===id);if(!d)return;
+  if(!confirm("Dit document verwijderen?"))return;
+  const{error}=await db.from("documents").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  await db.storage.from("documents").remove([d.storage_path]);
+  await docsLaad();docsRender();toast("Document verwijderd");
 }
 // ---------- CHECK-INS & CONSULTS (consult-logboek, coach-only; consults-tabel) ----------
 // De check-in-kant (sporter vult periodiek iets in) komt met de sporter-app; hier nu
