@@ -37,3 +37,7 @@ function composePresc(b){
   if(sr)segs.push(sr);if(b.tempo)segs.push("@ "+b.tempo);
   let s=segs.join(" ");if(b.rest)s+=(s?" · ":"")+"rust "+b.rest;return s;
 }
+
+// Gedeelde render-helpers (gebruikt door alle schermen)
+function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
+const naamVan=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);
