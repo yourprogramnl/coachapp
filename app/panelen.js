@@ -213,6 +213,23 @@ function mxWaarde(naam){
   const cur=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
   return{cur,vorig,unit:cur.unit||""};
 }
+// Invoertype per metric bij het toevoegen van een resultaat.
+// Standaard: Resistance = kg (getal); overige blokken/eigen metrics = vrije eenheid.
+const MX_TYPE={"Sorenson Hold":"time","Strict Dip":"passfail","Unloaded RFESS":"passfail"};
+function mxType(naam){
+  if(MX_TYPE[naam])return MX_TYPE[naam];
+  if((METRICS_DEF["Resistance"]||[]).includes(naam))return "kg";
+  return "vrij";
+}
+const mxSecNaarTijd=sec=>{sec=Math.round(sec||0);return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");};
+const mxTijdNaarSec=str=>{const p=String(str||"").trim().split(":").map(x=>parseInt(x,10)||0);if(p.length===3)return p[0]*3600+p[1]*60+p[2];if(p.length===2)return p[0]*60+p[1];return p[0];};
+// Weergave van een gelogde metrics-rij op basis van het type
+function mxFmtRij(m,naam){
+  const t=mxType(naam);
+  if(t==="passfail")return m.value_text||"";
+  if(t==="time")return mxSecNaarTijd(m.value);
+  return (m.value!=null?String(m.value):"")+(m.unit?" "+m.unit:"");
+}
 async function openMx(){
   const lay=document.querySelector(".client-layout");if(!lay)return;
   let sp=document.getElementById("sp-mx");
@@ -245,9 +262,10 @@ function mxRender(){
           const pts=mxAssPunten(naam);
           if(pts&&pts.length)curTxt=esc(String(pts[pts.length-1].v));
         }else{
-          const w=mxWaarde(naam);
-          if(w){curTxt=esc(String(w.cur.value))+" "+esc(w.unit);
-            if(w.vorig&&w.cur.value!=null&&w.vorig.value!=null&&w.cur.value!==w.vorig.value){
+          const w=mxWaarde(naam),t=mxType(naam);
+          if(w){curTxt=esc(mxFmtRij(w.cur,naam));
+            // +/- alleen voor getalswaarden (kg/vrij), niet voor pass/fail of tijd
+            if((t==="kg"||t==="vrij")&&w.vorig&&w.cur.value!=null&&w.vorig.value!=null&&w.cur.value!==w.vorig.value){
               const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
               pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
             }
@@ -314,15 +332,23 @@ function mxDetailRender(){
     histRows=punten.slice().reverse().map(p=>'<div class="mh-row"><div class="mh-v">'+esc(String(p.v))+'</div><div class="mh-d">'+esc(assDatumNL(p.d))+'</div><div class="mh-n"><span class="muted sm">uit Assessment</span></div><div class="mh-x"></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen metingen. Vul ze in bij Assessment.</div>';
     actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment ('+blok+'), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="mxAanpassenInAss()">Aanpassen in Assessment</button>';
   }else{
-    const hist=mxHist(naam),w=mxWaarde(naam);
-    if(w)curTxt=esc(String(w.cur.value))+" "+esc(w.unit||"");
-    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(String(mm.value))+" "+esc(mm.unit||"")+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
+    const hist=mxHist(naam),w=mxWaarde(naam),t=mxType(naam);
+    if(w)curTxt=esc(mxFmtRij(w.cur,naam));
+    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
     if(mxDetailForm){
-      const laatsteUnit=(hist[hist.length-1]||{}).unit||"kg";
-      actie='<div class="bp-sec" style="max-width:640px"><b>Nieuw resultaat</b><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'+
-        '<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:150px">'+
-        '<select id="mxd-unit" style="width:90px">'+["kg","reps","sec","min","cal","%","m"].map(u=>'<option'+(laatsteUnit===u?" selected":"")+'>'+u+'</option>').join("")+'</select>'+
-        '<input id="mxd-datum" type="date" value="'+todayStr()+'" style="width:160px"></div>'+
+      // Invoerveld afhankelijk van het type: kg (getal), tijd (mm:ss) of pass/fail
+      let invoer;
+      if(t==="passfail"){
+        invoer='<div class="mxd-pf"><label><input type="radio" name="mxd-pf" value="pass"> Pass</label><label><input type="radio" name="mxd-pf" value="fail"> Fail</label></div>';
+      }else if(t==="time"){
+        invoer='<input id="mxd-waarde" placeholder="mm:ss (bijv. 1:30)" style="width:150px">';
+      }else if(t==="kg"){
+        invoer='<div style="display:flex;align-items:center;gap:6px"><input id="mxd-waarde" placeholder="Resultaat" inputmode="decimal" style="width:130px"><span style="color:#5d6570;font-weight:600">kg</span></div>';
+      }else{
+        invoer='<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:130px"><select id="mxd-unit" style="width:90px">'+["kg","reps","sec","min","cal","%","m"].map(u=>'<option'+(((hist[hist.length-1]||{}).unit||"kg")===u?" selected":"")+'>'+u+'</option>').join("")+'</select>';
+      }
+      actie='<div class="bp-sec" style="max-width:640px"><b>Nieuw resultaat</b><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px">'+
+        invoer+'<input id="mxd-datum" type="date" value="'+todayStr()+'" style="width:160px"></div>'+
         '<textarea id="mxd-note" placeholder="Notitie (optioneel)" style="margin-top:8px;min-height:60px"></textarea>'+
         '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="mxDetailOpslaan()">Opslaan</button><button class="btn ghost" onclick="mxDetailFormSluit()">Annuleren</button></div>'+
         '<div class="msg" id="mxd-msg"></div></div>';
@@ -341,11 +367,27 @@ function mxDetailTerug(){mxDetailNaam=null;if(typeof calClient!=="undefined"&&ca
 function mxDetailFormOpen(){mxDetailForm=true;mxDetailRender();const el=document.getElementById("mxd-waarde");if(el)el.focus();}
 function mxDetailFormSluit(){mxDetailForm=false;mxDetailRender();}
 async function mxDetailOpslaan(){
-  const naam=mxDetailNaam;
-  const ruw=(document.getElementById("mxd-waarde").value||"").trim().replace(",",".");
-  const waarde=parseFloat(ruw),msg=document.getElementById("mxd-msg");
-  if(isNaN(waarde)){if(msg)msg.textContent="Vul een getal in als resultaat.";return;}
-  const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:waarde,unit:document.getElementById("mxd-unit").value,measured_at:document.getElementById("mxd-datum").value||todayStr(),note:(document.getElementById("mxd-note").value||"").trim()||null,created_by:ME.user.id});
+  const naam=mxDetailNaam,t=mxType(naam),msg=document.getElementById("mxd-msg");
+  const g=id=>{const e=document.getElementById(id);return e?e.value:"";};
+  let velden={value:null,value_text:null,unit:null};
+  if(t==="passfail"){
+    const pf=document.querySelector('input[name="mxd-pf"]:checked');
+    if(!pf){if(msg)msg.textContent="Kies pass of fail.";return;}
+    velden.value_text=pf.value;
+  }else if(t==="time"){
+    const sec=mxTijdNaarSec(g("mxd-waarde"));
+    if(!sec){if(msg)msg.textContent="Vul een tijd in (mm:ss).";return;}
+    velden.value=sec;velden.unit="sec";
+  }else if(t==="kg"){
+    const w=parseFloat((g("mxd-waarde")||"").trim().replace(",","."));
+    if(isNaN(w)){if(msg)msg.textContent="Vul een getal in (kg).";return;}
+    velden.value=w;velden.unit="kg";
+  }else{
+    const w=parseFloat((g("mxd-waarde")||"").trim().replace(",","."));
+    if(isNaN(w)){if(msg)msg.textContent="Vul een getal in als resultaat.";return;}
+    velden.value=w;velden.unit=g("mxd-unit")||null;
+  }
+  const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:velden.value,value_text:velden.value_text,unit:velden.unit,measured_at:g("mxd-datum")||todayStr(),note:(g("mxd-note")||"").trim()||null,created_by:ME.user.id});
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
   toast("Resultaat toegevoegd");
   await mxLaad();mxDetailForm=false;mxDetailRender();
