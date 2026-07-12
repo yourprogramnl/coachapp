@@ -985,10 +985,35 @@ function profielRegel(p){
   if(p.height_cm)parts.push(p.height_cm+" cm");
   return parts.join(" · ");
 }
+// Geldige geboortedatum: niet in de toekomst, niet ouder dan 100 jaar (afgesproken met Stefan).
+function pfGeboortegrenzen(){
+  const max=new Date();max.setHours(0,0,0,0);
+  const min=new Date();min.setHours(0,0,0,0);min.setFullYear(min.getFullYear()-100);
+  return{min,max};
+}
+// Foutmelding bij een ongeldige geboortedatum, of "" als hij klopt/leeg is.
+function pfGeboorteFout(bd){
+  if(!bd)return"";
+  const d=new Date(bd+"T00:00:00");
+  if(isNaN(d.getTime()))return"Vul een geldige geboortedatum in.";
+  const{min,max}=pfGeboortegrenzen();
+  if(d>max)return"De geboortedatum kan niet in de toekomst liggen.";
+  if(d<min)return"Controleer de geboortedatum (ouder dan 100 jaar).";
+  return"";
+}
+function pfLeeftijdUpdate(){
+  const el=document.getElementById("pf-leeftijd");if(!el)return;
+  const bd=(document.getElementById("pf-geboortedatum")||{}).value||"";
+  const lft=leeftijdVan(bd);
+  el.value=(lft!=null)?(lft+" jaar"):"";
+}
 function renderProfielPagina(){
   const cm=document.getElementById("cmain");if(!cm)return;
   const p=coachClients.find(x=>x.id===calClient);if(!p)return;
   const naam=naamVan(p);
+  const{min,max}=pfGeboortegrenzen();
+  const minBd=ymd(min),maxBd=ymd(max);
+  const lftNu=leeftijdVan(p.birth_date);
   cm.innerHTML='<div class="pfwrap">'+
     '<div class="pfav" style="'+avStijl(naam)+'">'+esc(naam.slice(0,2).toUpperCase())+'</div>'+
     '<div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm" onclick="toast(\'Profielfoto uploaden komt in een volgende stap\')">Kies een afbeelding</button></div>'+
@@ -1001,7 +1026,8 @@ function renderProfielPagina(){
       '<div class="field"><label>Lengte (cm)</label><input type="number" id="pf-lengte" value="'+esc(p.height_cm||"")+'" min="1" max="259"></div>'+
       '<div class="field"><label>Gewicht (kg)</label><input type="number" id="pf-gewicht" value="'+esc(p.weight_kg||"")+'" min="1" max="399" step="0.1"></div>'+
       '<div class="field"><label>Eenheden</label><input value="Metrisch" readonly style="opacity:.6;cursor:default"></div>'+
-      '<div class="field"><label>Geboortedatum</label><input type="date" id="pf-geboortedatum" value="'+esc(p.birth_date||"")+'" min="1926-01-01" max="'+ymd(new Date())+'"></div>'+
+      '<div class="field"><label>Geboortedatum</label><input type="date" id="pf-geboortedatum" value="'+esc(p.birth_date||"")+'" min="'+minBd+'" max="'+maxBd+'" oninput="pfLeeftijdUpdate()" onchange="pfLeeftijdUpdate()"></div>'+
+      '<div class="field"><label>Leeftijd</label><input id="pf-leeftijd" value="'+esc(lftNu!=null?lftNu+" jaar":"")+'" readonly style="opacity:.6;cursor:default" placeholder="Wordt berekend uit geboortedatum"></div>'+
       '<div class="field"><label>Noodcontact</label><input id="pf-noodcontact" value="'+esc(p.emergency_contact||"")+'" placeholder="Naam en/of telefoonnummer"></div>'+
     '</div>'+
     '<div class="field" style="margin-top:2px"><label>Notitie</label><textarea id="pf-notitie" placeholder="Vrije notitie…">'+esc(p.profile_note||"")+'</textarea></div>'+
@@ -1015,13 +1041,16 @@ async function profielOpslaan(){
   const voornaam=document.getElementById("pf-voornaam").value.trim();
   const achternaam=document.getElementById("pf-achternaam").value.trim();
   if(!voornaam||!achternaam){toast("Voornaam en achternaam zijn verplicht");return;}
+  const geboortedatum=document.getElementById("pf-geboortedatum").value||"";
+  const geboorteFout=pfGeboorteFout(geboortedatum);
+  if(geboorteFout){toast(geboorteFout);return;}
   const lengteRaw=document.getElementById("pf-lengte").value.trim();
   const gewichtRaw=document.getElementById("pf-gewicht").value.trim();
   const upd={
     first_name:voornaam,
     last_name:achternaam,
     gender:document.getElementById("pf-geslacht").value||null,
-    birth_date:document.getElementById("pf-geboortedatum").value||null,
+    birth_date:geboortedatum||null,
     height_cm:lengteRaw?Number(lengteRaw):null,
     weight_kg:gewichtRaw?Number(gewichtRaw):null,
     emergency_contact:document.getElementById("pf-noodcontact").value.trim()||null,
