@@ -11,7 +11,7 @@ async function openChatPop(){
   chatAthlete=calClient;
   const p=coachClients.find(x=>x.id===calClient)||{};
   pop=document.createElement("div");pop.id="chatpop";pop.className="chatpop show";
-  pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><b>'+naamVan(p)+'</b>'+
+  pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+naamVan(p)+'</b>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
     '<div class="msgs2" id="chat-msgs"><div class="sm muted" style="text-align:center;padding:14px">Laden…</div></div>'+
     '<div class="cin"><input id="chat-inp" placeholder="Schrijf een bericht…" onkeydown="if(event.key===\'Enter\')chatStuur()"><div class="cinrow"><button class="send" onclick="chatStuur()">Stuur</button></div></div>';

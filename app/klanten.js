@@ -41,7 +41,7 @@ function klantRijen(){
   return lijst.map(p=>{
     const wp=klantComp([p]);
     return '<div class="trow click" onclick="openClient(\''+p.id+'\')">'+
-      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(p)+'</div><div class="sm muted">Laatste consult: n.v.t.</div></div></div>'+
+      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(p)+'</div><div class="sm muted">Laatste consult: n.v.t.</div></div></div>'+
       '<div style="flex:1.2">'+klantWorkoutChip(p)+'</div>'+
       '<div style="flex:1.2"><span class="wchip leeg">niet ingesteld</span></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
@@ -103,7 +103,7 @@ async function fillCoaches(){
     const wp=compVan(kl);
     const cm=kl.length?Math.round(kl.filter(p=>gesprokenIds.has(p.id)).length/kl.length*100):null;
     const rol=c.role==="eigenaar"?'<span class="cpill purple">Eigenaar</span>':'<span class="cpill teal">Coach</span>';
-    return '<div class="trow"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avStijl(naamVan(c))+'">'+esc(naamVan(c).slice(0,2).toUpperCase())+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
+    return '<div class="trow"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
       '<div style="flex:1" class="muted">–</div>'+
       '<div style="flex:1.2">'+(cm==null?'<span class="muted">0%</span>':'<b style="color:'+(cm>=70?'#1d9a63':'#8a919c')+'">'+cm+'%</b>')+'</div>'+

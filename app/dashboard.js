@@ -46,7 +46,7 @@ function dashRender(){
     }
   });
   const attnRows=attn.filter(a=>dashFilter==="alles"||(dashFilter==="tedoen"&&a.teDoen));
-  const attnHtml=attnRows.length?'<div class="attn-card">'+attnRows.map(a=>'<div class="attn-row click" onclick="openClient(\''+a.p.id+'\')"><div class="cavc" style="'+avStijl(naamVan(a.p))+'">'+esc(naamVan(a.p).slice(0,2).toUpperCase())+'</div><div class="nm">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div><div class="rowicons"><svg class="i sm-i" onclick="event.stopPropagation();toast(\'Berichten komen later\')"><use href="#i-chat"/></svg><svg class="i sm-i"><use href="#i-eye"/></svg><svg class="i sm-i"><use href="#i-cal"/></svg></div></div>').join("")+'</div>'
+  const attnHtml=attnRows.length?'<div class="attn-card">'+attnRows.map(a=>'<div class="attn-row click" onclick="openClient(\''+a.p.id+'\')"><div class="cavc" style="'+avFotoStyle(a.p)+'">'+avFotoText(a.p)+'</div><div class="nm">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div><div class="rowicons"><svg class="i sm-i" onclick="event.stopPropagation();toast(\'Berichten komen later\')"><use href="#i-chat"/></svg><svg class="i sm-i"><use href="#i-eye"/></svg><svg class="i sm-i"><use href="#i-cal"/></svg></div></div>').join("")+'</div>'
     :'<div class="attn-card"><div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist of nog moet doen, zie je het hier.</div></div>';
   const chips='<div style="display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap">'+
     '<span class="fchip'+(dashFilter==="alles"?" on":"")+'" onclick="dashSetFilter(\'alles\')">Alles</span>'+
@@ -61,7 +61,7 @@ function dashRender(){
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2)+"-"+mon.getFullYear();
   const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten <span class="muted" style="font-weight:600">('+cmPct+'%)</span></h2>'+
     '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+coachClients.length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
-    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+coachClients.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
+    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+coachClients.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten
   const met=echte.filter(w=>rs.some(r=>r.workout_id===w.id)).slice(0,6);
   const feedHtml=met.length?met.map(w=>{
@@ -79,7 +79,7 @@ function dashRender(){
       const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
       rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r);
     });
-    return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avStijl(naamVan(p))+'">'+esc(naamVan(p).slice(0,2).toUpperCase())+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Due '+esc(w.workout_date)+'</div></div></div>'+
+    return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Due '+esc(w.workout_date)+'</div></div></div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
       '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
