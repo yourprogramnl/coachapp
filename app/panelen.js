@@ -173,6 +173,9 @@ const METRICS_DEF={
  "OPEX Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
 };
 let mxData=[],mxOpen={},balKeuze="Deadlift";
+// Detailscherm-state + koppeling OPEX Body → Assessment (zodat je body-waarden maar op één plek invult)
+let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
+const MX_BODY_VELD={"Weight":"gewicht","Bodyfat Percentage":"vet","Skeletal Muscle Mass":"spier","Basal Metabolic Rate":"metab"};
 async function mxLaad(){
   const{data}=await db.from("metrics").select("*").eq("athlete_id",calClient).order("measured_at");
   mxData=data||[];
@@ -226,7 +229,9 @@ function mxRender(){
           pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
         }
         const nEsc=naam.replace(/'/g,"\\'");
-        html+='<div class="mx-row" onclick="openMxModal(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span></div><div class="mx-cur">'+(w?esc(String(w.cur.value))+" "+esc(w.unit):"—")+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
+        // Camera met demo-video alleen bij Resistance (bewegingen); de andere blokken hebben geen video.
+        const cam=(g==="Resistance")?'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span>':'';
+        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+cam+'</div><div class="mx-cur">'+(w?esc(String(w.cur.value))+" "+esc(w.unit):"—")+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
       });
     }
   }
@@ -258,6 +263,67 @@ function mxVid(ev,naam){
   let left=r.right+8;if(left+pw>window.innerWidth-8)left=r.left-pw-8;if(left<8)left=8;
   let top=r.top;if(top+ph>window.innerHeight-8)top=window.innerHeight-ph-8;if(top<8)top=8;
   pop.style.left=left+"px";pop.style.top=top+"px";
+}
+// ---------- Metric-detailscherm (in het hoofdvlak; historie + resultaat toevoegen, zoals CoachRx) ----------
+async function mxOpenDetail(naam){
+  mxDetailNaam=naam;mxDetailForm=false;activePanel="metric-detail";
+  const m=document.getElementById("cmain");if(m)m.innerHTML='<div class="spin">Laden…</div>';
+  await mxLaad();
+  if(MX_BODY_VELD[naam]){const{data}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on");mxAss=data||[];}
+  mxDetailRender();
+}
+function mxDetailRender(){
+  const m=document.getElementById("cmain");if(!m||activePanel!=="metric-detail"||!mxDetailNaam)return;
+  const naam=mxDetailNaam,bodyVeld=MX_BODY_VELD[naam];
+  let curTxt="—",histRows="",actie="";
+  if(bodyVeld){
+    const punten=mxAss.map(a=>({v:((a.data&&a.data.body)||{})[bodyVeld],d:a.assessed_on})).filter(p=>p.v!=null&&p.v!=="");
+    if(punten.length)curTxt=esc(String(punten[punten.length-1].v));
+    histRows=punten.slice().reverse().map(p=>'<div class="mh-row"><div class="mh-v">'+esc(String(p.v))+'</div><div class="mh-d">'+esc(assDatumNL(p.d))+'</div><div class="mh-n"><span class="muted sm">uit Assessment</span></div><div class="mh-x"></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen metingen. Vul ze in bij Assessment.</div>';
+    actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment (OPEX Body), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="openAssess()">Aanpassen in Assessment</button>';
+  }else{
+    const hist=mxHist(naam),w=mxWaarde(naam);
+    if(w)curTxt=esc(String(w.cur.value))+" "+esc(w.unit||"");
+    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(String(mm.value))+" "+esc(mm.unit||"")+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
+    if(mxDetailForm){
+      const laatsteUnit=(hist[hist.length-1]||{}).unit||"kg";
+      actie='<div class="bp-sec" style="max-width:640px"><b>Nieuw resultaat</b><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'+
+        '<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:150px">'+
+        '<select id="mxd-unit" style="width:90px">'+["kg","reps","sec","min","cal","%","m"].map(u=>'<option'+(laatsteUnit===u?" selected":"")+'>'+u+'</option>').join("")+'</select>'+
+        '<input id="mxd-datum" type="date" value="'+todayStr()+'" style="width:160px"></div>'+
+        '<textarea id="mxd-note" placeholder="Notitie (optioneel)" style="margin-top:8px;min-height:60px"></textarea>'+
+        '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="mxDetailOpslaan()">Opslaan</button><button class="btn ghost" onclick="mxDetailFormSluit()">Annuleren</button></div>'+
+        '<div class="msg" id="mxd-msg"></div></div>';
+    }else{
+      actie='<button class="btn" onclick="mxDetailFormOpen()">Nieuw resultaat</button>';
+    }
+  }
+  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="renderClient(\'kalender\')">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+'</span></div>'+
+    '<div style="padding:22px 24px;max-width:820px;overflow:auto">'+
+    '<div style="margin-bottom:20px"><div class="sm muted">Huidig</div><div style="font-size:26px;font-weight:800;color:var(--accent)">'+curTxt+'</div></div>'+
+    actie+
+    '<h3 style="margin-top:26px">Geschiedenis</h3><div class="mh-head"><span class="mh-v">Resultaat</span><span class="mh-d">Datum</span><span class="mh-n">Notitie</span><span class="mh-x"></span></div>'+histRows+
+    '</div>';
+}
+function mxDetailFormOpen(){mxDetailForm=true;mxDetailRender();const el=document.getElementById("mxd-waarde");if(el)el.focus();}
+function mxDetailFormSluit(){mxDetailForm=false;mxDetailRender();}
+async function mxDetailOpslaan(){
+  const naam=mxDetailNaam;
+  const ruw=(document.getElementById("mxd-waarde").value||"").trim().replace(",",".");
+  const waarde=parseFloat(ruw),msg=document.getElementById("mxd-msg");
+  if(isNaN(waarde)){if(msg)msg.textContent="Vul een getal in als resultaat.";return;}
+  const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:waarde,unit:document.getElementById("mxd-unit").value,measured_at:document.getElementById("mxd-datum").value||todayStr(),note:(document.getElementById("mxd-note").value||"").trim()||null,created_by:ME.user.id});
+  if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
+  toast("Resultaat toegevoegd");
+  await mxLaad();mxDetailForm=false;mxDetailRender();
+  if(document.getElementById("mx-groepen"))mxRender();
+}
+async function mxDetailVerwijder(id){
+  if(!confirm("Dit resultaat verwijderen?"))return;
+  const{error}=await db.from("metrics").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  await mxLaad();mxDetailRender();
+  if(document.getElementById("mx-groepen"))mxRender();
 }
 function ensureMxModal(){
   if(document.getElementById("mxmodal"))return;
