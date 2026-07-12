@@ -217,7 +217,13 @@ function mxWaarde(naam){
 // Invoertype per metric bij het toevoegen van een resultaat.
 // Standaard: Resistance = kg (getal); overige blokken/eigen metrics = vrije eenheid.
 // Waarden: "time", "passfail", of een vaste eenheid (kg/m/cal/...). Resistance zonder eigen type = kg.
-const MX_TYPE={"Sorenson Hold":"time","Strict Dip":"passfail","Unloaded RFESS":"passfail","5k Row":"m","60min Row":"m"};
+// Rijen/hardlopen = meter, airbike = cal. 90min AMRAP en Row/Burpee bewust niet: die houden het keuzemenu.
+const MX_TYPE={
+  "Sorenson Hold":"time","Strict Dip":"passfail","Unloaded RFESS":"passfail",
+  "5k Row":"m","60min Row":"m",
+  "2k Row":"m","30/30 Row (Row 1)":"m","30/30 Row (Row 2)":"m","30/30 Row (Row 3)":"m","30/30 Row (Row 4)":"m",
+  "3K running":"m","500m Row":"m","60 sec Row":"m","60 sec AirBike":"cal"
+};
 function mxType(naam){
   if(MX_TYPE[naam])return MX_TYPE[naam];
   if((METRICS_DEF["Resistance"]||[]).includes(naam))return "kg";
