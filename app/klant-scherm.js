@@ -2,9 +2,14 @@
 // doorscrollende kalender, workouts programmeren met de bouwer, het dag-menu,
 // kopieren/plakken, templates invoegen en workouts opslaan.
 let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0,coachChipNaam="";
+// Coach-wissel in de kalenderkop (alleen eigenaar/platform_admin): welke coach z'n klanten je programmeert.
+let coachList=[],coachFilterId=null;
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 function openClient(id){
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
+  // Staff (eigenaar/admin): standaard programmeer je de coach van deze klant.
+  const p0=coachClients.find(x=>x.id===id);
+  coachFilterId=(myRole()!=="coach"&&p0)?(p0.coach_id||null):null;
   kalWeken=10;kalScrollDoel="top";kalLabelMaand=null;prevScrollY=null;
   if(!LIB.geladen)libLaad();
   setHash("klant/"+id);
@@ -484,16 +489,27 @@ async function renderMonth(opts){
   else if(calView==="week")label=gridStart.getDate()+" "+MAANDKORT[gridStart.getMonth()]+" – "+gridEnd.getDate()+" "+MAANDKORT[gridEnd.getMonth()]+" "+gridEnd.getFullYear();
   else label=cap(DAGVOL[(gridStart.getDay()+6)%7])+" "+gridStart.getDate()+" "+MAANDKORT[gridStart.getMonth()]+" "+gridStart.getFullYear();
   const seg=[["dag","Dag"],["week","Week"],["maand","Maand"]].map(v=>'<button class="'+(calView===v[0]?"on":"")+'" onclick="kalSetView(\''+v[0]+'\')">'+v[1]+'</button>').join("");
+  // Coach-chip: eigenaar/platform_admin mogen van coach wisselen; een coach ziet alleen zijn eigen klanten (chip verborgen).
+  const isStaff=myRole()!=="coach";
+  const coachNaamTxt=coachChipNaam||"";
+  const coachAantal=coachClients.filter(k=>k.coach_id===coachFilterId).length;
+  const coachChip=isStaff?
+    '<div class="progsel" id="coachsel" style="margin-left:auto" onclick="toggleCoachDrop(event)"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((coachNaamTxt||"C").slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">'+(coachNaamTxt?'Coach '+esc(coachNaamTxt):'Geen coach')+'</div><div class="pt">'+coachAantal+' '+(coachAantal===1?'klant':'klanten')+'</div></div><span class="car">▾</span>'+
+      '<div class="progdrop" id="coachdrop" style="width:260px" onclick="event.stopPropagation()"><div class="pd-lijst" id="cd-lijst"><div class="cempty" style="padding:10px">Coaches laden…</div></div></div></div>'
+    :'';
+  // Klant-dropdown: staff ziet de klanten van de gekozen coach; een coach ziet zijn eigen lijst.
+  let dropKlanten=isStaff?coachClients.filter(k=>k.coach_id===coachFilterId):coachClients.slice();
+  if(!dropKlanten.some(k=>k.id===p.id))dropKlanten=dropKlanten.concat([p]);
   const calhead='<div class="calhead">'+
     '<button class="btn ghost sm" onclick="renderCoach(\'clients\')">‹ Alle klanten</button>'+
     '<span class="month" id="mnd-label">'+label+'</span>'+
     '<div class="navarrows"><button onclick="prevMonth()">‹</button><button onclick="nextMonth()">›</button></div>'+
     '<button class="btn ghost sm" onclick="thisMonth()">Vandaag</button>'+
     '<div class="seg">'+seg+'</div>'+
-    '<div class="progsel" style="margin-left:auto" onclick="toast(\'Programma-weergaven (team/templates) komen later\')"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((myRole()==="coach"?(ME.profile.first_name||"C"):(coachChipNaam||"C")).slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">Coach '+esc(myRole()==="coach"?(ME.profile.first_name||""):coachChipNaam)+'</div><div class="pt">1:1</div></div><span class="car">▾</span></div>'+
-    '<div class="progsel" id="klantsel" onclick="toggleKlantDrop(event)"><div class="pav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant'+(coachChipNaam||myRole()==="coach"?' · '+esc(myRole()==="coach"?(ME.profile.first_name||""):coachChipNaam)+' ('+coachClients.filter(k=>k.coach_id===p.coach_id).length+')':'')+'</div></div><span class="car">▾</span>'+
+    coachChip+
+    '<div class="progsel" id="klantsel"'+(isStaff?'':' style="margin-left:auto"')+' onclick="toggleKlantDrop(event)"><div class="pav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="klantdrop" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een klant…" oninput="filterKlantDrop(this.value)"></div><div class="pd-lijst" id="kd-lijst">'+
-      coachClients.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
+      dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '</div></div></div>'+
     '<div class="seg"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
@@ -581,8 +597,44 @@ document.addEventListener("click",e=>{
   if(!e.target.closest(".progsel"))document.querySelectorAll(".progdrop.show").forEach(d=>d.classList.remove("show"));
 });
 function dagLeave(cell){const m=cell.querySelector(".daymenu");if(m)m.remove();}
-function toggleKlantDrop(ev){ev.stopPropagation();const d=document.getElementById("klantdrop");if(d)d.classList.toggle("show");}
+function toggleKlantDrop(ev){ev.stopPropagation();const d=document.getElementById("klantdrop");if(!d)return;const openNu=!d.classList.contains("show");document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));if(openNu)d.classList.add("show");}
 function filterKlantDrop(v){const z=(v||"").toLowerCase();document.querySelectorAll("#kd-lijst .pd-row").forEach(r=>{r.style.display=(r.dataset.n||"").includes(z)?"":"none";});}
+// ---------- Coach wisselen (alleen eigenaar/platform_admin) ----------
+async function laadCoaches(){
+  if(coachList.length)return;
+  let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
+  if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  const{data}=await q;coachList=data||[];
+}
+function vulCoachDrop(){
+  const host=document.getElementById("cd-lijst");if(!host)return;
+  const rows=coachList.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
+    const n=coachClients.filter(k=>k.coach_id===c.id).length;
+    const rol=c.role==="eigenaar"?" · eigenaar":"";
+    return '<div class="pd-row'+(c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+  }).join("");
+  host.innerHTML=rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>';
+}
+async function toggleCoachDrop(ev){
+  ev.stopPropagation();
+  const d=document.getElementById("coachdrop");if(!d)return;
+  const openNu=!d.classList.contains("show");
+  document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));
+  if(!openNu)return;
+  d.classList.add("show");
+  await laadCoaches();
+  if(document.getElementById("coachdrop")&&document.getElementById("coachdrop").classList.contains("show"))vulCoachDrop();
+}
+function kiesCoach(id){
+  const d=document.getElementById("coachdrop");if(d)d.classList.remove("show");
+  const klanten=coachClients.filter(k=>k.coach_id===id).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
+  if(!klanten.length){
+    const c=coachList.find(x=>x.id===id);
+    toast("Deze coach heeft nog geen klanten"+(c?" ("+naamVan(c)+")":""));
+    return;
+  }
+  openClient(klanten[0].id);
+}
 function pickWorkout(ev){ev.stopPropagation();startEdit(curDay,0);}
 async function pickRest(ev){
   ev.stopPropagation();
