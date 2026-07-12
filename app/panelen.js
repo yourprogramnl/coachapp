@@ -361,6 +361,71 @@ async function noteVerwijder(id){
   if(error){toast(error.message);return;}
   await notesLaad();notesRender();toast("Notitie verwijderd");
 }
+// ---------- PLANNING & PERIODISERING (coach-only; plans-tabel) ----------
+let planLijst=[],planEditId=null;
+const planDatumNL=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MAANDKORT[d.getMonth()]+" "+d.getFullYear();};
+async function planLaad(){
+  const{data}=await db.from("plans").select("*").eq("athlete_id",calClient).order("start_date",{ascending:false,nullsFirst:false});
+  planLijst=data||[];
+}
+async function openPlan(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-plan");
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");return;}
+  sp=document.createElement("div");sp.id="sp-plan";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Planning &amp; periodisering</h3></div><div class="sp-info">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  await planLaad();
+  sp.innerHTML='<div class="sp-head"><h3>Planning &amp; periodisering</h3><span class="sp-x" onclick="document.getElementById(\'sp-plan\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
+    '<div class="sp-field"><label>Startdatum</label><input type="date" id="plan-start" style="color-scheme:dark"></div>'+
+    '<div class="sp-field"><label>Einddatum</label><input type="date" id="plan-eind" style="color-scheme:dark"></div>'+
+    '<div class="sp-field"><label>Notitie / doel van dit blok</label><textarea id="plan-notes" placeholder="Bijv. 1 juli tot 1 november: doel is X"></textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="plan-saveknop" onclick="planOpslaan()">Opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="planReset()">Annuleren</button></div>'+
+    '<div class="sp-info">Alleen zichtbaar voor coaches. Nieuwste blok bovenaan; oude blijven staan.</div>'+
+    '<div id="plan-lijst"></div>';
+  planRender();
+}
+function planRender(){
+  const host=document.getElementById("plan-lijst");if(!host)return;
+  host.innerHTML=planLijst.map(p=>{
+    const periode=(planDatumNL(p.start_date)||"?")+" t/m "+(planDatumNL(p.end_date)||"?");
+    return '<div class="sp-note"><div class="nh">'+esc(periode)+
+      ' <span><svg class="i sm-i" style="cursor:pointer" onclick="planBewerk(\''+p.id+'\')"><use href="#i-pen"/></svg><svg class="i sm-i" style="cursor:pointer" onclick="planVerwijder(\''+p.id+'\')"><use href="#i-trash"/></svg></span></div>'+
+      '<div class="nb">'+esc(p.notes||"")+'</div></div>';
+  }).join("")||'<div class="sm" style="color:#8b919b">Nog geen plannen, voeg het eerste toe.</div>';
+}
+function planReset(){planEditId=null;const s=document.getElementById("plan-start"),e=document.getElementById("plan-eind"),n=document.getElementById("plan-notes"),b=document.getElementById("plan-saveknop");if(s)s.value="";if(e)e.value="";if(n)n.value="";if(b)b.textContent="Opslaan";}
+async function planOpslaan(){
+  const start=document.getElementById("plan-start").value||null;
+  const eind=document.getElementById("plan-eind").value||null;
+  const notes=(document.getElementById("plan-notes").value||"").trim();
+  if(!notes&&!start){toast("Vul minimaal een startdatum of doel in");return;}
+  if(start&&eind&&eind<start){toast("De einddatum ligt vóór de startdatum");return;}
+  let error;
+  if(planEditId)({error}=await db.from("plans").update({start_date:start,end_date:eind,notes:notes,updated_at:new Date().toISOString()}).eq("id",planEditId));
+  else ({error}=await db.from("plans").insert({athlete_id:calClient,company_id:ME.profile.company_id,author_id:ME.user.id,start_date:start,end_date:eind,notes:notes}));
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  const wasEdit=!!planEditId;
+  planReset();await planLaad();planRender();
+  toast(wasEdit?"Plan bijgewerkt":"Plan opgeslagen, alleen zichtbaar voor coaches");
+}
+function planBewerk(id){
+  const p=planLijst.find(x=>x.id===id);if(!p)return;
+  planEditId=id;
+  document.getElementById("plan-start").value=p.start_date||"";
+  document.getElementById("plan-eind").value=p.end_date||"";
+  document.getElementById("plan-notes").value=p.notes||"";
+  document.getElementById("plan-saveknop").textContent="Bijwerken";
+  document.getElementById("plan-notes").focus();
+}
+async function planVerwijder(id){
+  if(!confirm("Dit plan verwijderen?"))return;
+  const{error}=await db.from("plans").delete().eq("id",id);
+  if(error){toast(error.message);return;}
+  await planLaad();planRender();toast("Plan verwijderd");
+}
 // ---------- TRAININGSSCHEMA (zoals het ontwerp; client_info.data.schema) ----------
 const SCHEMA_DAGEN=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
 const SCHEMA_DELEN=["Ochtend","Middag","Avond"];
