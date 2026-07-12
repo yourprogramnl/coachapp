@@ -307,8 +307,9 @@ function metricsRender(){
     '<div class="metcard"><h3>Voeding</h3><div class="nodata">Nog geen data</div></div>'+
     '</div><div class="sm muted" style="margin-top:14px">Deze 1RM\'s voeden straks de slimme berekening in de workout-bouwer (bijv. "3 sets @ 70% van 1RM deadlift").</div></div></div>';
 }
-// Eén zijpaneel tegelijk open: de rest klapt dicht
-function sluitPanelen(){document.querySelectorAll(".sidepanel.show").forEach(p=>p.classList.remove("show"));}
+// Eén zijpaneel tegelijk open: de rest klapt dicht. Bij het openen van een paneel
+// klapt ook het linkermenu in tot iconen, zodat het paneel niet zoveel ruimte pakt.
+function sluitPanelen(){document.querySelectorAll(".sidepanel.show").forEach(p=>p.classList.remove("show"));sideInklappen();}
 // ---------- Zijbalk in-/uitklappen ----------
 function toggleSide(){
   sideCollapsed=!sideCollapsed;
@@ -317,6 +318,8 @@ function toggleSide(){
   const a=document.getElementById("cl-arrow");
   if(a)a.textContent=sideCollapsed?"→":"←";
 }
+// Klap het linkermenu in tot iconen (alleen als het nu nog uitgeklapt staat).
+function sideInklappen(){if(!sideCollapsed)toggleSide();}
 // ---------- DOELEN (zoals het ontwerp; opslag in client_info.data.goals) ----------
 const GOALOPTS=["Spiermassa opbouwen","Sterker worden","Conditie verbeteren","Vetmassa verliezen","Gezondheid verbeteren","Gezondere gewoontes ontwikkelen","Meer energie","Anders (zie toelichting)"];
 let ciData={};
