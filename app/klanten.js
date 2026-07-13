@@ -103,12 +103,14 @@ async function fillCoaches(){
     const wp=compVan(kl);
     const cm=kl.length?Math.round(kl.filter(p=>gesprokenIds.has(p.id)).length/kl.length*100):null;
     const rol=c.role==="eigenaar"?'<span class="cpill purple">Eigenaar</span>':'<span class="cpill teal">Coach</span>';
-    return '<div class="trow"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
+    const zelf=c.id===ME.user.id; // jezelf kun je niet beheren
+    const menuCall="openCoachMenu(event,'"+c.id+"','"+c.role+"',"+kl.length+")";
+    return '<div class="trow'+(zelf?'':' crow')+'"'+(zelf?'':' onclick="'+menuCall+'"')+'><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
       '<div style="flex:1" class="muted">–</div>'+
       '<div style="flex:1.2">'+(cm==null?'<span class="muted">0%</span>':'<b style="color:'+(cm>=70?'#1d9a63':'#8a919c')+'">'+cm+'%</b>')+'</div>'+
       '<div style="flex:1">'+rol+'</div>'+
-      '<button class="kebab" onclick="toast(\'Opties komen later\')">⋮</button></div>';
+      (zelf?'<span style="width:30px;flex:none"></span>':'<button class="kebab" onclick="event.stopPropagation();'+menuCall+'">⋮</button>')+'</div>';
   }).join("");
   const cp=document.getElementById("cpage");
   if(!cp)return;
@@ -121,6 +123,39 @@ async function fillCoaches(){
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1">Workout %</div><div style="flex:1">Consult-rate</div><div style="flex:1.2">Contactmomenten</div><div style="flex:1">Rol</div><div style="width:30px"></div></div>'+
     (rows||'<div class="trow"><span class="muted">Nog geen coaches.</span></div>')+'</div>';
 }
+// ---------- Coaches beheren via het ⋮-menu (rol wisselen, verwijderen) ----------
+// Zichtbaar voor platform_admin en eigenaar; rol wisselt tussen coach en eigenaar.
+function openCoachMenu(ev,id,rol,klanten){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow");if(!row)return;
+  const bestond=row.querySelector(".coachmenu");
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  if(bestond)return; // open menu = dichtklappen
+  const m=document.createElement("div");m.className="coachmenu";
+  m.innerHTML=(rol==="eigenaar"
+      ? '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'coach\')">Zet terug naar coach</button>'
+      : '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'eigenaar\')">Maak eigenaar</button>')+
+    '<button class="danger" onclick="event.stopPropagation();coachVerwijder(\''+id+'\','+klanten+')">Verwijderen</button>';
+  row.appendChild(m);
+}
+async function coachSetRole(id,rol){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  const{error}=await db.from("profiles").update({role:rol}).eq("id",id);
+  if(error){toast(error.message||"Wijzigen mislukt");return;}
+  toast(rol==="eigenaar"?"Gemaakt tot eigenaar":"Teruggezet naar coach");
+  fillCoaches();
+}
+async function coachVerwijder(id,klanten){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  if(klanten>0){toast("Deze coach heeft nog "+klanten+" klant"+(klanten===1?"":"en")+". Verplaats die eerst naar een andere coach.");return;}
+  if(!confirm("Deze coach definitief verwijderen? Dit kan niet ongedaan worden gemaakt."))return;
+  const{error}=await db.from("profiles").delete().eq("id",id);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  toast("Coach verwijderd");
+  fillCoaches();
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".coachmenu")&&!e.target.closest(".crow")&&!e.target.closest(".kebab"))document.querySelectorAll(".coachmenu").forEach(x=>x.remove());});
+
 // ---------- Uitnodigen (klant of coach) via de invites-tabel ----------
 let invRol="lid";
 async function openInvModal(rol){

@@ -293,6 +293,13 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .fbrow .okc2.miss{border-color:#e5484d;color:#e5484d}
 .fscore{font-size:17px;font-weight:800;padding:10px 2px 2px;border-bottom:1px solid #f0f1f3;margin-bottom:2px}
 .kebab{border:none;background:none;color:#8a919c;font-size:16px;cursor:pointer;padding:2px 8px;font-family:inherit}
+/* Coaches beheren: hover-rij + ⋮-menu */
+.trow.crow{cursor:pointer;position:relative}
+.trow.crow:hover{background:#fafbfc}
+.coachmenu{position:absolute;top:44px;right:14px;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(15,18,22,.16);padding:5px;min-width:200px}
+.coachmenu button{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 11px;font-size:12.5px;color:var(--txt);border-radius:7px;cursor:pointer;font-family:inherit}
+.coachmenu button:hover{background:#f4f8fb}
+.coachmenu button.danger{color:#e5484d}
 .rowicons{display:flex;gap:10px;color:#b3b9c2;align-items:center}
 .rowicons .i{cursor:pointer}
 .rowicons .i:hover{color:#5d6570}
