@@ -1,6 +1,6 @@
 // app/dashboard.js — het coach-dashboard: aandacht nodig, contactmomenten,
 // activiteit-feed, mijn cijfers, mijn taken en workout van de week.
-let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null;
+let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false;
 async function fillDashboard(){
   const ids=coachClients.map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
@@ -12,16 +12,52 @@ async function fillDashboard(){
     msgs=(await db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
   }
   const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
+  const snoozeRows=(await db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id)).data||[];
+  const snoozeMap={};snoozeRows.forEach(s=>snoozeMap[s.athlete_id]=s.snoozed_until);
   if(ME.profile.company_id){
     blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
-  DASH={ws,rs,msgs,tasks,blog,blogRes};
+  DASH={ws,rs,msgs,tasks,blog,blogRes,snoozeMap};
   dashRender();
 }
-function dashSetFilter(f){if(f==="lifestyle"||f==="consult"){toast("Lifestyle en consults komen later");return;}dashFilter=f;dashRender();}
+function dashSetFilter(f){dashFilter=f;dashRender();}
 function dashSetPeriode(n){dashPeriode=n;dashRender();}
 function dashSetTaken(t){dashTaken=t;dashRender();}
+function dashSetFeedClient(v){dashFeedClient=v;dashRender();}
+function dashStat(i){dashStatIdx=i;dashRender();}
+function dashToggleHidden(){dashShowHidden=!dashShowHidden;dashRender();}
+// Snooze: coach verbergt een klant tijdelijk uit 'Aandacht nodig'
+function dashIsSnoozed(pid){const u=DASH&&DASH.snoozeMap&&DASH.snoozeMap[pid];return !!(u&&u>=todayStr());}
+function snoozeDatum(k){if(k==="morgen")return ymd(addDays(new Date(),1));if(k==="maand")return ymd(addDays(new Date(),30));return ymd(mondayOf(addDays(new Date(),7)));}
+async function dashSnooze(pid,k){
+  const until=snoozeDatum(k);
+  const{error}=await db.from("attention_snooze").upsert({company_id:ME.profile.company_id,coach_id:ME.user.id,athlete_id:pid,snoozed_until:until},{onConflict:"coach_id,athlete_id"});
+  if(error){toast(error.message||"Verbergen mislukt");return;}
+  DASH.snoozeMap[pid]=until;document.querySelectorAll(".attnmenu").forEach(x=>x.remove());
+  dashRender();toast("Klant verborgen tot "+datumNL(until));
+}
+async function dashUnsnooze(pid){
+  const{error}=await db.from("attention_snooze").delete().eq("coach_id",ME.user.id).eq("athlete_id",pid);
+  if(error){toast(error.message||"Mislukt");return;}
+  delete DASH.snoozeMap[pid];document.querySelectorAll(".attnmenu").forEach(x=>x.remove());
+  dashRender();toast("Klant weer zichtbaar");
+}
+function dashKebab(ev,pid){
+  ev.stopPropagation();
+  const row=ev.target.closest(".attn-row"),bestond=row.querySelector(".attnmenu");
+  document.querySelectorAll(".attnmenu").forEach(x=>x.remove());
+  if(bestond)return; // openstaand menu = dichtklappen
+  const snoozed=dashIsSnoozed(pid);
+  const m=document.createElement("div");m.className="attnmenu";
+  m.innerHTML='<button onclick="event.stopPropagation();openClient(\''+pid+'\')">Open klant</button>'+
+    (snoozed?'<button onclick="event.stopPropagation();dashUnsnooze(\''+pid+'\')">Weer tonen</button>'
+      :'<button onclick="event.stopPropagation();dashSnooze(\''+pid+'\',\'morgen\')">Verberg tot morgen</button>'+
+       '<button onclick="event.stopPropagation();dashSnooze(\''+pid+'\',\'week\')">Verberg tot volgende week</button>'+
+       '<button onclick="event.stopPropagation();dashSnooze(\''+pid+'\',\'maand\')">Verberg tot volgende maand</button>');
+  row.appendChild(m);
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".attnmenu")&&!e.target.closest(".attn-kebab"))document.querySelectorAll(".attnmenu").forEach(x=>x.remove());});
 function dashRender(){
   const cp=document.getElementById("cpage");if(!cp||!DASH)return;
   const{ws,rs,msgs,tasks,blog,blogRes}=DASH;
@@ -30,29 +66,44 @@ function dashRender(){
   const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
   const doneWo=new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id));
   const resByBlock={};rs.forEach(r=>resByBlock[r.block_id]=r);
+  // Compliance per klant (laatste 30 dagen; alleen bij genoeg geplande workouts)
+  const from30=ymd(addDays(new Date(),-29));
+  const compVanKlant=pid=>{const s=echte.filter(w=>w.client_id===pid&&w.workout_date>=from30&&w.workout_date<=td);if(s.length<3)return null;return Math.round(s.filter(w=>doneWo.has(w.id)).length/s.length*100);};
   // Aandacht nodig
-  const attn=[];let nTeDoen=0;
+  const attn=[];let nTeDoen=0,nLaag=0;
   coachClients.forEach(p=>{
     const wos=echte.filter(w=>w.client_id===p.id);
     const teDoen=wos.some(w=>w.workout_date>=from7&&w.workout_date<=td&&!doneWo.has(w.id));
     const past=wos.filter(w=>w.workout_date<td).sort((a,b)=>b.workout_date.localeCompare(a.workout_date));
     let miss=0;for(const w of past){if(doneWo.has(w.id))break;miss++;}
+    const comp=compVanKlant(p.id),laag=comp!=null&&comp<50;
     if(teDoen)nTeDoen++;
-    if(teDoen||miss>=2){
+    if(laag)nLaag++;
+    if(teDoen||miss>=2||laag){
       const pills=[];
       if(teDoen)pills.push('<span class="cpill teal">Workout te doen</span>');
       if(miss>=2)pills.push('<span class="cpill bad">'+miss+'x gemist op rij</span>');
-      attn.push({p,pills,teDoen});
+      if(laag)pills.push('<span class="cpill bad">'+comp+'% compliance</span>');
+      attn.push({p,pills,teDoen,laag});
     }
   });
-  const attnRows=attn.filter(a=>dashFilter==="alles"||(dashFilter==="tedoen"&&a.teDoen));
-  const attnHtml=attnRows.length?'<div class="attn-card">'+attnRows.map(a=>'<div class="attn-row click" onclick="openClient(\''+a.p.id+'\')"><div class="cavc" style="'+avFotoStyle(a.p)+'">'+avFotoText(a.p)+'</div><div class="nm">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div><div class="rowicons"><svg class="i sm-i" onclick="event.stopPropagation();toast(\'Berichten komen later\')"><use href="#i-chat"/></svg><svg class="i sm-i"><use href="#i-eye"/></svg><svg class="i sm-i"><use href="#i-cal"/></svg></div></div>').join("")+'</div>'
-    :'<div class="attn-card"><div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist of nog moet doen, zie je het hier.</div></div>';
+  const nVerborgen=attn.filter(a=>dashIsSnoozed(a.p.id)).length;
+  let attnZicht=dashShowHidden?attn:attn.filter(a=>!dashIsSnoozed(a.p.id));
+  attnZicht=attnZicht.filter(a=>dashFilter==="alles"||(dashFilter==="tedoen"&&a.teDoen)||(dashFilter==="laag"&&a.laag));
+  const attnRij=a=>{
+    const s=dashIsSnoozed(a.p.id);
+    return '<div class="attn-row'+(s?' snoozed':'')+'"><div class="cavc click" onclick="openClient(\''+a.p.id+'\')" style="'+avFotoStyle(a.p)+'">'+avFotoText(a.p)+'</div><div class="nm click" style="cursor:pointer" onclick="openClient(\''+a.p.id+'\')">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div>'+
+      '<div class="rowicons"><svg class="i sm-i" title="Bericht" onclick="event.stopPropagation();toast(\'Berichten komen later\')"><use href="#i-chat"/></svg>'+
+      '<svg class="i sm-i" title="'+(s?"Weer tonen":"Verberg tot volgende week")+'" onclick="event.stopPropagation();'+(s?"dashUnsnooze(\'"+a.p.id+"\')":"dashSnooze(\'"+a.p.id+"\',\'week\')")+'"><use href="#i-eye"/></svg>'+
+      '<svg class="i sm-i" title="Open programma" onclick="event.stopPropagation();openClient(\''+a.p.id+'\')"><use href="#i-cal"/></svg>'+
+      '<span class="attn-kebab" onclick="dashKebab(event,\''+a.p.id+'\')" style="cursor:pointer;font-weight:800;color:#8a919c;padding:0 4px">⋮</span></div></div>';
+  };
+  const verborgenLink=nVerborgen?'<div class="sm muted" style="padding:9px 14px;text-align:right;border-top:1px solid var(--line2)"><a style="color:var(--accent);cursor:pointer;font-weight:700" onclick="dashToggleHidden()">'+(dashShowHidden?"Verborgen klanten weer verbergen":nVerborgen+" verborgen · toon")+'</a></div>':'';
+  const attnHtml='<div class="attn-card">'+(attnZicht.length?attnZicht.map(attnRij).join(""):'<div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist, nog moet doen of laag scoort, zie je het hier.</div>')+verborgenLink+'</div>';
   const chips='<div style="display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap">'+
     '<span class="fchip'+(dashFilter==="alles"?" on":"")+'" onclick="dashSetFilter(\'alles\')">Alles</span>'+
     '<span class="fchip'+(dashFilter==="tedoen"?" on":"")+'" onclick="dashSetFilter(\'tedoen\')">Workout te doen ('+nTeDoen+')</span>'+
-    '<span class="fchip" onclick="dashSetFilter(\'lifestyle\')">Lifestyle (0)</span>'+
-    '<span class="fchip" onclick="dashSetFilter(\'consult\')">Consult (0)</span></div>';
+    '<span class="fchip'+(dashFilter==="laag"?" on":"")+'" onclick="dashSetFilter(\'laag\')">Lage compliance ('+nLaag+')</span></div>';
   // Contactmomenten: chat-berichten deze week per klant
   const msgCount={};msgs.forEach(m=>msgCount[m.athlete_id]=(msgCount[m.athlete_id]||0)+1);
   const gesproken=coachClients.filter(p=>msgCount[p.id]).length;
@@ -62,8 +113,10 @@ function dashRender(){
   const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten <span class="muted" style="font-weight:600">('+cmPct+'%)</span></h2>'+
     '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+coachClients.length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
     '<div style="display:flex;gap:26px;flex-wrap:wrap">'+coachClients.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
-  // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten
-  const met=echte.filter(w=>rs.some(r=>r.workout_id===w.id)).slice(0,6);
+  // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
+  let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
+  if(dashFeedClient!=="all")metAll=metAll.filter(w=>w.client_id===dashFeedClient);
+  const met=metAll.slice(0,6);
   const feedHtml=met.length?met.map(w=>{
     const p=byId[w.client_id]||{};
     const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
@@ -83,15 +136,23 @@ function dashRender(){
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
       '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
-  // Mijn cijfers met 7/30/90 dagen (dropdown zoals het ontwerp)
+  // Mijn cijfers als carrousel (compliance + contactmomenten + aandacht), 7/30/90 dagen voor compliance
   const fromP=ymd(addDays(new Date(),-(dashPeriode-1)));
   const sched=echte.filter(w=>w.workout_date>=fromP&&w.workout_date<=td);
   const done=sched.filter(w=>doneWo.has(w.id)).length;
   const pct=sched.length?Math.round(done/sched.length*100):null;
-  const ringStyle=pct==null?'background:#e5e8eb':'background:conic-gradient(var(--accent) 0 '+pct+'%, #e5e8eb '+pct+'% 100%)';
   const perSel='<select onchange="dashSetPeriode(parseInt(this.value))" style="width:auto;font-size:12px;padding:5px 8px">'+[7,30,90].map(n=>'<option value="'+n+'"'+(dashPeriode===n?" selected":"")+'>'+n+' dagen</option>').join("")+'</select>';
-  const ringHtml='<div class="statecard"><div class="ring" style="'+ringStyle+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
+  const ringCss=(val,kleur)=>val==null?'background:#e5e8eb':'background:conic-gradient('+(kleur||'var(--accent)')+' 0 '+val+'%, #e5e8eb '+val+'% 100%)';
+  const cardCompliance='<div class="statecard"><div class="ring" style="'+ringCss(pct)+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
     '<div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">'+(pct==null?'Geen geplande workouts in deze periode.':'Percentage van de voorgeschreven workouts dat je klanten echt gedaan hebben.')+'</div></div></div>';
+  const cardTouch='<div class="statecard"><div class="ring" style="'+ringCss(cmPct,'#8b5cf6')+'"><i>'+cmPct+'%</i></div>'+
+    '<div><b>Contactmomenten</b><div class="sm muted" style="margin-top:3px">'+gesproken+' van '+coachClients.length+' klanten deze week gesproken.</div></div></div>';
+  const cardAandacht='<div class="statecard"><div class="statbig">'+(nTeDoen+nLaag)+'</div>'+
+    '<div><b>Vraagt aandacht</b><div class="sm muted" style="margin-top:3px">'+nTeDoen+' met workout te doen · '+nLaag+' met lage compliance.</div></div></div>';
+  const statCards=[cardCompliance,cardTouch,cardAandacht];
+  if(dashStatIdx>=statCards.length)dashStatIdx=0;
+  const statDots=statCards.map((_,i)=>'<span class="statdot'+(i===dashStatIdx?" on":"")+'" onclick="dashStat('+i+')" title="Cijfer '+(i+1)+'"></span>').join("");
+  const ringHtml=statCards[dashStatIdx]+'<div class="statdots">'+statDots+'</div>';
   // Mijn taken (echt, uit de database)
   const open=tasks.filter(t=>!t.done),af=tasks.filter(t=>t.done);
   const lijst=dashTaken==="open"?open:af;
@@ -110,7 +171,9 @@ function dashRender(){
     '<div class="panel">'+
       '<div class="ctabs"><button class="on">Aandacht nodig</button><button onclick="toast(\'Inzichten komen later\')">Inzichten</button></div>'+
       chips+attnHtml+cmHtml+
-      '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px"><h2 style="margin:0">Activiteit</h2><div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
+      '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px;flex-wrap:wrap"><h2 style="margin:0">Activiteit</h2>'+
+        '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+coachClients.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>'+
+        '<div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
       feedHtml+
     '</div>'+
     '<div>'+

@@ -535,6 +535,17 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .statecard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;gap:13px;align-items:center}
 .ring{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ring i{background:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:13px}
+/* Mijn cijfers als carrousel + aandacht-kebab/snooze */
+.statbig{font-size:34px;font-weight:800;line-height:1;color:var(--nav);min-width:58px;text-align:center}
+.statdots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.statdot{width:7px;height:7px;border-radius:50%;background:#d4d8dd;cursor:pointer}
+.statdot.on{background:var(--accent)}
+.attn-row{position:relative}
+.attn-row.snoozed{opacity:.55}
+.attn-kebab:hover{color:#5d6570}
+.attnmenu{position:absolute;top:44px;right:12px;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(15,18,22,.16);padding:5px;min-width:200px}
+.attnmenu button{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 10px;font-size:12.5px;color:var(--txt);border-radius:7px;cursor:pointer;font-family:inherit}
+.attnmenu button:hover{background:#f4f8fb}
 .tp-avs{display:flex;gap:22px;margin:14px 2px 4px;flex-wrap:wrap}
 .tp-av{text-align:center;font-size:11px;color:var(--muted);cursor:pointer}
 .tp-av .circ{width:56px;height:56px;border-radius:50%;background:#6b7280;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:3px solid #cfe9f4;margin:0 auto 6px}
