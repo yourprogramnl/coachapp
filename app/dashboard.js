@@ -1,6 +1,6 @@
 // app/dashboard.js — het coach-dashboard: aandacht nodig, contactmomenten,
 // activiteit-feed, mijn cijfers, mijn taken en workout van de week.
-let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false;
+let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false,dashFeedLimit=6;
 async function fillDashboard(){
   const ids=coachClients.map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
@@ -24,7 +24,8 @@ async function fillDashboard(){
 function dashSetFilter(f){dashFilter=f;dashRender();}
 function dashSetPeriode(n){dashPeriode=n;dashRender();}
 function dashSetTaken(t){dashTaken=t;dashRender();}
-function dashSetFeedClient(v){dashFeedClient=v;dashRender();}
+function dashSetFeedClient(v){dashFeedClient=v;dashFeedLimit=6;dashRender();}
+function dashMeer(){dashFeedLimit+=6;dashRender();}
 function dashStat(i){dashStatIdx=i;dashRender();}
 function dashToggleHidden(){dashShowHidden=!dashShowHidden;dashRender();}
 // Snooze: coach verbergt een klant tijdelijk uit 'Aandacht nodig'
@@ -116,7 +117,8 @@ function dashRender(){
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
   let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
   if(dashFeedClient!=="all")metAll=metAll.filter(w=>w.client_id===dashFeedClient);
-  const met=metAll.slice(0,6);
+  const met=metAll.slice(0,dashFeedLimit);
+  const meerLink=metAll.length>dashFeedLimit?'<div style="text-align:center;margin-top:12px"><button class="btn ghost sm" onclick="dashMeer()">Meer laden ('+(metAll.length-dashFeedLimit)+')</button></div>':'';
   const feedHtml=met.length?met.map(w=>{
     const p=byId[w.client_id]||{};
     const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
@@ -178,7 +180,7 @@ function dashRender(){
       '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px;flex-wrap:wrap"><h2 style="margin:0">Activiteit</h2>'+
         '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+coachClients.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>'+
         '<div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
-      feedHtml+
+      feedHtml+meerLink+
     '</div>'+
     '<div>'+
       '<div class="sideblock"><div class="shead"><h2>Mijn cijfers</h2>'+perSel+'</div>'+ringHtml+'</div>'+
