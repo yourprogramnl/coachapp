@@ -171,15 +171,17 @@ document.addEventListener("click",e=>{if(!e.target.closest(".coachmenu")&&!e.tar
 let invRol="lid";
 async function openInvModal(rol){
   ensureLibModals();invRol=rol;
-  document.getElementById("inv-titel").textContent=rol==="coach"?"Coach toevoegen":"Klant toevoegen";
-  document.getElementById("inv-coach-veld").style.display=rol==="coach"?"none":"";
+  // Vanuit een coach-klantenlijst wordt de nieuwe klant automatisch aan die coach gekoppeld (geen keuze nodig).
+  const bijCoach=rol!=="coach"&&!!klantCoachFilter;
+  document.getElementById("inv-titel").textContent=rol==="coach"?"Coach toevoegen":(bijCoach?"Klant toevoegen bij "+klantCoachNaam:"Klant toevoegen");
+  document.getElementById("inv-coach-veld").style.display=(rol==="coach"||bijCoach)?"none":"";
   document.getElementById("inv-lid-veld").style.display=rol==="coach"?"none":"";
   ["inv-vn","inv-an","inv-email"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("inv-result").style.display="none";
   document.getElementById("inv-maak").style.display="";
   document.getElementById("inv-msg").textContent="";
   document.getElementById("invmodal").classList.add("show");
-  if(rol!=="coach"){
+  if(rol!=="coach"&&!bijCoach){
     const{data:cs}=await db.from("profiles").select("id,first_name,last_name,email").in("role",["coach","eigenaar"]).eq("company_id",ME.profile.company_id);
     document.getElementById("inv-coach").innerHTML=(cs||[]).map(c=>'<option value="'+c.id+'"'+(c.id===ME.user.id?" selected":"")+'>'+naamVan(c)+'</option>').join("");
   }
@@ -188,7 +190,7 @@ async function invAanmaken(){
   const vn=document.getElementById("inv-vn").value.trim(),an=document.getElementById("inv-an").value.trim(),em=document.getElementById("inv-email").value.trim();
   const msg=document.getElementById("inv-msg");
   if(!em){msg.textContent="Vul een e-mailadres in.";return;}
-  const rec={company_id:ME.profile.company_id,coach_id:invRol==="coach"?null:document.getElementById("inv-coach").value||null,email:em,first_name:vn||null,last_name:an||null,role:invRol,membership_type:invRol==="coach"?null:document.getElementById("inv-type").value,created_by:ME.user.id,expires_at:new Date(Date.now()+14*864e5).toISOString()};
+  const rec={company_id:ME.profile.company_id,coach_id:invRol==="coach"?null:(klantCoachFilter||document.getElementById("inv-coach").value||null),email:em,first_name:vn||null,last_name:an||null,role:invRol,membership_type:invRol==="coach"?null:document.getElementById("inv-type").value,created_by:ME.user.id,expires_at:new Date(Date.now()+14*864e5).toISOString()};
   const{data,error}=await db.from("invites").insert(rec).select().single();
   if(error){msg.textContent=error.message||"Aanmaken mislukt";return;}
   document.getElementById("inv-link").value=location.origin+location.pathname+"?invite="+data.token;
