@@ -1,20 +1,26 @@
 // app/klanten.js — de mensen- en bedrijfspagina's van de coach-kant:
 // Klanten, Coaches en Bedrijven, plus de uitnodigingsflow (invites).
 // ---------- KLANTEN-pagina (naar het ontwerp) ----------
-let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="";
-// De getoonde klantenlijst: alle klanten, of (na doorklikken vanaf Coaches) alleen die van één coach.
-function klantLijst(){return klantCoachFilter?coachClients.filter(p=>p.coach_id===klantCoachFilter):coachClients;}
+let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="",klantArchief=false;
+// Alle klanten binnen de huidige coach-selectie (beide tabs, actief + archief).
+function klantScope(){return klantCoachFilter?coachClients.filter(p=>p.coach_id===klantCoachFilter):coachClients;}
+// De klanten in het actieve tabblad (Actief of Archief).
+function klantLijst(){return klantScope().filter(p=>!!p.archived===klantArchief);}
+function klantTab(a){klantArchief=a;klantenRender();}
 async function fillKlanten(){
-  const ids=klantLijst().map(p=>p.id);
+  const ids=klantScope().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89)),plus14=ymd(addDays(new Date(),14));
-  let ws=[],rs=[],msgs=[];
+  let ws=[],rs=[],msgs=[],alleTags=[],ptags=[];
+  if(ME.profile.company_id)alleTags=(await db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name")).data||[];
   if(ids.length){
     ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
     msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
+    ptags=(await db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids)).data||[];
   }
-  KDATA={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs};
+  const tagsByClient={};ptags.forEach(pt=>{(tagsByClient[pt.profile_id]=tagsByClient[pt.profile_id]||[]).push(pt.tag_id);});
+  KDATA={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient};
   klantenRender();
 }
 function klantWorkoutChip(p){
@@ -47,29 +53,29 @@ function klantRijen(){
       '<div style="flex:1.2">'+klantWorkoutChip(p)+'</div>'+
       '<div style="flex:1.2"><span class="wchip leeg">niet ingesteld</span></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
-      '<div style="flex:1.6" onclick="event.stopPropagation()"><button class="plusbtn" onclick="toast(\'Tags komen in een volgende stap\')">+</button></div>'+
-      '<button class="kebab" onclick="event.stopPropagation();toast(\'Opties komen later\')">⋮</button></div>';
+      '<div style="flex:1.6" onclick="event.stopPropagation()">'+klantTagCel(p)+'</div>'+
+      '<button class="kebab" onclick="event.stopPropagation();openKlantMenu(event,\''+p.id+'\','+(p.archived?'true':'false')+')">⋮</button></div>';
   }).join("");
 }
 function klantZoekF(v){klantZoek=v;const h=document.getElementById("klantrows");if(h)h.innerHTML=klantRijen()||'<div class="trow"><span class="muted">Geen klanten gevonden.</span></div>';}
 function klantenRender(){
   const cp=document.getElementById("cpage");if(!cp||!KDATA)return;
-  const lijst=klantLijst();
+  const scope=klantScope(),actief=scope.filter(p=>!p.archived),archief=scope.filter(p=>p.archived);
   const msgIds=new Set(KDATA.msgs.map(m=>m.athlete_id));
-  const totaal=klantComp(lijst);
-  const cmTot=lijst.length?Math.round(lijst.filter(p=>msgIds.has(p.id)).length/lijst.length*100):null;
+  const totaal=klantComp(actief);
+  const cmTot=actief.length?Math.round(actief.filter(p=>msgIds.has(p.id)).length/actief.length*100):null;
   const banner=klantCoachFilter?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><a onclick="coachGo(\'coaches\')" style="color:var(--accent);cursor:pointer;font-weight:700">‹ Alle coaches</a><span class="muted">Klanten van <b style="color:var(--txt)">'+esc(klantCoachNaam)+'</b></span></div>':'';
   cp.innerHTML=banner+'<div class="statbar2">'+
-    '<div><div class="n">'+lijst.length+'</div><div class="l">Actieve klanten</div></div>'+
+    '<div><div class="n">'+actief.length+'</div><div class="l">Actieve klanten</div></div>'+
     '<div><div class="n acc">'+(totaal==null?'–':totaal+'%')+'</div><div class="l">Compliance</div><div><select onchange="klantPeriode=parseInt(this.value);klantenRender()">'+[7,30,90].map(n=>'<option value="'+n+'"'+(klantPeriode===n?' selected':'')+'>Workout: '+n+' dagen</option>').join('')+'</select></div></div>'+
     '<div><div class="n">–</div><div class="l">Consult-rate</div></div>'+
     '<div><div class="n acc">'+(cmTot==null?'–':cmTot+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'+
       '<div class="search2"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek op naam of tag…" value="'+esc(klantZoek)+'" oninput="klantZoekF(this.value)"></div>'+
-      '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="toast(\'Tags beheren komt in een volgende stap\')">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
-    '<div class="ctabs"><button class="on">Actief <span style="font-weight:600;color:#8a919c">'+lijst.length+'</span></button><button onclick="toast(\'Archief komt in een volgende stap\')">Archief <span style="font-weight:600;color:#8a919c">0</span></button></div>'+
+      '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="openTagBeheer()">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
+    '<div class="ctabs"><button class="'+(klantArchief?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button></div>'+
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1.2">Lifestyle</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
-    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div></div>';
+    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>';
 }
 function exportKlanten(){
   const td=todayStr();
@@ -83,6 +89,149 @@ function exportKlanten(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="klanten.csv";a.click();URL.revokeObjectURL(a.href);
   toast("klanten.csv gedownload");
 }
+
+// ---------- Tags op klanten (herbruikbaar, met kleur) ----------
+function tagById(id){return (KDATA.alleTags||[]).find(t=>t.id===id);}
+function klantTagCel(p){
+  const chips=(KDATA.tagsByClient[p.id]||[]).map(id=>tagById(id)).filter(Boolean)
+    .map(t=>'<span class="ktag"><span class="kdot" style="background:'+(TPLKLEUR[t.color]||TPLKLEUR.blue)+'"></span>'+esc(t.name)+' <span class="x" onclick="event.stopPropagation();tagToggleKlant(\''+p.id+'\',\''+t.id+'\')">✕</span></span>').join("");
+  return '<div class="ktagcel">'+chips+'<button class="plusbtn" title="Tag toevoegen" onclick="event.stopPropagation();openTagPicker(event,\''+p.id+'\')">+</button></div>';
+}
+function openTagPicker(ev,clientId){
+  ev.stopPropagation();
+  const cell=ev.target.closest(".ktagcel");if(!cell)return;
+  const bestond=cell.querySelector(".tagdrop");
+  document.querySelectorAll(".tagdrop").forEach(x=>x.remove());
+  if(bestond)return;
+  const have=new Set(KDATA.tagsByClient[clientId]||[]);
+  const d=document.createElement("div");d.className="tagdrop";
+  d.innerHTML='<div class="hd">Tags</div>'+
+    ((KDATA.alleTags||[]).map(t=>'<button class="tagopt" onclick="event.stopPropagation();tagToggleKlant(\''+clientId+'\',\''+t.id+'\')"><span class="kdot" style="background:'+(TPLKLEUR[t.color]||TPLKLEUR.blue)+'"></span><span style="flex:1">'+esc(t.name)+'</span>'+(have.has(t.id)?'<span class="vk">✓</span>':'')+'</button>').join("")||'<div class="leeg">Nog geen tags. Maak er hieronder één.</div>')+
+    '<div class="tagnieuw"><input placeholder="Nieuwe tag…" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\'){event.stopPropagation();tagNieuw(this,\''+clientId+'\');}"><div class="kleuren">'+TPLKLEUREN.map((k,i)=>'<span class="kc'+(i===0?' on':'')+'" data-k="'+k+'" title="'+esc(LEGNAAM[k]||k)+'" style="background:'+TPLKLEUR[k]+'" onclick="event.stopPropagation();tagKiesKleur(this)"></span>').join("")+'</div></div>';
+  cell.appendChild(d);
+}
+function tagKiesKleur(el){el.parentNode.querySelectorAll(".kc").forEach(x=>x.classList.remove("on"));el.classList.add("on");}
+async function tagToggleKlant(clientId,tagId){
+  const have=new Set(KDATA.tagsByClient[clientId]||[]);
+  if(have.has(tagId)){
+    const{error}=await db.from("profile_tags").delete().eq("profile_id",clientId).eq("tag_id",tagId);
+    if(error){toast(error.message||"Mislukt");return;}
+    KDATA.tagsByClient[clientId]=(KDATA.tagsByClient[clientId]||[]).filter(x=>x!==tagId);
+  }else{
+    const{error}=await db.from("profile_tags").insert({company_id:ME.profile.company_id,profile_id:clientId,tag_id:tagId});
+    if(error){toast(error.message||"Mislukt");return;}
+    (KDATA.tagsByClient[clientId]=KDATA.tagsByClient[clientId]||[]).push(tagId);
+  }
+  klantenRender();
+}
+async function tagNieuw(inp,clientId){
+  const naam=(inp.value||"").trim();if(!naam)return;
+  const drop=inp.closest(".tagdrop");const kc=drop&&drop.querySelector(".kc.on");
+  const kleur=kc?kc.dataset.k:"blue";
+  const{data,error}=await db.from("tags").insert({company_id:ME.profile.company_id,name:naam,color:kleur}).select().single();
+  if(error){toast(error.message||"Tag maken mislukt");return;}
+  KDATA.alleTags.push(data);KDATA.alleTags.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  tagToggleKlant(clientId,data.id); // meteen aan deze klant koppelen
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".tagdrop")&&!e.target.closest(".plusbtn"))document.querySelectorAll(".tagdrop").forEach(x=>x.remove());});
+
+// ---------- Tags beheren (modal) ----------
+function ensureTagModal(){
+  if(document.getElementById("tagmodal"))return;
+  const w=document.createElement("div");
+  w.innerHTML='<div class="lmodal" id="tagmodal" style="z-index:440"><div class="box" style="width:480px;max-width:94vw">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Tags beheren</h3><span onclick="closeTagModal()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div id="tagbeheer-lijst"></div>'+
+    '<div class="tagnieuw" style="margin-top:12px"><input id="tagnew-naam" placeholder="Nieuwe tag…" onkeydown="if(event.key===\'Enter\')tagBeheerNieuw()"><div class="kleuren" id="tagnew-kleuren"></div><button class="btn sm" onclick="tagBeheerNieuw()">Toevoegen</button></div>'+
+    '</div></div>';
+  document.body.appendChild(w.firstChild);
+  document.getElementById("tagmodal").addEventListener("click",e=>{if(e.target.id==="tagmodal")closeTagModal();});
+}
+function openTagBeheer(){
+  ensureTagModal();
+  document.getElementById("tagnew-kleuren").innerHTML=TPLKLEUREN.map((k,i)=>'<span class="kc'+(i===0?' on':'')+'" data-k="'+k+'" title="'+esc(LEGNAAM[k]||k)+'" style="background:'+TPLKLEUR[k]+'" onclick="tagKiesKleur(this)"></span>').join("");
+  document.getElementById("tagnew-naam").value="";
+  tagBeheerRender();document.getElementById("tagmodal").classList.add("show");
+}
+function closeTagModal(){const m=document.getElementById("tagmodal");if(m)m.classList.remove("show");}
+function tagBeheerRender(){
+  const host=document.getElementById("tagbeheer-lijst");if(!host)return;
+  const gebruikt={};Object.values(KDATA.tagsByClient||{}).forEach(arr=>arr.forEach(id=>gebruikt[id]=(gebruikt[id]||0)+1));
+  host.innerHTML=(KDATA.alleTags||[]).map(t=>'<div class="tagrow"><span class="kdot" style="background:'+(TPLKLEUR[t.color]||TPLKLEUR.blue)+'"></span>'+
+    '<span style="flex:1;font-weight:600">'+esc(t.name)+'</span>'+
+    '<span class="kleuren">'+TPLKLEUREN.map(k=>'<span class="kc'+(t.color===k?' on':'')+'" data-k="'+k+'" style="background:'+TPLKLEUR[k]+'" onclick="tagKleurZet(\''+t.id+'\',\''+k+'\')"></span>').join("")+'</span>'+
+    '<span class="sm muted" style="width:52px;text-align:right">'+(gebruikt[t.id]||0)+'x</span>'+
+    '<span class="x" style="cursor:pointer;color:#e5484d;padding:0 6px" title="Verwijderen" onclick="tagVerwijder(\''+t.id+'\')">✕</span></div>').join("")||'<div class="leeg">Nog geen tags.</div>';
+}
+async function tagBeheerNieuw(){
+  const inp=document.getElementById("tagnew-naam");const naam=(inp.value||"").trim();if(!naam)return;
+  const kc=document.querySelector("#tagnew-kleuren .kc.on");const kleur=kc?kc.dataset.k:"blue";
+  const{data,error}=await db.from("tags").insert({company_id:ME.profile.company_id,name:naam,color:kleur}).select().single();
+  if(error){toast(error.message||"Mislukt");return;}
+  KDATA.alleTags.push(data);KDATA.alleTags.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  inp.value="";tagBeheerRender();
+}
+async function tagKleurZet(id,kleur){
+  const{error}=await db.from("tags").update({color:kleur}).eq("id",id);
+  if(error){toast(error.message||"Mislukt");return;}
+  const t=tagById(id);if(t)t.color=kleur;tagBeheerRender();klantenRender();
+}
+async function tagVerwijder(id){
+  if(!confirm("Deze tag verwijderen? Hij wordt bij alle klanten weggehaald."))return;
+  const{error}=await db.from("tags").delete().eq("id",id);
+  if(error){toast(error.message||"Mislukt");return;}
+  KDATA.alleTags=KDATA.alleTags.filter(t=>t.id!==id);
+  Object.keys(KDATA.tagsByClient).forEach(cid=>{KDATA.tagsByClient[cid]=(KDATA.tagsByClient[cid]||[]).filter(x=>x!==id);});
+  tagBeheerRender();klantenRender();
+}
+
+// ---------- ⋮-menu per klant (profiel, intake, bericht, overzetten, archiveren) ----------
+function klantMenuWeg(){document.querySelectorAll(".coachmenu").forEach(x=>x.remove());}
+function openKlantMenu(ev,id,archived){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow");if(!row)return;
+  const bestond=row.querySelector(".coachmenu");
+  klantMenuWeg();
+  if(bestond)return;
+  const staff=myRole()==="platform_admin"||myRole()==="eigenaar";
+  const m=document.createElement("div");m.className="coachmenu";
+  m.innerHTML=
+    '<button onclick="event.stopPropagation();klantEditProfiel(\''+id+'\')">Profiel bewerken</button>'+
+    '<button onclick="event.stopPropagation();klantIntake(\''+id+'\')">Intakeformulier</button>'+
+    '<button onclick="event.stopPropagation();klantBericht(\''+id+'\')">Bericht sturen</button>'+
+    (staff?'<button onclick="event.stopPropagation();klantOverzetten(event,\''+id+'\')">Overzetten</button>':'')+
+    (archived
+      ? '<button onclick="event.stopPropagation();klantArchiveer(\''+id+'\',false)">Terughalen</button>'
+      : '<button class="danger" onclick="event.stopPropagation();klantArchiveer(\''+id+'\',true)">Archiveren</button>');
+  row.appendChild(m);
+}
+function klantEditProfiel(id){klantMenuWeg();openClient(id);renderClient("profiel");}
+function klantIntake(id){klantMenuWeg();openClient(id);renderClient("profiel");pfSwitchTab("intake");}
+function klantBericht(id){klantMenuWeg();openClient(id);if(typeof openChatPop==="function")openChatPop();}
+async function klantArchiveer(id,arch){
+  klantMenuWeg();
+  const{error}=await db.from("profiles").update({archived:arch}).eq("id",id);
+  if(error){toast(error.message||"Mislukt");return;}
+  const p=coachClients.find(x=>x.id===id);if(p)p.archived=arch;
+  toast(arch?"Klant gearchiveerd":"Klant teruggehaald");klantenRender();
+}
+async function klantOverzetten(ev,id){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow"),menu=row&&row.querySelector(".coachmenu");if(!menu)return;
+  const p=coachClients.find(x=>x.id===id)||{};
+  const{data:cs}=await db.from("profiles").select("id,first_name,last_name").in("role",["coach","eigenaar"]).eq("company_id",ME.profile.company_id);
+  const opts=(cs||[]).filter(c=>c.id!==p.coach_id);
+  menu.innerHTML='<div style="padding:6px 10px;font-size:10px;font-weight:800;letter-spacing:.5px;color:#8a919c;text-transform:uppercase">Overzetten naar</div>'+
+    (opts.map(c=>'<button onclick="event.stopPropagation();klantTransfer(\''+id+'\',\''+c.id+'\')">'+esc(naamVan(c))+'</button>').join("")||'<div style="padding:8px 10px;font-size:12px;color:#8a919c">Geen andere coach beschikbaar</div>');
+}
+async function klantTransfer(id,coachId){
+  klantMenuWeg();
+  const{error}=await db.from("profiles").update({coach_id:coachId}).eq("id",id);
+  if(error){toast(error.message||"Overzetten mislukt");return;}
+  const p=coachClients.find(x=>x.id===id);if(p)p.coach_id=coachId;
+  toast("Klant overgezet");klantenRender();
+}
+
 async function fillCoaches(){
   let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);

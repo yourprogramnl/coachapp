@@ -296,8 +296,27 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 /* Coaches beheren: hover-rij + ⋮-menu */
 .trow.crow{cursor:pointer;position:relative}
 .trow.crow:hover{background:#fafbfc}
-.trow.click{cursor:pointer}
+.trow.click{cursor:pointer;position:relative}
 .trow.click:hover{background:#fafbfc}
+/* Klant-tags + tag-picker + tags beheren */
+.ktagcel{display:flex;align-items:center;gap:6px;flex-wrap:wrap;position:relative}
+.ktag{display:inline-flex;align-items:center;gap:6px;background:#f2f4f6;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:600;color:#3a4048}
+.ktag .x{color:#b3b9c2;cursor:pointer;font-size:9px}
+.ktag .x:hover{color:#e5484d}
+.kdot{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.tagdrop{position:absolute;top:100%;left:0;z-index:70;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 44px rgba(15,18,22,.16);width:224px;padding:6px;margin-top:5px}
+.tagdrop .hd{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a919c;padding:4px 8px}
+.tagdrop .tagopt{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;padding:7px 8px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--txt)}
+.tagdrop .tagopt:hover{background:#f4f8fb}
+.tagdrop .tagopt .vk{color:#1d9a63;font-weight:800}
+.tagdrop .leeg,#tagbeheer-lijst .leeg{font-size:12px;color:#8a919c;padding:8px}
+.tagnieuw{display:flex;align-items:center;gap:8px;padding:8px 6px 4px;border-top:1px solid #f0f1f3;margin-top:4px;flex-wrap:wrap}
+.tagnieuw input{flex:1;min-width:90px;border:1px solid #e7e9ec;border-radius:8px;padding:6px 9px;font-size:12px;font-family:inherit}
+.kleuren{display:flex;gap:5px}
+.kc{width:16px;height:16px;border-radius:5px;cursor:pointer;border:2px solid transparent;box-sizing:border-box}
+.kc.on{border-color:#171719}
+.tagrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f0f1f3}
+.tagrow:last-child{border-bottom:none}
 .coachmenu{position:absolute;top:44px;right:14px;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(15,18,22,.16);padding:5px;min-width:200px}
 .coachmenu button{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 11px;font-size:12.5px;color:var(--txt);border-radius:7px;cursor:pointer;font-family:inherit}
 .coachmenu button:hover{background:#f4f8fb}
