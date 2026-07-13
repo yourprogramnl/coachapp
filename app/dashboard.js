@@ -132,7 +132,7 @@ function dashRender(){
       const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
       rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r);
     });
-    return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Due '+esc(w.workout_date)+'</div></div></div>'+
+    return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div></div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
       '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
