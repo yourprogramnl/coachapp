@@ -1,9 +1,11 @@
 // app/klanten.js — de mensen- en bedrijfspagina's van de coach-kant:
 // Klanten, Coaches en Bedrijven, plus de uitnodigingsflow (invites).
 // ---------- KLANTEN-pagina (naar het ontwerp) ----------
-let KDATA=null,klantPeriode=30,klantZoek="";
+let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="";
+// De getoonde klantenlijst: alle klanten, of (na doorklikken vanaf Coaches) alleen die van één coach.
+function klantLijst(){return klantCoachFilter?coachClients.filter(p=>p.coach_id===klantCoachFilter):coachClients;}
 async function fillKlanten(){
-  const ids=coachClients.map(p=>p.id);
+  const ids=klantLijst().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89)),plus14=ymd(addDays(new Date(),14));
   let ws=[],rs=[],msgs=[];
   if(ids.length){
@@ -37,7 +39,7 @@ function klantComp(list){
 }
 function klantRijen(){
   const zoek=klantZoek.toLowerCase();
-  const lijst=coachClients.filter(p=>!zoek||naamVan(p).toLowerCase().includes(zoek)||(p.email||"").toLowerCase().includes(zoek)).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
+  const lijst=klantLijst().filter(p=>!zoek||naamVan(p).toLowerCase().includes(zoek)||(p.email||"").toLowerCase().includes(zoek)).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
   return lijst.map(p=>{
     const wp=klantComp([p]);
     return '<div class="trow click" onclick="openClient(\''+p.id+'\')">'+
@@ -52,25 +54,27 @@ function klantRijen(){
 function klantZoekF(v){klantZoek=v;const h=document.getElementById("klantrows");if(h)h.innerHTML=klantRijen()||'<div class="trow"><span class="muted">Geen klanten gevonden.</span></div>';}
 function klantenRender(){
   const cp=document.getElementById("cpage");if(!cp||!KDATA)return;
+  const lijst=klantLijst();
   const msgIds=new Set(KDATA.msgs.map(m=>m.athlete_id));
-  const totaal=klantComp(coachClients);
-  const cmTot=coachClients.length?Math.round(coachClients.filter(p=>msgIds.has(p.id)).length/coachClients.length*100):null;
-  cp.innerHTML='<div class="statbar2">'+
-    '<div><div class="n">'+coachClients.length+'</div><div class="l">Actieve klanten</div></div>'+
+  const totaal=klantComp(lijst);
+  const cmTot=lijst.length?Math.round(lijst.filter(p=>msgIds.has(p.id)).length/lijst.length*100):null;
+  const banner=klantCoachFilter?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><a onclick="coachGo(\'coaches\')" style="color:var(--accent);cursor:pointer;font-weight:700">‹ Alle coaches</a><span class="muted">Klanten van <b style="color:var(--txt)">'+esc(klantCoachNaam)+'</b></span></div>':'';
+  cp.innerHTML=banner+'<div class="statbar2">'+
+    '<div><div class="n">'+lijst.length+'</div><div class="l">Actieve klanten</div></div>'+
     '<div><div class="n acc">'+(totaal==null?'–':totaal+'%')+'</div><div class="l">Compliance</div><div><select onchange="klantPeriode=parseInt(this.value);klantenRender()">'+[7,30,90].map(n=>'<option value="'+n+'"'+(klantPeriode===n?' selected':'')+'>Workout: '+n+' dagen</option>').join('')+'</select></div></div>'+
     '<div><div class="n">–</div><div class="l">Consult-rate</div></div>'+
     '<div><div class="n acc">'+(cmTot==null?'–':cmTot+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'+
       '<div class="search2"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek op naam of tag…" value="'+esc(klantZoek)+'" oninput="klantZoekF(this.value)"></div>'+
       '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="toast(\'Tags beheren komt in een volgende stap\')">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
-    '<div class="ctabs"><button class="on">Actief <span style="font-weight:600;color:#8a919c">'+coachClients.length+'</span></button><button onclick="toast(\'Archief komt in een volgende stap\')">Archief <span style="font-weight:600;color:#8a919c">0</span></button></div>'+
+    '<div class="ctabs"><button class="on">Actief <span style="font-weight:600;color:#8a919c">'+lijst.length+'</span></button><button onclick="toast(\'Archief komt in een volgende stap\')">Archief <span style="font-weight:600;color:#8a919c">0</span></button></div>'+
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1.2">Lifestyle</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
     '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">Nog geen klanten gekoppeld.</span></div>')+'</div></div>';
 }
 function exportKlanten(){
   const td=todayStr();
   const kop="Naam;E-mail;Volgende workout;Compliance ("+klantPeriode+" dagen)";
-  const regels=coachClients.map(p=>{
+  const regels=klantLijst().map(p=>{
     const wp=klantComp([p]);
     const up=KDATA.ws.filter(w=>w.client_id===p.id&&w.workout_date>=td).sort((a,b)=>a.workout_date.localeCompare(b.workout_date))[0];
     return [naamVan(p).replace(/;/g,","),p.email||"",up?up.workout_date:"-",wp==null?"-":wp+"%"].join(";");
@@ -103,9 +107,10 @@ async function fillCoaches(){
     const wp=compVan(kl);
     const cm=kl.length?Math.round(kl.filter(p=>gesprokenIds.has(p.id)).length/kl.length*100):null;
     const rol=c.role==="eigenaar"?'<span class="cpill purple">Eigenaar</span>':'<span class="cpill teal">Coach</span>';
-    const zelf=c.id===ME.user.id; // jezelf kun je niet beheren
+    const zelf=c.id===ME.user.id; // jezelf kun je niet beheren (geen ⋮)
     const menuCall="openCoachMenu(event,'"+c.id+"','"+c.role+"',"+kl.length+")";
-    return '<div class="trow'+(zelf?'':' crow')+'"'+(zelf?'':' onclick="'+menuCall+'"')+'><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
+    // Klik op de rij = de klanten van deze coach bekijken; het ⋮ opent het beheer-menu.
+    return '<div class="trow crow" data-cid="'+esc(c.id)+'" data-cnaam="'+esc(naamVan(c))+'" onclick="coachKlantenRow(this)"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
       '<div style="flex:1" class="muted">–</div>'+
       '<div style="flex:1.2">'+(cm==null?'<span class="muted">0%</span>':'<b style="color:'+(cm>=70?'#1d9a63':'#8a919c')+'">'+cm+'%</b>')+'</div>'+
@@ -122,6 +127,12 @@ async function fillCoaches(){
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h1 style="margin:0">Coaches</h1><button class="btn" onclick="openInvModal(\'coach\')">+ Coach toevoegen</button></div>'+
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1">Workout %</div><div style="flex:1">Consult-rate</div><div style="flex:1.2">Contactmomenten</div><div style="flex:1">Rol</div><div style="width:30px"></div></div>'+
     (rows||'<div class="trow"><span class="muted">Nog geen coaches.</span></div>')+'</div>';
+}
+// Doorklikken vanaf een coach-rij naar de Klanten-lijst, gefilterd op die coach.
+function coachKlantenRow(el){coachKlanten(el.dataset.cid,el.dataset.cnaam||"");}
+function coachKlanten(id,naam){
+  klantCoachFilter=id;klantCoachNaam=naam;klantZoek="";
+  coachSection="clients";setHash("clients");coachRenderSection();
 }
 // ---------- Coaches beheren via het ⋮-menu (rol wisselen, verwijderen) ----------
 // Zichtbaar voor platform_admin en eigenaar; rol wisselt tussen coach en eigenaar.

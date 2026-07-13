@@ -69,7 +69,7 @@ async function renderCoach(section){
   const dl=document.getElementById("exlist");if(dl)dl.innerHTML=coachExercises.map(e=>'<option value="'+esc(e.name)+'">').join("");
   coachRenderSection();
 }
-function coachGo(sec){coachSection=sec;setHash(sec);coachRenderSection();}
+function coachGo(sec){if(sec==="clients")klantCoachFilter=null;coachSection=sec;setHash(sec);coachRenderSection();}
 // Vooruit/terug in de browser of een handmatig aangepaste link volgen.
 // Eigen wijzigingen (via setHash) slaan we over.
 window.addEventListener("hashchange",()=>{
