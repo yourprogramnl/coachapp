@@ -175,7 +175,7 @@ function dashRender(){
     :'<div class="statecard" style="display:block"><div class="cempty" style="padding:8px 4px">Nog geen weekworkout ingepland.</div></div>';
   cp.innerHTML='<h1>Dashboard</h1><div class="dashgrid">'+
     '<div class="panel">'+
-      '<div class="ctabs"><button class="on">Aandacht nodig</button><button onclick="toast(\'Inzichten komen later\')">Inzichten</button></div>'+
+      '<div class="ctabs"><button class="on">Aandacht nodig</button></div>'+
       chips+attnHtml+cmHtml+
       '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px;flex-wrap:wrap"><h2 style="margin:0">Activiteit</h2>'+
         '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+coachClients.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>'+
