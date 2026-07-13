@@ -230,6 +230,14 @@ function chipWeg(x,ev){
   const cam=row.querySelector(".cam");if(cam)cam.classList.remove("has-video");
   const vid=row.querySelector(".vidpop");if(vid)vid.classList.remove("show");
 }
+// Gedeelde inhoud van de video-popover (oefening én warming-up/cooldown gebruiken dezelfde).
+function vidPopInner(naam,o){
+  const yt=o&&o.youtube_id?o.youtube_id:"";
+  return '<span class="vp-x" onclick="event.stopPropagation();this.closest(\'.vidpop\').classList.remove(\'show\')">✕</span><div class="vt">'+esc(naam)+'</div><div class="vprev">'+
+    (yt?'<div onclick="event.stopPropagation();speelAf(this,\''+esc(yt)+'\')" style="width:100%;height:100%;position:relative;cursor:pointer"><img src="https://i.ytimg.com/vi/'+esc(yt)+'/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover;display:block" alt=""><span class="pbtn"></span></div>'
+      :(o&&o.video_url?'<div class="vlabel">Video: <a href="'+esc(o.video_url)+'" target="_blank" rel="noopener" style="color:#fff">open in nieuw tabblad</a></div>':'<div class="vlabel">Geen video gevonden bij deze oefening</div>'))+
+    '</div><div class="vp-cap">'+(yt?"Klik op de video om af te spelen":"Demo-video uit de bibliotheek")+'</div>';
+}
 function toggleVid(cam){
   const row=cam.closest(".exrow"),vid=row.querySelector(".vidpop");
   if(!vid)return;
@@ -237,13 +245,71 @@ function toggleVid(cam){
   if(!row.dataset.oefid){toast("Kies eerst een oefening uit de bibliotheek");return;}
   const o=LIB.oef.find(x=>String(x.id)===row.dataset.oefid);
   const naam=row.querySelector(".exn").value||"Oefening";
-  const yt=o&&o.youtube_id?o.youtube_id:"";
-  vid.innerHTML='<span class="vp-x" onclick="event.stopPropagation();this.closest(\'.vidpop\').classList.remove(\'show\')">✕</span><div class="vt">'+esc(naam)+'</div><div class="vprev">'+
-    (yt?'<div onclick="event.stopPropagation();speelAf(this,\''+esc(yt)+'\')" style="width:100%;height:100%;position:relative;cursor:pointer"><img src="https://i.ytimg.com/vi/'+esc(yt)+'/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover;display:block" alt=""><span class="pbtn"></span></div>'
-      :(o&&o.video_url?'<div class="vlabel">Video: <a href="'+esc(o.video_url)+'" target="_blank" rel="noopener" style="color:#fff">open in nieuw tabblad</a></div>':'<div class="vlabel">Geen video gevonden bij deze oefening</div>'))+
-    '</div><div class="vp-cap">'+(yt?"Klik op de video om af te spelen":"Demo-video uit de bibliotheek")+'</div>';
+  vid.innerHTML=vidPopInner(naam,o);
   vid.classList.add("show");
 }
+// ---------- Demo-video koppelen aan warming-up / cooldown (vrije-tekstblokken) ----------
+function cwNaamVan(oefId){if(!oefId)return"";const o=(LIB.oef||[]).find(x=>String(x.id)===String(oefId));return o?o.naam:"";}
+function cwChipHtml(kind,naam){return '<span class="vidchip"><span onclick="cwToggleVid(\''+kind+'\')" style="cursor:pointer" title="Bekijk video">🎥 '+esc(naam||"Demo-video")+'</span> <span class="x" onclick="cwChipWeg(\''+kind+'\')">✕</span></span>';}
+function cwMediaHtml(kind,oefId){
+  const lbl=kind==="warmup"?"warming-up":"cooldown";
+  const heeft=!!oefId;
+  return '<div class="cwmedia" id="wm_'+kind+'" data-oefid="'+(oefId||"")+'">'+
+    '<input class="cwn" placeholder="Zoek een oefening voor de demo-video…" oninput="cwZoek(this,\''+kind+'\')" autocomplete="off" style="display:none">'+
+    '<div class="exdrop"></div>'+
+    '<div class="cwchip">'+(heeft?cwChipHtml(kind,cwNaamVan(oefId)):"")+'</div>'+
+    '<div class="demolink" onclick="cwStartAdd(\''+kind+'\')"'+(heeft?' style="display:none"':'')+'>Demo-video toevoegen aan '+lbl+'</div>'+
+    '<div class="vidpop"></div>'+
+    '</div>';
+}
+function cwStartAdd(kind){
+  const box=document.getElementById("wm_"+kind);if(!box)return;
+  const inp=box.querySelector(".cwn");inp.style.display="";inp.value="";
+  const dl=box.querySelector(".demolink");if(dl)dl.style.display="none";
+  if(!LIB.geladen)libLaad();
+  inp.focus();
+}
+function cwZoek(inp,kind){
+  const box=document.getElementById("wm_"+kind),drop=box.querySelector(".exdrop");
+  const v=inp.value.trim().toLowerCase();
+  drop.innerHTML="";
+  if(v.length<2){drop.classList.remove("show");return;}
+  if(!LIB.geladen){libLaad();drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");return;}
+  const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
+  if(!hits.length){drop.classList.remove("show");return;}
+  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
+    const bron=o.bron==="coachrx"?"CRx":"YP";
+    return '<div class="exopt" onclick="event.stopPropagation();cwKies(\''+kind+'\','+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div><span class="srcbadge">'+bron+'</span></div>';
+  }).join("");
+  drop.classList.add("show");
+}
+function cwKies(kind,oefId){
+  const box=document.getElementById("wm_"+kind),o=LIB.oef.find(x=>x.id===oefId);
+  if(!box||!o)return;
+  box.dataset.oefid=String(o.id);
+  box.querySelector(".exdrop").classList.remove("show");
+  box.querySelector(".cwn").style.display="none";
+  box.querySelector(".cwchip").innerHTML=cwChipHtml(kind,o.naam);
+  const dl=box.querySelector(".demolink");if(dl)dl.style.display="none";
+  toast("Demo-video gekoppeld aan de "+(kind==="warmup"?"warming-up":"cooldown")+", de sporter ziet hem erbij");
+}
+function cwChipWeg(kind){
+  const box=document.getElementById("wm_"+kind);if(!box)return;
+  box.dataset.oefid="";
+  box.querySelector(".cwchip").innerHTML="";
+  box.querySelector(".vidpop").classList.remove("show");
+  const dl=box.querySelector(".demolink");if(dl)dl.style.display="";
+}
+function cwToggleVid(kind){
+  const box=document.getElementById("wm_"+kind),vid=box.querySelector(".vidpop");
+  if(!vid)return;
+  if(vid.classList.contains("show")){vid.classList.remove("show");return;}
+  const oefId=box.dataset.oefid;if(!oefId){toast("Kies eerst een oefening uit de bibliotheek");return;}
+  const o=LIB.oef.find(x=>String(x.id)===oefId);
+  vid.innerHTML=vidPopInner(cwNaamVan(oefId)||"Oefening",o);
+  vid.classList.add("show");
+}
+function cwLees(kind){const box=document.getElementById("wm_"+kind);const v=box&&box.dataset.oefid;return v?parseInt(v,10):null;}
 function speelAf(el,yt){
   // referrerpolicy is verplicht: zonder afzender-info weigert YouTube met "Fout 153"
   el.outerHTML='<iframe src="https://www.youtube.com/embed/'+yt+'?autoplay=1&rel=0" style="width:100%;height:100%;border:0;display:block" allowfullscreen allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
@@ -251,8 +317,8 @@ function speelAf(el,yt){
   if(pop)pop.innerHTML='Speelt niet af? <a href="https://youtu.be/'+yt+'" target="_blank" rel="noopener" style="color:#2a9fce">Bekijk op YouTube</a>';
 }
 document.addEventListener("click",e=>{
-  if(!e.target.closest(".exdrop")&&!e.target.closest(".exn"))document.querySelectorAll(".exdrop.show").forEach(d=>d.classList.remove("show"));
-  if(!e.target.closest(".vidpop")&&!e.target.closest(".cam"))document.querySelectorAll(".vidpop.show").forEach(d=>d.classList.remove("show"));
+  if(!e.target.closest(".exdrop")&&!e.target.closest(".exn")&&!e.target.closest(".cwn"))document.querySelectorAll(".exdrop.show").forEach(d=>d.classList.remove("show"));
+  if(!e.target.closest(".vidpop")&&!e.target.closest(".cam")&&!e.target.closest(".vidchip"))document.querySelectorAll(".vidpop.show").forEach(d=>d.classList.remove("show"));
 });
 function relabel(){
   const host=document.getElementById("exrows");if(!host)return;
@@ -287,11 +353,11 @@ function inlineBuilderHtml(w){
       '<textarea id="w_notes" rows="1" placeholder="Coach&#39;s notes">'+esc(w.coach_notes||"")+'</textarea>'+
       '<div style="border-top:1px solid #e7e9ec;margin:6px 0 4px"></div>'+
       '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
-      '<div class="demolink">Demo-video&#39;s aan warming-up toevoegen</div>'+
+      cwMediaHtml("warmup",w.warmup_oefening_id)+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
     '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
-    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea><div class="demolink">Demo-video&#39;s aan cooldown toevoegen</div></div>'+
+    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+cwMediaHtml("cooldown",w.cooldown_oefening_id)+'</div>'+
     '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+'</div>'+
     '<div class="msg" id="wmsg" style="font-size:11px;min-height:0"></div>';
 }
@@ -309,7 +375,7 @@ function mcardHtml(w){
       '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
   }
   let done=0,total=0,inner="";
-  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
+  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+(w.warmup_oefening_id?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{
     total++;
     const r=monthResults[b.id];
@@ -324,7 +390,7 @@ function mcardHtml(w){
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+
       '</div>';
   });
-  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
+  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+(w.cooldown_oefening_id?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
     '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
@@ -647,7 +713,7 @@ async function pickRest(ev){
   toast("Dag ingesteld als rustdag");renderMonth();
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
-function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,
   blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
@@ -671,7 +737,7 @@ async function pickPaste(ev){
   for(const t of KLEMBORD){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const datum=off?ymdPlus(curDay,off):curDay;
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
@@ -753,7 +819,7 @@ async function insWeekwod(id){
     if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:w.title,prescription:txt,color:"blue"}));relabel();groei();}
     closeIns();toast("Weekworkout als blok toegevoegd");return;
   }
-  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown}).select().single();
+  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   if(blocks.length){
     const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
@@ -769,7 +835,7 @@ async function saveWorkout(){
   const wm=g("wmsg");
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   g("saveW").disabled=true;
-  const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
+  const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown")};
   const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null}));
   try{
     if(editWid){

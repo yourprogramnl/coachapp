@@ -224,6 +224,11 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .vidpop .vprev .pbtn::after{content:"";border-left:11px solid #fff;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:2px}
 .vidpop .vp-cap{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#8a919c}
 .blokchips{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+/* Demo-video koppelen aan warming-up / cooldown */
+.cwmedia{position:relative;margin-top:5px}
+.cwmedia .cwn{width:100%;font-size:12px;padding:6px 9px;border:1px solid #e7e9ec;border-radius:8px;font-family:inherit}
+.cwmedia .cwchip{display:flex}
+.cwmedia .cwchip:empty{display:none}
 .vidchip{display:inline-flex;align-items:center;gap:8px;background:#f2f4f6;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:600}
 .vidchip .x{color:#b3b9c2;cursor:pointer}
 .ic-btn.has-video{color:#2a9fce}
