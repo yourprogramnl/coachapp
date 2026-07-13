@@ -184,6 +184,19 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .lmodal.show{display:flex}
 .lmodal .box{background:#fff;border-radius:14px;padding:20px;width:460px;max-width:92vw;max-height:88vh;overflow:auto}
 .lmodal h3{margin-bottom:12px}
+/* Scores invoeren door de coach (results-modal) */
+.resrow{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #eef0f2}
+.resrow:last-child{border-bottom:none}
+.resblok{flex:1.2;font-size:13px;font-weight:700;color:#1c2128}
+.resblok .reslabel{color:#8a919c;font-weight:800;margin-right:4px}
+.resblok .respr{font-weight:400;font-size:11.5px;color:#8a919c;margin-top:3px;white-space:pre-wrap}
+.resinvoer{flex:1;display:flex;gap:6px;align-items:center}
+.resval{flex:1;min-width:0;border:1px solid #e7e9ec;border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:inherit}
+.resval:disabled{background:#f6f7f8;color:#b3b9c2}
+.resmiss{width:30px;height:30px;flex:none;border:1px solid #f3b8ba;border-radius:8px;background:#fff;color:#e5484d;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.resmiss .i{width:13px;height:13px}
+.resmiss.on{background:#e5484d;color:#fff;border-color:#e5484d}
+.resrow.missed .resblok{opacity:.55}
 .kleurdots{display:flex;gap:10px;margin:6px 0 14px}
 .kleurdots span{width:26px;height:26px;border-radius:50%;cursor:pointer;display:inline-block}
 .kleurdots span.aan{outline:3px solid #171719;outline-offset:2px}

@@ -4,6 +4,8 @@
 let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid=null,editIdx=0,coachChipNaam="";
 // Coach-wissel in de kalenderkop (alleen eigenaar/platform_admin): welke coach z'n klanten je programmeert.
 let coachList=[],coachFilterId=null;
+// Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
+let resWid=null;
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 function openClient(id){
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
@@ -329,9 +331,12 @@ function mcardHtml(w){
 }
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
 function cardTools(w){
+  // Op vandaag of een dag die al is geweest laat het potloodje de coach scores invoeren voor de klant
+  // (bijv. bij PT of als het lid het loggen vergeet). Voor toekomstige dagen bewerkt het de workout.
+  const scoreDag=(w.blocks||[]).length>0&&w.workout_date<=todayStr();
   return '<input type="checkbox" class="cardsel"'+(selWids.has(w.id)?' checked':'')+' title="Selecteren" onclick="event.stopPropagation();toggleSelect(this,\''+w.id+'\')">'+
     '<span class="cardtools" onclick="event.stopPropagation()">'+
-    '<button title="Bewerken" onclick="event.stopPropagation();editWorkout(\''+w.id+'\',0)"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
+    '<button title="'+(scoreDag?'Scores invoeren':'Bewerken')+'" onclick="event.stopPropagation();'+(scoreDag?'openResults(\''+w.id+'\')':'editWorkout(\''+w.id+'\',0)')+'"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
     '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button title="Verwijderen" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
@@ -511,7 +516,6 @@ async function renderMonth(opts){
       '<div class="progdrop" id="klantdrop" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een klant…" oninput="filterKlantDrop(this.value)"></div><div class="pd-lijst" id="kd-lijst">'+
       dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '</div></div></div>'+
-    '<div class="seg"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
     '<button class="btn ghost sm" title="Print of bewaar als PDF" onclick="window.print()"><svg class="i sm-i"><use href="#i-dl"/></svg> Export PDF</button>'+
     '</div>';
@@ -779,6 +783,75 @@ async function saveWorkout(){
     }
     editWid=null;editDay=null;renderMonth();
   }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";g("saveW").disabled=false;}
+}
+
+// ---------- SCORES INVOEREN DOOR DE COACH (results-modal) ----------
+// Coach vult de scores in voor een klant, op vandaag of een dag die al is geweest.
+function ensureResultsModal(){
+  if(document.getElementById("resmodal"))return;
+  const wrap=document.createElement("div");
+  wrap.innerHTML='<div class="lmodal" id="resmodal" style="z-index:430"><div class="box" style="width:640px;max-width:96vw">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px"><div><h3 style="margin:0" id="res-titel">Workout</h3><div class="sm muted" id="res-sub" style="margin-top:2px"></div></div>'+
+    '<span onclick="closeResults()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div class="sm muted" style="margin:8px 0 8px">Vul de scores in voor deze klant. Leeg laten = nog niet gelogd. Klik op het rode kruis om een blok als gemist te markeren.</div>'+
+    '<div id="res-body" style="max-height:56vh;overflow:auto"></div>'+
+    '<div class="msg" id="res-msg" style="min-height:0"></div>'+
+    '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="res-save" onclick="saveResults()">Scores opslaan</button><button class="btn ghost" onclick="closeResults()">Annuleren</button></div>'+
+    '</div></div>';
+  document.body.appendChild(wrap.firstChild);
+  document.getElementById("resmodal").addEventListener("click",e=>{if(e.target.id==="resmodal")closeResults();});
+}
+function openResults(wid){
+  const w=monthWorkouts[wid];if(!w)return;
+  const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  if(!blocks.length){editWorkout(wid,0);return;} // geen blokken (bijv. rustdag): dan gewoon bewerken
+  ensureResultsModal();
+  resWid=wid;
+  const p=coachClients.find(x=>x.id===calClient)||{};
+  document.getElementById("res-titel").textContent=w.title||"Workout";
+  document.getElementById("res-sub").textContent=naamVan(p)+" · "+datumNL(w.workout_date);
+  document.getElementById("res-msg").textContent="";
+  document.getElementById("res-body").innerHTML=blocks.map(b=>{
+    const r=monthResults[b.id]||null;
+    const missed=!!(r&&r.status==="missed");
+    const val=(r&&!missed)?(r.score_text||resultScoreTxt(r)):"";
+    const pr=composePresc(b);
+    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'">'+
+      '<div class="resblok"><span class="reslabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
+        (pr?'<div class="respr">'+esc(pr)+'</div>':'')+'</div>'+
+      '<div class="resinvoer"><input class="resval" placeholder="Resultaat…" value="'+esc(val)+'"'+(missed?' disabled':'')+'>'+
+        '<button class="resmiss'+(missed?' on':'')+'" title="Gemist" onclick="resToggleMissed(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></div>'+
+      '</div>';
+  }).join("");
+  document.getElementById("resmodal").classList.add("show");
+}
+function closeResults(){const m=document.getElementById("resmodal");if(m)m.classList.remove("show");resWid=null;}
+function resToggleMissed(btn){
+  const row=btn.closest(".resrow");if(!row)return;
+  const nu=!row.classList.contains("missed");
+  row.classList.toggle("missed",nu);btn.classList.toggle("on",nu);
+  const inp=row.querySelector(".resval");
+  if(nu){inp.value="";inp.disabled=true;}else{inp.disabled=false;inp.focus();}
+}
+async function saveResults(){
+  const wid=resWid;if(!wid){closeResults();return;}
+  const msg=document.getElementById("res-msg");
+  const upserts=[],deletes=[];
+  [...document.querySelectorAll("#res-body .resrow")].forEach(row=>{
+    const blockId=row.dataset.block;
+    const missed=row.classList.contains("missed");
+    const val=(row.querySelector(".resval").value||"").trim();
+    const base={block_id:blockId,workout_id:wid,athlete_id:calClient,company_id:ME.profile.company_id,time_seconds:null,load_kg:null,reps:null,rounds:null};
+    if(missed)upserts.push(Object.assign({},base,{status:"missed",score_text:null}));
+    else if(val)upserts.push(Object.assign({},base,{status:"completed",score_text:val}));
+    else if(monthResults[blockId])deletes.push(blockId); // leeggemaakt: bestaande logging verwijderen
+  });
+  const sb=document.getElementById("res-save");sb.disabled=true;
+  try{
+    if(upserts.length){const{error}=await db.from("results").upsert(upserts,{onConflict:"block_id,athlete_id"});if(error)throw error;}
+    if(deletes.length){const{error}=await db.from("results").delete().eq("athlete_id",calClient).in("block_id",deletes);if(error)throw error;}
+    closeResults();toast("Scores opgeslagen");renderMonth();
+  }catch(e){msg.textContent=e.message||"Opslaan mislukt.";msg.className="msg err";sb.disabled=false;}
 }
 
 // ---------- SNELTOETSEN (zoals het ontwerp: sneller programmeren) ----------
