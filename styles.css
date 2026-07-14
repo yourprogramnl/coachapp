@@ -328,6 +328,9 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 /* Doorlopend week/dag-raster, zelfde look als de klant-kalender (.mlabel/.mday) */
 .pe-cal{background:#fff;border:1px solid var(--line);border-radius:10px;overflow-x:auto}
 .pe-wkbar{display:flex;align-items:center;gap:8px;scroll-margin-top:60px}
+.pe-wkdel{background:none;border:none;color:#b3b9c2;cursor:pointer;display:flex;align-items:center;padding:4px;border-radius:6px;margin-left:6px}
+.pe-wkdel:hover{color:#e5484d;background:#fdeaea}
+.pe-wkdel .i{width:13px;height:13px}
 .pe-hd7{display:grid;background:#f4f5f7}
 .pe-hd7 div{padding:7px 10px;font-size:11.5px;font-weight:800;color:#5d6570;border-bottom:1px solid #e7e9ec;border-right:1px solid #e7e9ec}
 .pe-hd7 div:last-child{border-right:none}

@@ -423,9 +423,37 @@ function progWeekBlok(week){
   const cols=[1,2,3,4,5,6,7].map(d=>d===editCol?"minmax(340px,2.4fr)":"minmax(132px,1fr)").join(" ");
   const hd=[1,2,3,4,5,6,7].map(d=>'<div>Dag '+((week-1)*7+d)+'</div>').join("");
   const cells=[1,2,3,4,5,6,7].map(d=>progDayCel(week,d)).join("");
-  return '<div class="mlabel pe-wkbar" id="pe-week-'+week+'"><span>Week '+week+'</span><span style="margin-left:auto;font-size:11px;color:#9aa1ab;letter-spacing:.5px;text-transform:uppercase">Dag '+((week-1)*7+1)+'-'+(week*7)+'</span></div>'+
+  // Verwijder-knop alleen als er meer dan 1 week is (een programma houdt minimaal 1 week).
+  const del=(PROG.weeks||1)>1?'<button class="pe-wkdel" title="Week '+week+' verwijderen" onclick="progDeleteWeek('+week+')"><svg class="i"><use href="#i-trash"/></svg></button>':'';
+  return '<div class="mlabel pe-wkbar" id="pe-week-'+week+'"><span>Week '+week+'</span><span style="margin-left:auto;font-size:11px;color:#9aa1ab;letter-spacing:.5px;text-transform:uppercase">Dag '+((week-1)*7+1)+'-'+(week*7)+'</span>'+del+'</div>'+
     '<div class="pe-hd7" style="grid-template-columns:'+cols+'">'+hd+'</div>'+
     '<div class="pe-row" style="grid-template-columns:'+cols+'">'+cells+'</div>';
+}
+// Week verwijderen: workouts van die week gaan mee weg, latere weken schuiven een week naar voren.
+async function progDeleteWeek(week){
+  const weeks=Math.max(1,PROG.weeks||1);
+  if(weeks<=1){toast("Een programma heeft minimaal 1 week");return;}
+  const wos=(PROG.workouts||[]).filter(w=>w.week===week);
+  let vraag="Week "+week+" verwijderen?";
+  if(wos.length)vraag+="\n\nDe "+(wos.length===1?"workout":wos.length+" workouts")+" in deze week "+(wos.length===1?"gaat":"gaan")+" mee weg.";
+  if(week<weeks)vraag+=(wos.length?"\n":"\n\n")+"De weken erna schuiven een week naar voren.";
+  if(!confirm(vraag))return;
+  if(wos.length){
+    const{error}=await db.from("program_workouts").delete().eq("program_id",PROG.id).eq("week",week);
+    if(error){toast(error.message||"Week verwijderen mislukt");return;}
+  }
+  // Latere weken naar voren (per rij; programma's zijn klein).
+  for(const w of (PROG.workouts||[]).filter(x=>x.week>week)){
+    const{error}=await db.from("program_workouts").update({week:w.week-1}).eq("id",w.id);
+    if(error){toast(error.message||"Week verschuiven mislukt");return;}
+  }
+  const{error:pe}=await db.from("program_templates").update({weeks:weeks-1}).eq("id",PROG.id);
+  if(pe){toast(pe.message||"Week verwijderen mislukt");return;}
+  PROG.weeks=weeks-1;if(progWeek>PROG.weeks)progWeek=PROG.weeks;
+  progEditDay=null;progEditWid=null;
+  const lp=(LIB.programs||[]).find(x=>x.id===PROG.id);if(lp)lp.weeks=PROG.weeks;
+  await progReloadWorkouts();
+  toast("Week "+week+" verwijderd");
 }
 // Dag-cel: lege dag = "+ Toevoegen" met dag-menu (Workout/Rustdag); bewerken = bouwer inline.
 function progDayCel(week,day){
