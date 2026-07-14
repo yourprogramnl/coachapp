@@ -382,22 +382,27 @@ async function asgOngedaan(id){
 }
 
 function progBack(){PROG=null;coachRenderSection();}
-function progWeekTab(w){progWeek=w;progRender();}
+// Weektab: alle weken staan onder elkaar (zoals de klant-kalender); de tab scrolt ernaartoe.
+function progWeekTab(w){
+  progWeek=w;
+  document.querySelectorAll(".pe-weeks .wtab").forEach((b,i)=>b.classList.toggle("on",i+1===w));
+  const lbl=document.getElementById("pe-viewing");if(lbl)lbl.textContent="Week "+w+" · dag "+((w-1)*7+1)+"-"+(w*7);
+  const el=document.getElementById("pe-week-"+w);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
+}
 async function progAddWeek(){
   const weeks=(PROG.weeks||1)+1;
   const{error}=await db.from("program_templates").update({weeks}).eq("id",PROG.id);
   if(error){toast(error.message||"Mislukt");return;}
   PROG.weeks=weeks;progWeek=weeks;progRender();
+  const el=document.getElementById("pe-week-"+weeks);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
   const lp=(LIB.programs||[]).find(x=>x.id===PROG.id);if(lp)lp.weeks=weeks;
 }
 function progRender(){
   const cp=document.getElementById("cpage");if(!cp||!PROG)return;
   const weeks=Math.max(1,PROG.weeks||1);if(progWeek>weeks)progWeek=weeks;
   const weekTabs=Array.from({length:weeks},(_,i)=>i+1).map(w=>'<button class="wtab'+(w===progWeek?" on":"")+'" onclick="progWeekTab('+w+')">'+w+'</button>').join("");
-  // Editkolom breder maken zodat de bouwer ruimte heeft (net als bij een klant).
-  const editCol=(progEditDay&&progEditDay.week===progWeek)?progEditDay.day:-1;
-  const cols=[1,2,3,4,5,6,7].map(d=>d===editCol?"minmax(340px,2.4fr)":"minmax(132px,1fr)").join(" ");
-  const days=[1,2,3,4,5,6,7].map(d=>progDayCol(progWeek,d)).join("");
+  // Alle weken onder elkaar in één doorlopend raster, zoals de klant-kalender.
+  const wkHtml=Array.from({length:weeks},(_,i)=>progWeekBlok(i+1)).join("");
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="progBack()">‹ Terug</button>'+
       '<div class="pe-badges"><span class="cpill">'+esc(PROG.type==="standard"?"Standaard":(PROG.type||"Standaard"))+'</span><span class="cpill">'+(weeks===1?"1 week":weeks+" weken")+'</span></div>'+
@@ -405,37 +410,45 @@ function progRender(){
     '<h1 style="margin:8px 0 2px">'+esc(PROG.name)+'</h1>'+(PROG.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(PROG.description)+'</div>':'')+
     '<div class="pe-bar"><button class="btn sm" onclick="openAssign()">Programma toewijzen</button><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progActief()+' actieve toewijzingen</span><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progAankomend()+' aankomend</span><button class="btn ghost sm" style="margin-left:auto" onclick="openAsgList()">Beheer toewijzingen</button></div>'+
     '<h2 style="margin:16px 0 8px">Workouts</h2>'+
-    '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag 1-7</span></div>'+
-    '<div class="pe-grid" style="grid-template-columns:'+cols+'">'+days+'</div>'+
+    '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" id="pe-viewing" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag '+((progWeek-1)*7+1)+'-'+(progWeek*7)+'</span></div>'+
+    '<div class="pe-cal">'+wkHtml+'</div>'+
     '<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>'+
   '</div>';
   if(progEditDay){relabel();groei();}
 }
-// Dag-vak in kalender-stijl: lege dag = klikbaar met dag-menu (Workout/Rustdag), net als bij een klant.
-function progDayCol(week,day){
+// Eén week in het raster: weekbalk (zoals de maandbalk) + kopregel met doorlopende
+// dagnummers + een rij cellen die randen delen (zoals .mday in de klant-kalender).
+function progWeekBlok(week){
+  const editCol=(progEditDay&&progEditDay.week===week)?progEditDay.day:-1;
+  const cols=[1,2,3,4,5,6,7].map(d=>d===editCol?"minmax(340px,2.4fr)":"minmax(132px,1fr)").join(" ");
+  const hd=[1,2,3,4,5,6,7].map(d=>'<div>Dag '+((week-1)*7+d)+'</div>').join("");
+  const cells=[1,2,3,4,5,6,7].map(d=>progDayCel(week,d)).join("");
+  return '<div class="mlabel pe-wkbar" id="pe-week-'+week+'"><span>Week '+week+'</span><span style="margin-left:auto;font-size:11px;color:#9aa1ab;letter-spacing:.5px;text-transform:uppercase">Dag '+((week-1)*7+1)+'-'+(week*7)+'</span></div>'+
+    '<div class="pe-hd7" style="grid-template-columns:'+cols+'">'+hd+'</div>'+
+    '<div class="pe-row" style="grid-template-columns:'+cols+'">'+cells+'</div>';
+}
+// Dag-cel: lege dag = "+ Toevoegen" met dag-menu (Workout/Rustdag); bewerken = bouwer inline.
+function progDayCel(week,day){
   const wos=(PROG.workouts||[]).filter(w=>w.week===week&&w.day===day).sort((a,b)=>a.sort-b.sort);
   const editing=progEditDay&&progEditDay.week===week&&progEditDay.day===day;
-  let inner='<div class="pe-dh">Dag '+day+'</div>';
   if(editing){
-    inner+=wos.filter(w=>w.id!==progEditWid).map(progCard).join("");
+    let inner=wos.filter(w=>w.id!==progEditWid).map(progCard).join("");
     const w=progEditWid?wos.find(x=>x.id===progEditWid):null;
     const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
-    return '<div class="pe-day">'+inner+'</div>';
+    return '<div class="pe-cell">'+inner+'</div>';
   }
-  inner+='<div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button></div>'+wos.map(progCard).join("");
-  return '<div class="pe-day">'+inner+'</div>';
+  return '<div class="pe-cell"><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button></div>'+wos.map(progCard).join("")+'</div>';
 }
 // Dag-menu zoals in de klant-kalender.
 function progDayMenu(ev,week,day){
   ev.stopPropagation();
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
-  const cell=ev.target.closest(".pe-day");if(!cell)return;
+  const cell=ev.target.closest(".pe-cell");if(!cell)return;
   const d=document.createElement("div");d.className="daymenu";
   d.innerHTML='<button onclick="event.stopPropagation();progOpenBuilder('+week+','+day+',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
     '<button onclick="event.stopPropagation();progRustdag('+week+','+day+')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>';
-  const dh=cell.querySelector(".pe-dh");
-  if(dh)dh.insertAdjacentElement("afterend",d);else cell.appendChild(d);
+  cell.prepend(d);
 }
 async function progRustdag(week,day){
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
