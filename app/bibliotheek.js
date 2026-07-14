@@ -334,11 +334,8 @@ function progDayCol(week,day){
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
     return '<div class="pe-day">'+inner+'</div>';
   }
-  if(wos.length){
-    inner+='<div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button></div>'+wos.map(progCard).join("");
-    return '<div class="pe-day">'+inner+'</div>';
-  }
-  return '<div class="pe-day selectable" onclick="progDayMenu(event,'+week+','+day+')">'+inner+'</div>';
+  inner+='<div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button></div>'+wos.map(progCard).join("");
+  return '<div class="pe-day">'+inner+'</div>';
 }
 // Dag-menu zoals in de klant-kalender.
 function progDayMenu(ev,week,day){
