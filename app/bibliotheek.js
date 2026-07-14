@@ -322,6 +322,7 @@ function progRender(){
   '</div>';
   if(progEditDay){relabel();groei();}
 }
+// Dag-vak in kalender-stijl: lege dag = klikbaar met dag-menu (Workout/Rustdag), net als bij een klant.
 function progDayCol(week,day){
   const wos=(PROG.workouts||[]).filter(w=>w.week===week&&w.day===day).sort((a,b)=>a.sort-b.sort);
   const editing=progEditDay&&progEditDay.week===week&&progEditDay.day===day;
@@ -331,21 +332,43 @@ function progDayCol(week,day){
     const w=progEditWid?wos.find(x=>x.id===progEditWid):null;
     const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
-  }else{
-    inner+='<button class="pe-add" onclick="progOpenBuilder('+week+','+day+',null)">+ Toevoegen</button>'+wos.map(progCard).join("");
+    return '<div class="pe-day">'+inner+'</div>';
   }
-  return '<div class="pe-day">'+inner+'</div>';
+  if(wos.length){
+    inner+='<div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button></div>'+wos.map(progCard).join("");
+    return '<div class="pe-day">'+inner+'</div>';
+  }
+  return '<div class="pe-day selectable" onclick="progDayMenu(event,'+week+','+day+')">'+inner+'</div>';
+}
+// Dag-menu zoals in de klant-kalender.
+function progDayMenu(ev,week,day){
+  ev.stopPropagation();
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  const cell=ev.target.closest(".pe-day");if(!cell)return;
+  const d=document.createElement("div");d.className="daymenu";
+  d.innerHTML='<button onclick="event.stopPropagation();progOpenBuilder('+week+','+day+',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
+    '<button onclick="event.stopPropagation();progRustdag('+week+','+day+')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>';
+  const dh=cell.querySelector(".pe-dh");
+  if(dh)dh.insertAdjacentElement("afterend",d);else cell.appendChild(d);
+}
+async function progRustdag(week,day){
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  const{error}=await db.from("program_workouts").insert({program_id:PROG.id,company_id:ME.profile.company_id,week,day,title:"Rest Day"});
+  if(error){toast(error.message||"Mislukt");return;}
+  await progReloadWorkouts();
 }
 // Workout-kaart in exact dezelfde stijl als in de klant-kalender (mcard/cblk + blokkleuren).
 function progCard(w){
   const blocks=(w.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  const isRest=!blocks.length&&/^rest ?day$/i.test((w.title||"").trim());
+  if(isRest)return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span style="color:#27b376">Rest Day</span></div></div>';
   let inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard planned" style="margin-top:8px" onclick="progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
+  return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
-function progOpenBuilder(week,day,wid){progEditDay={week,day};progEditWid=wid||null;progRender();}
+function progOpenBuilder(week,day,wid){document.querySelectorAll(".daymenu").forEach(x=>x.remove());progEditDay={week,day};progEditWid=wid||null;progRender();}
 function progCloseBuilder(){progEditDay=null;progEditWid=null;progRender();}
 function progBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));

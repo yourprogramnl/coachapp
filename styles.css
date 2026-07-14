@@ -326,10 +326,10 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .wtab{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700;font-family:inherit;color:var(--txt)}
 .wtab.on{background:var(--nav);color:#fff;border-color:var(--nav)}
 .pe-grid{display:grid;grid-template-columns:repeat(7,minmax(150px,1fr));gap:10px;overflow-x:auto}
-.pe-day{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:120px}
+.pe-day{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;min-height:160px;position:relative}
+.pe-day.selectable{cursor:pointer}
+.pe-day.selectable:hover{background:#fafbfc}
 .pe-dh{font-weight:800;font-size:13px;margin-bottom:8px;color:#5d6570}
-.pe-add{width:100%;border:1px dashed #cfd4da;border-radius:8px;background:#fafbfc;color:#5d6570;font-size:12px;font-weight:700;padding:7px 0;cursor:pointer;font-family:inherit;margin-bottom:8px}
-.pe-add:hover{border-color:var(--accent);color:var(--accent)}
 .pe-card{border:1px solid var(--line);border-radius:9px;padding:8px;margin-bottom:8px;cursor:pointer;background:#fff}
 .pe-card:hover{border-color:#b3b9c2}
 .pe-ct{font-weight:800;font-size:12.5px;margin-bottom:5px}
