@@ -7,6 +7,8 @@ const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
 const LIB_PER=50;
 let LIB={oef:[],tpl:[],programs:[],mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
+// Programma-editor (week/dag-indeling met workouts)
+let PROG=null,progWeek=1,progBuildCell=null,progBuildWid=null;
 const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);return m?m[1]:null;};
 
 function libShellHtml(){
@@ -55,8 +57,9 @@ function ensureLibModals(){
       '<div class="field"><label>Omschrijving</label><textarea id="prog-desc" style="min-height:80px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
       '<div class="field"><label>Niveau / trainingsleeftijd</label><input id="prog-age" placeholder="bijv. Beginner, Gevorderd"></div>'+
       '<div class="field"><label>Type</label><select id="prog-type"><option value="standard">Standaard</option></select></div>'+
-      '<div style="display:flex;gap:8px"><button class="btn" onclick="programOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="progmodal-del" style="margin-left:auto"></span></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" id="prog-savebtn" onclick="programOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="progmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="progmodal-msg"></div></div></div>'+
+    '<div class="lmodal" id="progbuild" style="z-index:396"><div class="box" style="width:640px;max-width:96vw"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 id="pb-titel" style="margin:0">Workout</h3><span onclick="progCloseBuilder()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div><div class="ib2" id="pb-body"></div></div></div>'+
     '<div class="lmodal" id="insmodal" style="z-index:390"><div class="box" style="width:960px;max-width:96vw">'+
       '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Template invoegen <span class="sm muted" id="ins-dag" style="font-weight:600;font-size:12.5px"></span></h3>'+
       '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'+
@@ -189,38 +192,137 @@ async function programLaad(){
   const{data}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
   LIB.programs=data||[];if(LIB.mode==="programs")libLijst();
 }
-function programNieuw(){
-  ensureLibModals();LIB.editProgram=null;
-  document.getElementById("progmodal-titel").textContent="Programma toevoegen";
-  ["prog-naam","prog-desc","prog-age"].forEach(id=>document.getElementById(id).value="");
-  document.getElementById("prog-type").value="standard";
-  document.getElementById("progmodal-del").innerHTML="";
+// Details-venster (aanmaken of details bewerken). Aanmaken → daarna meteen de editor.
+function progModalOpen(id){
+  ensureLibModals();LIB.editProgram=id||null;
+  const p=id?((LIB.programs||[]).find(x=>x.id===id)||(PROG&&PROG.id===id?PROG:null)):null;
+  document.getElementById("progmodal-titel").textContent=id?"Programma-details":"Programma aanmaken";
+  document.getElementById("prog-naam").value=p?(p.name||""):"";
+  document.getElementById("prog-desc").value=p?(p.description||""):"";
+  document.getElementById("prog-age").value=p?(p.training_age||""):"";
+  document.getElementById("prog-type").value=p?(p.type||"standard"):"standard";
+  document.getElementById("prog-savebtn").textContent=id?"Opslaan":"Opslaan en workouts toevoegen";
   document.getElementById("progmodal-msg").textContent="";
   document.getElementById("progmodal").classList.add("show");
 }
-function programBewerk(id){
-  const p=(LIB.programs||[]).find(x=>x.id===id);if(!p)return;
-  ensureLibModals();LIB.editProgram=id;
-  document.getElementById("progmodal-titel").textContent="Programma bewerken";
-  document.getElementById("prog-naam").value=p.name||"";
-  document.getElementById("prog-desc").value=p.description||"";
-  document.getElementById("prog-age").value=p.training_age||"";
-  document.getElementById("prog-type").value=p.type||"standard";
-  document.getElementById("progmodal-del").innerHTML='<button class="btn ghost" style="color:#e5484d" onclick="programVerwijder(\''+id+'\')">Verwijderen</button>';
-  document.getElementById("progmodal-msg").textContent="";
-  document.getElementById("progmodal").classList.add("show");
-}
+function programNieuw(){progModalOpen(null);}
+function programDetails(id){progModalOpen(id);}
+function programBewerk(id){openProgramEditor(id);} // rij/Bewerk → de editor met week/dag-indeling
 async function programOpslaan(){
   const naam=document.getElementById("prog-naam").value.trim();
   const msg=document.getElementById("progmodal-msg");
   if(!naam){msg.textContent="Geef het programma een naam.";msg.className="msg err";return;}
   const rec={name:naam,description:document.getElementById("prog-desc").value.trim()||null,training_age:document.getElementById("prog-age").value.trim()||null,type:document.getElementById("prog-type").value||"standard"};
-  let fout;
-  if(LIB.editProgram){const{error}=await db.from("program_templates").update(rec).eq("id",LIB.editProgram);fout=error;}
-  else{rec.company_id=ME.profile.company_id;rec.created_by=ME.user.id;const{error}=await db.from("program_templates").insert(rec);fout=error;}
-  if(fout){msg.textContent=fout.message||"Opslaan mislukt";msg.className="msg err";return;}
-  const wasEdit=!!LIB.editProgram;libModalDicht();toast(wasEdit?"Programma bijgewerkt":"Programma toegevoegd");
-  await programLaad();
+  const eid=LIB.editProgram;
+  if(eid){
+    const{error}=await db.from("program_templates").update(rec).eq("id",eid);
+    if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
+    libModalDicht();toast("Programma bijgewerkt");await programLaad();
+    if(PROG&&PROG.id===eid){Object.assign(PROG,rec);progRender();}
+  }else{
+    rec.company_id=ME.profile.company_id;rec.created_by=ME.user.id;
+    const{data,error}=await db.from("program_templates").insert(rec).select("*, creator:created_by(id,first_name,last_name,avatar_url)").single();
+    if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
+    libModalDicht();toast("Programma aangemaakt");await programLaad();
+    openProgramEditor(data.id); // meteen door naar de workouts
+  }
+}
+
+// ---------- Programma-editor (week/dag-indeling) ----------
+async function openProgramEditor(id){
+  const{data:prog}=await db.from("program_templates").select("*").eq("id",id).single();
+  if(!prog){toast("Programma niet gevonden");return;}
+  const{data:pws}=await db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",id).order("week").order("day").order("sort");
+  PROG=Object.assign({},prog,{workouts:pws||[]});progWeek=1;
+  ensureLibModals();progRender();
+}
+function progBack(){PROG=null;coachRenderSection();}
+function progWeekTab(w){progWeek=w;progRender();}
+async function progAddWeek(){
+  const weeks=(PROG.weeks||1)+1;
+  const{error}=await db.from("program_templates").update({weeks}).eq("id",PROG.id);
+  if(error){toast(error.message||"Mislukt");return;}
+  PROG.weeks=weeks;progWeek=weeks;progRender();
+  const lp=(LIB.programs||[]).find(x=>x.id===PROG.id);if(lp)lp.weeks=weeks;
+}
+function progRender(){
+  const cp=document.getElementById("cpage");if(!cp||!PROG)return;
+  const weeks=Math.max(1,PROG.weeks||1);if(progWeek>weeks)progWeek=weeks;
+  const weekTabs=Array.from({length:weeks},(_,i)=>i+1).map(w=>'<button class="wtab'+(w===progWeek?" on":"")+'" onclick="progWeekTab('+w+')">'+w+'</button>').join("");
+  const days=[1,2,3,4,5,6,7].map(d=>progDayCol(progWeek,d)).join("");
+  cp.innerHTML='<div class="progedit">'+
+    '<div class="pe-top"><button class="btn ghost sm" onclick="progBack()">‹ Terug</button>'+
+      '<div class="pe-badges"><span class="cpill">'+esc(PROG.type==="standard"?"Standaard":(PROG.type||"Standaard"))+'</span><span class="cpill">'+weeks+' week'+(weeks===1?"":"en")+'</span></div>'+
+      '<div style="margin-left:auto"><button class="btn ghost sm" onclick="programDetails(\''+PROG.id+'\')">Details bewerken</button></div></div>'+
+    '<h1 style="margin:8px 0 2px">'+esc(PROG.name)+'</h1>'+(PROG.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(PROG.description)+'</div>':'')+
+    '<div class="pe-bar"><button class="btn sm" onclick="toast(\'Toewijzen aan klanten bouwen we hierna\')">Programma toewijzen</button><span class="pe-assign">0 actieve toewijzingen</span><span class="pe-assign">0 aankomend</span></div>'+
+    '<h2 style="margin:16px 0 8px">Workouts</h2>'+
+    '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag 1-7</span></div>'+
+    '<div class="pe-grid">'+days+'</div>'+
+    '<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>'+
+  '</div>';
+}
+function progDayCol(week,day){
+  const wos=(PROG.workouts||[]).filter(w=>w.week===week&&w.day===day).sort((a,b)=>a.sort-b.sort);
+  return '<div class="pe-day"><div class="pe-dh">Dag '+day+'</div>'+
+    '<button class="pe-add" onclick="progOpenBuilder('+week+','+day+',null)">+ Toevoegen</button>'+
+    wos.map(progCard).join("")+'</div>';
+}
+function progCard(w){
+  const blocks=(w.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  let inner="";
+  if(w.warmup)inner+='<div class="pe-blk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
+  blocks.forEach(b=>{const kl=b.color?" k-"+esc(b.color):"";inner+='<div class="pe-blk'+kl+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
+  if(w.cooldown)inner+='<div class="pe-blk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
+  return '<div class="pe-card" onclick="progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="pe-ct">'+esc(w.title||"Workout")+'</div>'+inner+'</div>';
+}
+function progOpenBuilder(week,day,wid){
+  ensureLibModals();progBuildCell={week,day};progBuildWid=wid||null;
+  const w=wid?(PROG.workouts||[]).find(x=>x.id===wid):null;
+  const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
+  document.getElementById("pb-titel").textContent="Dag "+day+" · week "+week;
+  document.getElementById("pb-body").innerHTML=progBuilderHtml(wObj);
+  document.getElementById("progbuild").classList.add("show");
+  relabel();groei();
+}
+function progBuilderHtml(w){
+  w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
+  const rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
+  return '<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'">'+
+    '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
+    '<div id="exrows">'+rows+'</div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea></div>'+
+    '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
+}
+function progCloseBuilder(){const m=document.getElementById("progbuild");if(m)m.classList.remove("show");}
+async function progReloadWorkouts(){
+  const{data:pws}=await db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",PROG.id).order("week").order("day").order("sort");
+  PROG.workouts=pws||[];progRender();
+}
+async function progSaveWorkout(){
+  const g=id=>document.getElementById(id);
+  const title=(g("w_title").value||"").trim();
+  const rows=[...document.querySelectorAll("#progbuild #exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
+  const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progBuildCell.week,day:progBuildCell.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
+  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null}));
+  try{
+    if(progBuildWid){
+      const{error:ue}=await db.from("program_workouts").update(wf).eq("id",progBuildWid);if(ue)throw ue;
+      await db.from("program_blocks").delete().eq("program_workout_id",progBuildWid);
+      if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(progBuildWid));if(be)throw be;}
+    }else{
+      const{data:nw,error}=await db.from("program_workouts").insert(wf).select().single();if(error)throw error;
+      if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(nw.id));if(be)throw be;}
+    }
+    progCloseBuilder();toast("Workout opgeslagen");await progReloadWorkouts();
+  }catch(e){toast(e.message||"Opslaan mislukt");}
+}
+async function progDeleteWorkout(id){
+  if(!confirm("Deze workout uit het programma verwijderen?"))return;
+  const{error}=await db.from("program_workouts").delete().eq("id",id);
+  if(error){toast(error.message||"Mislukt");return;}
+  progCloseBuilder();toast("Workout verwijderd");await progReloadWorkouts();
 }
 async function programVerwijder(id){
   if(!confirm("Dit programma verwijderen?"))return;
