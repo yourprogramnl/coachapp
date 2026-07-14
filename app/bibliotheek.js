@@ -6,14 +6,14 @@ const TPLKLEUR={yellow:"#eab308",blue:"#3b82f6",purple:"#8b5cf6",red:"#ef4444",g
 const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
 const LIB_PER=50;
-let LIB={oef:[],tpl:[],mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,tplKleur:"yellow"};
+let LIB={oef:[],tpl:[],programs:[],mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
 const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);return m?m[1]:null;};
 
 function libShellHtml(){
   const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["cooldown","Cooldowns"]]
     .map(m=>'<button class="'+(LIB.mode===m[0]?"on":"")+'" onclick="libZetMode(\''+m[0]+'\')">'+m[1]+'</button>').join("");
   return '<h1>Bibliotheek</h1><div class="libgrid">'+
-    '<div class="card libnav">'+nav+'<button onclick="toast(\'Programma-templates komen in een volgende stap\')">Programma-templates</button></div>'+
+    '<div class="card libnav">'+nav+'<button class="'+(LIB.mode==="programs"?"on":"")+'" onclick="libZetMode(\'programs\')">Programma\'s</button></div>'+
     '<div>'+
       '<div class="card" style="padding:18px 18px 0;border-radius:10px 10px 0 0">'+
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">'+
@@ -50,6 +50,13 @@ function ensureLibModals(){
       '<div class="field"><label>Instructies</label><textarea id="tpl-instr" style="min-height:140px"></textarea></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="tplmodal-msg"></div></div></div>'+
+    '<div class="lmodal" id="progmodal"><div class="box"><h3 id="progmodal-titel">Programma toevoegen</h3>'+
+      '<div class="field"><label>Naam</label><input id="prog-naam" placeholder="bijv. 6-weken hypertrofie"></div>'+
+      '<div class="field"><label>Omschrijving</label><textarea id="prog-desc" style="min-height:80px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
+      '<div class="field"><label>Niveau / trainingsleeftijd</label><input id="prog-age" placeholder="bijv. Beginner, Gevorderd"></div>'+
+      '<div class="field"><label>Type</label><select id="prog-type"><option value="standard">Standaard</option></select></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" onclick="programOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="progmodal-del" style="margin-left:auto"></span></div>'+
+      '<div class="msg" id="progmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="insmodal" style="z-index:390"><div class="box" style="width:960px;max-width:96vw">'+
       '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Template invoegen <span class="sm muted" id="ins-dag" style="font-weight:600;font-size:12.5px"></span></h3>'+
       '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'+
@@ -82,7 +89,8 @@ async function libLaad(){
     from+=1000;
   }
   const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach").order("naam");
-  LIB.oef=alles;LIB.tpl=tpl||[];LIB.geladen=true;LIB.busy=false;
+  const{data:progs}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
+  LIB.oef=alles;LIB.tpl=tpl||[];LIB.programs=progs||[];LIB.geladen=true;LIB.busy=false;
   libLijst();
 }
 function libZetMode(m){LIB.mode=m;LIB.zoek="";LIB.pag=0;LIB.kleur="";const z=document.getElementById("lib-zoek");if(z)z.value="";coachRenderSection();}
@@ -90,15 +98,17 @@ function libFilter(v){LIB.zoek=(v||"").toLowerCase();LIB.pag=0;libLijst();}
 function libGa(p){LIB.pag=p;libLijst();}
 function libKleurFilter(k){LIB.kleur=LIB.kleur===k?"":k;LIB.pag=0;libLijst();}
 function libKop(){
-  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns"};
+  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",programs:"Programma's"};
   const t=document.getElementById("lib-titel");if(t)t.textContent=titels[LIB.mode];
-  const s=document.getElementById("lib-sub");if(s)s.textContent=LIB.mode==="oef"
-    ?"Jullie eigen videobibliotheek, live uit de database. Sporters zien de demo-video bij elke workout."
-    :"Templates uit jullie Strivee, live uit de database. Klik op een template om naam, tekst of kleur aan te passen.";
-  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":"+ Template toevoegen";
+  const subs={
+    oef:"Jullie eigen videobibliotheek, live uit de database. Sporters zien de demo-video bij elke workout.",
+    programs:"Gebruik de programma-index om veelgebruikte workout-sets aan je klanten toe te voegen."
+  };
+  const s=document.getElementById("lib-sub");if(s)s.textContent=subs[LIB.mode]||"Templates uit jullie Strivee, live uit de database. Klik op een template om naam, tekst of kleur aan te passen.";
+  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":(LIB.mode==="programs"?"+ Programma toevoegen":"+ Template toevoegen");
   const leg=document.getElementById("lib-legenda");
   if(leg){
-    if(LIB.mode==="oef"){leg.style.display="none";}
+    if(LIB.mode==="oef"||LIB.mode==="programs"){leg.style.display="none";}
     else{
       leg.style.display="flex";
       leg.innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
@@ -110,6 +120,7 @@ function libLijst(){
   const host=document.getElementById("lib-lijst"),thead=document.getElementById("lib-thead"),pag=document.getElementById("lib-pag"),cnt=document.getElementById("lib-aantal");
   if(!host)return;
   if(!LIB.geladen){host.innerHTML='<div class="cempty">Bibliotheek laden…</div>';return;}
+  if(LIB.mode==="programs"){programLijst(host,thead,pag,cnt);return;}
   if(LIB.mode!=="oef"){
     if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div>';
     const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
@@ -153,8 +164,81 @@ function libLijst(){
   kn+='<button class="btn ghost sm" '+(LIB.pag===pages-1?"disabled":'onclick="libGa('+(LIB.pag+1)+')"')+'>›</button>';
   pag.innerHTML=kn;
 }
-function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");LIB.editOef=null;LIB.editTpl=null;}
-function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else tplBewerk(null);}
+function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");const pm=document.getElementById("progmodal");if(pm)pm.classList.remove("show");LIB.editOef=null;LIB.editTpl=null;LIB.editProgram=null;}
+function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else if(LIB.mode==="programs")programNieuw();else tplBewerk(null);}
+
+// ---------- Programma's (herbruikbare programma-templates) ----------
+function programLijst(host,thead,pag,cnt){
+  if(thead)thead.innerHTML='<div style="flex:2.4">Programma</div><div style="flex:1">Niveau</div><div style="flex:1">Actief</div><div style="flex:.9">Type</div><div style="flex:.7">Van</div><div style="width:150px"></div>';
+  const hits=(LIB.programs||[]).filter(p=>!LIB.zoek||(p.name||"").toLowerCase().includes(LIB.zoek)||(p.description||"").toLowerCase().includes(LIB.zoek));
+  if(cnt)cnt.textContent=hits.length+" programma's";
+  if(pag)pag.innerHTML="";
+  host.innerHTML=hits.map(p=>{
+    const c=p.creator;
+    const av=c?'<div class="cavc" style="width:28px;height:28px;font-size:10px;'+avFotoStyle(c)+'" title="'+esc(naamVan(c))+'">'+avFotoText(c)+'</div>':'<div class="cavc" style="width:28px;height:28px;font-size:10px;background:#c9cdd4">·</div>';
+    return '<div class="trow" style="cursor:pointer;align-items:flex-start;position:relative" onclick="programBewerk(\''+p.id+'\')">'+
+      '<div style="flex:2.4"><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div>'+
+      '<div style="flex:1" class="sm muted">'+esc(p.training_age||"–")+'</div>'+
+      '<div style="flex:1" class="sm muted">0 klanten</div>'+
+      '<div style="flex:.9" class="sm muted">'+esc(p.type==="standard"?"standaard":(p.type||"standaard"))+'</div>'+
+      '<div style="flex:.7">'+av+'</div>'+
+      '<div style="width:150px;display:flex;gap:6px;justify-content:flex-end;align-items:center" onclick="event.stopPropagation()"><button class="btn ghost sm" onclick="programBewerk(\''+p.id+'\')">Bewerk</button><button class="kebab" onclick="event.stopPropagation();openProgramMenu(event,\''+p.id+'\')">⋮</button></div></div>';
+  }).join("")||'<div class="cempty">Nog geen programma\'s. Klik op "+ Programma toevoegen" om te beginnen.</div>';
+}
+async function programLaad(){
+  const{data}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
+  LIB.programs=data||[];if(LIB.mode==="programs")libLijst();
+}
+function programNieuw(){
+  ensureLibModals();LIB.editProgram=null;
+  document.getElementById("progmodal-titel").textContent="Programma toevoegen";
+  ["prog-naam","prog-desc","prog-age"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("prog-type").value="standard";
+  document.getElementById("progmodal-del").innerHTML="";
+  document.getElementById("progmodal-msg").textContent="";
+  document.getElementById("progmodal").classList.add("show");
+}
+function programBewerk(id){
+  const p=(LIB.programs||[]).find(x=>x.id===id);if(!p)return;
+  ensureLibModals();LIB.editProgram=id;
+  document.getElementById("progmodal-titel").textContent="Programma bewerken";
+  document.getElementById("prog-naam").value=p.name||"";
+  document.getElementById("prog-desc").value=p.description||"";
+  document.getElementById("prog-age").value=p.training_age||"";
+  document.getElementById("prog-type").value=p.type||"standard";
+  document.getElementById("progmodal-del").innerHTML='<button class="btn ghost" style="color:#e5484d" onclick="programVerwijder(\''+id+'\')">Verwijderen</button>';
+  document.getElementById("progmodal-msg").textContent="";
+  document.getElementById("progmodal").classList.add("show");
+}
+async function programOpslaan(){
+  const naam=document.getElementById("prog-naam").value.trim();
+  const msg=document.getElementById("progmodal-msg");
+  if(!naam){msg.textContent="Geef het programma een naam.";msg.className="msg err";return;}
+  const rec={name:naam,description:document.getElementById("prog-desc").value.trim()||null,training_age:document.getElementById("prog-age").value.trim()||null,type:document.getElementById("prog-type").value||"standard"};
+  let fout;
+  if(LIB.editProgram){const{error}=await db.from("program_templates").update(rec).eq("id",LIB.editProgram);fout=error;}
+  else{rec.company_id=ME.profile.company_id;rec.created_by=ME.user.id;const{error}=await db.from("program_templates").insert(rec);fout=error;}
+  if(fout){msg.textContent=fout.message||"Opslaan mislukt";msg.className="msg err";return;}
+  const wasEdit=!!LIB.editProgram;libModalDicht();toast(wasEdit?"Programma bijgewerkt":"Programma toegevoegd");
+  await programLaad();
+}
+async function programVerwijder(id){
+  if(!confirm("Dit programma verwijderen?"))return;
+  const{error}=await db.from("program_templates").delete().eq("id",id);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  libModalDicht();toast("Programma verwijderd");await programLaad();
+}
+function openProgramMenu(ev,id){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow");if(!row)return;
+  const bestond=row.querySelector(".coachmenu");document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  if(bestond)return;
+  const m=document.createElement("div");m.className="coachmenu";
+  m.innerHTML='<button onclick="event.stopPropagation();programBewerk(\''+id+'\')">Bewerken</button><button class="danger" onclick="event.stopPropagation();programVerwijder(\''+id+'\')">Verwijderen</button>';
+  row.appendChild(m);
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".coachmenu")&&!e.target.closest(".kebab"))document.querySelectorAll(".coachmenu").forEach(x=>x.remove());});
 function oefBewerk(id){
   LIB.editOef=id;
   const o=id?LIB.oef.find(x=>x.id===id):null;
