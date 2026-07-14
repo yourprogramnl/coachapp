@@ -205,8 +205,7 @@ function exZoek(inp){
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
   drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
-    const bron=o.bron==="coachrx"?"CRx":"YP";
-    return '<div class="exopt" onclick="event.stopPropagation();kiesEx(this,'+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div><span class="srcbadge">'+bron+'</span></div>';
+    return '<div class="exopt" onclick="event.stopPropagation();kiesEx(this,'+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
   }).join("");
   drop.classList.add("show");
 }
@@ -278,8 +277,7 @@ function cwZoek(inp,kind){
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
   drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
-    const bron=o.bron==="coachrx"?"CRx":"YP";
-    return '<div class="exopt" onclick="event.stopPropagation();cwKies(\''+kind+'\','+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div><span class="srcbadge">'+bron+'</span></div>';
+    return '<div class="exopt" onclick="event.stopPropagation();cwKies(\''+kind+'\','+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
   }).join("");
   drop.classList.add("show");
 }
