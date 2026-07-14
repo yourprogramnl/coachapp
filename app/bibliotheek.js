@@ -7,8 +7,8 @@ const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
 const LIB_PER=50;
 let LIB={oef:[],tpl:[],programs:[],mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
-// Programma-editor (week/dag-indeling met workouts)
-let PROG=null,progWeek=1,progBuildCell=null,progBuildWid=null;
+// Programma-editor (week/dag-indeling met workouts); bouwer opent inline in de dag, net als bij een klant.
+let PROG=null,progWeek=1,progEditDay=null,progEditWid=null;
 const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);return m?m[1]:null;};
 
 function libShellHtml(){
@@ -59,7 +59,6 @@ function ensureLibModals(){
       '<div class="field"><label>Type</label><select id="prog-type"><option value="standard">Standaard</option></select></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" id="prog-savebtn" onclick="programOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="progmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="progmodal-msg"></div></div></div>'+
-    '<div class="lmodal" id="progbuild" style="z-index:396"><div class="box" style="width:640px;max-width:96vw"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 id="pb-titel" style="margin:0">Workout</h3><span onclick="progCloseBuilder()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div><div class="ib2" id="pb-body"></div></div></div>'+
     '<div class="lmodal" id="insmodal" style="z-index:390"><div class="box" style="width:960px;max-width:96vw">'+
       '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Template invoegen <span class="sm muted" id="ins-dag" style="font-weight:600;font-size:12.5px"></span></h3>'+
       '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'+
@@ -249,6 +248,9 @@ function progRender(){
   const cp=document.getElementById("cpage");if(!cp||!PROG)return;
   const weeks=Math.max(1,PROG.weeks||1);if(progWeek>weeks)progWeek=weeks;
   const weekTabs=Array.from({length:weeks},(_,i)=>i+1).map(w=>'<button class="wtab'+(w===progWeek?" on":"")+'" onclick="progWeekTab('+w+')">'+w+'</button>').join("");
+  // Editkolom breder maken zodat de bouwer ruimte heeft (net als bij een klant).
+  const editCol=(progEditDay&&progEditDay.week===progWeek)?progEditDay.day:-1;
+  const cols=[1,2,3,4,5,6,7].map(d=>d===editCol?"minmax(340px,2.4fr)":"minmax(132px,1fr)").join(" ");
   const days=[1,2,3,4,5,6,7].map(d=>progDayCol(progWeek,d)).join("");
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="progBack()">‹ Terug</button>'+
@@ -258,71 +260,72 @@ function progRender(){
     '<div class="pe-bar"><button class="btn sm" onclick="toast(\'Toewijzen aan klanten bouwen we hierna\')">Programma toewijzen</button><span class="pe-assign">0 actieve toewijzingen</span><span class="pe-assign">0 aankomend</span></div>'+
     '<h2 style="margin:16px 0 8px">Workouts</h2>'+
     '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag 1-7</span></div>'+
-    '<div class="pe-grid">'+days+'</div>'+
+    '<div class="pe-grid" style="grid-template-columns:'+cols+'">'+days+'</div>'+
     '<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>'+
   '</div>';
+  if(progEditDay){relabel();groei();}
 }
 function progDayCol(week,day){
   const wos=(PROG.workouts||[]).filter(w=>w.week===week&&w.day===day).sort((a,b)=>a.sort-b.sort);
-  return '<div class="pe-day"><div class="pe-dh">Dag '+day+'</div>'+
-    '<button class="pe-add" onclick="progOpenBuilder('+week+','+day+',null)">+ Toevoegen</button>'+
-    wos.map(progCard).join("")+'</div>';
+  const editing=progEditDay&&progEditDay.week===week&&progEditDay.day===day;
+  let inner='<div class="pe-dh">Dag '+day+'</div>';
+  if(editing){
+    inner+=wos.filter(w=>w.id!==progEditWid).map(progCard).join("");
+    const w=progEditWid?wos.find(x=>x.id===progEditWid):null;
+    const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
+    inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
+  }else{
+    inner+='<button class="pe-add" onclick="progOpenBuilder('+week+','+day+',null)">+ Toevoegen</button>'+wos.map(progCard).join("");
+  }
+  return '<div class="pe-day">'+inner+'</div>';
 }
+// Workout-kaart in exact dezelfde stijl als in de klant-kalender (mcard/cblk + blokkleuren).
 function progCard(w){
   const blocks=(w.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   let inner="";
-  if(w.warmup)inner+='<div class="pe-blk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
-  blocks.forEach(b=>{const kl=b.color?" k-"+esc(b.color):"";inner+='<div class="pe-blk'+kl+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
-  if(w.cooldown)inner+='<div class="pe-blk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="pe-card" onclick="progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="pe-ct">'+esc(w.title||"Workout")+'</div>'+inner+'</div>';
+  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
+  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
+  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
+  return '<div class="mcard planned" style="margin-top:8px" onclick="progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
-function progOpenBuilder(week,day,wid){
-  ensureLibModals();progBuildCell={week,day};progBuildWid=wid||null;
-  const w=wid?(PROG.workouts||[]).find(x=>x.id===wid):null;
-  const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
-  document.getElementById("pb-titel").textContent="Dag "+day+" · week "+week;
-  document.getElementById("pb-body").innerHTML=progBuilderHtml(wObj);
-  document.getElementById("progbuild").classList.add("show");
-  relabel();groei();
-}
+function progOpenBuilder(week,day,wid){progEditDay={week,day};progEditWid=wid||null;progRender();}
+function progCloseBuilder(){progEditDay=null;progEditWid=null;progRender();}
 function progBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
   const rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
-  return '<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'">'+
-    '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
+  return '<div class="sec"><input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea></div>'+
     '<div id="exrows">'+rows+'</div>'+
     '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea></div>'+
     '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
 }
-function progCloseBuilder(){const m=document.getElementById("progbuild");if(m)m.classList.remove("show");}
 async function progReloadWorkouts(){
   const{data:pws}=await db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",PROG.id).order("week").order("day").order("sort");
-  PROG.workouts=pws||[];progRender();
+  PROG.workouts=pws||[];progEditDay=null;progEditWid=null;progRender();
 }
 async function progSaveWorkout(){
   const g=id=>document.getElementById(id);
   const title=(g("w_title").value||"").trim();
-  const rows=[...document.querySelectorAll("#progbuild #exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
-  const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progBuildCell.week,day:progBuildCell.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
+  const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
+  const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progEditDay.week,day:progEditDay.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
   const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null}));
   try{
-    if(progBuildWid){
-      const{error:ue}=await db.from("program_workouts").update(wf).eq("id",progBuildWid);if(ue)throw ue;
-      await db.from("program_blocks").delete().eq("program_workout_id",progBuildWid);
-      if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(progBuildWid));if(be)throw be;}
+    if(progEditWid){
+      const{error:ue}=await db.from("program_workouts").update(wf).eq("id",progEditWid);if(ue)throw ue;
+      await db.from("program_blocks").delete().eq("program_workout_id",progEditWid);
+      if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(progEditWid));if(be)throw be;}
     }else{
       const{data:nw,error}=await db.from("program_workouts").insert(wf).select().single();if(error)throw error;
       if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(nw.id));if(be)throw be;}
     }
-    progCloseBuilder();toast("Workout opgeslagen");await progReloadWorkouts();
+    toast("Workout opgeslagen");await progReloadWorkouts();
   }catch(e){toast(e.message||"Opslaan mislukt");}
 }
 async function progDeleteWorkout(id){
   if(!confirm("Deze workout uit het programma verwijderen?"))return;
   const{error}=await db.from("program_workouts").delete().eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
-  progCloseBuilder();toast("Workout verwijderd");await progReloadWorkouts();
+  toast("Workout verwijderd");await progReloadWorkouts();
 }
 async function programVerwijder(id){
   if(!confirm("Dit programma verwijderen?"))return;
