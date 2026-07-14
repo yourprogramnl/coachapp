@@ -340,6 +340,23 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .pe-row:last-of-type .pe-cell{border-bottom:none}
 .pe-cell .mcard{cursor:pointer}
 .pe-ib{margin-top:8px;border:1px solid #cfe6f2;border-radius:10px;padding:8px;background:#fff}
+/* Weekworkout + leaderboard (uit ontwerp.html) */
+.lbwrap{max-width:860px;margin:0 auto}
+.lbhead{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+.lbcat{font-size:15px;font-weight:800;margin:20px 0 8px}
+.lbcat span{color:#d63384}
+.lbrow{display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid var(--line2)}
+.lbrow:last-child{border-bottom:none}
+.lbrow .rank{width:22px;font-weight:800;color:var(--muted);font-size:13px}
+.lbrow .lbnm{font-weight:700;font-size:13.5px}
+.lbrow .lbsc{font-size:12px;color:var(--muted)}
+.lbrow .fist{margin-left:auto;display:flex;gap:10px;align-items:center;color:var(--muted2);font-size:11px;font-weight:700}
+.lbrow .fist .fb{display:flex;align-items:center;gap:4px;background:none;border:none;color:var(--muted2);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;padding:4px 6px;border-radius:7px}
+.lbrow .fist .fb:hover{background:#f0f1f3;color:#4a4f57}
+.lbrow .fist .fb.aan{color:#d63384}
+.rxtag{font-size:9px;font-weight:800;border-radius:4px;padding:1px 4px;background:#d63384;color:#fff;vertical-align:middle}
+.rxtag.sc{background:#8b7cf6}
+.cpill.gray{background:#f0f1f3;color:#8a919c}
 .coachmenu{position:absolute;top:44px;right:14px;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(15,18,22,.16);padding:5px;min-width:200px}
 .coachmenu button{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 11px;font-size:12.5px;color:var(--txt);border-radius:7px;cursor:pointer;font-family:inherit}
 .coachmenu button:hover{background:#f4f8fb}
