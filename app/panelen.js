@@ -1040,6 +1040,8 @@ function pfRenderProfiel(p){
       '<div class="field"><label>Geboortedatum</label><input type="date" id="pf-geboortedatum" value="'+esc(p.birth_date||"")+'" min="'+minBd+'" max="'+maxBd+'" oninput="pfLeeftijdUpdate()" onchange="pfLeeftijdUpdate()"></div>'+
       '<div class="field"><label>Leeftijd</label><input id="pf-leeftijd" value="'+esc(lftNu!=null?lftNu+" jaar":"")+'" readonly style="opacity:.6;cursor:default" placeholder="Wordt berekend uit geboortedatum"></div>'+
       '<div class="field"><label>Noodcontact</label><input id="pf-noodcontact" value="'+esc(p.emergency_contact||"")+'" placeholder="Naam en/of telefoonnummer"></div>'+
+      '<div class="field"><label>Telefoon</label><input id="pf-telefoon" value="'+esc(p.phone||"")+'" placeholder="06…"></div>'+
+      '<div class="field"><label>Adres</label><input id="pf-adres" value="'+esc(p.address||"")+'" placeholder="Straat, postcode, plaats"></div>'+
     '</div>'+
     '<div class="field" style="margin-top:2px"><label>Notitie</label><textarea id="pf-notitie" placeholder="Vrije notitie…">'+esc(p.profile_note||"")+'</textarea></div>'+
     '<div style="border-top:1px solid var(--line);margin-top:18px;padding-top:14px">'+
@@ -1074,6 +1076,8 @@ async function profielOpslaan(){
     height_cm:lengteRaw?Number(lengteRaw):null,
     weight_kg:gewichtRaw?Number(gewichtRaw):null,
     emergency_contact:document.getElementById("pf-noodcontact").value.trim()||null,
+    phone:document.getElementById("pf-telefoon").value.trim()||null,
+    address:document.getElementById("pf-adres").value.trim()||null,
     profile_note:document.getElementById("pf-notitie").value.trim()||null,
     comments_readonly:document.getElementById("pf-comments").checked,
     messages_readonly:document.getElementById("pf-messages").checked,

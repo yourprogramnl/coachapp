@@ -77,17 +77,99 @@ function klantenRender(){
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1.2">Lifestyle</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
     '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>';
 }
-function exportKlanten(){
-  const td=todayStr();
-  const kop="Naam;E-mail;Volgende workout;Compliance ("+klantPeriode+" dagen)";
-  const regels=klantLijst().map(p=>{
-    const wp=klantComp([p]);
-    const up=KDATA.ws.filter(w=>w.client_id===p.id&&w.workout_date>=td).sort((a,b)=>a.workout_date.localeCompare(b.workout_date))[0];
-    return [naamVan(p).replace(/;/g,","),p.email||"",up?up.workout_date:"-",wp==null?"-":wp+"%"].join(";");
-  });
+// ---------- CSV-export met kolomkeuze (zoals CoachRx) ----------
+// [sleutel, kop, waarde-functie(p, ctx)]. Alleen kolommen die we echt kunnen vullen.
+const EXPORT_COLS=[
+  ["id","Klant-ID",p=>p.id],
+  ["naam","Naam",p=>naamVan(p)],
+  ["email","E-mail",p=>p.email||""],
+  ["coach","Coach",(p,c)=>c.coachNaam(p.coach_id)],
+  ["coachmail","Coach-e-mail",(p,c)=>c.coachMail(p.coach_id)],
+  ["status","Status",p=>p.archived?"Gearchiveerd":"Actief"],
+  ["aangemaakt","Aangemaakt op",p=>p.created_at?String(p.created_at).slice(0,10):""],
+  ["telefoon","Telefoon",p=>p.phone||""],
+  ["adres","Adres",p=>p.address||""],
+  ["lengte","Lengte (cm)",p=>p.height_cm!=null?p.height_cm:""],
+  ["gewicht","Gewicht (kg)",p=>p.weight_kg!=null?p.weight_kg:""],
+  ["geslacht","Geslacht",p=>p.gender||""],
+  ["geboorte","Geboortedatum",p=>p.birth_date||""],
+  ["nood","Noodcontact",p=>p.emergency_contact||""],
+  ["tags","Tags",(p,c)=>c.tags(p)],
+  ["workouts","Workouts gedaan",(p,c)=>c.workoutsDone(p)],
+  ["compliance","Compliance %",(p,c)=>c.compliance(p)],
+  ["lifts","Max lifts (1RM)",(p,c)=>c.maxLifts(p)]
+];
+let exportCols=null;
+function exportKlanten(){openExportModal();}
+function ensureExportModal(){
+  if(document.getElementById("expmodal"))return;
+  const w=document.createElement("div");
+  w.innerHTML='<div class="lmodal" id="expmodal" style="z-index:445"><div class="box" style="width:560px;max-width:94vw">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0">Exporteren naar CSV</h3><span onclick="closeExport()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div class="sm muted" id="exp-sub" style="margin-bottom:12px"></div>'+
+    '<label class="pf-toggle" style="margin:0 0 10px"><input type="checkbox" id="exp-all" checked onchange="exportAlles(this.checked)"><span class="pf-sw"></span> Alles selecteren</label>'+
+    '<div id="exp-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:7px 18px"></div>'+
+    '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:14px;margin-top:16px">'+
+      '<button class="btn ghost" onclick="closeExport()">Annuleren</button><button class="btn" onclick="doExport()">Exporteren</button></div>'+
+    '</div></div>';
+  document.body.appendChild(w.firstChild);
+  document.getElementById("expmodal").addEventListener("click",e=>{if(e.target.id==="expmodal")closeExport();});
+}
+function openExportModal(){
+  ensureExportModal();
+  exportCols=new Set(EXPORT_COLS.map(c=>c[0]));
+  const n=klantLijst().length;
+  document.getElementById("exp-sub").textContent="Kies de kolommen. "+n+" klant"+(n===1?" wordt":"en worden")+" geëxporteerd"+(klantCoachFilter?" (van "+klantCoachNaam+")":"")+(klantArchief?" – archief":"")+".";
+  exportRender();document.getElementById("expmodal").classList.add("show");
+}
+function exportRender(){
+  const host=document.getElementById("exp-cols");if(!host)return;
+  host.innerHTML=EXPORT_COLS.map(c=>'<label class="pf-toggle" style="margin:0"><input type="checkbox"'+(exportCols.has(c[0])?" checked":"")+' onchange="exportToggle(\''+c[0]+'\',this.checked)"><span class="pf-sw"></span> '+esc(c[1])+'</label>').join("");
+  const all=document.getElementById("exp-all");if(all)all.checked=exportCols.size===EXPORT_COLS.length;
+}
+function exportToggle(k,on){if(on)exportCols.add(k);else exportCols.delete(k);const all=document.getElementById("exp-all");if(all)all.checked=exportCols.size===EXPORT_COLS.length;}
+function exportAlles(on){exportCols=on?new Set(EXPORT_COLS.map(c=>c[0])):new Set();exportRender();}
+function closeExport(){const m=document.getElementById("expmodal");if(m)m.classList.remove("show");}
+async function doExport(){
+  const cols=EXPORT_COLS.filter(c=>exportCols.has(c[0]));
+  if(!cols.length){toast("Kies minstens één kolom");return;}
+  const lijst=klantLijst();const ids=lijst.map(p=>p.id);
+  // Coach-namen/-mails ophalen
+  const coachIds=[...new Set(lijst.map(p=>p.coach_id).filter(Boolean))];
+  let coachMap={};
+  if(coachIds.length&&(exportCols.has("coach")||exportCols.has("coachmail"))){
+    const{data:cs}=await db.from("profiles").select("id,first_name,last_name,email").in("id",coachIds);
+    (cs||[]).forEach(c=>coachMap[c.id]=c);
+  }
+  // Workouts gedaan (aantal voltooide workouts, all-time)
+  let doneCount={};
+  if(ids.length&&exportCols.has("workouts")){
+    const{data:res}=await db.from("results").select("workout_id,athlete_id,status").in("athlete_id",ids).eq("status","completed");
+    const per={};(res||[]).forEach(r=>{(per[r.athlete_id]=per[r.athlete_id]||new Set()).add(r.workout_id);});
+    Object.keys(per).forEach(a=>doneCount[a]=per[a].size);
+  }
+  // Max lifts: laatste waarde per 1RM-metric
+  let lifts={};
+  if(ids.length&&exportCols.has("lifts")){
+    const{data:ms}=await db.from("metrics").select("athlete_id,metric,value,value_text,unit,measured_at").in("athlete_id",ids).ilike("metric","%1rm%").order("measured_at",{ascending:false});
+    const seen={};(ms||[]).forEach(m=>{const key=m.athlete_id+"|"+m.metric;if(seen[key])return;seen[key]=true;const val=(m.value!=null?m.value:(m.value_text||""))+(m.unit?" "+m.unit:"");(lifts[m.athlete_id]=lifts[m.athlete_id]||[]).push(m.metric+": "+val);});
+  }
+  const ctx={
+    coachNaam:id=>{const c=coachMap[id];return c?naamVan(c):"";},
+    coachMail:id=>{const c=coachMap[id];return c?(c.email||""):"";},
+    tags:p=>(KDATA.tagsByClient[p.id]||[]).map(tid=>{const t=tagById(tid);return t?t.name:"";}).filter(Boolean).join(", "),
+    workoutsDone:p=>doneCount[p.id]||0,
+    compliance:p=>{const c=klantComp([p]);return c==null?"":c+"%";},
+    maxLifts:p=>(lifts[p.id]||[]).join("; ")
+  };
+  const q=v=>{v=(v==null?"":String(v));return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const kop=cols.map(c=>c[1]).join(";");
+  const regels=lijst.map(p=>cols.map(c=>q(c[2](p,ctx))).join(";"));
   const blob=new Blob(["﻿"+kop+"\n"+regels.join("\n")],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="klanten.csv";a.click();URL.revokeObjectURL(a.href);
-  toast("klanten.csv gedownload");
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="klanten"+(klantCoachFilter?"-"+(klantCoachNaam||"coach").replace(/[^a-z0-9]+/gi,"-").toLowerCase():"")+(klantArchief?"-archief":"")+".csv";
+  a.click();URL.revokeObjectURL(a.href);
+  closeExport();toast(lijst.length+" klant"+(lijst.length===1?"":"en")+" geëxporteerd");
 }
 
 // ---------- Tags op klanten (herbruikbaar, met kleur) ----------
