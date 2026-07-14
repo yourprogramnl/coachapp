@@ -126,7 +126,7 @@ function libLijst(){
     if(pag)pag.innerHTML="";
     return;
   }
-  if(thead)thead.innerHTML='<div style="width:74px">Media</div><div style="flex:2.6">Oefening</div><div style="flex:1.6">Tags</div><div style="flex:.7">Van</div><div style="flex:.8">Video</div><div style="width:70px"></div>';
+  if(thead)thead.innerHTML='<div style="width:74px">Media</div><div style="flex:2.6">Oefening</div><div style="flex:1.6">Tags</div><div style="flex:.8">Video</div><div style="width:70px"></div>';
   if(cnt)cnt.textContent=LIB.oef.length+" video's";
   const hits=LIB.oef.filter(o=>!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek));
   const pages=Math.max(1,Math.ceil(hits.length/LIB_PER));
@@ -136,12 +136,10 @@ function libLijst(){
     const tags=(o.tags||[]).slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
     const thumb=o.youtube_id?'<img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" loading="lazy" style="width:64px;height:40px;object-fit:cover;border-radius:6px;display:block">':'<div style="width:64px;height:40px;border-radius:6px;background:#f4f4f5"></div>';
     const link=o.youtube_id?'<a class="cpill teal" href="https://youtu.be/'+esc(o.youtube_id)+'" target="_blank" rel="noopener" style="text-decoration:none" onclick="event.stopPropagation()">YouTube</a>':(o.video_url?'<a class="cpill teal" href="'+esc(o.video_url)+'" target="_blank" rel="noopener" style="text-decoration:none" onclick="event.stopPropagation()">video</a>':'<span class="cpill" style="background:#f4f4f5;color:#8a919c">geen</span>');
-    const bron=o.bron==="coachrx"?"CRx":(o.bron&&o.bron!=="eigen"?String(o.bron).toUpperCase().slice(0,4):"");
     return '<div class="trow" style="cursor:pointer" onclick="oefBewerk('+o.id+')">'+
       '<div style="width:74px">'+thumb+'</div>'+
       '<div style="flex:2.6"><b>'+esc(o.naam)+'</b></div>'+
       '<div style="flex:1.6">'+tags+'</div>'+
-      '<div style="flex:.7">'+(bron?'<span class="srcbadge">'+esc(bron)+'</span>':"")+'</div>'+
       '<div style="flex:.8">'+link+'</div>'+
       '<div style="width:70px"><button class="btn ghost sm">Bewerk</button></div></div>';
   }).join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
