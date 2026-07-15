@@ -768,7 +768,8 @@ function insRender(){
   const host=document.getElementById("ins-lijst");if(!host)return;
   const v=(document.getElementById("ins-zoek").value||"").toLowerCase().trim();
   const weekRij=w=>{
-    const txt=[w.warmup,...(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>(b.exercise||"")+(b.prescription?"\n"+b.prescription:"")),w.cooldown].filter(Boolean).join("\n\n");
+    // composePresc pakt ook conditioning-tekst (notes), zoals bij weekworkouts uit de Weekworkout-sectie.
+    const txt=[w.warmup,...(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>{const pr=composePresc(b);return (b.exercise||"")+(pr?"\n"+pr:"");}),w.cooldown].filter(Boolean).join("\n\n");
     return '<div class="trow" style="align-items:flex-start;background:#f0f8fc"><div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR.blue+'"></span></div>'+
       '<div style="flex:1.6"><b>'+esc(w.title||"Weekworkout")+'</b><div class="sm muted" style="margin-top:2px">weekworkout · gedeeld leaderboard · '+esc(w.workout_date||"")+'</div></div>'+
       '<div style="flex:2.4" class="sm muted">'+esc(txt).replace(/\n/g,"<br>")+'</div>'+
@@ -812,7 +813,7 @@ async function insWeekwod(id){
   const w=insBlog.find(x=>x.id===id);if(!w)return;
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(insDoel==="bouwer"){
-    const txt=blocks.map(b=>(b.label?b.label+") ":"")+(b.exercise||"")+(b.prescription?"\n"+b.prescription:"")).join("\n\n");
+    const txt=blocks.map(b=>{const pr=composePresc(b);return (b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n"+pr:"");}).join("\n\n");
     const host=document.getElementById("exrows");
     if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:w.title,prescription:txt,color:"blue"}));relabel();groei();}
     closeIns();toast("Weekworkout als blok toegevoegd");return;
@@ -823,7 +824,7 @@ async function insWeekwod(id){
     const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
     if(be){toast(be.message);return;}
   }
-  closeIns();toast("Weekworkout ingevoegd; het gedeelde leaderboard koppelen we in een volgende stap");renderMonth();
+  closeIns();toast("Weekworkout ingevoegd als eigen kopie; voor het leaderboard logt het lid de weekworkout zelf in de app");renderMonth();
 }
 
 async function saveWorkout(){
