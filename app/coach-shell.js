@@ -94,6 +94,6 @@ function coachRenderSection(){
   if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());ensureLibModals();libLaad();libLijst();return;}
   if(coachSection==="week"){c.innerHTML=coachShellHtml('<div class="lbwrap"><div class="spin">Laden…</div></div>');fillWeekworkout();return;}
   if(coachSection==="blog"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillBlog();return;}
-  const titles={msgs:"Berichten"};
-  c.innerHTML=coachShellHtml('<h1>'+esc(titles[coachSection]||"")+'</h1><div class="csoon">Deze sectie bouwen we hierna.<br>We zijn met het <b>Dashboard</b> begonnen; hier vind je straks '+esc((titles[coachSection]||"").toLowerCase())+'.</div>');
+  if(coachSection==="msgs"){c.innerHTML=coachShellHtml('<h1>Berichten</h1><div class="spin">Laden…</div>');fillBerichten();return;}
+  c.innerHTML=coachShellHtml('<div class="csoon">Deze sectie bestaat niet (meer).</div>');
 }
