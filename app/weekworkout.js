@@ -1,61 +1,74 @@
-// app/weekworkout.js — de Weekworkout-sectie: workout van de week (audience='blog')
-// met het gedeelde leaderboard. Openbare scores komen via de SECURITY DEFINER-RPC
-// blog_leaderboard (leden/coaches mogen elkaars profielen niet rechtstreeks lezen);
-// fist-bumps (result_likes) en reacties (result_comments) schrijven direct, RLS bewaakt.
-let WW={list:[],curId:null,rows:[],comFor:null,comments:[]};
+// app/weekworkout.js — de Weekworkout-sectie: alle weekworkouts (audience='blog')
+// als kaarten onder elkaar (nieuwste boven), met zoeken op naam of datum en per
+// workout een uitklapbaar gedeeld leaderboard. Openbare scores komen via de
+// SECURITY DEFINER-RPC blog_leaderboard (leden/coaches mogen elkaars profielen
+// niet rechtstreeks lezen); fist-bumps en reacties schrijven direct, RLS bewaakt.
+let WW={list:[],boards:{},open:{},zoek:"",comFor:null,comments:[]};
 
 async function fillWeekworkout(){
   const{data:list}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(52);
   WW.list=list||[];
-  if(!WW.curId||!WW.list.some(w=>w.id===WW.curId))WW.curId=WW.list.length?WW.list[0].id:null;
-  await wwLoadBoard();
+  // De nieuwste staat standaard open (dat is "de workout van de week"); de rest klap je uit.
+  if(WW.list.length&&!Object.keys(WW.open).length)WW.open[WW.list[0].id]=true;
+  await Promise.all(WW.list.filter(w=>WW.open[w.id]).map(w=>wwLoadBoardFor(w.id)));
   ensureWwModals();wwRender();
 }
-async function wwLoadBoard(){
-  WW.rows=[];
-  if(!WW.curId)return;
-  const{data,error}=await db.rpc("blog_leaderboard",{p_workout_id:WW.curId});
-  if(error){toast(error.message||"Leaderboard laden mislukt");return;}
-  WW.rows=data||[];
+async function wwLoadBoardFor(id){
+  const{data,error}=await db.rpc("blog_leaderboard",{p_workout_id:id});
+  if(error){toast(error.message||"Leaderboard laden mislukt");WW.boards[id]=[];return;}
+  WW.boards[id]=data||[];
 }
-function wwCur(){return WW.list.find(w=>w.id===WW.curId)||null;}
 function wwMainBlock(w){return ((w&&w.blocks)||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0))[0]||null;}
 const WW_SCORES=[["time","tijd (For Time)"],["rounds_reps","rondes + reps (AMRAP)"],["reps","reps"],["load","gewicht (kg)"],["text","vrije tekst"]];
 
 function wwRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
-  const w=wwCur();
-  const knoppen='<div style="display:flex;gap:10px;position:relative">'+
-    (WW.list.length>1?'<button class="btn ghost sm2" onclick="wwWekenMenu(event)">Vorige weken</button>':'')+
-    '<button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div>';
-  if(!w){
-    cp.innerHTML='<div class="lbwrap"><div class="hrow"><h1>Workout van de week</h1>'+knoppen+'</div>'+
-      '<div class="card" style="padding:26px;text-align:center"><div class="muted" style="margin-bottom:12px">Nog geen weekworkout. Maak de eerste aan; 1-op-1 klanten én blog-leden loggen hun score en komen samen op één leaderboard.</div>'+
-      '<button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div></div>';
-    return;
-  }
+  cp.innerHTML='<div class="lbwrap">'+
+    '<div class="hrow"><h1>Workout van de week</h1><button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div>'+
+    (WW.list.length?'<div style="margin-bottom:14px"><input class="lid-in" id="ww-zoek" placeholder="Zoek op naam of datum (bijv. 15 juli)…" style="width:100%;max-width:340px" oninput="wwZoek(this.value)" value="'+esc(WW.zoek)+'"></div>':'')+
+    '<div id="ww-cards">'+wwCardsHtml()+'</div>'+
+    (WW.list.length?'<div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Alleen scores die een lid op "openbaar" zet staan erop; privé-scores ziet alleen de eigen coach.</div>':'')+
+  '</div>';
+}
+function wwZoek(v){WW.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("ww-cards");if(h)h.innerHTML=wwCardsHtml();}
+function wwCardsHtml(){
+  if(!WW.list.length)return '<div class="card" style="padding:26px;text-align:center"><div class="muted" style="margin-bottom:12px">Nog geen weekworkout. Maak de eerste aan; 1-op-1 klanten én blog-leden loggen hun score en komen samen op één leaderboard.</div><button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div>';
+  const hits=WW.list.filter(w=>{
+    if(!WW.zoek)return true;
+    return (w.title||"").toLowerCase().includes(WW.zoek)||(w.workout_date||"").includes(WW.zoek)||datumNL(w.workout_date).toLowerCase().includes(WW.zoek);
+  });
+  return hits.map(wwCard).join("")||'<div class="cempty">Geen weekworkout gevonden voor deze zoekopdracht.</div>';
+}
+function wwCard(w){
   const blk=wwMainBlock(w);
   const tekst=blk?esc(composePresc(blk)||"").replace(/\n/g,"<br>"):"";
-  const deelnemers=new Set(WW.rows.map(r=>r.athlete_id)).size;
+  const rows=WW.boards[w.id];
+  const open=!!WW.open[w.id];
   const magBeheren=ME.user.id===w.coach_id||["eigenaar","platform_admin"].includes((ME.profile||{}).role);
-  cp.innerHTML='<div class="lbwrap">'+
-    '<div class="hrow"><h1>Workout van de week</h1>'+knoppen+'</div>'+
-    '<div class="lbhead"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">'+
-      '<div><h2 style="font-size:19px">'+esc(w.title||"Weekworkout")+'</h2>'+
-      (tekst?'<div class="muted" style="margin-top:6px;font-size:13px;line-height:1.55">'+tekst+'</div>':'')+
-      '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
-        '<span class="cpill teal">gratis voor iedereen</span>'+
-        '<span class="cpill ok">'+deelnemers+" deelnemer"+(deelnemers===1?"":"s")+'</span>'+
-        '<span class="cpill gray">gepubliceerd '+datumNL(w.workout_date)+'</span></div></div>'+
-      '<div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">'+
-        '<button class="btn ghost sm2" onclick="wwDeelLink()"><svg class="i sm-i"><use href="#i-link"/></svg> Deel-link kopiëren</button>'+
-        (magBeheren?'<div style="display:flex;gap:8px"><button class="btn ghost sm2" onclick="wwBewerk(\''+w.id+'\')">Bewerken</button><button class="btn ghost sm2" style="color:#e5484d;border-color:#f3b8ba" onclick="wwVerwijder(\''+w.id+'\')">Verwijderen</button></div>':'')+
-        '<div class="sm muted">Blog-leden doen gratis mee,<br>funnel naar 1-op-1 coaching</div>'+
-      '</div></div></div>'+
-    '<div class="hrow" style="margin-bottom:10px"><h2>Leaderboard <span class="muted" style="font-weight:400;font-size:13px">· openbare scores</span></h2></div>'+
-    '<div id="ww-board">'+wwBoardHtml()+'</div>'+
-    '<div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Alleen scores die een lid op "openbaar" zet staan hier; privé-scores ziet alleen de eigen coach.</div>'+
+  const deelnemers=rows?new Set(rows.map(r=>r.athlete_id)).size:null;
+  return '<div class="lbhead" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">'+
+    '<div><h2 style="font-size:19px">'+esc(w.title||"Weekworkout")+'</h2>'+
+    (tekst?'<div class="muted" style="margin-top:6px;font-size:13px;line-height:1.55">'+tekst+'</div>':'')+
+    '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
+      '<span class="cpill teal">gratis voor iedereen</span>'+
+      (deelnemers!=null?'<span class="cpill ok">'+deelnemers+" deelnemer"+(deelnemers===1?"":"s")+'</span>':'')+
+      '<span class="cpill gray">gepubliceerd '+datumNL(w.workout_date)+'</span></div></div>'+
+    '<div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">'+
+      '<button class="btn ghost sm2" onclick="wwDeelLink()"><svg class="i sm-i"><use href="#i-link"/></svg> Deel-link kopiëren</button>'+
+      (magBeheren?'<div style="display:flex;gap:8px"><button class="btn ghost sm2" onclick="wwBewerk(\''+w.id+'\')">Bewerken</button><button class="btn ghost sm2" style="color:#e5484d;border-color:#f3b8ba" onclick="wwVerwijder(\''+w.id+'\')">Verwijderen</button></div>':'')+
+    '</div></div>'+
+    '<div style="margin-top:14px"><button class="btn ghost sm2" onclick="wwToggleBoard(\''+w.id+'\')">'+(open?"Leaderboard verbergen":"Leaderboard")+'</button></div>'+
+    '<div id="ww-board-'+w.id+'" style="margin-top:12px'+(open?"":";display:none")+'">'+(open?wwBoardInner(w.id):"")+'</div>'+
   '</div>';
+}
+async function wwToggleBoard(id){
+  WW.open[id]=!WW.open[id];
+  if(WW.open[id]&&!WW.boards[id]){
+    const el=document.getElementById("ww-board-"+id);
+    if(el){el.style.display="";el.innerHTML='<div class="cempty">Leaderboard laden…</div>';}
+    await wwLoadBoardFor(id);
+  }
+  const h=document.getElementById("ww-cards");if(h)h.innerHTML=wwCardsHtml();
 }
 // Sortering volgt het scoretype van het hoofdblok.
 function wwCmp(st){
@@ -68,22 +81,22 @@ function wwCmp(st){
     return new Date(a.created_at)-new Date(b.created_at);
   };
 }
-function wwBoardHtml(){
-  const w=wwCur(),blk=wwMainBlock(w);
-  if(!WW.rows.length)return '<div class="card" style="padding:26px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
-  const st=(blk&&blk.score_type)||"text";
+function wwBoardInner(id){
+  const w=WW.list.find(x=>x.id===id),rows=WW.boards[id]||[];
+  if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
+  const st=(wwMainBlock(w)||{}).score_type||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
   let html="";
   cats.forEach(cat=>{
     ["rx","scaled"].forEach(rx=>{
-      const rows=WW.rows.filter(r=>{
+      const groep=rows.filter(r=>{
         const g=(r.gender==="man"||r.gender==="vrouw")?r.gender:"overig";
         const rrx=r.rx==="scaled"?"scaled":"rx";
         return g===cat[0]&&rrx===rx;
       }).sort(wwCmp(st));
-      if(!rows.length)return;
-      html+='<div class="lbcat">'+cat[1]+' / '+(rx==="rx"?'<span>Rx</span>':'<span style="color:var(--purple)">Scaled</span>')+'</div>'+
-        '<div class="card">'+rows.map((r,i)=>wwRij(r,i+1)).join("")+'</div>';
+      if(!groep.length)return;
+      html+='<div class="lbcat" style="margin-top:12px">'+cat[1]+' / '+(rx==="rx"?'<span>Rx</span>':'<span style="color:var(--purple)">Scaled</span>')+'</div>'+
+        '<div class="card">'+groep.map((r,i)=>wwRij(r,i+1)).join("")+'</div>';
     });
   });
   return html;
@@ -102,7 +115,23 @@ function wwRij(r,rank){
       '<button class="fb wwcom" title="Reacties" onclick="wwComments(\''+r.result_id+'\')"><svg class="i"><use href="#i-chat"/></svg>'+r.comments+'</button>'+
     '</div></div>';
 }
+// Bij welke workout hoort dit result? (nodig om het juiste bord te verversen)
+function wwFindWid(resultId){
+  for(const wid in WW.boards){if((WW.boards[wid]||[]).some(r=>r.result_id===resultId))return wid;}
+  return null;
+}
+function wwFindRow(resultId){
+  for(const wid in WW.boards){const r=(WW.boards[wid]||[]).find(x=>x.result_id===resultId);if(r)return r;}
+  return null;
+}
+async function wwRefreshBoard(wid){
+  if(!wid)return;
+  await wwLoadBoardFor(wid);
+  const el=document.getElementById("ww-board-"+wid);
+  if(el)el.innerHTML=wwBoardInner(wid);
+}
 async function wwLike(resultId,liked){
+  const wid=wwFindWid(resultId);
   if(liked){
     const{error}=await db.from("result_likes").delete().eq("result_id",resultId).eq("profile_id",ME.user.id);
     if(error){toast(error.message||"Mislukt");return;}
@@ -110,33 +139,18 @@ async function wwLike(resultId,liked){
     const{error}=await db.from("result_likes").insert({result_id:resultId,profile_id:ME.user.id});
     if(error){toast(error.message||"Mislukt");return;}
   }
-  await wwLoadBoard();
-  const b=document.getElementById("ww-board");if(b)b.innerHTML=wwBoardHtml();
+  await wwRefreshBoard(wid);
 }
 function wwDeelLink(){
   const url=location.origin+location.pathname+"#week";
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(()=>toast("Deel-link gekopieerd"),()=>toast(url));
   else toast(url);
 }
-// Vorige weken: klein menu met alle weekworkouts (nieuwste eerst).
-function wwWekenMenu(ev){
-  ev.stopPropagation();
-  document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
-  const d=document.createElement("div");d.className="coachmenu wwmenu";
-  d.style.cssText="top:38px;right:auto;left:0;max-height:320px;overflow:auto;min-width:260px";
-  d.innerHTML=WW.list.map(w=>'<button onclick="wwKies(\''+w.id+'\')">'+(w.id===WW.curId?"✓ ":"")+esc(w.title||"Weekworkout")+' <span class="muted" style="font-size:11px">· '+datumNL(w.workout_date)+'</span></button>').join("");
-  const host=ev.target.closest("div");host.style.position="relative";host.appendChild(d);
-  setTimeout(()=>document.addEventListener("click",function h(){d.remove();document.removeEventListener("click",h);}),0);
-}
-async function wwKies(id){
-  document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
-  WW.curId=id;await wwLoadBoard();wwRender();
-}
 
 // ---------- Reacties op een score ----------
 async function wwComments(resultId){
   WW.comFor=resultId;
-  const r=WW.rows.find(x=>x.result_id===resultId);
+  const r=wwFindRow(resultId);
   document.getElementById("wwcom-titel").innerHTML=r?('Reacties op '+naamVan({first_name:r.first_name,last_name:r.last_name,email:""})+' <span class="muted" style="font-weight:400;font-size:12.5px">· '+esc(resultScoreTxt(r)||"")+'</span>'):"Reacties";
   document.getElementById("wwcom-lijst").innerHTML='<div class="cempty">Laden…</div>';
   document.getElementById("wwcom-input").value="";
@@ -162,18 +176,20 @@ async function wwComLaad(){
 async function wwComPost(){
   const inp=document.getElementById("wwcom-input");
   const body=(inp.value||"").trim();if(!body)return;
+  const wid=wwFindWid(WW.comFor);
   const{error}=await db.from("result_comments").insert({result_id:WW.comFor,author_id:ME.user.id,body});
   if(error){toast(error.message||"Reactie plaatsen mislukt");return;}
   inp.value="";
   await wwComLaad();
-  await wwLoadBoard();const b=document.getElementById("ww-board");if(b)b.innerHTML=wwBoardHtml();
+  await wwRefreshBoard(wid);
 }
 async function wwComDel(id){
   if(!confirm("Deze reactie verwijderen?"))return;
+  const wid=wwFindWid(WW.comFor);
   const{error}=await db.from("result_comments").delete().eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
   await wwComLaad();
-  await wwLoadBoard();const b=document.getElementById("ww-board");if(b)b.innerHTML=wwBoardHtml();
+  await wwRefreshBoard(wid);
 }
 function wwComDicht(){document.getElementById("wwcommodal").classList.remove("show");}
 
@@ -218,17 +234,18 @@ async function wwOpslaan(){
     if(error){msg.textContent=error.message||"Aanmaken mislukt";msg.className="msg err";return;}
     const{error:be}=await db.from("blocks").insert({workout_id:nw.id,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,color:"yellow"});
     if(be){msg.textContent=be.message||"Aanmaken mislukt";msg.className="msg err";return;}
-    WW.curId=nw.id;
+    WW.open={};WW.open[nw.id]=true;
     wwModalDicht();toast("Weekworkout staat live");
   }
   await fillWeekworkout();
 }
 async function wwVerwijder(id){
-  const n=WW.rows.length;
-  if(!confirm("Deze weekworkout verwijderen?"+(n?"\n\nAlle gelogde scores ("+n+" openbaar, plus eventuele privé-scores) gaan mee weg.":"")))return;
+  const n=(WW.boards[id]||[]).length;
+  if(!confirm("Deze weekworkout verwijderen?"+(n?"\n\nAlle gelogde scores ("+n+" openbaar, plus eventuele privé-scores) gaan mee weg.":"\n\nEventueel gelogde scores gaan mee weg.")))return;
   const{error}=await db.from("workouts").delete().eq("id",id);
   if(error){toast(error.message||"Verwijderen mislukt");return;}
-  WW.curId=null;toast("Weekworkout verwijderd");
+  delete WW.boards[id];delete WW.open[id];
+  toast("Weekworkout verwijderd");
   await fillWeekworkout();
 }
 

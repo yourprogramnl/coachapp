@@ -1,6 +1,6 @@
 // app/lid.js — het scherm voor de sporter (rol 'lid'): de workout van vandaag,
 // plus de weekworkout met score loggen (Rx/Scaled, privé/openbaar) en het
-// gedeelde leaderboard (hergebruikt WW/wwBoardHtml uit weekworkout.js).
+// gedeelde leaderboard (hergebruikt WW/wwBoardInner uit weekworkout.js).
 // Volledig loggen per dag-workout komt in de sporter-app (Expo).
 let LID={blog:null,eigen:null,rx:"rx",openbaar:true};
 
@@ -23,9 +23,9 @@ async function renderLid(){
     LID.blog=(blogs||[])[0]||null;
   }catch(e){LID.blog=null;}
   if(LID.blog){
-    WW.list=[LID.blog];WW.curId=LID.blog.id;
+    WW.list=[LID.blog];
     ensureWwModals();
-    await Promise.all([wwLoadBoard(),lidEigenLaad()]);
+    await Promise.all([wwLoadBoardFor(LID.blog.id),lidEigenLaad()]);
     wwHtml=lidWeekHtml();
   }
   c.innerHTML='<div class="cwrap" style="max-width:860px;margin:0 auto">'+header("Welkom, "+(ME.profile.first_name||ME.user.email),"Jouw workout van vandaag")+body+wwHtml+'</div>';
@@ -42,7 +42,7 @@ async function lidEigenLaad(){
 function lidWeekHtml(){
   const w=LID.blog,blk=wwMainBlock(w);
   const tekst=blk?esc(composePresc(blk)||"").replace(/\n/g,"<br>"):"";
-  const deelnemers=new Set(WW.rows.map(r=>r.athlete_id)).size;
+  const deelnemers=new Set((WW.boards[w.id]||[]).map(r=>r.athlete_id)).size;
   return '<div class="lbhead" style="margin-top:24px"><h2 style="font-size:18px">Workout van de week · '+esc(w.title||"")+'</h2>'+
     (tekst?'<div class="muted" style="margin-top:6px;font-size:13px;line-height:1.55">'+tekst+'</div>':'')+
     '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
@@ -51,7 +51,7 @@ function lidWeekHtml(){
       '<span class="cpill gray">gepubliceerd '+datumNL(w.workout_date)+'</span></div></div>'+
     (blk?lidLogHtml(blk):'')+
     '<div class="hrow" style="margin:20px 0 10px"><h2>Leaderboard <span class="muted" style="font-weight:400;font-size:13px">· openbare scores</span></h2></div>'+
-    '<div id="ww-board">'+wwBoardHtml()+'</div>';
+    '<div id="ww-board-'+w.id+'">'+wwBoardInner(w.id)+'</div>';
 }
 function lidLogHtml(blk){
   const st=blk.score_type||"text",eigen=LID.eigen;
