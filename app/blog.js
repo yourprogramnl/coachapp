@@ -99,68 +99,99 @@ async function blogpOpslaan(){
   }
 }
 
-// ---------- Programma openen: maandkalender ----------
+// ---------- Programma openen: week-weergave (zoals de Strivee-blog) ----------
+// Blogteksten zijn lang; één week met 7 brede kolommen leest veel beter dan
+// een maandraster. Kaarten houden de kalender-look (mcard/cblk).
 async function blogOpen(id){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   const p=BLOG.list.find(x=>x.id===id);if(!p){toast("Programma niet gevonden");return;}
   BLOG.cur=p;
-  const d=new Date();d.setDate(1);d.setHours(0,0,0,0);BLOG.maand=d;
+  BLOG.weekStart=mondayOf(new Date());
   BLOG.editDay=null;BLOG.editWid=null;
-  await blogLaadMaand();
+  await blogLaadWeek();
   blogRender();
 }
 function blogTerug(){BLOG.cur=null;BLOG.editDay=null;BLOG.editWid=null;fillBlog();}
-// Het zichtbare raster: 6 weken vanaf de maandag van de week waarin de 1e valt.
-function blogGridStart(){return mondayOf(BLOG.maand);}
-async function blogLaadMaand(){
-  const start=ymd(blogGridStart()),eind=ymd(addDays(blogGridStart(),41));
+async function blogLaadWeek(){
+  const start=ymd(BLOG.weekStart),eind=ymd(addDays(BLOG.weekStart,6));
   const{data}=await db.from("workouts").select("*, blocks(*)").eq("blog_program_id",BLOG.cur.id).gte("workout_date",start).lte("workout_date",eind).order("workout_date");
   BLOG.workouts=data||[];
 }
-async function blogMaandGa(n){
-  const d=new Date(BLOG.maand);
-  if(n===0){const t=new Date();t.setDate(1);t.setHours(0,0,0,0);BLOG.maand=t;}
-  else{d.setMonth(d.getMonth()+n);BLOG.maand=d;}
+async function blogWeekGa(n){
+  BLOG.weekStart=n===0?mondayOf(new Date()):addDays(BLOG.weekStart,n*7);
   BLOG.editDay=null;BLOG.editWid=null;
-  await blogLaadMaand();blogRender();
+  await blogLaadWeek();blogRender();
+}
+// ISO-weeknummer (zoals "Week 29" in Strivee/CoachRx).
+function isoWeek(d){
+  const x=new Date(d);x.setHours(0,0,0,0);
+  x.setDate(x.getDate()+3-((x.getDay()+6)%7));
+  const w1=new Date(x.getFullYear(),0,4);
+  return 1+Math.round(((x-w1)/864e5-3+((w1.getDay()+6)%7))/7);
+}
+const DAGENVOL=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
+// Programma-wissel in de kop (zoals rechtsboven in Strivee).
+function blogSwitchMenu(ev){
+  ev.stopPropagation();
+  document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
+  const d=document.createElement("div");d.className="coachmenu wwmenu";
+  d.style.cssText="top:44px;right:0;left:auto;max-height:320px;overflow:auto;min-width:240px";
+  d.innerHTML=BLOG.list.map(p=>'<button onclick="event.stopPropagation();blogSwitch(\''+p.id+'\')">'+(p.id===BLOG.cur.id?"✓ ":"")+esc(p.name)+' <span class="muted" style="font-size:11px">· '+esc(blogTypeNL(p.type))+'</span></button>').join("");
+  const host=ev.target.closest(".blog-switch");if(!host)return;
+  host.appendChild(d);
+  setTimeout(()=>document.addEventListener("click",function h(){d.remove();document.removeEventListener("click",h);}),0);
+}
+async function blogSwitch(id){
+  document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
+  if(BLOG.cur&&BLOG.cur.id===id)return;
+  const p=BLOG.list.find(x=>x.id===id);if(!p)return;
+  BLOG.cur=p;BLOG.editDay=null;BLOG.editWid=null;
+  await blogLaadWeek();blogRender();
 }
 function blogDetailRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   const p=BLOG.cur,n=BLOG.counts[p.id]||0;
-  const maandNaam=MAANDVOL[BLOG.maand.getMonth()].charAt(0).toUpperCase()+MAANDVOL[BLOG.maand.getMonth()].slice(1)+" "+BLOG.maand.getFullYear();
-  const weken=[0,1,2,3,4,5].map(w=>blogWeekRij(w)).join("");
+  const midden=addDays(BLOG.weekStart,3); // donderdag bepaalt de maand van de week
+  const maandNaam=MAANDVOL[midden.getMonth()].charAt(0).toUpperCase()+MAANDVOL[midden.getMonth()].slice(1)+" "+midden.getFullYear();
+  const dagen=[0,1,2,3,4,5,6].map(i=>ymd(addDays(BLOG.weekStart,i)));
+  const editCol=BLOG.editDay?dagen.indexOf(BLOG.editDay):-1;
+  const cols=[0,1,2,3,4,5,6].map(i=>i===editCol?"minmax(360px,2.6fr)":"minmax(150px,1fr)").join(" ");
+  const koppen=dagen.map((datum,i)=>{
+    const d=new Date(datum+"T12:00:00");
+    const vandaag=datum===todayStr();
+    return '<div'+(vandaag?' style="background:#e3f1f8;color:#1d6f9c"':'')+'>'+DAGENVOL[i]+' <span style="font-weight:600;color:'+(vandaag?"#1d6f9c":"#9aa1ab")+'">'+d.getDate()+'/'+pad(d.getMonth()+1)+'</span></div>';
+  }).join("");
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="blogTerug()">‹ Terug</button>'+
       '<div class="pe-badges"><span class="cpill">'+esc(blogTypeNL(p.type))+'</span><span class="cpill">'+(p.price_text?esc(p.price_text):"Gratis")+'</span><span class="cpill teal">'+n+" klant"+(n===1?"":"en")+'</span></div>'+
       '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
-    '<h1 style="margin:8px 0 2px">'+esc(p.name)+'</h1>'+(p.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(p.description)+'</div>':'')+
-    '<div class="pe-weeks" style="margin-top:12px"><button class="wtab" style="width:auto;padding:0 10px" onclick="blogMaandGa(-1)">‹</button><span style="min-width:150px;text-align:center">'+esc(maandNaam)+'</span><button class="wtab" style="width:auto;padding:0 10px" onclick="blogMaandGa(1)">›</button><button class="btn ghost sm" style="margin-left:8px" onclick="blogMaandGa(0)">Vandaag</button></div>'+
-    '<div class="pe-cal"><div class="pe-hd7" style="grid-template-columns:repeat(7,minmax(132px,1fr))">'+DAGEN.map(d=>'<div>'+d+'</div>').join("")+'</div>'+weken+'</div>'+
+    '<div class="pe-weeks" style="margin-top:10px;align-items:center">'+
+      '<h1 style="margin:0;font-size:20px">'+esc(maandNaam)+'</h1><span class="muted" style="font-weight:700;font-size:13px;margin-left:4px">Week '+isoWeek(midden)+'</span>'+
+      '<button class="btn ghost sm" style="margin-left:14px" onclick="blogWeekGa(0)">Vandaag</button>'+
+      '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(-1)">‹</button>'+
+      '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(1)">›</button>'+
+      '<div class="blog-switch" style="margin-left:auto;position:relative"><button class="progsel" style="cursor:pointer;font-family:inherit" onclick="blogSwitchMenu(event)">'+
+        '<span class="pav" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</span>'+
+        '<span style="text-align:left"><span class="pn" style="display:block">'+esc(p.name)+'</span><span class="pt">'+esc(blogTypeNL(p.type))+'</span></span>'+
+        '<span style="color:#8a919c">▾</span></button></div>'+
+    '</div>'+
+    '<div class="pe-cal"><div class="pe-hd7" style="grid-template-columns:'+cols+'">'+koppen+'</div>'+
+    '<div class="pe-row" style="grid-template-columns:'+cols+'">'+dagen.map(d=>blogDayCel(d)).join("")+'</div></div>'+
   '</div>';
   if(BLOG.editDay){relabel();groei();}
 }
-function blogWeekRij(w){
-  const start=addDays(blogGridStart(),w*7);
-  const dagen=[0,1,2,3,4,5,6].map(i=>ymd(addDays(start,i)));
-  const editCol=BLOG.editDay?dagen.indexOf(BLOG.editDay):-1;
-  const cols=[0,1,2,3,4,5,6].map(i=>i===editCol?"minmax(340px,2.4fr)":"minmax(132px,1fr)").join(" ");
-  return '<div class="pe-row" style="grid-template-columns:'+cols+'">'+dagen.map(d=>blogDayCel(d)).join("")+'</div>';
-}
 function blogDayCel(datum){
   const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
-  const d=new Date(datum+"T12:00:00");
-  const inMaand=d.getMonth()===BLOG.maand.getMonth();
   const vandaag=datum===todayStr();
-  const kop='<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><span style="font-size:12px;font-weight:700;color:'+(vandaag?"#3eb3e0":(inMaand?"#1d2129":"#b3b9c2"))+'">'+d.getDate()+(d.getDate()===1?" "+MAANDKORT[d.getMonth()]:"")+'</span></div>';
-  const stijl=(vandaag?"outline:2px solid #6ec4e8;outline-offset:-2px;":"")+(inMaand?"":"background:#fafbfc;");
+  const stijl="min-height:420px;"+(vandaag?"outline:2px solid #6ec4e8;outline-offset:-2px;":"");
   if(BLOG.editDay===datum){
-    let inner=kop+wos.filter(w=>w.id!==BLOG.editWid).map(blogCard).join("");
+    let inner=wos.filter(w=>w.id!==BLOG.editWid).map(blogCard).join("");
     const w=BLOG.editWid?wos.find(x=>x.id===BLOG.editWid):null;
     const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.blocks||[])}:{};
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+blogBuilderHtml(wObj)+'</div>';
     return '<div class="pe-cell" style="'+stijl+'">'+inner+'</div>';
   }
-  return '<div class="pe-cell" style="'+stijl+'">'+kop+'<div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();blogDayMenu(event,\''+datum+'\')">+ Toevoegen</button></div>'+wos.map(blogCard).join("")+'</div>';
+  return '<div class="pe-cell" style="'+stijl+'"><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();blogDayMenu(event,\''+datum+'\')">+ Toevoegen</button></div>'+wos.map(blogCard).join("")+'</div>';
 }
 function blogCard(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
@@ -198,7 +229,7 @@ function blogBuilderHtml(w){
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea></div>'+
     '<div class="foot"><button class="save" onclick="blogSaveWorkout()">Opslaan</button><button class="cancel" onclick="blogCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="blogDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
 }
-async function blogHerlaad(){await blogLaadMaand();BLOG.editDay=null;BLOG.editWid=null;blogRender();}
+async function blogHerlaad(){await blogLaadWeek();BLOG.editDay=null;BLOG.editWid=null;blogRender();}
 async function blogSaveWorkout(){
   const g=id=>document.getElementById(id);
   const title=(g("w_title").value||"").trim();
