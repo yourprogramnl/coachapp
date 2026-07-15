@@ -6,7 +6,8 @@
 let WW={list:[],boards:{},open:{},zoek:"",comFor:null,comments:[]};
 
 async function fillWeekworkout(){
-  const{data:list}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(52);
+  // Alleen losse weekworkouts; programmering van blogprogramma's (blog_program_id) hoort in de Blog-sectie.
+  const{data:list}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(52);
   WW.list=list||[];
   // De nieuwste staat standaard open (dat is "de workout van de week"); de rest klap je uit.
   if(WW.list.length&&!Object.keys(WW.open).length)WW.open[WW.list[0].id]=true;

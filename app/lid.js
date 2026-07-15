@@ -19,7 +19,7 @@ async function renderLid(){
   // Weekworkout van het bedrijf (audience='blog'), voor 1-op-1 én blog-leden.
   let wwHtml="";
   try{
-    const{data:blogs}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1);
+    const{data:blogs}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1);
     LID.blog=(blogs||[])[0]||null;
   }catch(e){LID.blog=null;}
   if(LID.blog){

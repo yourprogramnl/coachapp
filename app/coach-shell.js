@@ -11,7 +11,7 @@ function cnavItems(){
   const role=myRole();
   const n=[["dash","Dashboard"],["clients","Klanten"],["library","Bibliotheek"]];
   if(role!=="coach")n.push(["coaches","Coaches"]);
-  n.push(["programs","Programma's"],["week","Weekworkout"],["msgs","Berichten"]);
+  n.push(["blog","Blog"],["week","Weekworkout"],["msgs","Berichten"]);
   if(role==="platform_admin")n.push(["companies","Bedrijven"]);
   return n;
 }
@@ -93,6 +93,7 @@ function coachRenderSection(){
   if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
   if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());ensureLibModals();libLaad();libLijst();return;}
   if(coachSection==="week"){c.innerHTML=coachShellHtml('<div class="lbwrap"><div class="spin">Laden…</div></div>');fillWeekworkout();return;}
-  const titles={programs:"Programma's",msgs:"Berichten"};
+  if(coachSection==="blog"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillBlog();return;}
+  const titles={msgs:"Berichten"};
   c.innerHTML=coachShellHtml('<h1>'+esc(titles[coachSection]||"")+'</h1><div class="csoon">Deze sectie bouwen we hierna.<br>We zijn met het <b>Dashboard</b> begonnen; hier vind je straks '+esc((titles[coachSection]||"").toLowerCase())+'.</div>');
 }

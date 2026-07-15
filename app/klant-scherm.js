@@ -743,7 +743,7 @@ async function pickPaste(ev){
 }
 async function laadInsBlog(){
   if(!ME.profile.company_id){insBlog=[];return;}
-  const{data}=await db.from("workouts").select("*, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(10);
+  const{data}=await db.from("workouts").select("*, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(10);
   insBlog=data||[];
 }
 async function pickProgram(ev){ev.stopPropagation();insDoel="cel";await openInsModal("op "+curDay);}

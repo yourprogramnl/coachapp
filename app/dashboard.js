@@ -15,7 +15,7 @@ async function fillDashboard(){
   const snoozeRows=(await db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id)).data||[];
   const snoozeMap={};snoozeRows.forEach(s=>snoozeMap[s.athlete_id]=s.snoozed_until);
   if(ME.profile.company_id){
-    blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
+    blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
   DASH={ws,rs,msgs,tasks,blog,blogRes,snoozeMap};
