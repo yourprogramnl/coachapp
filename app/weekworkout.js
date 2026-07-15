@@ -70,7 +70,7 @@ function wwCmp(st){
 }
 function wwBoardHtml(){
   const w=wwCur(),blk=wwMainBlock(w);
-  if(!WW.rows.length)return '<div class="card" style="padding:26px;text-align:center" class="muted"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
+  if(!WW.rows.length)return '<div class="card" style="padding:26px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
   const st=(blk&&blk.score_type)||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
   let html="";
