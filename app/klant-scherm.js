@@ -809,6 +809,13 @@ async function insInvoegen(id){
     if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:o.naam,prescription:o.instructies,color:kleur}));relabel();groei();}
     closeIns();toast("Template als blok toegevoegd, pas gerust aan");return;
   }
+  if(insDoel==="blogcel"){ // invoegen op de blog-kalender (Blog-sectie)
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:o.naam}).select().single();
+    if(error){toast(error.message||"Invoegen mislukt");return;}
+    const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text"});
+    if(be){toast(be.message);return;}
+    closeIns();toast("Template ingevoegd");await blogHerlaad();return;
+  }
   const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:o.naam}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text"});
@@ -823,6 +830,15 @@ async function insWeekwod(id){
     const host=document.getElementById("exrows");
     if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:w.title,prescription:txt,color:"blue"}));relabel();groei();}
     closeIns();toast("Weekworkout als blok toegevoegd");return;
+  }
+  if(insDoel==="blogcel"){ // weekworkout-kopie op de blog-kalender (Blog-sectie)
+    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id}).select().single();
+    if(error){toast(error.message||"Invoegen mislukt");return;}
+    if(blocks.length){
+      const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
+      if(be){toast(be.message);return;}
+    }
+    closeIns();toast("Weekworkout ingevoegd in het programma");await blogHerlaad();return;
   }
   const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}

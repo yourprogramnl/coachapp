@@ -201,16 +201,49 @@ function blogCard(w){
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard planned" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
+  return '<div class="mcard planned" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="delx" title="Kopieer workout" onclick="event.stopPropagation();blogKopieer(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></span></div>'+inner+'</div>';
 }
+// Dag-menu met dezelfde vier opties als de klant-kalender.
+let insBlogDatum=null;
 function blogDayMenu(ev,datum){
   ev.stopPropagation();
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
   const cell=ev.target.closest(".pe-cell");if(!cell)return;
   const d=document.createElement("div");d.className="daymenu";
-  d.innerHTML='<button onclick="event.stopPropagation();blogOpenBuilder(\''+datum+'\',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
-    '<button onclick="event.stopPropagation();blogRustdag(\''+datum+'\')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>';
-  cell.prepend(d);
+  d.innerHTML='<button title="Workout toevoegen" onclick="event.stopPropagation();blogOpenBuilder(\''+datum+'\',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
+    '<button title="Dag op rustdag zetten" onclick="event.stopPropagation();blogRustdag(\''+datum+'\')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>'+
+    '<button title="Template of weekworkout invoegen" onclick="event.stopPropagation();blogPickProgram(\''+datum+'\')"><svg class="i"><use href="#i-doc"/></svg> Programma</button>'+
+    '<button title="Gekopieerde workout plakken" onclick="event.stopPropagation();blogPlak(\''+datum+'\')"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>';
+  const addrow=cell.querySelector(".addrow2");
+  if(addrow)addrow.insertAdjacentElement("afterend",d);else cell.prepend(d);
+}
+// Programma: de template/weekworkout-popup uit het klant-scherm, maar het
+// invoegen landt op de blog-kalender (insDoel='blogcel', zie klant-scherm.js).
+async function blogPickProgram(datum){
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  insDoel="blogcel";insBlogDatum=datum;
+  await openInsModal("op "+datum+" in "+(BLOG.cur.name||"dit programma"));
+}
+// Plakken: zelfde klembord als de klant-kalender (kopieer daar of hier).
+async function blogPlak(datum){
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  if(!KLEMBORD||!KLEMBORD.length){toast("Klembord is leeg. Kopieer eerst een workout (hier of bij een klant).");return;}
+  const base=KLEMBORD.map(t=>t.date).filter(Boolean).sort()[0]||null;
+  for(const t of KLEMBORD){
+    const off=(t.date&&base)?dagenTussen(t.date,base):0;
+    const dd=off?ymdPlus(datum,off):datum;
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:dd,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id}).select().single();
+    if(error){toast(error.message||"Plakken mislukt");return;}
+    if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
+  }
+  toast(KLEMBORD.length>1?KLEMBORD.length+" workouts geplakt":"Workout geplakt");
+  await blogHerlaad();
+}
+// Kopiëren vanaf een blog-kaart (zelfde klembord-formaat als de klant-kalender).
+function blogKopieer(id){
+  const w=BLOG.workouts.find(x=>x.id===id);if(!w)return;
+  KLEMBORD=[wTemplate(w)];
+  toast("Workout gekopieerd, ga naar een dag en kies Plakken");
 }
 async function blogRustdag(datum){
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
