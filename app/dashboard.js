@@ -94,7 +94,7 @@ function dashRender(){
   const attnRij=a=>{
     const s=dashIsSnoozed(a.p.id);
     return '<div class="attn-row'+(s?' snoozed':'')+'"><div class="cavc click" onclick="openClient(\''+a.p.id+'\')" style="'+avFotoStyle(a.p)+'">'+avFotoText(a.p)+'</div><div class="nm click" style="cursor:pointer" onclick="openClient(\''+a.p.id+'\')">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div>'+
-      '<div class="rowicons"><svg class="i sm-i" title="Bericht" onclick="event.stopPropagation();toast(\'Berichten komen later\')"><use href="#i-chat"/></svg>'+
+      '<div class="rowicons"><svg class="i sm-i" title="Bericht" onclick="event.stopPropagation();dashBericht(\''+a.p.id+'\')"><use href="#i-chat"/></svg>'+
       '<svg class="i sm-i" title="'+(s?"Weer tonen":"Verberg tot volgende week")+'" onclick="event.stopPropagation();'+(s?"dashUnsnooze(\'"+a.p.id+"\')":"dashSnooze(\'"+a.p.id+"\',\'week\')")+'"><use href="#i-eye"/></svg>'+
       '<svg class="i sm-i" title="Open programma" onclick="event.stopPropagation();openClient(\''+a.p.id+'\')"><use href="#i-cal"/></svg>'+
       '<span class="attn-kebab" onclick="dashKebab(event,\''+a.p.id+'\')" style="cursor:pointer;font-weight:800;color:#8a919c;padding:0 4px">⋮</span></div></div>';
@@ -215,6 +215,11 @@ async function dashToggleStatus(resId,huidig){
   (DASH.rs||[]).forEach(r=>{if(r.id===resId)Object.assign(r,patch);});
   dashRender();
   toast(nieuw==="completed"?"Op voltooid gezet":"Op gemist gezet");
+}
+// Bericht-icoon in Aandacht nodig: open de Berichten-sectie met het gesprek van deze klant.
+function dashBericht(aid){
+  BER.cur=aid; // fillBerichten laat de selectie staan als de klant in de lijst zit
+  coachGo("msgs");
 }
 // Geschiedenis-knop in de feed: open de geschiedenis-zoeker voor deze klant + oefening.
 function dashHistory(el){
