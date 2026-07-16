@@ -131,6 +131,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .mcard .cardtools button.mv{cursor:grab}
 .mcard .cardtools button.mv:active{cursor:grabbing}
 .mday.dragover{background:#eaf7fd;box-shadow:inset 0 0 0 2px #6ec4e8}
+.daynoot{background:#fdf6e3;border-left:3px solid #e7a44a;border-radius:5px;padding:4px 7px;margin-bottom:6px;font-size:10.5px;line-height:1.4;color:#6b5d3f;cursor:pointer;white-space:pre-line}
 /* Geschiedenis-zoeker (History-knop in de bouwer) */
 .histcard{background:#f6f7f8;border-radius:10px;padding:11px 13px;margin-bottom:10px}
 .histcard .hh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}

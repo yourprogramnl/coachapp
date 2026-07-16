@@ -363,7 +363,7 @@ function startEdit(ds,idx){editWid=null;editDay=ds;editIdx=idx;renderMonth({skip
 function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wid;editDay=w.workout_date;editIdx=idx;renderMonth({skipFetch:true});}
 function cancelEdit(){editWid=null;editDay=null;renderMonth({skipFetch:true});}
 
-let monthResults={},monthByDate={};
+let monthResults={},monthByDate={},monthNotes={},dnDatum=null;
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
@@ -551,6 +551,10 @@ async function renderMonth(opts){
       const{data:res}=await db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids);
       (res||[]).forEach(r=>{monthResults[r.block_id]=r;});
     }
+    // Dag-notities voor het zichtbare bereik
+    monthNotes={};
+    const{data:dns}=await db.from("day_notes").select("*").eq("athlete_id",id).gte("note_date",ymd(gridStart)).lte("note_date",ymd(gridEnd));
+    (dns||[]).forEach(n=>{monthNotes[n.note_date]=n;});
   }
   const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   let label;
@@ -593,8 +597,10 @@ async function renderMonth(opts){
       const d=addDays(gridStart,wk*cols+i),ds=ymd(d),isToday=ds===todayStr(),dim=calView==="maand"&&d.getMonth()!==ref.getMonth(),editing=ds===editDay;
       const dayWos=byDate[ds]||[];
       const dnum=(d.getDate()===1?MAANDKORT[d.getMonth()]+" ":"")+d.getDate();
-      // Elke dag: documentje + rust-chip + dagnummer, zoals het ontwerp
-      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();toast(\'Dag-notities komen in een volgende stap\')" style="cursor:pointer"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>';
+      // Elke dag: documentje (dag-notitie; oranje als er een notitie staat) + rust-chip + dagnummer
+      const dagNoot=monthNotes[ds];
+      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();openDayNote(\''+ds+'\')" style="cursor:pointer'+(dagNoot?';color:#e7a44a':'')+'"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>'+
+        (dagNoot?'<div class="daynoot" onclick="event.stopPropagation();openDayNote(\''+ds+'\')">'+esc(dagNoot.body)+'</div>':'');
       let selectable=false;
       if(editing){
         editCol=i; // deze kolom breder maken zodat de bouwer meer ruimte krijgt
@@ -1031,3 +1037,49 @@ document.addEventListener("keydown",e=>{
     if(document.querySelector(".daymenu")&&curDay){e.preventDefault();pickRest({stopPropagation:function(){}});}
   }
 });
+
+// ---------- Dag-notitie (het documentje bovenaan elke dag) ----------
+// Eén korte notitie per klant per dag (day_notes-tabel); het lid mag hem
+// straks in de sporter-app lezen. Oranje icoon + tekstje op de dag = notitie.
+function openDayNote(ds){
+  dnDatum=ds;
+  let m=document.getElementById("dnmodal");
+  if(!m){
+    m=document.createElement("div");m.id="dnmodal";m.className="lmodal";
+    m.innerHTML='<div class="box" style="width:440px;max-width:94vw"><h3>Dag-notitie <span class="muted" id="dn-datum" style="font-weight:600;font-size:12.5px"></span></h3>'+
+      '<div class="field"><textarea id="dn-body" style="min-height:110px" placeholder="Bijv. Deload-dag: alles rustig aan, focus op techniek"></textarea></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" onclick="dnOpslaan()">Opslaan</button><button class="btn ghost" onclick="document.getElementById(\'dnmodal\').classList.remove(\'show\')">Annuleren</button>'+
+      '<span style="margin-left:auto"><button class="btn ghost" id="dn-del" style="color:#e5484d;border-color:#f3b8ba" onclick="dnVerwijder()">Verwijderen</button></span></div>'+
+      '<div class="msg" id="dn-msg"></div></div>';
+    document.body.appendChild(m);
+  }
+  const n=monthNotes[ds];
+  document.getElementById("dn-datum").textContent="· "+datumNL(ds);
+  document.getElementById("dn-body").value=n?(n.body||""):"";
+  document.getElementById("dn-del").style.display=n?"":"none";
+  document.getElementById("dn-msg").textContent="";
+  m.classList.add("show");
+  document.getElementById("dn-body").focus();
+}
+async function dnOpslaan(){
+  const body=(document.getElementById("dn-body").value||"").trim();
+  const msg=document.getElementById("dn-msg");
+  if(!body){
+    if(monthNotes[dnDatum]){await dnVerwijder();return;} // leegmaken = verwijderen
+    msg.textContent="Schrijf eerst een notitie.";msg.className="msg err";return;
+  }
+  const{data,error}=await db.from("day_notes").upsert({company_id:ME.profile.company_id,athlete_id:calClient,note_date:dnDatum,body,created_by:ME.user.id,updated_at:new Date().toISOString()},{onConflict:"athlete_id,note_date"}).select().single();
+  if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
+  monthNotes[dnDatum]=data||{note_date:dnDatum,body};
+  document.getElementById("dnmodal").classList.remove("show");
+  toast("Dag-notitie opgeslagen");
+  renderMonth({skipFetch:true});
+}
+async function dnVerwijder(){
+  const{error}=await db.from("day_notes").delete().eq("athlete_id",calClient).eq("note_date",dnDatum);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  delete monthNotes[dnDatum];
+  document.getElementById("dnmodal").classList.remove("show");
+  toast("Dag-notitie verwijderd");
+  renderMonth({skipFetch:true});
+}
