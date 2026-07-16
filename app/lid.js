@@ -1,20 +1,30 @@
-// app/lid.js — het scherm voor de sporter (rol 'lid'): de workout van vandaag,
-// plus de weekworkout met score loggen (Rx/Scaled, privé/openbaar) en het
-// gedeelde leaderboard (hergebruikt WW/wwBoardInner uit weekworkout.js).
-// Volledig loggen per dag-workout komt in de sporter-app (Expo).
-let LID={blog:null,eigen:null,rx:"rx",openbaar:true};
+// app/lid.js — het scherm voor de sporter (rol 'lid'): de workout van vandaag
+// met loggen per blok (score + voltooid/gemist), plus de weekworkout met score
+// loggen (Rx/Scaled, privé/openbaar) en het gedeelde leaderboard (hergebruikt
+// WW/wwBoardInner uit weekworkout.js).
+let LID={blog:null,eigen:null,rx:"rx",openbaar:true,wToday:null,dagRes:{}};
 
 async function renderLid(){
   document.body.classList.remove("coachmode");
   const c=document.getElementById("content");c.innerHTML='<div class="spin">Laden…</div>';
   const{data:today}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).eq("workout_date",todayStr());
   const w=(today||[])[0];let body;
-  if(w){
+  LID.wToday=w||null;LID.dagRes={};
+  if(w&&(w.blocks||[]).length){
+    // Eigen resultaten van vandaag ophalen: voorvullen + status per blok
+    try{
+      const{data:rs}=await db.from("results").select("*").eq("workout_id",w.id).eq("athlete_id",ME.user.id);
+      (rs||[]).forEach(r=>{if(r.block_id)LID.dagRes[r.block_id]=r;});
+    }catch(e){}
+  }
+  if(w&&w.title==="Rest Day"&&!(w.blocks||[]).length){
+    body='<div class="card" style="padding:20px"><div class="muted">Vandaag staat er een rustdag gepland. Geniet ervan! 💪</div></div>';
+  }else if(w){
     let parts="";
     if(w.warmup)parts+='<div class="block"><div class="bh"><span class="badge" style="background:#3a4a6b">WU</span><b>Warming-up</b></div><div class="presc">'+esc(w.warmup)+'</div></div>';
-    parts+=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>{const pr=composePresc(b);return '<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div>'+(pr?'<div class="presc">'+esc(pr)+'</div>':'')+'</div>';}).join("");
+    parts+=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>{const pr=composePresc(b);return '<div class="block"><div class="bh"><span class="badge">'+esc(b.label||"")+'</span><b>'+esc(b.exercise||"")+'</b></div>'+(pr?'<div class="presc">'+esc(pr)+'</div>':'')+lidBlokLogHtml(b)+'</div>';}).join("");
     if(w.cooldown)parts+='<div class="block"><div class="bh"><span class="badge" style="background:#3a4a6b">CD</span><b>Cooldown</b></div><div class="presc">'+esc(w.cooldown)+'</div></div>';
-    body='<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">vandaag</span></div>'+(w.coach_notes?'<div class="note" style="margin:0 0 10px">📝 '+esc(w.coach_notes)+'</div>':'')+(parts||'<div class="muted">Geen blokken.</div>')+'</div><p class="note">Scores op je dagworkout loggen komt in de sporter-app; je weekworkout-score log je hieronder.</p>';
+    body='<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><b>'+esc(w.title||"Workout")+'</b><span class="tag">vandaag</span></div>'+(w.coach_notes?'<div class="note" style="margin:0 0 10px">📝 '+esc(w.coach_notes)+'</div>':'')+(parts||'<div class="muted">Geen blokken.</div>')+'</div>';
   }else{body='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';}
   // Weekworkout van het bedrijf (audience='blog'), voor 1-op-1 én blog-leden.
   let wwHtml="";
@@ -30,6 +40,74 @@ async function renderLid(){
   }
   c.innerHTML='<div class="cwrap" style="max-width:860px;margin:0 auto">'+header("Welkom, "+(ME.profile.first_name||ME.user.email),"Jouw workout van vandaag")+body+wwHtml+'</div>';
   lidFormVul();
+  lidDagVul();
+}
+
+// ---------- Dagworkout loggen per blok ----------
+// Het logblokje staat altijd open onder de workout-tekst (geen apart scherm).
+// Het invoerveld volgt blocks.score_type; vrijwel alles is 'text' (één tekstveld).
+function lidBlokLogHtml(b){
+  const r=LID.dagRes[b.id];
+  const pill=r?(r.status==="missed"?'<span class="cpill" style="background:#fdeaea;color:#c62f34">gemist</span>':'<span class="cpill ok">voltooid</span>'):"";
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;padding-top:9px;border-top:1px dashed #e4e6ea">'+
+    lidVeldHtml(b.score_type||"text","bl-"+esc(b.id))+
+    '<button class="btn sm" onclick="lidBlokOpslaan(\''+esc(b.id)+'\')">'+(r&&r.status==="completed"?"Bijwerken":"Opslaan")+'</button>'+
+    '<button class="btn ghost sm" title="Niet gedaan? Markeer dit blok als gemist" onclick="lidBlokGemist(\''+esc(b.id)+'\')">Gemist</button>'+
+    pill+
+    '<div class="msg" id="bl-'+esc(b.id)+'-msg" style="flex-basis:100%;margin:0"></div></div>';
+}
+// Invoerveld(en) per scoretype; prefix bepaalt de element-id's (gedeeld met de weekworkout).
+function lidVeldHtml(st,prefix){
+  if(st==="time")return '<input class="lid-in" id="'+prefix+'-tijd" placeholder="mm:ss (bijv. 3:12)" style="width:150px">';
+  if(st==="rounds_reps")return '<input class="lid-in" id="'+prefix+'-rondes" type="number" min="0" placeholder="rondes" style="width:95px"><input class="lid-in" id="'+prefix+'-reps" type="number" min="0" placeholder="+ reps" style="width:95px">';
+  if(st==="reps")return '<input class="lid-in" id="'+prefix+'-reps" type="number" min="0" placeholder="reps" style="width:110px">';
+  if(st==="load")return '<input class="lid-in" id="'+prefix+'-kg" type="number" min="0" step="0.5" placeholder="kg" style="width:110px">';
+  if(st==="none")return "";
+  return '<input class="lid-in" id="'+prefix+'-tekst" placeholder="jouw score" style="width:220px">';
+}
+// Leest en valideert de invoer voor een scoretype; vult rec en geeft een foutmelding terug (of null).
+function lidLeesScore(st,prefix,rec){
+  const val=suffix=>{const el=document.getElementById(prefix+"-"+suffix);return el?el.value:"";};
+  if(st==="time"){const t=lidParseTijd(val("tijd"));if(t==null)return "Vul je tijd in als mm:ss (bijv. 3:12).";rec.time_seconds=t;}
+  else if(st==="rounds_reps"){const ro=parseInt(val("rondes"),10),re=parseInt(val("reps")||"0",10);if(isNaN(ro))return "Vul het aantal rondes in.";rec.rounds=ro;rec.reps=isNaN(re)?0:re;}
+  else if(st==="reps"){const re=parseInt(val("reps"),10);if(isNaN(re))return "Vul het aantal reps in.";rec.reps=re;}
+  else if(st==="load"){const kg=parseFloat(String(val("kg")).replace(",","."));if(isNaN(kg))return "Vul het gewicht in kg in.";rec.load_kg=kg;}
+  else if(st==="none"){/* geen score, alleen voltooid */}
+  else{const s=(val("tekst")||"").trim();if(!s)return "Vul je score in.";rec.score_text=s;}
+  return null;
+}
+function lidDagRec(b,status){
+  const oud=LID.dagRes[b.id];
+  return {block_id:b.id,workout_id:LID.wToday.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status,rx:null,is_public:false,note:(oud&&oud.note)||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null};
+}
+async function lidBlokOpslaan(bid){
+  const w=LID.wToday;if(!w)return;
+  const b=(w.blocks||[]).find(x=>String(x.id)===String(bid));if(!b)return;
+  const msg=document.getElementById("bl-"+bid+"-msg");if(msg){msg.textContent="";msg.className="msg";}
+  const rec=lidDagRec(b,"completed");
+  const err=lidLeesScore(b.score_type||"text","bl-"+bid,rec);
+  if(err){if(msg){msg.textContent=err;msg.className="msg err";}return;}
+  const{error}=await db.from("results").upsert(rec,{onConflict:"block_id,athlete_id"});
+  if(error){if(msg){msg.textContent=error.message||"Opslaan mislukt. Probeer het opnieuw.";msg.className="msg err";}return;}
+  toast("Score opgeslagen");
+  await renderLid();
+}
+async function lidBlokGemist(bid){
+  const w=LID.wToday;if(!w)return;
+  const b=(w.blocks||[]).find(x=>String(x.id)===String(bid));if(!b)return;
+  const rec=lidDagRec(b,"missed"); // gemist wist de score
+  const{error}=await db.from("results").upsert(rec,{onConflict:"block_id,athlete_id"});
+  if(error){toast(error.message||"Markeren mislukt");return;}
+  toast("Blok op gemist gezet");
+  await renderLid();
+}
+// Voorvullen van de logvelden met de eerder gelogde scores van vandaag.
+function lidDagVul(){
+  Object.entries(LID.dagRes).forEach(([bid,r])=>{
+    const set=(suffix,v)=>{const el=document.getElementById("bl-"+bid+"-"+suffix);if(el&&v!=null)el.value=v;};
+    if(r.time_seconds!=null)set("tijd",Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60));
+    set("rondes",r.rounds);set("reps",r.reps);set("kg",r.load_kg);set("tekst",r.score_text);
+  });
 }
 async function lidEigenLaad(){
   LID.eigen=null;
@@ -54,13 +132,8 @@ function lidWeekHtml(){
     '<div id="ww-board-'+w.id+'">'+wwBoardInner(w.id)+'</div>';
 }
 function lidLogHtml(blk){
-  const st=blk.score_type||"text",eigen=LID.eigen;
-  let veld="";
-  if(st==="time")veld='<input class="lid-in" id="lid-tijd" placeholder="mm:ss (bijv. 3:12)" style="width:150px">';
-  else if(st==="rounds_reps")veld='<input class="lid-in" id="lid-rondes" type="number" min="0" placeholder="rondes" style="width:95px"><input class="lid-in" id="lid-reps" type="number" min="0" placeholder="+ reps" style="width:95px">';
-  else if(st==="reps")veld='<input class="lid-in" id="lid-reps" type="number" min="0" placeholder="reps" style="width:110px">';
-  else if(st==="load")veld='<input class="lid-in" id="lid-kg" type="number" min="0" step="0.5" placeholder="kg" style="width:110px">';
-  else veld='<input class="lid-in" id="lid-tekst" placeholder="jouw score" style="width:220px">';
+  const eigen=LID.eigen;
+  const veld=lidVeldHtml(blk.score_type||"text","lid");
   return '<div class="card" style="padding:16px;margin-top:14px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><b>Jouw score</b>'+
       (eigen?'<span class="cpill '+(eigen.is_public?"ok":"gray")+'">'+(eigen.is_public?"staat op het leaderboard":"privé · alleen jij en je coach")+'</span>':'<span class="cpill gray">nog niet gelogd</span>')+'</div>'+
@@ -96,27 +169,8 @@ async function lidOpslaan(){
   const msg=document.getElementById("lid-msg");msg.textContent="";
   const val=id=>{const el=document.getElementById(id);return el?el.value:"";};
   const rec={block_id:blk.id,workout_id:LID.blog.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status:"completed",rx:LID.rx,is_public:LID.openbaar,note:(val("lid-note")||"").trim()||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null};
-  if(st==="time"){
-    const t=lidParseTijd(val("lid-tijd"));
-    if(t==null){msg.textContent="Vul je tijd in als mm:ss (bijv. 3:12).";msg.className="msg err";return;}
-    rec.time_seconds=t;
-  }else if(st==="rounds_reps"){
-    const ro=parseInt(val("lid-rondes"),10),re=parseInt(val("lid-reps")||"0",10);
-    if(isNaN(ro)){msg.textContent="Vul het aantal rondes in.";msg.className="msg err";return;}
-    rec.rounds=ro;rec.reps=isNaN(re)?0:re;
-  }else if(st==="reps"){
-    const re=parseInt(val("lid-reps"),10);
-    if(isNaN(re)){msg.textContent="Vul het aantal reps in.";msg.className="msg err";return;}
-    rec.reps=re;
-  }else if(st==="load"){
-    const kg=parseFloat(String(val("lid-kg")).replace(",","."));
-    if(isNaN(kg)){msg.textContent="Vul het gewicht in kg in.";msg.className="msg err";return;}
-    rec.load_kg=kg;
-  }else{
-    const s=(val("lid-tekst")||"").trim();
-    if(!s){msg.textContent="Vul je score in.";msg.className="msg err";return;}
-    rec.score_text=s;
-  }
+  const fout=lidLeesScore(st,"lid",rec);
+  if(fout){msg.textContent=fout;msg.className="msg err";return;}
   const{error}=await db.from("results").upsert(rec,{onConflict:"block_id,athlete_id"});
   if(error){msg.textContent=error.message||"Opslaan mislukt. Probeer het opnieuw.";msg.className="msg err";return;}
   toast(LID.openbaar?"Je score staat op het leaderboard 💪":"Score opgeslagen (privé)");
