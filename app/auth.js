@@ -22,7 +22,16 @@ async function submitAuth(){
   }catch(e){setMsg(e.message||"Er ging iets mis.","err");}
   document.getElementById("go").disabled=false;
 }
-function show(which){if(which!=="app")document.body.classList.remove("coachmode");document.getElementById("login").classList.toggle("hidden",which!=="login");document.getElementById("app").classList.toggle("hidden",which!=="app");}
+function show(which){
+  if(which!=="app"){
+    document.body.classList.remove("coachmode");
+    // zwevende lid-chat opruimen (anders blijft hij over het inlogscherm zweven)
+    const b=document.getElementById("lidchat-btn");if(b)b.remove();
+    const p=document.getElementById("chatpop");if(p)p.remove();
+  }
+  document.getElementById("login").classList.toggle("hidden",which!=="login");
+  document.getElementById("app").classList.toggle("hidden",which!=="app");
+}
 async function signOut(){await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
 async function loadApp(){
@@ -55,5 +64,5 @@ async function loadApp(){
   show("app");
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="";
   if(role==="lid")renderLid();
-  else routeHash();
+  else{const b=document.getElementById("lidchat-btn");if(b)b.remove();routeHash();}
 }

@@ -52,6 +52,66 @@ async function renderLid(){
   c.innerHTML='<div class="cwrap" style="max-width:860px;margin:0 auto">'+header("Welkom, "+(ME.profile.first_name||ME.user.email),"Jouw workout van vandaag")+body+wwHtml+'</div>';
   lidFormVul();
   lidDagVul();
+  // Chat met je coach: zwevende knop rechtsonder (alleen als er een coach gekoppeld is)
+  if(ME.profile.coach_id){
+    let unread=0;
+    try{
+      const{data:un}=await db.from("messages").select("id").eq("athlete_id",ME.user.id).neq("sender_id",ME.user.id).is("read_at",null);
+      unread=(un||[]).length;
+    }catch(e){}
+    lidChatKnop(unread);
+  }
+}
+
+// ---------- Chat met je coach (hergebruikt de chat-popup uit chat.js) ----------
+let lidCoach=null;
+function lidChatKnop(unread){
+  let btn=document.getElementById("lidchat-btn");
+  if(!btn){
+    btn=document.createElement("button");btn.id="lidchat-btn";btn.title="Chat met je coach";
+    btn.style.cssText="position:fixed;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:#4f8bff;color:#fff;border:none;box-shadow:0 6px 18px rgba(30,60,120,.35);cursor:pointer;z-index:60;display:flex;align-items:center;justify-content:center";
+    btn.innerHTML='<svg class="i" style="width:22px;height:22px;color:#fff"><use href="#i-chat"/></svg><span id="lidchat-badge" style="position:absolute;top:-4px;right:-4px;background:#e5484d;color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 5px">0</span>';
+    btn.onclick=lidChatOpen;
+    document.body.appendChild(btn);
+  }
+  lidChatBadge(unread);
+}
+function lidChatBadge(n){
+  const b=document.getElementById("lidchat-badge");if(!b)return;
+  b.textContent=n;b.style.display=n>0?"flex":"none";
+}
+async function lidChatOpen(){
+  let pop=document.getElementById("chatpop");
+  if(pop){
+    pop.classList.toggle("show");
+    if(pop.classList.contains("show")){await chatLaad();lidChatBadge(0);}
+    return;
+  }
+  chatSluitKanaal();
+  chatAthlete=ME.user.id; // de eigen draad; chatLaad/chatStuur uit chat.js werken hierop
+  if(!lidCoach){try{const{data}=await db.rpc("my_coach");lidCoach=(data||[])[0]||null;}catch(e){}}
+  const p=lidCoach||{first_name:"Coach"};
+  // Berichten alleen-lezen als de coach dat zo heeft ingesteld (profiel-instelling)
+  const invoer=ME.profile.messages_readonly
+    ?'<div class="sm muted" style="padding:10px 12px;text-align:center;border-top:1px solid #eef0f3">Meelezen kan; berichten sturen staat voor jou uit.</div>'
+    :'<div class="cin"><input id="chat-inp" placeholder="Schrijf een bericht…" onkeydown="if(event.key===\'Enter\')chatStuur()"><div class="cinrow"><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
+  pop=document.createElement("div");pop.id="chatpop";pop.className="chatpop show";
+  pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+(lidCoach?naamVan(lidCoach):"Je coach")+'</b>'+
+    '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
+    '<div class="msgs2" id="chat-msgs"><div class="sm muted" style="text-align:center;padding:14px">Laden…</div></div>'+invoer;
+  document.body.appendChild(pop);
+  await chatLaad();
+  lidChatBadge(0);
+  // realtime: nieuw bericht van de coach verschijnt direct (of telt op als de popup dicht is)
+  try{
+    chatKanaal=db.channel("chat-"+ME.user.id)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"athlete_id=eq."+ME.user.id},payload=>{
+        if(!payload.new||payload.new.sender_id===ME.user.id)return;
+        const open=document.getElementById("chatpop"),zichtbaar=open&&open.classList.contains("show");
+        if(zichtbaar)chatToon(payload.new,true);
+        else{const b=document.getElementById("lidchat-badge");lidChatBadge((parseInt(b&&b.textContent||"0",10)||0)+1);}
+      }).subscribe();
+  }catch(e){}
 }
 
 // ---------- Dagworkout loggen per blok ----------
