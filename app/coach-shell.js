@@ -122,11 +122,25 @@ window.addEventListener("hashchange",()=>{
 function coachShellHtml(inner){
   document.body.classList.add("coachmode");
   const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</button>').join("");
-  const av=esc((ME.profile.first_name||ME.user.email||"?").slice(0,1).toUpperCase());
+  // Avatar rechtsboven = uitklapmenu (naar CoachRx-voorbeeld, 17 juli): naam +
+  // rol bovenin, Instellingen (komt nog) en Uitloggen (losse knop is weg).
   return '<div class="cwrap"><div class="cbar"><span class="logo">COACH<b>APP</b></span><div class="cnav2">'+btns+'</div>'+
-    '<div class="cbar-right"><span style="font-size:10px;color:#8f959d;font-weight:700;text-transform:uppercase;letter-spacing:.6px">'+esc(ROLE_NL[myRole()]||"")+'</span><div class="cav">'+av+'</div><button class="lo" onclick="signOut()">Uitloggen</button></div></div>'+
+    '<div class="cbar-right"><span style="font-size:10px;color:#8f959d;font-weight:700;text-transform:uppercase;letter-spacing:.6px">'+esc(ROLE_NL[myRole()]||"")+'</span>'+
+    '<div class="avwrap"><button class="cav" style="'+avFotoStyle(ME.profile)+'" title="Menu" onclick="avMenuToggle(event)">'+avFotoText(ME.profile)+'</button>'+
+    '<div class="avmenu" id="avmenu">'+
+      '<div class="avm-kop"><span class="avm-av" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><span><b>'+esc(naamVan(ME.profile))+'</b><span class="avm-rol">'+esc(ROLE_NL[myRole()]||"")+'</span></span></div>'+
+      '<button onclick="toast(\'Instellingen komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+
+      '<button onclick="signOut()"><svg class="i sm-i"><use href="#i-x"/></svg> Uitloggen</button>'+
+    '</div></div></div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
 }
+function avMenuToggle(ev){
+  ev.stopPropagation();
+  const m=document.getElementById("avmenu");if(m)m.classList.toggle("show");
+}
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".avwrap")){const m=document.getElementById("avmenu");if(m)m.classList.remove("show");}
+});
 function coachRenderSection(){
   msgBadgeStart();
   const c=document.getElementById("content");
