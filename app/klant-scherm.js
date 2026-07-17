@@ -363,14 +363,21 @@ function startEdit(ds,idx){editWid=null;editDay=ds;editIdx=idx;renderMonth({skip
 function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wid;editDay=w.workout_date;editIdx=idx;renderMonth({skipFetch:true});}
 function cancelEdit(){editWid=null;editDay=null;renderMonth({skipFetch:true});}
 
-let monthResults={},monthByDate={},monthNotes={},dnDatum=null;
+let monthResults={},monthByDate={},monthNotes={},monthMedia={},monthComments=[],dnDatum=null;
+// Reacties-knop op een kalenderkaart: teller + rood bolletje bij ongelezen van het lid.
+function cardComBtn(w){
+  const cmts=monthComments.filter(m=>m.workout_id===w.id);
+  const onge=cmts.filter(m=>m.author_id===m.athlete_id&&!m.read_at).length;
+  const dot=onge?'<span class="wcdot">'+onge+'</span>':'';
+  return '<button class="combtn" onclick="event.stopPropagation();openDayComments(\''+w.id+'\',\''+esc(calClient)+'\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Reacties'+(cmts.length?' ('+cmts.length+')':'')+dot+'</button>';
+}
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
     return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
       '<div class="msc"><span style="color:#27b376">Rest Day</span></div>'+
       '<div class="cblk"><div class="pr" style="color:#8a919c">No instructions</div></div>'+
-      '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
+      cardComBtn(w)+'</div>';
   }
   let done=0,total=0,inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+(w.warmup_oefening_id?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
@@ -382,16 +389,18 @@ function mcardHtml(w){
     const lk=b.linked?' linked2':'';
     const pr=composePresc(b);
     const sc=resultScoreTxt(r);
+    // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
+    const vids=(monthMedia[b.id]||[]).map(v=>'<span class="vidtile" title="Video van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\')">▶</span>').join("");
     inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
-      (sc?'<div class="loginp">'+esc(sc)+'</div>':'')+
+      ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+
       '</div>';
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+(w.cooldown_oefening_id?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
     '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
-    '<button class="combtn" onclick="event.stopPropagation();toast(\'Comments komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button></div>';
+    cardComBtn(w)+'</div>';
 }
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
 function cardTools(w){
@@ -547,11 +556,17 @@ async function renderMonth(opts){
     if(werr)toast("Kalender kon niet laden: "+(werr.message||"onbekende fout")+" — ververs de pagina of probeer opnieuw.");
     monthWorkouts={};monthByDate={};byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
     // Gelogde resultaten van dit lid voor de zichtbare workouts (per blok)
-    monthResults={};
+    monthResults={};monthMedia={};monthComments=[];
     const wids=(workouts||[]).map(w=>w.id);
     if(wids.length){
       const{data:res}=await db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids);
       (res||[]).forEach(r=>{monthResults[r.block_id]=r;});
+      // Video-uploads van het lid (kleine tegels achter de resultaten)
+      const{data:mds}=await db.from("result_media").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at");
+      (mds||[]).forEach(m=>{(monthMedia[m.block_id]=monthMedia[m.block_id]||[]).push(m);});
+      // Dag-reacties (voor de Reacties-knop op de kaarten)
+      const{data:wcs}=await db.from("workout_comments").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at");
+      monthComments=wcs||[];
     }
     // Dag-notities voor het zichtbare bereik
     monthNotes={};

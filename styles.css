@@ -585,6 +585,13 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .cnav2 button:hover{color:#fff}
 .cnav2 button.on{background:#fff;color:var(--nav)}
 .navbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:6px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800;letter-spacing:0;vertical-align:1px}
+.wcdot{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;padding:0 3px;margin-left:5px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800}
+.vidtile{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:#14161a;color:#fff;font-size:10px;cursor:pointer;flex:none;border:1px solid #2a2e35}
+.vidtile:hover{background:#2a2e35}
+#vidoverlay{position:fixed;inset:0;background:rgba(10,12,15,.82);display:none;align-items:center;justify-content:center;z-index:600}
+#vidoverlay video{max-width:min(760px,86vw);max-height:80vh;border-radius:14px;background:#000;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#vidoverlay .vx{position:absolute;top:18px;right:26px;color:#fff;font-size:34px;line-height:1;cursor:pointer;opacity:.8}
+#vidoverlay .vx:hover{opacity:1}
 .cbar-right{display:flex;align-items:center;gap:12px}
 .cbar .cav{width:30px;height:30px;border-radius:50%;background:#3a3f47;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #565c66}
 .cbar .lo{background:none;border:1px solid #3a3f47;color:#c9cdd4;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
