@@ -19,7 +19,7 @@ function fillInstellingen(){
     '<div class="panel instpaneel" id="inst-paneel"></div></div>';
   instPaneel();
 }
-function instGa(t){instTab=t;fillInstellingen();}
+function instGa(t){instTab=t;setHash("settings/"+t);fillInstellingen();}
 // Hoeveel van je profiel is ingevuld (foto, voornaam, achternaam, over jou)?
 function instVoortgang(){
   const p=ME.profile;

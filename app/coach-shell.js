@@ -59,7 +59,8 @@ function cnavItems(){
 }
 // Leest de sectie uit de link (#…). Onbekend of niet toegestaan voor deze rol → dashboard.
 function sectionFromHash(){
-  const h=(location.hash||"").replace(/^#/,"");
+  let h=(location.hash||"").replace(/^#/,"");
+  if(h.indexOf("settings")===0)h="settings"; // #settings/<pagina> telt als settings
   const geldig=cnavItems().map(n=>n[0]).concat(["settings"]); // settings zit niet in de topnav (avatar-menu)
   return geldig.includes(h)?h:"dash";
 }
@@ -67,6 +68,11 @@ function sectionFromHash(){
 function parseHash(){
   const h=(location.hash||"").replace(/^#/,""),p=h.split("/");
   if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null};
+  if(p[0]==="settings"){
+    // Subpagina in de link (#settings/notificaties) -> juiste tab openen
+    if(p[1]&&typeof INST_TABS!=="undefined"&&INST_TABS.some(t=>t[0]===p[1]))instTab=p[1];
+    return{type:"section",section:"settings"};
+  }
   const geldig=cnavItems().map(n=>n[0]).concat(["settings"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
