@@ -4,12 +4,13 @@ let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient=
 async function fillDashboard(){
   const ids=coachClients.map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
-  let ws=[],rs=[],md=[],msgs=[],blog=null,blogRes=[];
+  let ws=[],rs=[],md=[],wc=[],msgs=[],blog=null,blogRes=[];
   if(ids.length){
     ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("*").in("workout_id",wids)).data||[];
     if(wids.length)md=(await db.from("result_media").select("*").in("workout_id",wids)).data||[];
+    if(wids.length)wc=(await db.from("workout_comments").select("*").in("workout_id",wids).order("created_at")).data||[];
     msgs=(await db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
   }
   const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
@@ -19,7 +20,7 @@ async function fillDashboard(){
     blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
-  DASH={ws,rs,md,msgs,tasks,blog,blogRes,snoozeMap};
+  DASH={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap};
   dashRender();
 }
 function dashSetFilter(f){dashFilter=f;dashRender();}
@@ -62,7 +63,7 @@ function dashKebab(ev,pid){
 document.addEventListener("click",e=>{if(!e.target.closest(".attnmenu")&&!e.target.closest(".attn-kebab"))document.querySelectorAll(".attnmenu").forEach(x=>x.remove());});
 function dashRender(){
   const cp=document.getElementById("cpage");if(!cp||!DASH)return;
-  const{ws,rs,md,msgs,tasks,blog,blogRes}=DASH;
+  const{ws,rs,md,wc,msgs,tasks,blog,blogRes}=DASH;
   const td=todayStr(),from7=ymd(addDays(new Date(),-6));
   const byId={};coachClients.forEach(p=>byId[p.id]=p);
   const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
@@ -144,7 +145,7 @@ function dashRender(){
     });
     return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div></div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
-      '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px"><button class="btn ghost sm" onclick="toast(\'Comments komen samen met de sporter-app\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Comments</button><input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
+      '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px">'+wcKnopHtml(w)+'<input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
   // Mijn cijfers als carrousel (compliance + contactmomenten + aandacht), 7/30/90 dagen voor compliance
   const fromP=ymd(addDays(new Date(),-(dashPeriode-1)));
@@ -209,6 +210,72 @@ async function taakWeg(id){
   const{error}=await db.from("tasks").delete().eq("id",id);
   if(error){toast(error.message);return;}
   DASH.tasks=DASH.tasks.filter(t=>t.id!==id);dashRender();
+}
+// ---------- Dag-reacties (workout_comments): feedback per workout-dag, los van de chat ----------
+let wcWid=null,wcAid=null;
+// Knop op de feedkaart: teller + rood bolletje bij ongelezen reacties van het lid.
+function wcKnopHtml(w){
+  const items=(DASH.wc||[]).filter(m=>m.workout_id===w.id&&m.athlete_id===w.client_id);
+  const ongelezen=items.filter(m=>m.author_id===m.athlete_id&&!m.read_at).length;
+  const dot=ongelezen?'<span style="display:inline-block;min-width:15px;height:15px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800;line-height:15px;text-align:center;padding:0 3px;margin-left:4px">'+ongelezen+'</span>':'';
+  return '<button class="btn ghost sm" onclick="dashComments(\''+w.id+'\',\''+w.client_id+'\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Reacties'+(items.length?' ('+items.length+')':'')+dot+'</button>';
+}
+function ensureWcModal(){
+  if(document.getElementById("wcmodal"))return;
+  const wrap=document.createElement("div");
+  wrap.innerHTML='<div class="lmodal" id="wcmodal" style="z-index:430"><div class="box" style="width:520px;max-width:96vw">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px"><div><h3 style="margin:0">Reacties</h3><div class="sm muted" id="wc-sub" style="margin-top:2px"></div></div>'+
+    '<span onclick="closeWc()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div class="sm muted" style="margin:6px 0 8px">Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat.</div>'+
+    '<div id="wc-body" style="max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0;background:#f6f7f9;border-radius:10px;padding:10px"></div>'+
+    '<div style="display:flex;gap:8px;margin-top:12px"><input id="wc-inp" placeholder="Schrijf een reactie…" style="flex:1" onkeydown="if(event.key===\'Enter\')wcStuur()"><button class="btn" onclick="wcStuur()">Stuur</button></div>'+
+    '</div></div>';
+  document.body.appendChild(wrap.firstChild);
+  document.getElementById("wcmodal").addEventListener("click",e=>{if(e.target.id==="wcmodal")closeWc();});
+}
+function closeWc(){const m=document.getElementById("wcmodal");if(m)m.classList.remove("show");wcWid=null;wcAid=null;}
+function wcRender(){
+  const host=document.getElementById("wc-body");if(!host)return;
+  const items=(DASH.wc||[]).filter(m=>m.workout_id===wcWid&&m.athlete_id===wcAid);
+  host.innerHTML=items.map(m=>{
+    const mij=m.author_id===ME.user.id;
+    const naam=m.author_id===m.athlete_id?naamVan(coachClients.find(x=>x.id===m.athlete_id)||{}):(mij?"Jij":"Coach");
+    return '<div class="bub '+(mij?"me":"them")+'">'+esc(m.body)+'<div class="meta">'+esc(naam)+' · '+tijdNL(m.created_at)+'</div></div>';
+  }).join("")||'<div class="sm muted" style="text-align:center;padding:10px">Nog geen reacties op deze dag. Schrijf de eerste.</div>';
+  host.scrollTop=host.scrollHeight;
+}
+async function dashComments(wid,aid){
+  ensureWcModal();
+  wcWid=wid;wcAid=aid;
+  const w=(DASH.ws||[]).find(x=>x.id===wid)||{};
+  const p=coachClients.find(x=>x.id===aid)||{};
+  document.getElementById("wc-sub").textContent=naamVan(p)+(w.workout_date?" · "+datumNL(w.workout_date):"");
+  document.getElementById("wc-inp").value="";
+  wcRender();
+  document.getElementById("wcmodal").classList.add("show");
+  // Reacties van het lid op gelezen zetten (alleen de eigen coach mag dat)
+  if(p.coach_id===ME.user.id){
+    const ids=(DASH.wc||[]).filter(m=>m.workout_id===wid&&m.athlete_id===aid&&m.author_id===aid&&!m.read_at).map(m=>m.id);
+    if(ids.length){
+      try{
+        await db.from("workout_comments").update({read_at:new Date().toISOString()}).in("id",ids);
+        (DASH.wc||[]).forEach(m=>{if(ids.includes(m.id))m.read_at=new Date().toISOString();});
+        dashRender();
+      }catch(e){}
+    }
+  }
+}
+async function wcStuur(){
+  const inp=document.getElementById("wc-inp");
+  const tekst=(inp.value||"").trim();if(!tekst||!wcWid)return;
+  const{data,error}=await db.from("workout_comments").insert({
+    workout_id:wcWid,athlete_id:wcAid,company_id:ME.profile.company_id,author_id:ME.user.id,body:tekst
+  }).select().single();
+  if(error){toast(error.message||"Versturen mislukt");return;}
+  inp.value="";
+  DASH.wc.push(data||{workout_id:wcWid,athlete_id:wcAid,author_id:ME.user.id,body:tekst,created_at:new Date().toISOString()});
+  wcRender();
+  dashRender(); // teller op de kaart bijwerken
 }
 // Video-upload van een lid bekijken: tijdelijke kijk-URL uit de private media-bucket.
 async function dashVideoOpen(pad){
