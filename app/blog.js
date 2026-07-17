@@ -293,13 +293,14 @@ async function blogLedenOpen(){
   ensureBlogModals();
   document.getElementById("blogled-lijst").innerHTML='<div class="cempty">Laden…</div>';
   document.getElementById("blogledmodal").classList.add("show");
-  const{data}=await db.from("profiles").select("id,first_name,last_name,email,avatar_url,blog_program_id").eq("role","lid").eq("archived",false).order("first_name");
+  // Alleen blog-leden: 1-op-1 klanten hebben hun eigen programma en volgen nooit een blogprogramma.
+  const{data}=await db.from("profiles").select("id,first_name,last_name,email,avatar_url,blog_program_id").eq("role","lid").eq("membership_type","free_blog").eq("archived",false).order("first_name");
   BLOG.leden=data||[];
   blogLedenRender();
 }
 function blogLedenRender(){
   const host=document.getElementById("blogled-lijst");if(!host)return;
-  if(!BLOG.leden.length){host.innerHTML='<div class="cempty">Geen leden gevonden. (Als coach zie je alleen je eigen klanten.)</div>';return;}
+  if(!BLOG.leden.length){host.innerHTML='<div class="cempty">Geen blog-leden gevonden. Alleen leden met lidmaatschap "blog" kunnen een blogprogramma volgen; 1-op-1 klanten hebben hun eigen programma.</div>';return;}
   host.innerHTML=BLOG.leden.map(p=>{
     const aan=p.blog_program_id===BLOG.cur.id;
     const ander=p.blog_program_id&&!aan?(BLOG.list.find(x=>x.id===p.blog_program_id)||{}).name:null;

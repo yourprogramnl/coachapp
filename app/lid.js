@@ -11,8 +11,10 @@ async function renderLid(){
   // volgt) de workout van vandaag uit dat programma. Beide met loggen per blok.
   const{data:today}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).eq("workout_date",todayStr());
   const w=(today||[])[0]||null;
+  // Blogprogramma alleen voor blog-leden: 1-op-1 klanten hebben hun eigen
+  // programma en zien nooit een blogprogramma (afspraak Stefan, 16 juli).
   let wProg=null;LID.progNaam="";
-  if(ME.profile.blog_program_id){
+  if(ME.profile.membership_type==="free_blog"&&ME.profile.blog_program_id){
     try{
       const[{data:pws},{data:prog}]=await Promise.all([
         db.from("workouts").select("*, blocks(*)").eq("blog_program_id",ME.profile.blog_program_id).eq("workout_date",todayStr()),
