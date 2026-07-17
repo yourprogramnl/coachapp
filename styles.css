@@ -586,6 +586,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .cnav2 button.on{background:#fff;color:var(--nav)}
 .navbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:6px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800;letter-spacing:0;vertical-align:1px}
 .wcdot{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;padding:0 3px;margin-left:5px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800}
+.exdrop .hdx{float:right;cursor:pointer;color:#8a919c;font-size:12px;padding:0 2px;line-height:1.4}
+.exdrop .hdx:hover{color:#fff}
 .vidtile{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:#14161a;color:#fff;font-size:10px;cursor:pointer;flex:none;border:1px solid #2a2e35}
 .vidtile:hover{background:#2a2e35}
 #vidoverlay{position:fixed;inset:0;background:rgba(10,12,15,.82);display:none;align-items:center;justify-content:center;z-index:600}

@@ -191,7 +191,7 @@ function kiesBlokKleur(el,k){
 }
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
 function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
@@ -200,19 +200,29 @@ function exZoek(inp){
   if(!drop)return;
   const v=inp.value.trim().toLowerCase();
   drop.innerHTML="";
-  if(v.length<2){drop.classList.remove("show");return;}
+  if(v.length<2){row.dataset.nodrop="";drop.classList.remove("show");return;} // (bijna) leeg veld = weggeklikte dropdown weer toestaan
+  if(row.dataset.nodrop==="1"){drop.classList.remove("show");return;}
   if(!LIB.geladen){
-    drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");
+    drop.innerHTML='<div class="hd">Bibliotheek laden…'+dropXHtml("exDropWeg")+'</div>';drop.classList.add("show");
     // Zodra de bibliotheek er is alsnog de resultaten tonen (anders bleef "laden…" staan).
     libLaad().then(()=>{if(document.contains(inp)&&inp.value.trim().toLowerCase()===v)exZoek(inp);});
     return;
   }
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
-  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
+  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("exDropWeg")+'</div>'+hits.slice(0,8).map(o=>{
     return '<div class="exopt" onclick="event.stopPropagation();kiesEx(this,'+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
   }).join("");
   drop.classList.add("show");
+}
+// Kruisje in de kop van de zoek-dropdown: wegklikken en weg blijven zolang je
+// doortypt (bijv. bij een eigen oefening die niet in de bibliotheek staat).
+// Opnieuw focussen op het veld laat de zoeker weer toe.
+function dropXHtml(fn){return '<span class="hdx" title="Sluiten (Esc)" onclick="event.stopPropagation();'+fn+'(this)">✕</span>';}
+function exDropWeg(el){
+  const row=el.closest(".exrow");if(!row)return;
+  row.dataset.nodrop="1";
+  const d=row.querySelector(".exdrop");if(d)d.classList.remove("show");
 }
 function kiesEx(el,oefId){
   const row=el.closest(".exrow");
@@ -259,7 +269,7 @@ function cwMediaHtml(kind,oefId){
   const lbl=kind==="warmup"?"warming-up":"cooldown";
   const heeft=!!oefId;
   return '<div class="cwmedia" id="wm_'+kind+'" data-oefid="'+(oefId||"")+'">'+
-    '<input class="cwn" placeholder="Zoek een oefening voor de demo-video…" oninput="cwZoek(this,\''+kind+'\')" autocomplete="off" style="display:none">'+
+    '<input class="cwn" placeholder="Zoek een oefening voor de demo-video…" oninput="cwZoek(this,\''+kind+'\')" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();cwDropWeg(this);}" autocomplete="off" style="display:none">'+
     '<div class="exdrop"></div>'+
     '<div class="cwchip">'+(heeft?cwChipHtml(kind,cwNaamVan(oefId)):"")+'</div>'+
     '<div class="demolink" onclick="cwStartAdd(\''+kind+'\')"'+(heeft?' style="display:none"':'')+'>Demo-video toevoegen aan '+lbl+'</div>'+
@@ -273,19 +283,25 @@ function cwStartAdd(kind){
   if(!LIB.geladen)libLaad();
   inp.focus();
 }
+function cwDropWeg(el){
+  const box=el.closest("[id^=wm_]");if(!box)return;
+  box.dataset.nodrop="1";
+  const d=box.querySelector(".exdrop");if(d)d.classList.remove("show");
+}
 function cwZoek(inp,kind){
   const box=document.getElementById("wm_"+kind),drop=box.querySelector(".exdrop");
   const v=inp.value.trim().toLowerCase();
   drop.innerHTML="";
-  if(v.length<2){drop.classList.remove("show");return;}
+  if(v.length<2){box.dataset.nodrop="";drop.classList.remove("show");return;}
+  if(box.dataset.nodrop==="1"){drop.classList.remove("show");return;}
   if(!LIB.geladen){
-    drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");
+    drop.innerHTML='<div class="hd">Bibliotheek laden…'+dropXHtml("cwDropWeg")+'</div>';drop.classList.add("show");
     libLaad().then(()=>{if(document.contains(inp)&&inp.value.trim().toLowerCase()===v)cwZoek(inp,kind);});
     return;
   }
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
-  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
+  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("cwDropWeg")+'</div>'+hits.slice(0,8).map(o=>{
     return '<div class="exopt" onclick="event.stopPropagation();cwKies(\''+kind+'\','+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
   }).join("");
   drop.classList.add("show");
