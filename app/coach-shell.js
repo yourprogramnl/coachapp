@@ -143,6 +143,7 @@ document.addEventListener("click",e=>{
 });
 function coachRenderSection(){
   msgBadgeStart();
+  if(typeof startNotifs==="function")startNotifs();
   const c=document.getElementById("content");
   if(coachSection==="clients"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillKlanten();return;}
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}

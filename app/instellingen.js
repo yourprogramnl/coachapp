@@ -117,9 +117,10 @@ async function instPaneel(){
       '<div class="msg" id="inst-msg"></div>'+
       '<div style="display:flex;gap:10px;align-items:center"><button class="btn" onclick="instConsultOpslaan()">Opslaan</button>'+
       (p.consult_url?'<a class="btn ghost" href="'+esc(p.consult_url)+'" target="_blank" rel="noopener">Link testen</a>':'')+'</div>';
+  }else if(instTab==="notificaties"){
+    host.innerHTML=instNotifHtml();
   }else{
     const info={
-      notificaties:["Notificaties","Meldingsinstellingen komen samen met push- en e-mailnotificaties."],
       partners:["Partners","Partner- en doorverwijsopties komen in een volgende stap."],
     }[instTab]||["",""];
     host.innerHTML='<h2 style="margin:0 0 4px">'+info[0]+'</h2><div class="csoon" style="margin-top:10px">'+info[1]+'</div>';
