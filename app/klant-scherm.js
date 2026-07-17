@@ -763,7 +763,7 @@ async function openInsModal(lbl){
   document.getElementById("insmodal").classList.add("show");
   document.getElementById("ins-lijst").innerHTML='<div class="cempty">Templates laden…</div>';
   if(!LIB.geladen)await libLaad();
-  if(!insBlog.length)await laadInsBlog();
+  await laadInsBlog(); // altijd vers: een net aangemaakte weekworkout moet er meteen tussen staan
   insKleurenRender();insRender();
 }
 function closeIns(){const m=document.getElementById("insmodal");if(m)m.classList.remove("show");}
