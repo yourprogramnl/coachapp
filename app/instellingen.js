@@ -119,11 +119,25 @@ async function instPaneel(){
       (p.consult_url?'<a class="btn ghost" href="'+esc(p.consult_url)+'" target="_blank" rel="noopener">Link testen</a>':'')+'</div>';
   }else if(instTab==="notificaties"){
     host.innerHTML=instNotifHtml();
+  }else if(instTab==="partners"){
+    // Voorbeeld-indeling (17 juli): er zijn nog geen partners; Stripe en Loom
+    // staan gepland als echte samenwerkingen. Kaarten alvast in CoachRx-stijl.
+    const kaart=(naam,kleur,txt,knop)=>'<div class="pt-kaart">'+
+      '<div style="font-weight:900;font-size:17px;color:'+kleur+'">'+naam+'</div>'+
+      '<div class="sm" style="color:#5b6470;line-height:1.55;margin:8px 0 14px">'+txt+'</div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">'+
+        '<span class="pt-status"><span class="pt-dot"></span> Nog niet gekoppeld</span>'+
+        '<button class="btn ghost sm" onclick="toast(\''+naam+'-koppeling komt in een latere fase\')">'+knop+'</button>'+
+      '</div></div>';
+    host.innerHTML='<h2 style="margin:0 0 4px">Partners</h2>'+
+      '<div class="sm muted" style="margin-bottom:16px">Koppelingen met diensten die het coachen makkelijker maken. Deze samenwerkingen staan gepland; zodra ze live zijn kun je ze hier aanzetten.</div>'+
+      '<div class="pt-grid">'+
+        kaart("stripe","#635bff","Betalingen van klanten wereldwijd innen, direct gekoppeld aan je klantenlijst. Komt samen met het facturatie-blok.","Binnenkort")+
+        kaart("loom","#565add","Korte videoboodschappen opnemen en delen met je klanten, bijvoorbeeld voor techniek-feedback.","Binnenkort")+
+      '</div>'+
+      '<div class="sm muted" style="margin-top:16px">Ideeën voor een partner die hier zou moeten staan? Zet het op de lijst, dan bouwen we de koppeling in.</div>';
   }else{
-    const info={
-      partners:["Partners","Partner- en doorverwijsopties komen in een volgende stap."],
-    }[instTab]||["",""];
-    host.innerHTML='<h2 style="margin:0 0 4px">'+info[0]+'</h2><div class="csoon" style="margin-top:10px">'+info[1]+'</div>';
+    host.innerHTML='<div class="csoon">Deze pagina bestaat niet (meer).</div>';
   }
 }
 async function instConsultOpslaan(){
