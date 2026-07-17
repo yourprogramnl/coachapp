@@ -832,7 +832,7 @@ async function insWeekwod(id){
     closeIns();toast("Weekworkout als blok toegevoegd");return;
   }
   if(insDoel==="blogcel"){ // weekworkout-kopie op de blog-kalender (Blog-sectie)
-    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id}).select().single();
+    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,source_blog_workout_id:w.id}).select().single();
     if(error){toast(error.message||"Invoegen mislukt");return;}
     if(blocks.length){
       const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
@@ -840,7 +840,7 @@ async function insWeekwod(id){
     }
     closeIns();toast("Weekworkout ingevoegd in het programma");await blogHerlaad();return;
   }
-  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id}).select().single();
+  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,source_blog_workout_id:w.id}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   if(blocks.length){
     const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
