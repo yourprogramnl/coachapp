@@ -33,7 +33,7 @@ async function instPaneel(){
     // Bedrijfsgegevens (naam + logo) erbij halen; alleen eigenaar/platform_admin mogen ze wijzigen.
     if(instCompany===null&&p.company_id){
       host.innerHTML='<div class="spin">Laden…</div>';
-      const{data}=await db.from("companies").select("id,name,logo_url").eq("id",p.company_id).single();
+      const{data}=await db.from("companies").select("id,name,logo_url,theme").eq("id",p.company_id).single();
       instCompany=data||{};
       if(instTab!=="profiel")return; // tab is intussen gewisseld
     }
@@ -75,15 +75,122 @@ async function instPaneel(){
       '<div class="field" style="max-width:340px"><label>Herhaal nieuw wachtwoord</label><input type="password" id="inst-pw2" placeholder="••••••••"></div>'+
       '<div class="msg" id="inst-msg"></div>'+
       '<button class="btn" id="inst-pwknop" onclick="instWachtwoordOpslaan()">Wachtwoord wijzigen</button>';
+  }else if(instTab==="thema"){
+    if(instCompany===null&&p.company_id){
+      host.innerHTML='<div class="spin">Laden…</div>';
+      const{data}=await db.from("companies").select("id,name,logo_url,theme").eq("id",p.company_id).single();
+      instCompany=data||{};
+      if(instTab!=="thema")return;
+    }
+    if(!instThema)instThema=Object.assign({},THEMA_STD,(instCompany&&instCompany.theme)||{});
+    if(!Array.isArray(instThema.quotes))instThema.quotes=THEMA_STD.quotes.slice();
+    const mag=myRole()==="eigenaar"||myRole()==="platform_admin";
+    const dis=mag?"":" disabled";
+    host.innerHTML='<h2 style="margin:0 0 4px">Thema</h2><div class="sm muted" style="margin-bottom:16px">De kleuren en uitstraling van de sporter-app. Standaard is onze zwart-goud-stijl.'+(mag?"":" Alleen de eigenaar kan dit aanpassen.")+'</div>'+
+      '<div class="themagrid">'+
+      '<div>'+
+        '<div class="field"><label>Merkkleur</label><div style="display:flex;align-items:center;gap:10px">'+
+          '<input type="color" id="th-kleur" value="'+esc(instThema.color)+'" oninput="thZet(\'color\',this.value)"'+dis+' style="width:44px;height:36px;padding:2px;border-radius:9px;border:1px solid #dfe3e8;cursor:pointer">'+
+          '<input id="th-hex" value="'+esc(instThema.color)+'" style="width:110px" oninput="thHex(this.value)"'+dis+'>'+
+          '<span class="sm muted">of kies:</span>'+
+          THEMA_PRESETS.map(k=>'<span class="th-preset" style="background:'+k+'" onclick="'+(mag?'thPreset(\''+k+'\')':'')+'"></span>').join("")+
+        '</div></div>'+
+        '<label class="pf-toggle" style="margin:2px 0 14px"><input type="checkbox" id="th-grad"'+(instThema.gradient?" checked":"")+' onchange="thZet(\'gradient\',this.checked)"'+dis+'><span class="pf-sw"></span> Kleurverloop (metallic-effect, zoals ons goud)</label>'+
+        '<div class="field"><label>Typografie (koppen in de app)</label><div style="display:flex;gap:8px">'+
+          [["modern","Modern"],["vet","Vet"],["smal","Smal"]].map(f=>'<button class="btn '+(instThema.font===f[0]?"":"ghost ")+'sm" onclick="'+(mag?'thZet(\'font\',\''+f[0]+'\')':'')+'">'+f[1]+'</button>').join("")+
+        '</div></div>'+
+        '<div class="field"><label>Motivatiequotes (afwisselend op Home in de app)</label><div id="th-quotes">'+
+          instThema.quotes.map((q,i)=>'<div style="display:flex;gap:8px;margin-bottom:8px"><input value="'+esc(q)+'" oninput="thQuote('+i+',this.value)"'+dis+' style="flex:1">'+(mag?'<button class="btn ghost sm" onclick="thQuoteWeg('+i+')" title="Verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button>':'')+'</div>').join("")+
+        '</div>'+(mag?'<button class="btn ghost sm" onclick="thQuoteBij()">+ Quote toevoegen</button>':'')+'</div>'+
+        '<div class="msg" id="inst-msg"></div>'+
+        (mag?'<div style="display:flex;gap:10px;margin-top:10px"><button class="btn" onclick="thOpslaan()">Thema opslaan</button><button class="btn ghost" onclick="thStandaard()">Terug naar standaard</button></div>':'')+
+      '</div>'+
+      '<div><div class="sm" style="font-weight:800;margin-bottom:2px">Live voorbeeld</div><div class="sm muted" style="margin-bottom:10px">Zo ziet je klant het straks.</div>'+
+        '<div style="display:flex;gap:6px;margin-bottom:10px">'+[["home","Home"],["splash","Splash"],["prog","Programma"]].map(t=>'<button class="btn '+(instPrevTab===t[0]?"":"ghost ")+'sm" onclick="thPrev(\''+t[0]+'\')">'+t[1]+'</button>').join("")+'</div>'+
+        '<div id="th-preview"></div>'+
+      '</div></div>';
+    thPreviewRender();
   }else{
     const info={
-      thema:["Thema","Lichte en donkere modus komen in een volgende stap."],
       consult:["Consultatielink","Een boekingslink voor consults (zoals Calendly) komt in een volgende stap."],
       notificaties:["Notificaties","Meldingsinstellingen komen samen met push- en e-mailnotificaties."],
       partners:["Partners","Partner- en doorverwijsopties komen in een volgende stap."],
     }[instTab]||["",""];
     host.innerHTML='<h2 style="margin:0 0 4px">'+info[0]+'</h2><div class="csoon" style="margin-top:10px">'+info[1]+'</div>';
   }
+}
+// ---------- Thema (kleuren/typografie/quotes van de sporter-app) ----------
+const THEMA_STD={color:"#D9B44A",gradient:true,font:"modern",quotes:["Elke dag een beetje beter.","Discipline wint van motivatie.","Sterk word je niet per ongeluk."]};
+const THEMA_PRESETS=["#D9B44A","#E4572E","#D81E5B","#8E44AD","#00A8A8","#2ECC71"];
+let instThema=null,instPrevTab="home";
+function thZet(k,v){if(!instThema)return;instThema[k]=v;if(k==="color"){const h=document.getElementById("th-hex");if(h)h.value=v;}if(k==="font")instPaneel();else thPreviewRender();}
+function thHex(v){v=(v||"").trim();if(/^#[0-9a-fA-F]{6}$/.test(v)){instThema.color=v;const c=document.getElementById("th-kleur");if(c)c.value=v;thPreviewRender();}}
+function thPreset(k){instThema.color=k;instPaneel();}
+function thQuote(i,v){if(instThema&&instThema.quotes[i]!=null)instThema.quotes[i]=v;thPreviewRender();}
+function thQuoteBij(){instThema.quotes.push("");instPaneel();}
+function thQuoteWeg(i){instThema.quotes.splice(i,1);instPaneel();}
+function thPrev(t){instPrevTab=t;instPaneel();}
+function thStandaard(){instThema=JSON.parse(JSON.stringify(THEMA_STD));instPaneel();}
+// Kleur lichter/donkerder maken voor het verloop (zelfde idee als goldHi/goldDeep).
+function thTint(hex,f){
+  const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  const t=v=>Math.max(0,Math.min(255,Math.round(f>0?v+(255-v)*f:v*(1+f))));
+  return "#"+[t(r),t(g),t(b)].map(v=>v.toString(16).padStart(2,"0")).join("");
+}
+function thFontCss(){
+  if(instThema.font==="vet")return "font-weight:900;letter-spacing:.4px";
+  if(instThema.font==="smal")return "font-family:'Arial Narrow',Inter,sans-serif;letter-spacing:.2px;font-weight:700";
+  return "font-weight:800;letter-spacing:.6px";
+}
+function thPreviewRender(){
+  const host=document.getElementById("th-preview");if(!host||!instThema)return;
+  const k=instThema.color,hi=thTint(k,.35),deep=thTint(k,-.35);
+  const accent=instThema.gradient?("linear-gradient(135deg,"+hi+","+k+" 55%,"+deep+")"):k;
+  const kop=thFontCss();
+  const naam=(ME.profile.first_name||"Sporter");
+  const quote=(instThema.quotes.find(q=>(q||"").trim())||"").trim();
+  const bedrijf=(instCompany&&instCompany.name)||"Jouw gym";
+  const logo=instCompany&&instCompany.logo_url;
+  let scherm="";
+  if(instPrevTab==="home"){
+    scherm='<div style="display:flex;align-items:center;gap:10px"><span style="width:38px;height:38px;border-radius:50%;background:'+accent+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-weight:800;font-size:12px">'+esc(avFotoText(ME.profile)||naam.slice(0,2).toUpperCase())+'</span>'+
+      '<div><div style="font-size:15px;font-weight:800">Hi '+esc(naam)+',</div>'+(quote?'<div style="font-size:10.5px;color:#9A9A9E;font-style:italic">'+esc(quote)+'</div>':'')+'</div></div>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 8px"><span style="'+kop+';font-size:13px">17 JUL 2026</span><span style="font-size:9px;font-weight:800;color:#0E0E10;background:'+accent+';border-radius:99px;padding:2px 8px">Streak: 3 🔥</span></div>'+
+      '<div style="display:flex;gap:5px;margin-bottom:12px">'+["13","14","15","16","17","18","19"].map((d,i)=>'<span style="flex:1;text-align:center;padding:6px 0;border-radius:9px;font-size:10.5px;font-weight:700;'+(i===4?("border:2px solid "+k+";color:"+k):"background:#17171A;color:#9A9A9E")+'">'+d+'</span>').join("")+'</div>'+
+      '<div style="'+kop+';font-size:13px;margin-bottom:8px">JOUW DAILY RX</div>'+
+      thWorkoutKaartHtml(k)+
+      '<div style="background:'+accent+';border-radius:11px;text-align:center;padding:10px;color:#0E0E10;'+kop+';font-size:12px;margin-top:10px">WORKOUT AFRONDEN</div>';
+  }else if(instPrevTab==="splash"){
+    scherm='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:14px">'+
+      '<span style="width:76px;height:76px;border-radius:50%;background:'+(logo?("url('"+esc(logo)+"') center/cover"):accent)+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-weight:900;font-size:22px;border:3px solid '+k+'">'+(logo?'':esc(bedrijf.slice(0,2).toUpperCase()))+'</span>'+
+      '<div style="'+kop+';font-size:17px">'+esc(bedrijf.toUpperCase())+'</div>'+
+      '<div style="font-size:10.5px;color:#9A9A9E">Training · Coaching · Community</div>'+
+      '<div style="width:44px;height:3px;border-radius:2px;background:'+accent+'"></div></div>';
+  }else{
+    scherm='<div style="'+kop+';font-size:13px;margin-bottom:8px">PROGRAMMA · WEEK 3</div>'+
+      thWorkoutKaartHtml(k)+
+      '<div style="background:#17171A;border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:11px;margin-top:9px">'+
+        '<div style="font-size:12px;font-weight:800;color:'+k+'">D) WOD</div>'+
+        '<div style="font-size:10.5px;color:#D8D7D4;margin-top:3px">3 × 4 min on / 1 min off<br>12 cal bike erg · 5-7 strict pull-ups</div></div>';
+  }
+  host.innerHTML='<div class="th-phone"><div class="th-scherm">'+scherm+'</div>'+
+    '<div style="display:flex;border-top:1px solid rgba(255,255,255,.08);padding-top:7px;margin-top:10px">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+(i===0?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div></div>';
+}
+function thWorkoutKaartHtml(k){
+  return '<div style="background:#17171A;border:1px solid rgba(255,255,255,.08);border-left:4px solid '+k+';border-radius:13px;padding:11px">'+
+    '<div style="font-size:13px;font-weight:800">A) Back Squat</div>'+
+    '<div style="font-size:10.5px;color:#D8D7D4;margin-top:3px">5×5 reps @20X1 · rust 2 min</div>'+
+    '<div style="background:#1F1F23;border-radius:9px;padding:7px 9px;margin-top:8px;font-size:10.5px;color:#9A9A9E">100 kg</div></div>';
+}
+async function thOpslaan(){
+  const msg=document.getElementById("inst-msg");
+  if(!/^#[0-9a-fA-F]{6}$/.test(instThema.color)){if(msg)msg.textContent="Kies een geldige kleur (bijv. #D9B44A).";return;}
+  instThema.quotes=instThema.quotes.map(q=>(q||"").trim()).filter(Boolean);
+  const{error}=await db.from("companies").update({theme:instThema}).eq("id",ME.profile.company_id);
+  if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
+  if(instCompany)instCompany.theme=instThema;
+  toast("Thema opgeslagen. Sporters zien het bij de volgende keer openen van de app.");
+  instPaneel();
 }
 async function instProfielOpslaan(){
   const vn=(document.getElementById("inst-vn").value||"").trim();

@@ -626,6 +626,12 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 @media(max-width:900px){.instgrid{grid-template-columns:1fr}}
 .instlink{color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;margin-left:8px;text-transform:none}
 .instlogo{width:46px;height:46px;border-radius:10px;background:#eef0f3;display:flex;align-items:center;justify-content:center;color:#9aa1ab;flex:none;overflow:hidden}
+.themagrid{display:grid;grid-template-columns:1fr 340px;gap:26px;align-items:start}
+@media(max-width:1000px){.themagrid{grid-template-columns:1fr}}
+.th-preset{width:24px;height:24px;border-radius:50%;display:inline-block;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px #dfe3e8;flex:none}
+.th-preset:hover{transform:scale(1.1)}
+.th-phone{background:#0E0E10;border-radius:26px;padding:16px 14px 10px;color:#F5F4F2;border:6px solid #1c1e22;box-shadow:0 18px 50px rgba(0,0,0,.35);font-family:Inter,sans-serif}
+.th-scherm{min-height:300px}
 .cbar .lo{background:none;border:1px solid #3a3f47;color:#c9cdd4;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 .cbar .lo:hover{color:#fff;border-color:#565c66}
 .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start}
