@@ -93,6 +93,7 @@ async function berOpen(id){
     try{
       await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",id).eq("sender_id",id).is("read_at",null);
       BER.msgs.forEach(m=>{if(m.athlete_id===id&&m.sender_id===id&&!m.read_at)m.read_at=new Date().toISOString();});
+      if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
     }catch(e){}
   }
   berLijstVernieuw();

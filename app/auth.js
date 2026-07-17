@@ -32,7 +32,7 @@ function show(which){
   document.getElementById("login").classList.toggle("hidden",which!=="login");
   document.getElementById("app").classList.toggle("hidden",which!=="app");
 }
-async function signOut(){await db.auth.signOut();document.getElementById("pw").value="";show("login");}
+async function signOut(){if(typeof msgBadgeStop==="function")msgBadgeStop();await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
 async function loadApp(){
   const{data:{user}}=await db.auth.getUser();

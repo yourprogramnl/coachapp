@@ -584,6 +584,7 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .cnav2 button{color:#c9cdd4;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;padding:7px 12px;border-radius:6px;background:none;border:none;cursor:pointer;font-family:inherit}
 .cnav2 button:hover{color:#fff}
 .cnav2 button.on{background:#fff;color:var(--nav)}
+.navbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:6px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800;letter-spacing:0;vertical-align:1px}
 .cbar-right{display:flex;align-items:center;gap:12px}
 .cbar .cav{width:30px;height:30px;border-radius:50%;background:#3a3f47;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #565c66}
 .cbar .lo{background:none;border:1px solid #3a3f47;color:#c9cdd4;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}

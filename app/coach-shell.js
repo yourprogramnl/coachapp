@@ -5,6 +5,47 @@
 // dezelfde pagina blijft.
 let coachClients=[],coachExercises=[],monthWorkouts={},sideCollapsed=false,coachSection="dash";
 
+// ---------- Ongelezen-teller op de Berichten-knop in de topnav ----------
+// Telt ongelezen berichten van je éígen klanten (ook een eigenaar ziet hier
+// alleen zijn eigen klanten: alleen de eigen coach kan op gelezen zetten,
+// anders zou het bolletje bij de eigenaar nooit uitgaan). Realtime bijgewerkt.
+let msgBadgeAantal=0,msgBadgeKanaal=null,msgBadgeGestart=false;
+async function telMsgBadge(){
+  if(!ME||!ME.profile||myRole()==="lid")return;
+  const{data:kl}=await db.from("profiles").select("id").eq("role","lid").eq("coach_id",ME.user.id);
+  const ids=(kl||[]).map(k=>k.id);
+  if(!ids.length){msgBadgeAantal=0;msgBadgeDom();return;}
+  const{data}=await db.from("messages").select("athlete_id,sender_id").in("athlete_id",ids).is("read_at",null);
+  // bericht ván het lid = sender is het lid zelf (coachberichten hebben ook read_at null tot het lid ze leest)
+  msgBadgeAantal=(data||[]).filter(m=>m.sender_id===m.athlete_id).length;
+  msgBadgeDom();
+}
+function msgBadgeHtml(){
+  return msgBadgeAantal>0
+    ?'<span class="navbadge" id="cnav-msgs-badge">'+(msgBadgeAantal>9?"9+":msgBadgeAantal)+'</span>'
+    :'<span class="navbadge" id="cnav-msgs-badge" style="display:none"></span>';
+}
+function msgBadgeDom(){
+  const el=document.getElementById("cnav-msgs-badge");if(!el)return;
+  el.style.display=msgBadgeAantal>0?"":"none";
+  el.textContent=msgBadgeAantal>9?"9+":msgBadgeAantal;
+}
+function msgBadgeStart(){
+  telMsgBadge();
+  if(msgBadgeGestart)return;
+  msgBadgeGestart=true;
+  try{
+    msgBadgeKanaal=db.channel("msg-badge")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+        if(payload.new&&payload.new.sender_id===payload.new.athlete_id)telMsgBadge();
+      }).subscribe();
+  }catch(e){}
+}
+function msgBadgeStop(){
+  msgBadgeAantal=0;msgBadgeGestart=false;
+  try{if(msgBadgeKanaal){db.removeChannel(msgBadgeKanaal);msgBadgeKanaal=null;}}catch(e){}
+}
+
 const myRole=()=>(ME.profile&&ME.profile.role)||"lid";
 // Tabs per rol: coach ziet geen "Coaches"; platform_admin krijgt extra "Bedrijven"
 function cnavItems(){
@@ -79,13 +120,14 @@ window.addEventListener("hashchange",()=>{
 });
 function coachShellHtml(inner){
   document.body.classList.add("coachmode");
-  const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+'</button>').join("");
+  const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</button>').join("");
   const av=esc((ME.profile.first_name||ME.user.email||"?").slice(0,1).toUpperCase());
   return '<div class="cwrap"><div class="cbar"><span class="logo">COACH<b>APP</b></span><div class="cnav2">'+btns+'</div>'+
     '<div class="cbar-right"><span style="font-size:10px;color:#8f959d;font-weight:700;text-transform:uppercase;letter-spacing:.6px">'+esc(ROLE_NL[myRole()]||"")+'</span><div class="cav">'+av+'</div><button class="lo" onclick="signOut()">Uitloggen</button></div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
 }
 function coachRenderSection(){
+  msgBadgeStart();
   const c=document.getElementById("content");
   if(coachSection==="clients"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillKlanten();return;}
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}

@@ -33,7 +33,10 @@ async function chatLaad(){
   host.innerHTML=(data||[]).map(m=>chatBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>';
   host.scrollTop=host.scrollHeight;
   // binnengekomen berichten op gelezen zetten
-  try{await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",chatAthlete).neq("sender_id",ME.user.id).is("read_at",null);}catch(e){}
+  try{
+    await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",chatAthlete).neq("sender_id",ME.user.id).is("read_at",null);
+    if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
+  }catch(e){}
 }
 function chatBubHtml(m){
   const mij=m.sender_id===ME.user.id;
