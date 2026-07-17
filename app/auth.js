@@ -39,6 +39,11 @@ async function loadApp(){
   if(!user){show("login");return;}
   const{data:profile}=await db.from("profiles").select("*").eq("id",user.id).single();
   ME={user,profile:profile||{role:"lid"}};
+  // Na een bevestigde e-mailwijziging loopt profiles.email achter op het
+  // auth-adres; stilletjes gelijktrekken.
+  if(profile&&user.email&&profile.email!==user.email){
+    try{await db.from("profiles").update({email:user.email}).eq("id",user.id);ME.profile.email=user.email;}catch(e){}
+  }
   // Uitnodiging inwisselen: serverside koppeling aan bedrijf/rol/coach.
   // Token uit de link (?invite=TOKEN) of uit localStorage (bewaard bij account maken,
   // want de e-mailbevestigingslink komt zonder ?invite= terug).

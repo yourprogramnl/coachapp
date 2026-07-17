@@ -3,7 +3,7 @@
 // Consultatielink, Notificaties en Partners zijn nette placeholders.
 // Bewust weggelaten (keuze Stefan, 17 juli): Plan & Billing, Organization,
 // Client Settings.
-let instTab="profiel";
+let instTab="profiel",instCompany=null;
 const INST_TABS=[
   ["profiel","Profiel","i-user"],
   ["wachtwoord","Wachtwoord","i-keys"],
@@ -20,18 +20,52 @@ function fillInstellingen(){
   instPaneel();
 }
 function instGa(t){instTab=t;fillInstellingen();}
-function instPaneel(){
+// Hoeveel van je profiel is ingevuld (foto, voornaam, achternaam, over jou)?
+function instVoortgang(){
+  const p=ME.profile;
+  const delen=[!!p.avatar_url,!!(p.first_name||"").trim(),!!(p.last_name||"").trim(),!!(p.bio||"").trim()];
+  return Math.round(delen.filter(Boolean).length/delen.length*100);
+}
+async function instPaneel(){
   const host=document.getElementById("inst-paneel");if(!host)return;
   const p=ME.profile;
   if(instTab==="profiel"){
-    host.innerHTML='<h2 style="margin:0 0 4px">Profiel</h2><div class="sm muted" style="margin-bottom:16px">Je naam en foto zoals je klanten ze zien.</div>'+
-      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><div class="instav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
-      '<div><input type="file" id="inst-foto" accept="image/*" style="display:none" onchange="instFotoUpload(this)">'+
-      '<button class="btn ghost sm" id="inst-fotoknop" onclick="document.getElementById(\'inst-foto\').click()">Foto wijzigen</button>'+
-      '<div class="sm muted" style="margin-top:4px">Alleen afbeeldingen, max 5 MB.</div></div></div>'+
-      '<div class="field" style="max-width:340px"><label>Voornaam</label><input id="inst-vn" value="'+esc(p.first_name||"")+'"></div>'+
-      '<div class="field" style="max-width:340px"><label>Achternaam</label><input id="inst-an" value="'+esc(p.last_name||"")+'"></div>'+
-      '<div class="field" style="max-width:340px"><label>E-mailadres</label><input value="'+esc(p.email||ME.user.email||"")+'" disabled></div>'+
+    // Bedrijfsgegevens (naam + logo) erbij halen; alleen eigenaar/platform_admin mogen ze wijzigen.
+    if(instCompany===null&&p.company_id){
+      host.innerHTML='<div class="spin">Laden…</div>';
+      const{data}=await db.from("companies").select("id,name,logo_url").eq("id",p.company_id).single();
+      instCompany=data||{};
+      if(instTab!=="profiel")return; // tab is intussen gewisseld
+    }
+    const pct=instVoortgang();
+    const magBedrijf=myRole()==="eigenaar"||myRole()==="platform_admin";
+    const bedrijf=instCompany||{};
+    host.innerHTML=
+      '<div class="instprog"><div class="pring" style="background:conic-gradient(var(--accent) '+(pct*3.6)+'deg,#e8ebef 0)"><span>'+pct+'%</span></div>'+
+        '<div><b style="font-size:15px">Profiel-voortgang</b><div class="sm muted" style="margin-top:2px">Een compleet profiel (foto, naam en iets over jezelf) oogt vertrouwd voor je klanten.</div></div></div>'+
+      '<div class="instbanner"><span class="instav-wrap"><span class="instav groot" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+
+        '<input type="file" id="inst-foto" accept="image/*" style="display:none" onchange="instFotoUpload(this)">'+
+        '<button class="instav-pen" id="inst-fotoknop" title="Foto wijzigen" onclick="document.getElementById(\'inst-foto\').click()"><svg class="i sm-i"><use href="#i-pen"/></svg></button></span>'+
+        '<b style="font-size:19px">'+esc(naamVan(p))+'</b></div>'+
+      '<div class="instgrid">'+
+        '<div>'+
+          '<div style="display:flex;gap:12px"><div class="field" style="flex:1"><label>Voornaam</label><input id="inst-vn" value="'+esc(p.first_name||"")+'"></div>'+
+          '<div class="field" style="flex:1"><label>Achternaam</label><input id="inst-an" value="'+esc(p.last_name||"")+'"></div></div>'+
+          '<div class="field"><label>E-mailadres <span class="instlink" onclick="instEmailStart()">Wijzig</span></label><input id="inst-email" value="'+esc(ME.user.email||p.email||"")+'" disabled></div>'+
+          '<div id="inst-emailwissel" style="display:none"><div class="field"><label>Nieuw e-mailadres</label><input id="inst-email-nieuw" type="email" placeholder="naam@voorbeeld.nl"></div>'+
+          '<button class="btn ghost sm" onclick="instEmailVerstuur()">Verstuur bevestigingsmail</button>'+
+          '<div class="sm muted" style="margin-top:6px">Je krijgt een mail op je oude én nieuwe adres; het nieuwe adres geldt pas na bevestiging.</div></div>'+
+        '</div>'+
+        '<div>'+
+          '<div class="field"><label>Over jou</label><textarea id="inst-bio" maxlength="220" style="min-height:96px" placeholder="Vertel je klanten kort iets over jezelf…" oninput="document.getElementById(\'inst-bioteller\').textContent=this.value.length+\'/220\'">'+esc(p.bio||"")+'</textarea>'+
+          '<div class="sm muted" style="text-align:right" id="inst-bioteller">'+((p.bio||"").length)+'/220</div></div>'+
+          '<div class="field"><label>Bedrijfsnaam</label><input id="inst-bedrijf" value="'+esc(bedrijf.name||"")+'"'+(magBedrijf?"":" disabled")+'></div>'+
+          '<div class="field"><label>Bedrijfslogo</label><div style="display:flex;align-items:center;gap:12px">'+
+            '<span class="instlogo"'+(bedrijf.logo_url?' style="background-image:url(\''+esc(bedrijf.logo_url)+'\');background-size:cover;background-position:center"':'')+'>'+(bedrijf.logo_url?'':'<svg class="i"><use href="#i-cam"/></svg>')+'</span>'+
+            (magBedrijf?'<input type="file" id="inst-logo" accept="image/*" style="display:none" onchange="instLogoUpload(this)"><button class="btn ghost sm" id="inst-logoknop" onclick="document.getElementById(\'inst-logo\').click()">Logo uploaden</button><span class="sm muted">Max 5 MB.</span>':'<span class="sm muted">Alleen de eigenaar kan het logo wijzigen.</span>')+
+          '</div></div>'+
+        '</div>'+
+      '</div>'+
       '<div class="msg" id="inst-msg"></div>'+
       '<button class="btn" onclick="instProfielOpslaan()">Profiel opslaan</button>';
   }else if(instTab==="wachtwoord"){
@@ -53,13 +87,61 @@ function instPaneel(){
 async function instProfielOpslaan(){
   const vn=(document.getElementById("inst-vn").value||"").trim();
   const an=(document.getElementById("inst-an").value||"").trim();
+  const bio=(document.getElementById("inst-bio").value||"").trim();
   const msg=document.getElementById("inst-msg");
   if(!vn||!an){if(msg)msg.textContent="Vul je voor- en achternaam in.";return;}
-  const{data,error}=await db.from("profiles").update({first_name:vn,last_name:an}).eq("id",ME.user.id).select().single();
+  const{data,error}=await db.from("profiles").update({first_name:vn,last_name:an,bio:bio||null}).eq("id",ME.user.id).select().single();
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
-  Object.assign(ME.profile,data||{first_name:vn,last_name:an});
+  Object.assign(ME.profile,data||{first_name:vn,last_name:an,bio:bio||null});
+  // Bedrijfsnaam (alleen eigenaar/platform_admin; het veld is anders disabled)
+  const bIn=document.getElementById("inst-bedrijf");
+  if(bIn&&!bIn.disabled&&instCompany&&(bIn.value||"").trim()&&(bIn.value||"").trim()!==(instCompany.name||"")){
+    const{error:cErr}=await db.from("companies").update({name:bIn.value.trim()}).eq("id",ME.profile.company_id);
+    if(cErr){if(msg)msg.textContent=cErr.message||"Bedrijfsnaam opslaan mislukt";return;}
+    instCompany.name=bIn.value.trim();
+  }
   toast("Profiel opgeslagen");
   coachRenderSection(); // naam/avatar in de balk verversen
+}
+// E-mailadres wijzigen: Supabase stuurt bevestigingsmails naar oud én nieuw adres.
+function instEmailStart(){
+  const w=document.getElementById("inst-emailwissel");
+  if(w)w.style.display=w.style.display==="none"?"":"none";
+}
+async function instEmailVerstuur(){
+  const inp=document.getElementById("inst-email-nieuw");
+  const msg=document.getElementById("inst-msg");
+  const nieuw=(inp&&inp.value||"").trim();
+  if(!/.+@.+\..+/.test(nieuw)){if(msg)msg.textContent="Vul een geldig e-mailadres in.";return;}
+  const{error}=await db.auth.updateUser({email:nieuw});
+  if(error){if(msg)msg.textContent=error.message||"Wijzigen mislukt";return;}
+  if(msg)msg.textContent="";
+  toast("Bevestigingsmails verstuurd. Het nieuwe adres geldt na bevestiging.");
+}
+// Bedrijfslogo uploaden (avatars-bucket, map {company_id}/logo/…).
+async function instLogoUpload(input){
+  const file=input.files&&input.files[0];input.value="";
+  if(!file)return;
+  if(!/^image\//.test(file.type||"")){toast("Kies een afbeelding");return;}
+  if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
+  const knop=document.getElementById("inst-logoknop");
+  if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
+  const ext=((file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,""))||"png";
+  const path=ME.profile.company_id+"/logo/"+crypto.randomUUID()+"."+ext;
+  const{error:upErr}=await db.storage.from("avatars").upload(path,file,{contentType:file.type,upsert:false});
+  if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Logo uploaden";}return;}
+  const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
+  const url=(pub&&pub.publicUrl)?pub.publicUrl:null;
+  const oud=instCompany&&instCompany.logo_url;
+  const{error}=await db.from("companies").update({logo_url:url}).eq("id",ME.profile.company_id);
+  if(error){
+    await db.storage.from("avatars").remove([path]); // geen wees-bestand achterlaten
+    toast(error.message||"Opslaan mislukt");if(knop){knop.disabled=false;knop.textContent="Logo uploaden";}return;
+  }
+  if(instCompany)instCompany.logo_url=url;
+  if(oud){const m=String(oud).split("/avatars/");if(m[1])db.storage.from("avatars").remove([decodeURIComponent(m[1])]);}
+  toast("Logo bijgewerkt");
+  instPaneel();
 }
 // Eigen profielfoto uploaden (zelfde bucket en pad-opbouw als bij een klant).
 async function instFotoUpload(input){
