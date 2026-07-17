@@ -561,6 +561,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .sp-chip .x:hover{color:#fff}
 /* Chat-popup rechtsonder (zoals CoachRx Message) */
 .chatpop{position:fixed;right:64px;bottom:0;width:302px;background:#fff;border-radius:12px 12px 0 0;box-shadow:0 -8px 44px rgba(0,0,0,.28);z-index:230;display:none;flex-direction:column;height:430px}
+/* Op de telefoon (het lid gebruikt de app alleen mobiel): chat schermbreed */
+@media(max-width:480px){.chatpop{left:0;right:0;width:auto;height:70vh;max-height:560px}}
 .chatpop.show{display:flex}
 .chatpop .ch{background:#26292f;color:#fff;padding:10px 12px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:9px}
 .chatpop .ch b{font-size:12.5px;flex:1}
