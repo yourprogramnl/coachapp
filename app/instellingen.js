@@ -110,14 +110,32 @@ async function instPaneel(){
         '<div id="th-preview"></div>'+
       '</div></div>';
     thPreviewRender();
+  }else if(instTab==="consult"){
+    host.innerHTML='<h2 style="margin:0 0 4px">Consultatielink</h2>'+
+      '<div class="sm muted" style="margin-bottom:16px">Jouw persoonlijke boekingslink (bijv. Calendly) waarmee klanten een gesprek met je kunnen inplannen.</div>'+
+      '<div class="field" style="max-width:520px"><label>Boekingslink</label><input id="inst-consult" value="'+esc(p.consult_url||"")+'" placeholder="https://calendly.com/jouwnaam/30min"></div>'+
+      '<div class="msg" id="inst-msg"></div>'+
+      '<div style="display:flex;gap:10px;align-items:center"><button class="btn" onclick="instConsultOpslaan()">Opslaan</button>'+
+      (p.consult_url?'<a class="btn ghost" href="'+esc(p.consult_url)+'" target="_blank" rel="noopener">Link testen</a>':'')+'</div>';
   }else{
     const info={
-      consult:["Consultatielink","Een boekingslink voor consults (zoals Calendly) komt in een volgende stap."],
       notificaties:["Notificaties","Meldingsinstellingen komen samen met push- en e-mailnotificaties."],
       partners:["Partners","Partner- en doorverwijsopties komen in een volgende stap."],
     }[instTab]||["",""];
     host.innerHTML='<h2 style="margin:0 0 4px">'+info[0]+'</h2><div class="csoon" style="margin-top:10px">'+info[1]+'</div>';
   }
+}
+async function instConsultOpslaan(){
+  const inp=document.getElementById("inst-consult");
+  const msg=document.getElementById("inst-msg");
+  let url=(inp&&inp.value||"").trim();
+  if(url&&!/^https?:\/\//i.test(url))url="https://"+url; // “calendly.com/…” mag ook
+  if(url&&!/^https?:\/\/.+\..+/i.test(url)){if(msg)msg.textContent="Dat ziet er niet uit als een geldige link.";return;}
+  const{data,error}=await db.from("profiles").update({consult_url:url||null}).eq("id",ME.user.id).select().single();
+  if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
+  Object.assign(ME.profile,data||{consult_url:url||null});
+  toast(url?"Consultatielink opgeslagen":"Consultatielink verwijderd");
+  instPaneel();
 }
 // ---------- Thema (kleuren/typografie/quotes van de sporter-app) ----------
 const THEMA_STD={color:"#D9B44A",gradient:true,font:"modern",quotes:[
