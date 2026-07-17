@@ -106,7 +106,7 @@ async function instPaneel(){
         (mag?'<div style="display:flex;gap:10px;margin-top:10px"><button class="btn" onclick="thOpslaan()">Thema opslaan</button><button class="btn ghost" onclick="thStandaard()">Terug naar standaard</button></div>':'')+
       '</div>'+
       '<div><div class="sm" style="font-weight:800;margin-bottom:2px">Live voorbeeld</div><div class="sm muted" style="margin-bottom:10px">Zo ziet je klant het straks.</div>'+
-        '<div style="display:flex;gap:6px;margin-bottom:10px">'+[["home","Home"],["splash","Splash"],["prog","Programma"]].map(t=>'<button class="btn '+(instPrevTab===t[0]?"":"ghost ")+'sm" onclick="thPrev(\''+t[0]+'\')">'+t[1]+'</button>').join("")+'</div>'+
+        '<div style="display:flex;gap:6px;margin-bottom:10px">'+[["home","Home"],["splash","Splash"],["prog","Programma"],["msg","Bericht"]].map(t=>'<button class="btn '+(instPrevTab===t[0]?"":"ghost ")+'sm" onclick="thPrev(\''+t[0]+'\')">'+t[1]+'</button>').join("")+'</div>'+
         '<div id="th-preview"></div>'+
       '</div></div>';
     thPreviewRender();
@@ -166,15 +166,33 @@ function thPreviewRender(){
       '<div style="'+kop+';font-size:17px">'+esc(bedrijf.toUpperCase())+'</div>'+
       '<div style="font-size:10.5px;color:#9A9A9E">Training · Coaching · Community</div>'+
       '<div style="width:44px;height:3px;border-radius:2px;background:'+accent+'"></div></div>';
-  }else{
+  }else if(instPrevTab==="prog"){
     scherm='<div style="'+kop+';font-size:13px;margin-bottom:8px">PROGRAMMA · WEEK 3</div>'+
       thWorkoutKaartHtml(k)+
       '<div style="background:#17171A;border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:11px;margin-top:9px">'+
         '<div style="font-size:12px;font-weight:800;color:'+k+'">D) WOD</div>'+
         '<div style="font-size:10.5px;color:#D8D7D4;margin-top:3px">3 × 4 min on / 1 min off<br>12 cal bike erg · 5-7 strict pull-ups</div></div>';
+  }else{
+    // Bericht: de chat met de coach, in de themakleur.
+    const coachN=naamVan(ME.profile)||"Je coach";
+    const bub=(mij,txt)=>'<div style="display:flex;justify-content:'+(mij?"flex-end":"flex-start")+';margin-bottom:7px"><span style="max-width:78%;padding:7px 10px;border-radius:13px;font-size:10.5px;line-height:1.45;'+(mij?("background:"+accent+";color:#0E0E10;border-bottom-right-radius:4px;font-weight:600"):"background:#1F1F23;border:1px solid rgba(255,255,255,.08);color:#F5F4F2;border-bottom-left-radius:4px")+'">'+esc(txt)+'</span></div>';
+    scherm='<div style="display:flex;align-items:center;gap:9px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:9px;margin-bottom:10px">'+
+      '<span style="width:32px;height:32px;border-radius:50%;background:'+accent+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-weight:800;font-size:11px">'+esc(avFotoText(ME.profile)||coachN.slice(0,2).toUpperCase())+'</span>'+
+      '<div><div style="font-size:12.5px;font-weight:800">'+esc(coachN)+'</div><div style="font-size:9.5px;color:#9A9A9E">Jouw coach</div></div></div>'+
+      '<div style="text-align:center;font-size:9px;color:#9A9A9E;margin-bottom:8px">Vandaag</div>'+
+      bub(false,"Hoi! Hoe ging de training vandaag?")+
+      bub(true,"Ging lekker, 100 kg gesquat 💪")+
+      bub(false,"Sterk! Volgende week gaan we voor 102,5 kg.")+
+      bub(true,"Ik stuur zo even mijn video mee.")+
+      '<div style="display:flex;align-items:center;gap:7px;margin-top:14px">'+
+        '<span style="flex:1;background:#1F1F23;border:1px solid rgba(255,255,255,.08);border-radius:99px;padding:8px 12px;font-size:10px;color:#9A9A9E">Typ een bericht…</span>'+
+        '<span style="width:30px;height:30px;border-radius:50%;background:'+accent+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-size:12px">➤</span></div>';
   }
-  host.innerHTML='<div class="th-phone"><div class="th-scherm">'+scherm+'</div>'+
-    '<div style="display:flex;border-top:1px solid rgba(255,255,255,.08);padding-top:7px;margin-top:10px">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+(i===0?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div></div>';
+  host.innerHTML='<div class="th-phone"><div class="th-notch"></div>'+
+    '<div class="th-status"><span>13:37</span><span>📶 📡 🔋</span></div>'+
+    '<div class="th-scherm">'+scherm+'</div>'+
+    '<div style="display:flex;border-top:1px solid rgba(255,255,255,.08);padding-top:7px;margin-top:10px">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>'+
+    '<div class="th-homebar"></div></div>';
 }
 function thWorkoutKaartHtml(k){
   return '<div style="background:#17171A;border:1px solid rgba(255,255,255,.08);border-left:4px solid '+k+';border-radius:13px;padding:11px">'+
