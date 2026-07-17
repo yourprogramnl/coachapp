@@ -218,6 +218,7 @@ async function berGroepGelezen(gid){
     const nu=new Date().toISOString();
     await db.from("chat_group_members").update({last_read_at:nu}).eq("id",eigen.id);
     eigen.last_read_at=nu;
+    if(typeof telMsgBadge==="function")telMsgBadge(); // topnav-bolletje bijwerken
   }catch(e){}
 }
 async function berGroepStuur(){

@@ -8,16 +8,32 @@ let coachClients=[],coachExercises=[],monthWorkouts={},sideCollapsed=false,coach
 // ---------- Ongelezen-teller op de Berichten-knop in de topnav ----------
 // Telt ongelezen berichten van je éígen klanten (ook een eigenaar ziet hier
 // alleen zijn eigen klanten: alleen de eigen coach kan op gelezen zetten,
-// anders zou het bolletje bij de eigenaar nooit uitgaan). Realtime bijgewerkt.
+// anders zou het bolletje bij de eigenaar nooit uitgaan), plus ongelezen
+// groepsberichten van groepen waar je zelf lid van bent. Realtime bijgewerkt.
 let msgBadgeAantal=0,msgBadgeKanaal=null,msgBadgeGestart=false;
 async function telMsgBadge(){
   if(!ME||!ME.profile||myRole()==="lid")return;
-  const{data:kl}=await db.from("profiles").select("id").eq("role","lid").eq("coach_id",ME.user.id);
-  const ids=(kl||[]).map(k=>k.id);
-  if(!ids.length){msgBadgeAantal=0;msgBadgeDom();return;}
-  const{data}=await db.from("messages").select("athlete_id,sender_id").in("athlete_id",ids).is("read_at",null);
-  // bericht ván het lid = sender is het lid zelf (coachberichten hebben ook read_at null tot het lid ze leest)
-  msgBadgeAantal=(data||[]).filter(m=>m.sender_id===m.athlete_id).length;
+  const[kl,lidm]=await Promise.all([
+    db.from("profiles").select("id").eq("role","lid").eq("coach_id",ME.user.id),
+    db.from("chat_group_members").select("group_id,last_read_at").eq("profile_id",ME.user.id),
+  ]);
+  let n=0;
+  const ids=(kl.data||[]).map(k=>k.id);
+  if(ids.length){
+    const{data}=await db.from("messages").select("athlete_id,sender_id").in("athlete_id",ids).is("read_at",null);
+    // bericht ván het lid = sender is het lid zelf (coachberichten hebben ook read_at null tot het lid ze leest)
+    n+=(data||[]).filter(m=>m.sender_id===m.athlete_id).length;
+  }
+  const gids=(lidm.data||[]).map(m=>m.group_id);
+  if(gids.length){
+    const{data:gm}=await db.from("chat_group_messages").select("group_id,sender_id,created_at").in("group_id",gids).neq("sender_id",ME.user.id);
+    n+=(gm||[]).filter(m=>{
+      const eigen=(lidm.data||[]).find(x=>x.group_id===m.group_id);
+      const sinds=eigen&&eigen.last_read_at?eigen.last_read_at:"";
+      return m.created_at>sinds;
+    }).length;
+  }
+  msgBadgeAantal=n;
   msgBadgeDom();
 }
 function msgBadgeHtml(){
@@ -38,6 +54,9 @@ function msgBadgeStart(){
     msgBadgeKanaal=db.channel("msg-badge")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
         if(payload.new&&payload.new.sender_id===payload.new.athlete_id)telMsgBadge();
+      })
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_group_messages"},payload=>{
+        if(payload.new&&payload.new.sender_id!==ME.user.id)telMsgBadge();
       }).subscribe();
   }catch(e){}
 }
