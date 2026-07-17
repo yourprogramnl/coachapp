@@ -1,7 +1,7 @@
 // app/panelen.js — de zijpanelen van het klant-scherm:
 // Assessment, Metrics & 1RM, Doelen, Notities & documenten, Trainingsschema,
 // Prioriteiten, Materiaal en de Profiel-pagina. Plus de zijbalk in-/uitklappen.
-// ---------- ASSESSMENT (OPEX Body / Move / Work), zoals het ontwerp ----------
+// ---------- ASSESSMENT (Body / Move / Work), zoals het ontwerp ----------
 const ASS_MOVE=[
   ["scratch","Scratch Test","Hoe uit te voeren:\nBreng één arm boven het hoofd en reik achter de nek naar je bovenrug, terwijl de andere arm van onderen omhoog komt. Beide met gesloten vuist (haakgreep).\n\nLet op:\nSymmetrie links-rechts\nBovenarm kan in lijn met de romp blijven zonder in te zakken in de core\nStrategieën om het bewegingsbereik te halen (romp en nek)\nOnvermogen om het schouderblad in te trekken\nOnvermogen in schouder-extensie bij het overhead gaan\nVerkeerde uitlijning van de wervelkolom\nVoer minstens 3 herhalingen uit"],
   ["airsquat","Air Squat","Hoe uit te voeren:\nKies een voetstand die comfortabel voelt.\nArmen boven het hoofd in een \"Y\"-positie, naar buiten gedraaid (extern geroteerd).\nZak met je zwaartepunt naar de vloer terwijl je zo rechtop mogelijk blijft.\nVoer minstens 3 herhalingen uit.\n\nLet op:\nRomp- en lage-rug-extensie vastgehouden\nSymmetrie van links naar rechts\nHeupverschuiving (hip shift)\nUitlijning van de heupen\nVoeten plat\nHanden komen vóór de voeten"],
@@ -16,7 +16,7 @@ const ASS_TIJD=[
   ["sideplank_r","Side Plank Right","Hoe uit te voeren:\nLig op je zij met de onderarm plat op de vloer, de onderste elleboog recht onder de schouder en beide benen gestrekt in één lange lijn.\nBegin met de niet-dominante arm onder.\nMet de voeten op elkaar gestapeld en het hoofd neutraal, til je je heupen van de vloer en vorm je een rechte lijn van hoofd tot voeten.\nStart de timer.\n\nLet op:\nHoud een rechte lijn van hoofd tot voeten\nVermogen om 90 seconden per kant een goede positie vast te houden\nSymmetrie links-rechts"],
   ["sideplank_l","Side Plank Left","Hoe uit te voeren:\nLig op je zij met de onderarm plat op de vloer, de onderste elleboog recht onder de schouder en beide benen gestrekt in één lange lijn.\nBegin met de niet-dominante arm onder.\nMet de voeten op elkaar gestapeld en het hoofd neutraal, til je je heupen van de vloer en vorm je een rechte lijn van hoofd tot voeten.\nStart de timer.\n\nLet op:\nHoud een rechte lijn van hoofd tot voeten\nVermogen om 90 seconden per kant een goede positie vast te houden\nSymmetrie links-rechts"]
 ];
-// OPEX Body-uitleg (bij de vraagtekens op het eerste tabblad)
+// Body-uitleg (bij de vraagtekens op het eerste tabblad)
 const ASS_TIP_VET="Man 10-20%, vrouw 18-28%.\nDit zijn ranges die aangeven dat een man of vrouw gezond is. Het zijn geen indicatoren van een geoptimaliseerde lichaamssamenstelling en komen niet altijd overeen met de ideale lichaamssamenstelling van je klant. Bespreek met je klanten het verschil tussen gezondheid en geoptimaliseerde esthetiek.";
 const ASS_TIP_SHAPE="Om te bepalen welke \"shape\" je klant heeft, kijk je naar het onderdeel Muscle Fat Analysis op de InBody-uitdraai. Het is de vorm die de 3 balken samen maken (C, I of D).";
 let assData={},assLijst=[],assHuidigId=null,assDatum="",assTabIdx=0;
@@ -106,24 +106,24 @@ function assHtml(d){
   const delBtn=assHuidigId?'<button class="sp-btn ghost" onclick="assVerwijder()">Verwijderen</button>':"";
   return '<div class="sp-head"><h3>Assessment</h3><span class="sp-x" onclick="document.getElementById(\'sp-assess\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     histRij+datumVeld+
-    '<div class="sp-tabs"><button class="on" id="ass-t0" onclick="assTab(0)">OPEX Body</button><button id="ass-t1" onclick="assTab(1)">OPEX Move</button><button id="ass-t2" onclick="assTab(2)">OPEX Work</button></div>'+
+    '<div class="sp-tabs"><button class="on" id="ass-t0" onclick="assTab(0)">Body</button><button id="ass-t1" onclick="assTab(1)">Move</button><button id="ass-t2" onclick="assTab(2)">Work</button></div>'+
     '<div id="ass-0">'+
       veld("Lichaamsgewicht","as-gewicht",b.gewicht)+
       veld("Vetpercentage","as-vet",b.vet,ASS_TIP_VET)+
       veld("Skeletspiermassa","as-spier",b.spier)+
       veld("Basaal metabolisme","as-metab",b.metab)+
       '<div class="sp-field"><label>Muscle fat-analyse <span class="ass-help" data-tip="'+esc(ASS_TIP_SHAPE)+'">?</span></label><select id="as-shape">'+["","C-shape","D-shape","I-shape"].map(s=>'<option'+(b.shape===s?" selected":"")+'>'+s+'</option>').join("")+'</select></div>'+
-      '<div class="sp-field"><label>Notities OPEX Body</label><textarea id="as-bodynotes">'+esc(b.notes||"")+'</textarea></div>'+
+      '<div class="sp-field"><label>Notities Body</label><textarea id="as-bodynotes">'+esc(b.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-0">'+extraHtml(b.extra)+'</div>'+
     '</div>'+
     '<div id="ass-1" style="display:none">'+moveTests+tijden+
-      '<div class="sp-field"><label>OPEX Move Notes</label><textarea id="as-movenotes">'+esc(mv.notes||"")+'</textarea></div>'+
+      '<div class="sp-field"><label>Notities Move</label><textarea id="as-movenotes">'+esc(mv.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-1">'+extraHtml(mv.extra)+'</div>'+
     '</div>'+
     '<div id="ass-2" style="display:none">'+
       veld("Airbike 10 min cals","as-cals",wk.cals)+
       veld("Airbike weight conversion","as-conv",wk.conv)+
-      '<div class="sp-field"><label>OPEX Work Notes</label><textarea id="as-worknotes">'+esc(wk.notes||"")+'</textarea></div>'+
+      '<div class="sp-field"><label>Notities Work</label><textarea id="as-worknotes">'+esc(wk.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-2">'+extraHtml(wk.extra)+'</div>'+
     '</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="sp-btn" onclick="assOpslaan()">'+saveLabel+'</button>'+delBtn+'<button class="sp-btn ghost" onclick="toast(\'Exporteren komt in een volgende stap\')">Exporteer als PDF</button></div>'+
@@ -171,11 +171,11 @@ const METRICS_DEF={
  "Energy System Beginner":["10 minute AirBike","5k Row","60min Row","AirBike Weight Conversion"],
  "Energy System Intermediate":["2k Row","30/30 Row (Row 1)","30/30 Row (Row 2)","30/30 Row (Row 3)","30/30 Row (Row 4)","3K running","500m Row","60 sec AirBike","60 sec Row","90min AMRAP","Row/Burpee Over Erg"],
  "Energy System Advanced":["18 min AMRAP","Back Squat Neuromuscular Efficiency (NME)","Constant Variance (Set 1: A,B,C,D,E,F)","Constant Variance (Set 2: D,E,F,C,B,A)","Constant Variance (Set 3: B,D,E,A,F,C)","Constant Variance (Set 4: F,A,D,E,C,B)","Constant Variance (Set 5: C,F,B,D,A,E)","Power Clean/Burpee Repeat (Set 1)","Power Clean/Burpee Repeat (Set 2)","Push/Pull","Row/KBS/Burpee (Set 1)","Row/KBS/Burpee (Set 2)","Row/KBS/Burpee (Set 3)","Strict PU + Strict HSPU (PU)","Strict PU + Strict HSPU (sHSPU)"],
- "OPEX Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
+ "Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
 };
 let mxData=[],mxOpen={},balKeuze="Deadlift";
 // Detailscherm-state + koppeling naar Assessment (zodat je deze waarden maar op één plek invult).
-// [sectie, veld] verwijst naar assessments.data[sectie][veld] (body = OPEX Body, move = OPEX Move).
+// [sectie, veld] verwijst naar assessments.data[sectie][veld] (body = Body, move = Move).
 let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
 const MX_ASS_VELD={
   "Weight":["body","gewicht"],"Bodyfat Percentage":["body","vet"],"Skeletal Muscle Mass":["body","spier"],"Basal Metabolic Rate":["body","metab"],
@@ -187,7 +187,7 @@ const MX_VIDEO_OVERRIDE={
   "CGBP 1RM":"jU6EA4j5r2A","DB Prone Row 6RM":"Sm8O4hjJr9M","Seated DB OH Press 6RM":"RgkzQ008m3I",
   "Strict Pullup":"jgFel4wZl3I","RFESS":"8kvZmrlOo2M","Unloaded RFESS":"3fxmRoIE_fk"
 };
-// Testbeschrijving bij het vraagteken op Advanced-metrics (zelfde tooltip als bij OPEX Body).
+// Testbeschrijving bij het vraagteken op Advanced-metrics (zelfde tooltip als bij Body).
 // De werkregels (A. 15 WB, 20/14# ...) laten we in de CoachRx-notatie staan; coaches kennen die zo.
 const MX_TIP_CV="In deze test voert de klant het onderstaande werk zo snel mogelijk per set uit. Constant Variance onderzoekt de herhaalbaarheid van dynamische, matig tot laag belaste contracties, via spieruithoudingsvermogen en aanpassing aan taakvariatie. De onderdelen weerspiegelen matige tot lagere belastingen en aeroob werk op hogere snelheid.";
 const MX_TIP={
@@ -299,7 +299,7 @@ function mxRender(){
         const nEsc=naam.replace(/'/g,"\\'");
         // Camera met demo-video alleen bij Resistance (bewegingen); de andere blokken hebben geen video.
         const cam=(g==="Resistance")?'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span>':'';
-        // Vraagteken met testbeschrijving (hover), net als bij OPEX Body. Klik niet doorlaten naar de rij.
+        // Vraagteken met testbeschrijving (hover), net als bij Body. Klik niet doorlaten naar de rij.
         const tip=MX_TIP[naam]?' <span class="ass-help" data-tip="'+esc(MX_TIP[naam])+'" onclick="event.stopPropagation()">?</span>':'';
         html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+tip+cam+'</div><div class="mx-cur">'+curTxt+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
       });
@@ -353,7 +353,7 @@ function mxDetailRender(){
   const naam=mxDetailNaam,assVeld=MX_ASS_VELD[naam];
   let curTxt="—",histRows="",actie="";
   if(assVeld){
-    const blok={body:"OPEX Body",move:"OPEX Move",work:"OPEX Work"}[assVeld[0]]||"Assessment";
+    const blok={body:"Body",move:"Move",work:"Work"}[assVeld[0]]||"Assessment";
     const punten=mxAssPunten(naam);
     if(punten.length)curTxt=esc(String(punten[punten.length-1].v));
     histRows=punten.slice().reverse().map(p=>'<div class="mh-row"><div class="mh-v">'+esc(String(p.v))+'</div><div class="mh-d">'+esc(assDatumNL(p.d))+'</div><div class="mh-n"><span class="muted sm">uit Assessment</span></div><div class="mh-x"></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen metingen. Vul ze in bij Assessment.</div>';
