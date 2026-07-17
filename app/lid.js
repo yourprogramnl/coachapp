@@ -41,8 +41,9 @@ async function renderLid(){
   if(wProg)body+=lidWorkoutKaart(wProg,LID.progNaam?"programma · "+esc(LID.progNaam):"programma");
   if(!w&&!wProg)body+='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';
   // Weekworkout van het bedrijf (audience='blog'), voor 1-op-1 én blog-leden.
-  let wwHtml="";
-  try{
+  let wwHtml="";LID.blog=null;
+  // Weekworkout alleen tonen als de coach hem niet heeft verborgen voor dit lid.
+  if(!ME.profile.hide_weekworkout)try{
     const{data:blogs}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1);
     LID.blog=(blogs||[])[0]||null;
   }catch(e){LID.blog=null;}

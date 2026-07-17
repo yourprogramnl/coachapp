@@ -1052,6 +1052,7 @@ function pfRenderProfiel(p){
       '<label class="pf-toggle"><input type="checkbox" id="pf-uploads"'+(p.disable_uploads?" checked":"")+'><span class="pf-sw"></span> Uploads door het lid uitschakelen</label>'+
       '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px"><span style="font-size:12.5px">Workouts zichtbaar tot</span><input type="number" id="pf-daysahead" min="0" value="'+esc(p.workouts_days_ahead!=null?p.workouts_days_ahead:"")+'" style="width:80px"><span class="sm muted">dagen vooruit (0 = geen limiet)</span></div>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-weekonly"'+(p.future_workouts_week_only?" checked":"")+'><span class="pf-sw"></span> Alleen toekomstige workouts tonen als ze in de huidige week vallen</label>'+
+      '<label class="pf-toggle"><input type="checkbox" id="pf-hideww"'+(p.hide_weekworkout?" checked":"")+'><span class="pf-sw"></span> Weekworkout verbergen (lid ziet de openbare weekworkout en het leaderboard niet)</label>'+
     '</div>'+
     '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px">'+
       '<button class="btn ghost" onclick="renderClient(\'kalender\')">Annuleren</button>'+
@@ -1083,7 +1084,8 @@ async function profielOpslaan(){
     messages_readonly:document.getElementById("pf-messages").checked,
     disable_uploads:document.getElementById("pf-uploads").checked,
     workouts_days_ahead:(()=>{const v=(document.getElementById("pf-daysahead").value||"").trim();return v===""?null:Math.max(0,parseInt(v,10)||0);})(),
-    future_workouts_week_only:document.getElementById("pf-weekonly").checked
+    future_workouts_week_only:document.getElementById("pf-weekonly").checked,
+    hide_weekworkout:document.getElementById("pf-hideww").checked
   };
   const{data,error}=await db.from("profiles").update(upd).eq("id",calClient).select().single();
   if(error){toast(error.message||"Opslaan mislukt");return;}
