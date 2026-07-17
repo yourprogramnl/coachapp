@@ -53,7 +53,8 @@ function cnavItems(){
   const n=[["dash","Dashboard"],["clients","Klanten"],["library","Bibliotheek"]];
   if(role!=="coach")n.push(["coaches","Coaches"]);
   n.push(["blog","Blog"],["week","Weekworkout"],["msgs","Berichten"]);
-  if(role==="platform_admin")n.push(["companies","Bedrijven"]);
+  // "Bedrijven" (platform_admin) bewust verborgen zolang er één gym is (Stefan,
+  // 17 juli); komt terug bij meerdere bedrijven. Code (fillCompanies) blijft staan.
   return n;
 }
 // Leest de sectie uit de link (#…). Onbekend of niet toegestaan voor deze rol → dashboard.
