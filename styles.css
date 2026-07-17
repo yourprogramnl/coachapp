@@ -777,3 +777,19 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .dt-rankrow .rsc{width:76px;text-align:right;font-weight:800;font-size:14px}
 .dt-rankrow .rpct{width:62px;text-align:right}
 @media(max-width:640px){.dt-rankrow .rn{width:110px;font-size:12.5px}.dt-rankrow .rpct{display:none}}
+
+/* ---------- Data-sectie: wedstrijdanalyse (wd-) ---------- */
+.wd-kaart{padding:16px;margin-bottom:12px}
+.wd-kop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.wd-pre{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.55;color:#3c4552;background:#f7f8fb;border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin:10px 0}
+.wd-tag{display:inline-block;background:#f2f4f8;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;margin:0 6px 6px 0}
+.wd-tag.meta{color:var(--muted);font-weight:600}
+.wd-tag.skill{color:#a16207;background:rgba(201,162,39,.10);border-color:rgba(201,162,39,.35)}
+.wd-tag.click{cursor:pointer}
+.wd-tag.off{opacity:.35}
+.wd-mrow{display:flex;align-items:center;gap:10px;padding:4px 0}
+.wd-mrow .mn{width:190px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd-mrow .mbar{flex:1;position:relative;height:14px;background:#eef0f4;border-radius:4px}
+.wd-mrow .mbar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;min-width:2px}
+.wd-mrow .mc{width:34px;text-align:right;font-weight:800;font-size:13px}
+@media(max-width:640px){.wd-mrow .mn{width:120px;font-size:12px}}

@@ -185,10 +185,7 @@ async function dataZetTab(t){
 }
 function dataRender(){
   const h=document.getElementById("data-inhoud");if(!h)return;
-  if(dataTab==="wedstrijden"){
-    h.innerHTML='<div class="panel" style="padding:26px;text-align:center"><div class="sm muted" style="line-height:1.7">Hier komt de wedstrijden-data.<br>Stefan geeft aan wat hier moet komen.</div></div>';
-    return;
-  }
+  if(dataTab==="wedstrijden"){wdRender(h);return;}
   const sub=[["team","Team"],["atleet","Atleet"],["vergelijk","Vergelijk"],["ranking","Ranking"]]
     .map(v=>'<button class="'+(DT.view===v[0]?"on":"")+'" onclick="dtGo(\''+v[0]+'\')">'+v[1]+'</button>').join("");
   const gesl=[["man","Mannen"],["vrouw","Vrouwen"]]
@@ -482,3 +479,312 @@ function dtRankingView(h){
     '</div>';
 }
 function dtSelTest(v){DT.selTest=v;dtRenderView();}
+
+// ================= WEDSTRIJDEN: wedstrijdanalyse =================
+// Overgenomen uit Stefans yp-wedstrijdanalyse.html (de werkende referentie):
+// het MOV-woordenboek en wdClassify zijn 1-op-1 geport; data leeft in de
+// Supabase-tabel competition_workouts in plaats van het JSON-blok.
+
+/* mod: bar|db|gym|mono|odd · skill: 1 basis, 2 gevorderd, 3 elite */
+const WD_MOV={
+ 'Snatch':{mod:'bar',skill:2,al:['snatch']},
+ 'Clean':{mod:'bar',skill:2,al:['clean']},
+ 'Jerk / S2OH':{mod:'bar',skill:2,al:['jerk','shoulder to overhead','s2oh','push press']},
+ 'Thruster':{mod:'bar',skill:1,al:['thruster']},
+ 'Overhead squat':{mod:'bar',skill:2,al:['overhead squat','ohs']},
+ 'Front squat':{mod:'bar',skill:1,al:['front squat']},
+ 'Back squat':{mod:'bar',skill:1,al:['back squat']},
+ 'Deadlift':{mod:'bar',skill:1,al:['deadlift']},
+ 'Bench press':{mod:'bar',skill:1,al:['bench press']},
+ 'Barbell lunge':{mod:'bar',skill:1,al:['barbell lunge','frontrack walking lunge','front rack walking lunge','barbell walking lunge']},
+ 'DB snatch':{mod:'db',skill:1,al:['db snatch','dumbbell snatch','kettlebell snatch','kettlebell hang snatch','kb snatch']},
+ 'DB thruster':{mod:'db',skill:1,al:['db thruster','dumbbell thruster']},
+ 'DB clean/C&J':{mod:'db',skill:1,al:['db clean','dumbbell clean','db hang clean']},
+ 'DB squat':{mod:'db',skill:1,al:['db squat','dumbbell squat','goblet squat']},
+ 'DB box step-over':{mod:'db',skill:1,al:['step-over','step over']},
+ 'Devil press':{mod:'db',skill:1,al:['devil press','devils press']},
+ 'DB lunge':{mod:'db',skill:1,al:['db lunge','dumbbell lunge','db walking lunge','front rack lunge','overhead lunge','lunge']},
+ 'KB swing':{mod:'db',skill:1,al:['kettlebell swing','kb swing']},
+ 'Wall ball':{mod:'db',skill:1,al:['wall ball','wallball']},
+ 'Pull-up':{mod:'gym',skill:1,al:['pull-up','pull up','pullup']},
+ 'Chest to bar':{mod:'gym',skill:2,al:['chest to bar','c2b']},
+ 'Bar muscle-up':{mod:'gym',skill:3,al:['bar muscle up','bar muscle-up','bmu']},
+ 'Ring muscle-up':{mod:'gym',skill:3,al:['ring muscle up','ring muscle-up','rmu','muscle up','muscle-up']},
+ 'Toes to bar':{mod:'gym',skill:1,al:['toes to bar','toes-to-bar','ttb','t2b']},
+ 'HSPU':{mod:'gym',skill:2,al:['handstand push-up','handstand push up','hspu']},
+ 'Deficit / strict HSPU':{mod:'gym',skill:3,al:['strict hspu','deficit hspu','strict handstand']},
+ 'Handstand walk':{mod:'gym',skill:3,al:['handstand walk','hs walk','handstand-walk']},
+ 'Wall walk':{mod:'gym',skill:1,al:['wall walk']},
+ 'Rope climb':{mod:'gym',skill:2,al:['rope climb']},
+ 'Legless rope climb':{mod:'gym',skill:3,al:['legless']},
+ 'Ring dip':{mod:'gym',skill:2,al:['ring dip']},
+ 'Burpee':{mod:'gym',skill:1,al:['burpee']},
+ 'Box jump (over)':{mod:'gym',skill:1,al:['box jump']},
+ 'Pistol':{mod:'gym',skill:2,al:['pistol']},
+ 'GHD sit-up':{mod:'gym',skill:1,al:['ghd']},
+ 'Push-up':{mod:'gym',skill:1,al:['push-up','push up']},
+ 'Row':{mod:'mono',skill:1,al:['row','rowing','meter row']},
+ 'BikeErg / Echo bike':{mod:'mono',skill:1,al:['bike','echo','assault']},
+ 'SkiErg':{mod:'mono',skill:1,al:['ski']},
+ 'Run':{mod:'mono',skill:1,al:['run','running','shuttle']},
+ 'Double unders':{mod:'mono',skill:2,al:['double under','double-under','du ','dubbels']},
+ 'Crossover single unders':{mod:'mono',skill:3,al:['crossover']},
+ 'Sandbag / D-ball':{mod:'odd',skill:1,al:['sandbag','d-ball','dball','stone']},
+ 'Farmers carry':{mod:'odd',skill:1,al:['farmer']},
+ 'Yoke':{mod:'odd',skill:2,al:['yoke']},
+ 'Sled':{mod:'odd',skill:1,al:['sled']},
+ 'Worm':{mod:'odd',skill:1,al:['worm']},
+ 'Sandbag/odd carry':{mod:'odd',skill:1,al:['carry']},
+ 'Peg board':{mod:'gym',skill:3,al:['peg board','pegboard']}
+};
+const WD_MODNAAM={bar:'Barbell',db:'DB / KB',gym:'Gymnastics',mono:'Machine / Mono',odd:'Odd objects'};
+const WD_MODKLEUR={bar:'#2f6df6',db:'#f97316',gym:'#8b5cf6',mono:'#14b8a6',odd:'#a16207'};
+
+// Ruwe workout-tekst -> movements + format + tijdsdomein + zwaarste load
+// (1-op-1 uit de referentie, incl. de ontdubbel-regels).
+function wdClassify(text){
+  const t=' '+text.toLowerCase().replace(/[^a-z0-9:.\- ]/g,' ')+' ';
+  const found=[];
+  for(const [name,m] of Object.entries(WD_MOV)){
+    if(m.al.some(a=>t.includes(a))) found.push(name);
+  }
+  let f=found;
+  if(f.includes('Bar muscle-up') && f.includes('Ring muscle-up') && !/(ring muscle|rmu)/.test(t)) f=f.filter(x=>x!=='Ring muscle-up');
+  if(f.includes('Chest to bar')) f=f.filter(x=>x!=='Pull-up');
+  if(f.includes('Legless rope climb')) f=f.filter(x=>x!=='Rope climb');
+  if(f.includes('Deficit / strict HSPU')) f=f.filter(x=>x!=='HSPU');
+  let format='for time';
+  if(/amrap/.test(t))format='AMRAP'; else if(/emom/.test(t))format='EMOM';
+  else if(/(1 ?rm|1rm|max lift|heavy (single|double|triple)|ladder)/.test(t))format='max lift';
+  else if(/interval/.test(t))format='interval'; else if(/chipper/.test(t))format='chipper';
+  let minutes=null;
+  const cap=t.match(/(?:time ?cap|cap|amrap|emom)[^0-9]{0,6}(\d{1,2})/);
+  if(cap)minutes=parseInt(cap[1]);
+  else{const m2=t.match(/(\d{1,2}) ?min/); if(m2)minutes=parseInt(m2[1]);}
+  let tijd = minutes==null?'onbekend':minutes<5?'sprint (<5)':minutes<=10?'kort (5-10)':minutes<=20?'middel (10-20)':'lang (20+)';
+  if(format==='max lift') tijd='kracht/max';
+  const loads=[...text.matchAll(/(\d{2,3})(?:\/\d{2,3})? ?kg/gi)].map(m=>parseInt(m[1]));
+  return {movements:f,format,tijd,minutes,maxload:loads.length?Math.max(...loads):null};
+}
+
+let WD={wods:null,view:"overzicht",fEvent:"",fJaar:"",fFase:"",fDiv:"",wEvent:"",wJaar:"",wFase:"",wDiv:"",pending:null};
+let wdChMix=null,wdChTime=null;
+
+async function wdLaad(){
+  const{data,error}=await db.from("competition_workouts").select("*").order("jaar",{ascending:false}).order("naam");
+  if(error){toast("Wedstrijden laden mislukt");WD.wods=[];return;}
+  WD.wods=data||[];
+}
+async function wdRender(h){
+  if(WD.wods===null){h.innerHTML='<div class="spin">Laden…</div>';await wdLaad();}
+  const sub=[["overzicht","Overzicht"],["workouts","Workouts"],["invoer","Invoer"]]
+    .map(v=>'<button class="'+(WD.view===v[0]?"on":"")+'" onclick="wdGo(\''+v[0]+'\')">'+v[1]+'</button>').join("");
+  h.innerHTML='<div class="dt-subnav">'+sub+'</div><div id="wd-view"></div>';
+  wdRenderView();
+}
+function wdGo(v){WD.view=v;const h=document.getElementById("data-inhoud");if(h)wdRender(h);}
+const wdUniq=a=>[...new Set(a)];
+// Filterselectie: 'Alle divisies' telt bij elke divisie-keuze mee (referentie-gedrag).
+function wdSelectie(p){
+  const e=WD[p+"Event"],j=WD[p+"Jaar"],f=WD[p+"Fase"],d=WD[p+"Div"];
+  return (WD.wods||[]).filter(w=>(!e||w.event===e)&&(!j||String(w.jaar)===j)&&(!f||w.fase===f)
+    &&(!d||(w.divisie||"Alle divisies")===d||(w.divisie||"Alle divisies")==="Alle divisies"));
+}
+function wdFilterHtml(p){
+  const evs=wdUniq((WD.wods||[]).map(w=>w.event)).sort();
+  const yrs=wdUniq((WD.wods||[]).map(w=>w.jaar)).sort((a,b)=>b-a);
+  const divs=wdUniq((WD.wods||[]).map(w=>w.divisie||"Alle divisies")).sort().filter(d=>d!=="Alle divisies");
+  const sel=(id,cur,opts,leeg)=>'<select class="lid-in" style="width:auto" onchange="wdFilter(\''+p+'\',\''+id+'\',this.value)">'+
+    '<option value="">'+leeg+'</option>'+opts.map(o=>'<option'+(String(o)===String(cur)?" selected":"")+'>'+esc(String(o))+'</option>').join("")+'</select>';
+  return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
+    sel("Event",WD[p+"Event"],evs,"Alle wedstrijden")+
+    sel("Jaar",WD[p+"Jaar"],yrs,"Alle jaren")+
+    '<select class="lid-in" style="width:auto" onchange="wdFilter(\''+p+'\',\'Fase\',this.value)">'+
+      '<option value="">'+(p==="f"?"Kwalificatie + Finale":"Alle fases")+'</option>'+
+      '<option value="kwalificatie"'+(WD[p+"Fase"]==="kwalificatie"?" selected":"")+'>'+(p==="f"?"Alleen kwalificatie":"Kwalificatie")+'</option>'+
+      '<option value="finale"'+(WD[p+"Fase"]==="finale"?" selected":"")+'>'+(p==="f"?"Alleen finale":"Finale")+'</option></select>'+
+    sel("Div",WD[p+"Div"],divs,"Alle divisies")+
+  '</div>';
+}
+function wdFilter(p,veld,v){WD[p+veld]=v;wdRenderView();}
+function wdRenderView(){
+  const h=document.getElementById("wd-view");if(!h)return;
+  if(WD.view==="overzicht")wdOverzicht(h);
+  else if(WD.view==="workouts")wdWorkouts(h);
+  else wdInvoer(h);
+}
+
+// ---------- Overzicht ----------
+function wdOverzicht(h){
+  const sel=wdSelectie("f");
+  const kw=sel.filter(w=>w.fase==="kwalificatie").length,fi=sel.filter(w=>w.fase==="finale").length;
+  const loads=sel.map(w=>w.maxload).filter(x=>x);
+  const freq={};
+  sel.forEach(w=>(w.movements||[]).forEach(m=>freq[m]=(freq[m]||0)+1));
+  const top=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const mx=top.length?top[0][1]:1;
+  const sk={};
+  sel.forEach(w=>(w.movements||[]).forEach(m=>{if(WD_MOV[m]&&WD_MOV[m].skill===3)sk[m]=(sk[m]||0)+1;}));
+  const sks=Object.entries(sk).sort((a,b)=>b[1]-a[1]);
+  h.innerHTML='<div class="hrow" style="margin-bottom:10px"><h2 style="font-size:19px">Wat wordt er getest?</h2></div>'+
+    wdFilterHtml("f")+
+    '<div class="dt-kpis">'+
+      '<div class="dt-kpi"><div class="v">'+sel.length+'</div><div class="l">Workouts in selectie</div></div>'+
+      '<div class="dt-kpi"><div class="v">'+kw+' / '+fi+'</div><div class="l">Kwalificatie / finale</div></div>'+
+      '<div class="dt-kpi"><div class="v">'+wdUniq(sel.map(w=>w.event+w.jaar)).length+'</div><div class="l">Edities</div></div>'+
+      '<div class="dt-kpi"><div class="v">'+(loads.length?Math.max(...loads)+' kg':'—')+'</div><div class="l">Zwaarste barbell-load</div></div>'+
+    '</div>'+
+    '<div class="dt-grid2">'+
+      '<div class="panel" style="padding:16px"><h3 class="dt-h3">Modaliteit-mix per editie</h3><canvas id="wd-chmix" height="260"></canvas>'+
+        '<div class="dt-legend">'+Object.keys(WD_MODNAAM).map(m=>'<span><span class="dot" style="background:'+WD_MODKLEUR[m]+'"></span>'+WD_MODNAAM[m]+'</span>').join("")+'</div></div>'+
+      '<div class="panel" style="padding:16px"><h3 class="dt-h3">Tijdsdomein</h3><canvas id="wd-chtime" height="260"></canvas></div>'+
+    '</div>'+
+    '<div class="panel" style="padding:16px;margin-top:16px"><h3 class="dt-h3">Meest voorkomende movements</h3>'+
+      (top.length?top.map(([m,c])=>
+        '<div class="wd-mrow"><div class="mn">'+esc(m)+'</div>'+
+        '<div class="mbar"><div class="fill" style="width:'+(c/mx*100)+'%;background:'+WD_MODKLEUR[(WD_MOV[m]||{}).mod||"bar"]+'"></div></div>'+
+        '<div class="mc">'+c+'</div></div>').join(""):'<div class="cempty">Nog geen workouts in de selectie. Voeg data toe via Invoer.</div>')+'</div>'+
+    '<div class="panel" style="padding:16px;margin-top:16px"><h3 class="dt-h3">Skill-poorten (dit moet je kunnen)</h3>'+
+      (sks.length?sks.map(([m,c])=>'<span class="wd-tag skill">'+esc(m)+' · '+c+'×</span>').join(""):'<span class="sm muted">Geen elite-skills in de selectie.</span>')+
+      '<div class="sm muted" style="margin-top:8px">Movements met hoge technische drempel die in de selectie voorkomen. Wie deze niet heeft, verliest een hele workout.</div></div>';
+  dtChart(()=>{
+    if(!window.Chart)return;
+    const eds=wdUniq(sel.map(w=>w.event+' '+w.jaar)).sort();
+    const mods=Object.keys(WD_MODNAAM);
+    const counts=eds.map(ed=>{
+      const ws=sel.filter(w=>w.event+' '+w.jaar===ed);
+      const c={bar:0,db:0,gym:0,mono:0,odd:0};
+      ws.forEach(w=>(w.movements||[]).forEach(m=>{if(WD_MOV[m])c[WD_MOV[m].mod]++;}));
+      const tot=Object.values(c).reduce((a,b)=>a+b,0)||1;
+      return mods.map(m=>c[m]/tot*100);
+    });
+    const cv1=document.getElementById("wd-chmix");
+    if(cv1){
+      if(wdChMix)wdChMix.destroy();
+      wdChMix=new Chart(cv1,{type:"bar",
+        data:{labels:eds,datasets:mods.map((m,i)=>({label:WD_MODNAAM[m],data:counts.map(r=>r[i]),backgroundColor:WD_MODKLEUR[m],stack:"s"}))},
+        options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+Math.round(c.raw)+'%'}}},
+          scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#e3e7ef'}}}}});
+    }
+    const doms=['sprint (<5)','kort (5-10)','middel (10-20)','lang (20+)','kracht/max','onbekend'];
+    const dc=doms.map(d=>sel.filter(w=>w.tijd===d).length);
+    const cv2=document.getElementById("wd-chtime");
+    if(cv2){
+      if(wdChTime)wdChTime.destroy();
+      wdChTime=new Chart(cv2,{type:"bar",
+        data:{labels:doms,datasets:[{data:dc,backgroundColor:['#dc2626','#d97706','#C9A227','#16a34a','#2f6df6','#c3c9d4']}]},
+        options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+          scales:{x:{grid:{color:'#e3e7ef'},ticks:{stepSize:1}},y:{grid:{display:false}}}}});
+    }
+  });
+}
+
+// ---------- Workouts-lijst ----------
+function wdWorkouts(h){
+  const sel=wdSelectie("w").slice().sort((a,b)=>b.jaar-a.jaar||a.event.localeCompare(b.event)||a.naam.localeCompare(b.naam));
+  h.innerHTML=wdFilterHtml("w")+
+    (sel.length?sel.map(w=>
+      '<div class="panel wd-kaart">'+
+        '<div class="wd-kop"><b>'+esc(w.event)+' '+w.jaar+' · '+esc(w.naam)+'</b>'+
+          '<span class="sm muted">'+esc(w.fase)+(w.divisie&&w.divisie!=="Alle divisies"?' · '+esc(w.divisie):'')+' · '+esc(w.tijd)+(w.maxload?' · max '+w.maxload+' kg':'')+'</span></div>'+
+        '<pre class="wd-pre">'+esc(w.tekst)+'</pre>'+
+        '<div>'+(w.movements||[]).map(m=>'<span class="wd-tag" style="color:'+WD_MODKLEUR[(WD_MOV[m]||{}).mod||"bar"]+'">'+esc(m)+'</span>').join("")+
+          '<span class="wd-tag meta">'+esc(w.format)+'</span></div>'+
+        '<div style="margin-top:10px"><button class="btn ghost sm" style="color:var(--bad)" onclick="wdVerwijder(\''+w.id+'\')">Verwijderen</button></div>'+
+      '</div>').join(""):'<div class="cempty">Geen workouts in deze selectie.</div>');
+}
+async function wdVerwijder(id){
+  if(!confirm("Workout verwijderen?"))return;
+  const{error}=await db.from("competition_workouts").delete().eq("id",id);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  WD.wods=WD.wods.filter(w=>w.id!==id);
+  wdRenderView();
+}
+
+// ---------- Invoer + bulk-import ----------
+function wdInvoer(h){
+  const evs=wdUniq((WD.wods||[]).map(w=>w.event)).sort();
+  const divs=wdUniq((WD.wods||[]).map(w=>w.divisie||"Alle divisies")).sort();
+  h.innerHTML=
+    '<div class="panel" style="padding:16px">'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'+
+        '<input class="lid-in" id="wd-in-event" list="wd-events" style="width:220px" placeholder="Wedstrijd (bijv. Amsterdam Throwdown)"><datalist id="wd-events">'+evs.map(e=>'<option value="'+esc(e)+'">').join("")+'</datalist>'+
+        '<input class="lid-in" id="wd-in-jaar" type="number" min="2015" max="2035" value="'+(new Date().getFullYear())+'" style="width:90px">'+
+        '<select class="lid-in" id="wd-in-fase" style="width:auto"><option value="kwalificatie">Kwalificatie</option><option value="finale">Finale</option></select>'+
+        '<input class="lid-in" id="wd-in-naam" style="width:150px" placeholder="Naam / nummer">'+
+        '<input class="lid-in" id="wd-in-div" list="wd-divs" value="Alle divisies" style="width:150px"><datalist id="wd-divs">'+divs.map(d=>'<option value="'+esc(d)+'">').join("")+'</datalist>'+
+      '</div>'+
+      '<div class="sm muted" style="margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;font-size:11px">Workout-omschrijving (plak de aankondiging)</div>'+
+      '<textarea class="lid-in" id="wd-in-tekst" style="min-height:130px;width:100%" placeholder="21-15-9&#10;Thrusters (43 kg)&#10;Chest to bar pull-ups&#10;Time cap: 8 min"></textarea>'+
+      '<div style="display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap">'+
+        '<button class="btn sm2" onclick="wdAnalyse()">Analyseer &amp; herken tags</button>'+
+        '<span class="sm muted">De tekst wordt automatisch geclassificeerd. Daarna kun je tags aan/uit klikken.</span></div>'+
+      '<div id="wd-tags" style="margin-top:14px"></div>'+
+      '<div style="margin-top:12px"><button class="btn sm2" id="wd-addbtn" style="display:none" onclick="wdToevoegen()">+ Toevoegen aan database</button></div>'+
+    '</div>'+
+    '<div class="panel" style="padding:16px;margin-top:16px"><h3 class="dt-h3">Bulk-import (JSON uit n8n / Claude)</h3>'+
+      '<textarea class="lid-in" id="wd-import" style="min-height:90px;width:100%" placeholder=\'[{"event":"Amsterdam Throwdown","jaar":2025,"fase":"kwalificatie","naam":"25.1","tekst":"..."}]\'></textarea>'+
+      '<div style="display:flex;gap:10px;margin-top:10px;align-items:center"><button class="btn ghost sm" onclick="wdImport()">Importeer JSON</button><span class="sm" id="wd-importmsg"></span></div></div>';
+}
+function wdAnalyse(){
+  const tekst=(document.getElementById("wd-in-tekst").value||"").trim();
+  if(!tekst){toast("Plak eerst de workout-tekst");return;}
+  const c=wdClassify(tekst);
+  WD.pending={movements:new Set(c.movements),meta:c};
+  const all=Object.keys(WD_MOV);
+  const tagHtml=(m,aan)=>'<span class="wd-tag click'+(aan?'':' off')+'" style="color:'+WD_MODKLEUR[WD_MOV[m].mod]+'" data-m="'+esc(m)+'" onclick="wdTagToggle(this)">'+esc(m)+'</span>';
+  document.getElementById("wd-tags").innerHTML=
+    '<div class="sm muted" style="margin-bottom:6px">Herkende tags (klik om aan/uit te zetten):</div>'+
+    all.filter(m=>WD.pending.movements.has(m)).map(m=>tagHtml(m,true)).join("")+
+    '<span class="wd-tag meta">'+esc(c.format)+'</span><span class="wd-tag meta">'+esc(c.tijd)+'</span>'+(c.maxload?'<span class="wd-tag meta">max '+c.maxload+' kg</span>':'')+
+    '<details style="margin-top:8px"><summary class="sm muted" style="cursor:pointer">Tag handmatig toevoegen</summary><div style="margin-top:6px">'+
+    all.filter(m=>!WD.pending.movements.has(m)).map(m=>tagHtml(m,false)).join("")+'</div></details>';
+  document.getElementById("wd-addbtn").style.display="inline-block";
+}
+function wdTagToggle(el){
+  const m=el.dataset.m;if(!WD.pending)return;
+  if(WD.pending.movements.has(m)){WD.pending.movements.delete(m);el.classList.add("off");}
+  else{WD.pending.movements.add(m);el.classList.remove("off");}
+}
+async function wdToevoegen(){
+  const ev=(document.getElementById("wd-in-event").value||"").trim();
+  const jr=parseInt(document.getElementById("wd-in-jaar").value);
+  if(!ev||isNaN(jr)){toast("Vul wedstrijd en jaar in");return;}
+  if(!WD.pending){toast("Analyseer eerst de tekst");return;}
+  const rec={company_id:ME.profile.company_id,event:ev,jaar:jr,
+    fase:document.getElementById("wd-in-fase").value,
+    naam:(document.getElementById("wd-in-naam").value||"").trim()||"Workout",
+    divisie:(document.getElementById("wd-in-div").value||"").trim()||"Alle divisies",
+    tekst:(document.getElementById("wd-in-tekst").value||"").trim(),
+    movements:[...WD.pending.movements],format:WD.pending.meta.format,tijd:WD.pending.meta.tijd,
+    minutes:WD.pending.meta.minutes,maxload:WD.pending.meta.maxload};
+  const{data,error}=await db.from("competition_workouts").upsert(rec,{onConflict:"event,jaar,fase,naam"}).select().single();
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  WD.wods=WD.wods.filter(w=>w.id!==data.id);WD.wods.unshift(data);
+  document.getElementById("wd-in-tekst").value="";document.getElementById("wd-in-naam").value="";
+  document.getElementById("wd-tags").innerHTML='<span class="sm" style="color:var(--ok)">Toegevoegd ✓</span>';
+  document.getElementById("wd-addbtn").style.display="none";
+  WD.pending=null;
+}
+async function wdImport(){
+  const msg=document.getElementById("wd-importmsg");
+  let arr;
+  try{arr=JSON.parse(document.getElementById("wd-import").value);if(!Array.isArray(arr))throw 0;}
+  catch(e){msg.textContent="Ongeldige JSON.";msg.style.color="var(--bad)";return;}
+  const recs=[];
+  for(const w of arr){
+    if(!w.event||!w.jaar||!w.tekst)continue;
+    const c=wdClassify(w.tekst);
+    recs.push({company_id:ME.profile.company_id,event:w.event,jaar:parseInt(w.jaar),
+      fase:w.fase==="finale"?"finale":"kwalificatie",naam:w.naam||"Workout",
+      divisie:w.divisie||"Alle divisies",tekst:w.tekst,
+      movements:(w.movements&&w.movements.length)?w.movements:c.movements,
+      format:w.format||c.format,tijd:c.tijd,minutes:c.minutes,maxload:w.maxload||c.maxload,
+      bron_url:w.bron_url||null});
+  }
+  if(!recs.length){msg.textContent="Geen bruikbare workouts gevonden.";msg.style.color="var(--bad)";return;}
+  const{error}=await db.from("competition_workouts").upsert(recs,{onConflict:"event,jaar,fase,naam"});
+  if(error){msg.textContent=error.message||"Import mislukt.";msg.style.color="var(--bad)";return;}
+  await wdLaad();
+  msg.textContent=recs.length+" workouts geïmporteerd.";msg.style.color="var(--ok)";
+}
