@@ -120,7 +120,18 @@ async function instPaneel(){
   }
 }
 // ---------- Thema (kleuren/typografie/quotes van de sporter-app) ----------
-const THEMA_STD={color:"#D9B44A",gradient:true,font:"modern",quotes:["Elke dag een beetje beter.","Discipline wint van motivatie.","Sterk word je niet per ongeluk."]};
+const THEMA_STD={color:"#D9B44A",gradient:true,font:"modern",quotes:[
+  "Elke dag een beetje beter.",
+  "Discipline wint van motivatie.",
+  "Sterk word je niet per ongeluk.",
+  "Kleine stappen, elke week weer.",
+  "Rust is ook training.",
+  "Consistency over intensity.",
+  "Assess, don't guess.",
+  "Every rep is a step towards progress.",
+  "Earned dopamine > free dopamine.",
+  "Move because you can, not because you should.",
+]};
 const THEMA_PRESETS=["#D9B44A","#E4572E","#D81E5B","#8E44AD","#00A8A8","#2ECC71"];
 let instThema=null,instPrevTab="home";
 function thZet(k,v){if(!instThema)return;instThema[k]=v;if(k==="color"){const h=document.getElementById("th-hex");if(h)h.value=v;}if(k==="font")instPaneel();else thPreviewRender();}
@@ -161,7 +172,7 @@ function thPreviewRender(){
       thWorkoutKaartHtml(k)+
       '<div style="background:'+accent+';border-radius:11px;text-align:center;padding:10px;color:#0E0E10;'+kop+';font-size:12px;margin-top:10px">WORKOUT AFRONDEN</div>';
   }else if(instPrevTab==="splash"){
-    scherm='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:14px">'+
+    scherm='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px">'+
       '<span style="width:76px;height:76px;border-radius:50%;background:'+(logo?("url('"+esc(logo)+"') center/cover"):accent)+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-weight:900;font-size:22px;border:3px solid '+k+'">'+(logo?'':esc(bedrijf.slice(0,2).toUpperCase()))+'</span>'+
       '<div style="'+kop+';font-size:17px">'+esc(bedrijf.toUpperCase())+'</div>'+
       '<div style="font-size:10.5px;color:#9A9A9E">Training · Coaching · Community</div>'+
@@ -173,10 +184,11 @@ function thPreviewRender(){
         '<div style="font-size:12px;font-weight:800;color:'+k+'">D) WOD</div>'+
         '<div style="font-size:10.5px;color:#D8D7D4;margin-top:3px">3 × 4 min on / 1 min off<br>12 cal bike erg · 5-7 strict pull-ups</div></div>';
   }else{
-    // Bericht: de chat met de coach, in de themakleur.
+    // Bericht: de chat met de coach, in de themakleur; invoerbalk vast onderaan.
     const coachN=naamVan(ME.profile)||"Je coach";
     const bub=(mij,txt)=>'<div style="display:flex;justify-content:'+(mij?"flex-end":"flex-start")+';margin-bottom:7px"><span style="max-width:78%;padding:7px 10px;border-radius:13px;font-size:10.5px;line-height:1.45;'+(mij?("background:"+accent+";color:#0E0E10;border-bottom-right-radius:4px;font-weight:600"):"background:#1F1F23;border:1px solid rgba(255,255,255,.08);color:#F5F4F2;border-bottom-left-radius:4px")+'">'+esc(txt)+'</span></div>';
-    scherm='<div style="display:flex;align-items:center;gap:9px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:9px;margin-bottom:10px">'+
+    scherm='<div style="display:flex;flex-direction:column;height:100%">'+
+      '<div style="display:flex;align-items:center;gap:9px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:9px;margin-bottom:10px">'+
       '<span style="width:32px;height:32px;border-radius:50%;background:'+accent+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-weight:800;font-size:11px">'+esc(avFotoText(ME.profile)||coachN.slice(0,2).toUpperCase())+'</span>'+
       '<div><div style="font-size:12.5px;font-weight:800">'+esc(coachN)+'</div><div style="font-size:9.5px;color:#9A9A9E">Jouw coach</div></div></div>'+
       '<div style="text-align:center;font-size:9px;color:#9A9A9E;margin-bottom:8px">Vandaag</div>'+
@@ -184,15 +196,19 @@ function thPreviewRender(){
       bub(true,"Ging lekker, 100 kg gesquat 💪")+
       bub(false,"Sterk! Volgende week gaan we voor 102,5 kg.")+
       bub(true,"Ik stuur zo even mijn video mee.")+
-      '<div style="display:flex;align-items:center;gap:7px;margin-top:14px">'+
+      '<div style="display:flex;align-items:center;gap:7px;margin-top:auto;padding-top:10px">'+
         '<span style="flex:1;background:#1F1F23;border:1px solid rgba(255,255,255,.08);border-radius:99px;padding:8px 12px;font-size:10px;color:#9A9A9E">Typ een bericht…</span>'+
-        '<span style="width:30px;height:30px;border-radius:50%;background:'+accent+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-size:12px">➤</span></div>';
+        '<span style="width:30px;height:30px;border-radius:50%;background:'+accent+';display:inline-flex;align-items:center;justify-content:center;color:#0E0E10;font-size:12px">➤</span></div></div>';
   }
-  host.innerHTML='<div class="th-phone"><div class="th-notch"></div>'+
-    '<div class="th-status"><span>13:37</span><span>📶 📡 🔋</span></div>'+
+  // Statusicoontjes (signaal/wifi/batterij) als kleine SVG's, zoals op een echte iPhone.
+  const statIco='<svg width="15" height="10" viewBox="0 0 15 10" fill="#F5F4F2"><rect x="0" y="6" width="2.6" height="4" rx="0.8"/><rect x="4" y="4" width="2.6" height="6" rx="0.8"/><rect x="8" y="2" width="2.6" height="8" rx="0.8"/><rect x="12" y="0" width="2.6" height="10" rx="0.8"/></svg>'+
+    '<svg width="14" height="10" viewBox="0 0 14 10" fill="#F5F4F2"><path d="M7 9.4 1.6 4.3a7.6 7.6 0 0 1 10.8 0Z"/></svg>'+
+    '<svg width="21" height="10" viewBox="0 0 21 10" fill="none"><rect x="0.5" y="0.5" width="17" height="9" rx="2.5" stroke="#F5F4F2" opacity="0.5"/><rect x="2" y="2" width="12" height="6" rx="1.4" fill="#F5F4F2"/><path d="M19.5 3.5v3a1.8 1.8 0 0 0 0-3Z" fill="#F5F4F2" opacity="0.5"/></svg>';
+  host.innerHTML='<div class="th-phone"><div class="th-screen2">'+
+    '<div class="th-status"><span>13:37</span><span class="th-island"></span><span class="th-ico">'+statIco+'</span></div>'+
     '<div class="th-scherm">'+scherm+'</div>'+
-    '<div style="display:flex;border-top:1px solid rgba(255,255,255,.08);padding-top:7px;margin-top:10px">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>'+
-    '<div class="th-homebar"></div></div>';
+    '<div class="th-tabbar">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>'+
+    '<div class="th-homebar"></div></div></div>';
 }
 function thWorkoutKaartHtml(k){
   return '<div style="background:#17171A;border:1px solid rgba(255,255,255,.08);border-left:4px solid '+k+';border-radius:13px;padding:11px">'+
