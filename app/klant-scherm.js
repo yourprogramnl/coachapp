@@ -542,7 +542,9 @@ async function renderMonth(opts){
   if(skipFetch){
     byDate=monthByDate; // hergebruik de al geladen workouts/results, geen database-oproep
   }else{
-    const{data:workouts}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
+    const{data:workouts,error:werr}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
+    // Een mislukte opvraag mag nooit stil een lege kalender opleveren.
+    if(werr)toast("Kalender kon niet laden: "+(werr.message||"onbekende fout")+" — ververs de pagina of probeer opnieuw.");
     monthWorkouts={};monthByDate={};byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
     // Gelogde resultaten van dit lid voor de zichtbare workouts (per blok)
     monthResults={};
