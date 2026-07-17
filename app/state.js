@@ -7,7 +7,9 @@ const SUPABASE_KEY="sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
 let db=null;
 try{
   if(typeof supabase==="undefined"||!supabase.createClient) throw new Error("lib");
-  db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  // cache:'no-store': database-antwoorden mogen nooit uit de browsercache komen
+  // (een gecachet foutantwoord bleef anders hangen, zelfs na herstel serverside).
+  db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},global:{fetch:(u,o)=>fetch(u,Object.assign({},o,{cache:"no-store"}))}});
 }catch(e){
   document.body.innerHTML='<div style="max-width:460px;margin:14vh auto;font-family:sans-serif;color:#1b2330;text-align:center;padding:24px"><h2 style="color:#4f8bff">Open in een gewone browser</h2><p style="color:#8a94a6;line-height:1.6">Deze app werkt niet in een klein voorbeeldvenster. Open de link in Chrome of Edge.</p></div>';
 }
