@@ -4,11 +4,12 @@ let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient=
 async function fillDashboard(){
   const ids=coachClients.map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
-  let ws=[],rs=[],msgs=[],blog=null,blogRes=[];
+  let ws=[],rs=[],md=[],msgs=[],blog=null,blogRes=[];
   if(ids.length){
     ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("*").in("workout_id",wids)).data||[];
+    if(wids.length)md=(await db.from("result_media").select("*").in("workout_id",wids)).data||[];
     msgs=(await db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
   }
   const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
@@ -18,7 +19,7 @@ async function fillDashboard(){
     blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
-  DASH={ws,rs,msgs,tasks,blog,blogRes,snoozeMap};
+  DASH={ws,rs,md,msgs,tasks,blog,blogRes,snoozeMap};
   dashRender();
 }
 function dashSetFilter(f){dashFilter=f;dashRender();}
@@ -61,7 +62,7 @@ function dashKebab(ev,pid){
 document.addEventListener("click",e=>{if(!e.target.closest(".attnmenu")&&!e.target.closest(".attn-kebab"))document.querySelectorAll(".attnmenu").forEach(x=>x.remove());});
 function dashRender(){
   const cp=document.getElementById("cpage");if(!cp||!DASH)return;
-  const{ws,rs,msgs,tasks,blog,blogRes}=DASH;
+  const{ws,rs,md,msgs,tasks,blog,blogRes}=DASH;
   const td=todayStr(),from7=ymd(addDays(new Date(),-6));
   const byId={};coachClients.forEach(p=>byId[p.id]=p);
   const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
@@ -123,20 +124,23 @@ function dashRender(){
     const p=byId[w.client_id]||{};
     const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     let done=0;
-    const rij=(badge,titel,tekst,r)=>{
+    const rij=(badge,titel,tekst,r,vids)=>{
       const sc=resultScoreTxt(r);
+      // Video-uploads van het lid bij dit blok (result_media): klik = bekijken via signed URL
+      const vidHtml=(vids&&vids.length)?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+vids.map((v,i)=>'<button class="btn ghost sm" style="padding:3px 10px;font-size:11px" onclick="dashVideoOpen(\''+esc(v.storage_path)+'\')">🎥 Video '+(i+1)+'</button>').join("")+'</div>':'';
       // Vinkje/kruisje: klikbaar om tussen voltooid en gemist te wisselen (coach corrigeert de status)
       const statusBtn=r?'<span class="okc2'+(r.status==="missed"?" miss":"")+'" style="cursor:pointer" title="'+(r.status==="missed"?"Gemist — klik om op voltooid te zetten":"Voltooid — klik om op gemist te zetten")+'" onclick="dashToggleStatus(\''+r.id+'\',\''+r.status+'\')"><svg class="i sm-i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'';
       // Geschiedenis-knop: opent de geschiedenis-zoeker voor deze klant + oefening (niet bij de warming-up)
       const histBtn=badge!=="W"?'<svg class="i sm-i" title="Zoek in geschiedenis" style="cursor:pointer" data-aid="'+esc(w.client_id)+'" data-ex="'+esc(titel)+'" onclick="dashHistory(this)"><use href="#i-hist"/></svg>':'';
-      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+'</div>'+
+      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+vidHtml+'</div>'+
         '<div class="fside">'+statusBtn+histBtn+'</div></div>';
     };
     let rows="";
     if(w.warmup)rows+=rij("W","Warmup",w.warmup,null);
     blocks.forEach(b=>{
       const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
-      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r);
+      const vids=(md||[]).filter(m=>m.block_id===b.id&&m.athlete_id===w.client_id);
+      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r,vids);
     });
     return '<div class="feedcard"><div class="fh"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div></div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
@@ -205,6 +209,12 @@ async function taakWeg(id){
   const{error}=await db.from("tasks").delete().eq("id",id);
   if(error){toast(error.message);return;}
   DASH.tasks=DASH.tasks.filter(t=>t.id!==id);dashRender();
+}
+// Video-upload van een lid bekijken: tijdelijke kijk-URL uit de private media-bucket.
+async function dashVideoOpen(pad){
+  const{data,error}=await db.storage.from("media").createSignedUrl(pad,3600);
+  if(error||!data||!data.signedUrl){toast("Video openen mislukt");return;}
+  window.open(data.signedUrl,"_blank","noopener");
 }
 // Vinkje/kruisje in de feed: wissel de status van een gelogd blok (voltooid <-> gemist).
 async function dashToggleStatus(resId,huidig){
