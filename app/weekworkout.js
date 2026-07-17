@@ -210,6 +210,8 @@ function wwBewerk(id){
 }
 function wwModalDicht(){document.getElementById("wwmodal").classList.remove("show");WW_EDIT=null;}
 async function wwOpslaan(){
+  // Zonder bedrijf zou de workout onvindbaar zijn (alle lijsten filteren op bedrijf).
+  if(!ME.profile.company_id){toast("Dit account is niet aan een bedrijf gekoppeld; de weekworkout zou onvindbaar worden. Log in met een account van het bedrijf.");return;}
   const naam=document.getElementById("ww-naam").value.trim();
   const datum=document.getElementById("ww-datum").value;
   const score=document.getElementById("ww-score").value;
