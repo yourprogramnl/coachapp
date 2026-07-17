@@ -54,7 +54,7 @@ row3030:{label:"Row 30/30 (1e set meters)",unit:"m",dir:"h",uitleg:"geen vast do
 run3k:{label:"3K Run",unit:"tijd",dir:"l",uitleg:"onder 11:00"}};
 
 // ---------- staat + data laden ----------
-let DT={athletes:{},geladen:false,view:"team",sortKey:"TOT",sortDir:-1,filter:"",sel:"",selA:"",selB:"",selTest:"back_squat",nieuwOpen:false};
+let DT={athletes:{},geladen:false,view:"team",geslacht:"man",sortKey:"TOT",sortDir:-1,filter:"",sel:"",selA:"",selB:"",selTest:"back_squat",nieuwOpen:false};
 let dtRadarP=null,dtRadarC=null;
 
 async function dtLaad(){
@@ -64,7 +64,7 @@ async function dtLaad(){
   ]);
   if(aq.error||sq.error){toast("Data laden mislukt");return;}
   const map={};
-  (aq.data||[]).forEach(a=>{map[a.name]={id:a.id,bw:a.bw==null?null:Number(a.bw),scores:{}};});
+  (aq.data||[]).forEach(a=>{map[a.name]={id:a.id,bw:a.bw==null?null:Number(a.bw),gender:a.gender||"man",scores:{}};});
   const opId={};(aq.data||[]).forEach(a=>{opId[a.id]=a.name;});
   (sq.data||[]).forEach(s=>{const n=opId[s.athlete_id];if(n)map[n].scores[s.test_key]=Number(s.value);});
   DT.athletes=map;DT.geladen=true;
@@ -110,7 +110,9 @@ function dtPct(a,k){
 const dtCatPct=(a,c)=>{const v=DT_CATS[c].map(k=>dtPct(a,k)).filter(x=>x!=null);return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;};
 const dtTotPct=a=>{const v=Object.keys(DT_CATS).map(c=>dtCatPct(a,c)).filter(x=>x!=null);return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;};
 const dtTeamCat=c=>{const v=dtNames().map(a=>dtCatPct(a,c)).filter(x=>x!=null);return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;};
-const dtNames=()=>Object.keys(DT.athletes);
+// Alles (team, ranking, vergelijken, selecties) werkt binnen het gekozen
+// geslacht: mannen en vrouwen zijn aparte lijsten, zoals de originele sheets.
+const dtNames=()=>Object.keys(DT.athletes).filter(a=>(DT.athletes[a].gender||"man")===DT.geslacht);
 const dtRanked=()=>[...dtNames()].sort((a,b)=>(dtTotPct(b)??-9)-(dtTotPct(a)??-9));
 const dtRankOf=a=>{const t=dtTotPct(a);return t==null?null:dtNames().filter(x=>dtTotPct(x)!=null&&dtTotPct(x)>t).length+1;};
 
@@ -189,10 +191,23 @@ function dataRender(){
   }
   const sub=[["team","Team"],["atleet","Atleet"],["vergelijk","Vergelijk"],["ranking","Ranking"]]
     .map(v=>'<button class="'+(DT.view===v[0]?"on":"")+'" onclick="dtGo(\''+v[0]+'\')">'+v[1]+'</button>').join("");
-  h.innerHTML='<div class="dt-subnav">'+sub+'</div><div id="dt-view"></div>';
+  const gesl=[["man","Mannen"],["vrouw","Vrouwen"]]
+    .map(g=>'<button class="'+(DT.geslacht===g[0]?"on":"")+'" onclick="dtGeslacht(\''+g[0]+'\')">'+g[1]+'</button>').join("");
+  h.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">'+
+    '<div class="dt-subnav">'+sub+'</div>'+
+    '<div class="dt-subnav" style="margin-left:auto">'+gesl+'</div></div>'+
+    '<div id="dt-view"></div>';
   dtRenderView();
 }
 function dtGo(v){DT.view=v;dataRender();}
+function dtGeslacht(g){
+  DT.geslacht=g;
+  // selecties horen binnen het gekozen geslacht te vallen
+  if(!dtNames().includes(DT.sel))DT.sel=dtRanked()[0]||"";
+  if(!dtNames().includes(DT.selA))DT.selA=dtRanked()[0]||"";
+  if(!dtNames().includes(DT.selB))DT.selB=dtRanked()[1]||dtRanked()[0]||"";
+  dataRender();
+}
 function dtRenderView(){
   const h=document.getElementById("dt-view");if(!h)return;
   if(!dtNames().length){
@@ -208,19 +223,14 @@ function dtRenderView(){
 
 // ---------- Team ----------
 function dtTeamView(h){
-  const tv=dtNames().map(dtTotPct).filter(v=>v!=null);
-  const avg=tv.length?tv.reduce((a,b)=>a+b,0)/tv.length:null;
   const top=dtRanked()[0];
-  const zwak=Object.keys(DT_CATS).map(c=>[c,dtTeamCat(c)]).filter(x=>x[1]!=null).sort((a,b)=>a[1]-b[1]);
   const catKeys=Object.keys(DT_CATS);
   const kop=[["RANG","#"],["NAME","Atleet"],...catKeys.map(c=>[c,dtShortCat(c)]),["TOT","Totaal"]]
     .map(([k,l])=>'<button data-k="'+esc(k)+'" onclick="dtSort(\''+k.replace(/'/g,"\\'")+'\')" class="'+(k===DT.sortKey?"on":"")+'">'+esc(l)+(k===DT.sortKey?(DT.sortDir<0?" ▼":" ▲"):"")+'</button>').join("");
   h.innerHTML=
     '<div class="dt-kpis">'+
-      '<div class="dt-kpi"><div class="v">'+dtNames().length+'</div><div class="l">Atleten</div></div>'+
-      '<div class="dt-kpi"><div class="v">'+dtFmtPct(avg)+'</div><div class="l">Team doelscore</div></div>'+
+      '<div class="dt-kpi"><div class="v">'+dtNames().length+'</div><div class="l">'+(DT.geslacht==="man"?"Mannen":"Vrouwen")+'</div></div>'+
       '<div class="dt-kpi"><div class="v">'+esc(top||"—")+'</div><div class="l">#1 · '+dtFmtPct(dtTotPct(top))+'</div></div>'+
-      '<div class="dt-kpi"><div class="v">'+esc(zwak.length?zwak[0][0]:"—")+'</div><div class="l">Grootste werkpunt · '+(zwak.length?dtFmtPct(zwak[0][1]):"")+'</div></div>'+
     '</div>'+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
       '<input class="lid-in" style="width:220px" placeholder="Zoek atleet…" value="'+esc(DT.filter)+'" oninput="dtFilter(this.value)">'+
@@ -271,6 +281,9 @@ function dtNieuwFormHtml(){
   return '<div class="panel" style="padding:14px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
     '<input class="lid-in" id="dt-nw-naam" style="width:220px" placeholder="Naam atleet">'+
     '<input class="lid-in" id="dt-nw-bw" style="width:140px" placeholder="Gewicht kg (mag leeg)" inputmode="decimal">'+
+    '<select class="lid-in" id="dt-nw-gesl" style="width:auto">'+
+      '<option value="man"'+(DT.geslacht==="man"?" selected":"")+'>Man</option>'+
+      '<option value="vrouw"'+(DT.geslacht==="vrouw"?" selected":"")+'>Vrouw</option></select>'+
     '<button class="btn sm2" onclick="dtNieuwOpslaan()">Opslaan</button>'+
     '<button class="btn ghost sm" onclick="dtNieuwToggle()">Annuleren</button></div>';
 }
@@ -282,10 +295,11 @@ async function dtNieuwOpslaan(){
   if(DT.athletes[naam]){toast("Deze naam bestaat al");return;}
   const bw=bwS===""?null:parseFloat(bwS);
   if(bwS!==""&&isNaN(bw)){toast("Gewicht is geen getal");return;}
-  const{data,error}=await db.from("data_athletes").insert({company_id:ME.profile.company_id,name:naam,bw}).select().single();
+  const gender=(document.getElementById("dt-nw-gesl")||{}).value==="vrouw"?"vrouw":"man";
+  const{data,error}=await db.from("data_athletes").insert({company_id:ME.profile.company_id,name:naam,bw,gender}).select().single();
   if(error){toast(error.message||"Opslaan mislukt");return;}
-  DT.athletes[naam]={id:data.id,bw,scores:{}};
-  DT.nieuwOpen=false;DT.sel=naam;DT.view="atleet";dataRender();
+  DT.athletes[naam]={id:data.id,bw,gender,scores:{}};
+  DT.nieuwOpen=false;DT.geslacht=gender;DT.sel=naam;DT.view="atleet";dataRender();
 }
 async function dtVerwijderAtleet(){
   const a=DT.sel;if(!a||!DT.athletes[a])return;
@@ -298,7 +312,7 @@ async function dtVerwijderAtleet(){
 
 // ---------- Atleet (scores altijd direct bewerkbaar; opslaan bij wijzigen) ----------
 function dtAtleetView(h){
-  if(!DT.athletes[DT.sel])DT.sel=dtRanked()[0]||"";
+  if(!dtNames().includes(DT.sel))DT.sel=dtRanked()[0]||"";
   const a=DT.sel;
   const t=dtTotPct(a);
   const opts=dtRanked().map(n=>'<option value="'+esc(n)+'"'+(n===a?" selected":"")+'>'+esc(n)+'</option>').join("");
@@ -387,8 +401,8 @@ async function dtScoreWijzig(inp){
 
 // ---------- Vergelijk ----------
 function dtVergelijkView(h){
-  if(!DT.athletes[DT.selA])DT.selA=dtRanked()[0]||"";
-  if(!DT.athletes[DT.selB])DT.selB=dtRanked()[1]||dtRanked()[0]||"";
+  if(!dtNames().includes(DT.selA))DT.selA=dtRanked()[0]||"";
+  if(!dtNames().includes(DT.selB))DT.selB=dtRanked()[1]||dtRanked()[0]||"";
   const a=DT.selA,b=DT.selB;if(!a||!b){h.innerHTML="";return;}
   const opts=sel=>dtRanked().map(n=>'<option value="'+esc(n)+'"'+(n===sel?" selected":"")+'>'+esc(n)+'</option>').join("");
   const catRows=Object.keys(DT_CATS).map(c=>{
