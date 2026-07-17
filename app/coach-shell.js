@@ -60,14 +60,14 @@ function cnavItems(){
 // Leest de sectie uit de link (#…). Onbekend of niet toegestaan voor deze rol → dashboard.
 function sectionFromHash(){
   const h=(location.hash||"").replace(/^#/,"");
-  const geldig=cnavItems().map(n=>n[0]);
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings"]); // settings zit niet in de topnav (avatar-menu)
   return geldig.includes(h)?h:"dash";
 }
 // De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
 function parseHash(){
   const h=(location.hash||"").replace(/^#/,""),p=h.split("/");
   if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null};
-  const geldig=cnavItems().map(n=>n[0]);
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
 // Zet de link zonder de router opnieuw te laten vuren (eigen wijziging).
@@ -129,7 +129,7 @@ function coachShellHtml(inner){
     '<div class="avwrap"><button class="cav" style="'+avFotoStyle(ME.profile)+'" title="Menu" onclick="avMenuToggle(event)">'+avFotoText(ME.profile)+'</button>'+
     '<div class="avmenu" id="avmenu">'+
       '<div class="avm-kop"><span class="avm-av" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><span><b>'+esc(naamVan(ME.profile))+'</b><span class="avm-rol">'+esc(ROLE_NL[myRole()]||"")+'</span></span></div>'+
-      '<button onclick="toast(\'Instellingen komen in een volgende stap\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+
+      '<button onclick="coachGo(\'settings\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+
       '<button onclick="signOut()"><svg class="i sm-i"><use href="#i-x"/></svg> Uitloggen</button>'+
     '</div></div></div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
@@ -152,5 +152,6 @@ function coachRenderSection(){
   if(coachSection==="week"){c.innerHTML=coachShellHtml('<div class="lbwrap"><div class="spin">Laden…</div></div>');fillWeekworkout();return;}
   if(coachSection==="blog"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillBlog();return;}
   if(coachSection==="msgs"){c.innerHTML=coachShellHtml('<h1>Berichten</h1><div class="spin">Laden…</div>');fillBerichten();return;}
+  if(coachSection==="settings"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillInstellingen();return;}
   c.innerHTML=coachShellHtml('<div class="csoon">Deze sectie bestaat niet (meer).</div>');
 }
