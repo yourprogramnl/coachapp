@@ -69,11 +69,12 @@ async function instPaneel(){
       '<div class="msg" id="inst-msg"></div>'+
       '<button class="btn" onclick="instProfielOpslaan()">Profiel opslaan</button>';
   }else if(instTab==="wachtwoord"){
-    host.innerHTML='<h2 style="margin:0 0 4px">Wachtwoord</h2><div class="sm muted" style="margin-bottom:16px">Kies een nieuw wachtwoord van minimaal 8 tekens.</div>'+
+    host.innerHTML='<h2 style="margin:0 0 4px">Wachtwoord</h2><div class="sm muted" style="margin-bottom:16px">Vul eerst je huidige wachtwoord in; het nieuwe wachtwoord is minimaal 8 tekens.</div>'+
+      '<div class="field" style="max-width:340px"><label>Huidig wachtwoord</label><input type="password" id="inst-pw0" placeholder="••••••••"></div>'+
       '<div class="field" style="max-width:340px"><label>Nieuw wachtwoord</label><input type="password" id="inst-pw1" placeholder="••••••••"></div>'+
       '<div class="field" style="max-width:340px"><label>Herhaal nieuw wachtwoord</label><input type="password" id="inst-pw2" placeholder="••••••••"></div>'+
       '<div class="msg" id="inst-msg"></div>'+
-      '<button class="btn" onclick="instWachtwoordOpslaan()">Wachtwoord wijzigen</button>';
+      '<button class="btn" id="inst-pwknop" onclick="instWachtwoordOpslaan()">Wachtwoord wijzigen</button>';
   }else{
     const info={
       thema:["Thema","Lichte en donkere modus komen in een volgende stap."],
@@ -169,14 +170,27 @@ async function instFotoUpload(input){
   coachRenderSection();
 }
 async function instWachtwoordOpslaan(){
+  const oud=document.getElementById("inst-pw0").value||"";
   const a=document.getElementById("inst-pw1").value||"";
   const b=document.getElementById("inst-pw2").value||"";
   const msg=document.getElementById("inst-msg");
-  if(a.length<8){if(msg)msg.textContent="Gebruik minimaal 8 tekens.";return;}
-  if(a!==b){if(msg)msg.textContent="De twee wachtwoorden zijn niet gelijk.";return;}
+  const knop=document.getElementById("inst-pwknop");
+  if(!oud){if(msg)msg.textContent="Vul eerst je huidige wachtwoord in.";return;}
+  if(a.length<8){if(msg)msg.textContent="Het nieuwe wachtwoord moet minimaal 8 tekens zijn.";return;}
+  if(a!==b){if(msg)msg.textContent="De twee nieuwe wachtwoorden zijn niet gelijk.";return;}
+  if(a===oud){if(msg)msg.textContent="Het nieuwe wachtwoord is hetzelfde als het huidige.";return;}
+  if(knop){knop.disabled=true;knop.textContent="Bezig…";}
+  // Eerst het huidige wachtwoord controleren (zoals CoachRx), dan pas wijzigen.
+  const{error:oudErr}=await db.auth.signInWithPassword({email:ME.user.email,password:oud});
+  if(oudErr){
+    if(msg)msg.textContent="Je huidige wachtwoord klopt niet.";
+    if(knop){knop.disabled=false;knop.textContent="Wachtwoord wijzigen";}
+    return;
+  }
   const{error}=await db.auth.updateUser({password:a});
+  if(knop){knop.disabled=false;knop.textContent="Wachtwoord wijzigen";}
   if(error){if(msg)msg.textContent=error.message||"Wijzigen mislukt";return;}
-  document.getElementById("inst-pw1").value="";document.getElementById("inst-pw2").value="";
+  document.getElementById("inst-pw0").value="";document.getElementById("inst-pw1").value="";document.getElementById("inst-pw2").value="";
   if(msg)msg.textContent="";
   toast("Wachtwoord gewijzigd");
 }
