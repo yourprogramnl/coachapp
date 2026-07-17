@@ -272,8 +272,7 @@ async function blogSaveWorkout(){
   try{
     if(BLOG.editWid){
       const{error:ue}=await db.from("workouts").update(wf).eq("id",BLOG.editWid);if(ue)throw ue;
-      await db.from("blocks").delete().eq("workout_id",BLOG.editWid);
-      if(rows.length){const{error:be}=await db.from("blocks").insert(mkBlocks(BLOG.editWid));if(be)throw be;}
+      await syncBlocks(BLOG.editWid,rows); // gelogde scores van programma-volgers blijven staan
     }else{
       const{data:nw,error}=await db.from("workouts").insert(wf).select().single();if(error)throw error;
       if(rows.length){const{error:be}=await db.from("blocks").insert(mkBlocks(nw.id));if(be)throw be;}
