@@ -88,22 +88,28 @@ function ensureLibModals(){
       '<div class="msg" id="inv-msg"></div></div></div>';
   document.body.appendChild(d);
 }
-async function libLaad(){
-  if(LIB.geladen||LIB.busy){libKop();return;}
+// Geeft een promise terug zodat zoekers (bouwer, demo-video) kunnen wachten
+// tot de bibliotheek er is en dan alsnog hun resultaten tonen.
+function libLaad(){
+  if(LIB.geladen){libKop();return Promise.resolve();}
+  if(LIB.busy&&LIB.laadPromise)return LIB.laadPromise;
   LIB.busy=true;
-  let alles=[],from=0;
-  while(true){
-    const{data,error}=await db.from("oefeningen").select("id,naam,youtube_id,video_url,tags,bron").order("naam").range(from,from+999);
-    if(error){LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';return;}
-    alles=alles.concat(data||[]);
-    if(!data||data.length<1000)break;
-    from+=1000;
-  }
-  const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach").order("naam");
-  const{data:progs}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
-  const{data:asgs}=await db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks");
-  LIB.oef=alles;LIB.tpl=tpl||[];LIB.programs=progs||[];LIB.programAsgs=asgs||[];LIB.geladen=true;LIB.busy=false;
-  libLijst();
+  LIB.laadPromise=(async()=>{
+    let alles=[],from=0;
+    while(true){
+      const{data,error}=await db.from("oefeningen").select("id,naam,youtube_id,video_url,tags,bron").order("naam").range(from,from+999);
+      if(error){LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';return;}
+      alles=alles.concat(data||[]);
+      if(!data||data.length<1000)break;
+      from+=1000;
+    }
+    const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach").order("naam");
+    const{data:progs}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
+    const{data:asgs}=await db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks");
+    LIB.oef=alles;LIB.tpl=tpl||[];LIB.programs=progs||[];LIB.programAsgs=asgs||[];LIB.geladen=true;LIB.busy=false;
+    libLijst();
+  })();
+  return LIB.laadPromise;
 }
 function libZetMode(m){LIB.mode=m;LIB.zoek="";LIB.pag=0;LIB.kleur="";const z=document.getElementById("lib-zoek");if(z)z.value="";coachRenderSection();}
 function libFilter(v){LIB.zoek=(v||"").toLowerCase();LIB.pag=0;libLijst();}

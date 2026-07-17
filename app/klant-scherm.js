@@ -201,7 +201,12 @@ function exZoek(inp){
   const v=inp.value.trim().toLowerCase();
   drop.innerHTML="";
   if(v.length<2){drop.classList.remove("show");return;}
-  if(!LIB.geladen){libLaad();drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");return;}
+  if(!LIB.geladen){
+    drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");
+    // Zodra de bibliotheek er is alsnog de resultaten tonen (anders bleef "laden…" staan).
+    libLaad().then(()=>{if(document.contains(inp)&&inp.value.trim().toLowerCase()===v)exZoek(inp);});
+    return;
+  }
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
   drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
@@ -273,7 +278,11 @@ function cwZoek(inp,kind){
   const v=inp.value.trim().toLowerCase();
   drop.innerHTML="";
   if(v.length<2){drop.classList.remove("show");return;}
-  if(!LIB.geladen){libLaad();drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");return;}
+  if(!LIB.geladen){
+    drop.innerHTML='<div class="hd">Bibliotheek laden…</div>';drop.classList.add("show");
+    libLaad().then(()=>{if(document.contains(inp)&&inp.value.trim().toLowerCase()===v)cwZoek(inp,kind);});
+    return;
+  }
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
   drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')</div>'+hits.slice(0,8).map(o=>{
