@@ -816,7 +816,7 @@ async function wdToevoegen(){
     tekst:(document.getElementById("wd-in-tekst").value||"").trim(),
     movements:[...WD.pending.movements],format:WD.pending.meta.format,tijd:WD.pending.meta.tijd,
     minutes:WD.pending.meta.minutes,maxload:WD.pending.meta.maxload};
-  const{data,error}=await db.from("competition_workouts").upsert(rec,{onConflict:"event,jaar,fase,naam"}).select().single();
+  const{data,error}=await db.from("competition_workouts").upsert(rec,{onConflict:"event,jaar,fase,naam,divisie"}).select().single();
   if(error){toast(error.message||"Opslaan mislukt");return;}
   WD.wods=WD.wods.filter(w=>w.id!==data.id);WD.wods.unshift(data);
   document.getElementById("wd-in-tekst").value="";document.getElementById("wd-in-naam").value="";
@@ -841,7 +841,7 @@ async function wdImport(){
       bron_url:w.bron_url||null});
   }
   if(!recs.length){msg.textContent="Geen bruikbare workouts gevonden.";msg.style.color="var(--bad)";return;}
-  const{error}=await db.from("competition_workouts").upsert(recs,{onConflict:"event,jaar,fase,naam"});
+  const{error}=await db.from("competition_workouts").upsert(recs,{onConflict:"event,jaar,fase,naam,divisie"});
   if(error){msg.textContent=error.message||"Import mislukt.";msg.style.color="var(--bad)";return;}
   await wdLaad();
   msg.textContent=recs.length+" workouts geïmporteerd.";msg.style.color="var(--ok)";
