@@ -567,7 +567,24 @@ function wdClassify(text){
   return {movements:f,format,tijd,minutes,maxload:loads.length?Math.max(...loads):null};
 }
 
-let WD={wods:null,view:"overzicht",fEvent:"",fJaar:"",fFase:"",fDiv:"",wEvent:"",wJaar:"",wFase:"",wDiv:"",pending:null};
+// Afgeleide structuur van een workout (verzoek Stefan, 18 juli): single /
+// couplet (2) / triplet (3) / chipper-formaat (4+), plus de modaliteit-mix
+// ("2× Gymnastics + 1× Barbell") en het hoogste skill-niveau. Alles wordt
+// afgeleid uit de movement-tags, dus oude én nieuwe workouts doen mee.
+function wdStructuur(w){
+  const ms=w.movements||[];
+  const n=ms.length;
+  const label=n<=1?"Single":n===2?"Couplet":n===3?"Triplet":"Chipper (4+)";
+  const telling={};
+  ms.forEach(m=>{const mod=(WD_MOV[m]||{}).mod||"bar";telling[mod]=(telling[mod]||0)+1;});
+  const mix=Object.entries(telling).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))
+    .map(([m,c])=>c+"× "+WD_MODNAAM[m]).join(" + ");
+  const maxSkill=ms.reduce((s,m)=>Math.max(s,(WD_MOV[m]||{}).skill||0),0);
+  return {n,label,mix,maxSkill};
+}
+const WD_STRUCTS=["Single","Couplet","Triplet","Chipper (4+)"];
+
+let WD={wods:null,view:"overzicht",fEvent:"",fJaar:"",fFase:"",fDiv:"",fStruct:"",wEvent:"",wJaar:"",wFase:"",wDiv:"",wStruct:"",pending:null};
 let wdChMix=null,wdChTime=null;
 
 async function wdLaad(){
@@ -586,9 +603,10 @@ function wdGo(v){WD.view=v;const h=document.getElementById("data-inhoud");if(h)w
 const wdUniq=a=>[...new Set(a)];
 // Filterselectie: 'Alle divisies' telt bij elke divisie-keuze mee (referentie-gedrag).
 function wdSelectie(p){
-  const e=WD[p+"Event"],j=WD[p+"Jaar"],f=WD[p+"Fase"],d=WD[p+"Div"];
+  const e=WD[p+"Event"],j=WD[p+"Jaar"],f=WD[p+"Fase"],d=WD[p+"Div"],s=WD[p+"Struct"];
   return (WD.wods||[]).filter(w=>(!e||w.event===e)&&(!j||String(w.jaar)===j)&&(!f||w.fase===f)
-    &&(!d||(w.divisie||"Alle divisies")===d||(w.divisie||"Alle divisies")==="Alle divisies"));
+    &&(!d||(w.divisie||"Alle divisies")===d||(w.divisie||"Alle divisies")==="Alle divisies")
+    &&(!s||wdStructuur(w).label===s));
 }
 function wdFilterHtml(p){
   const evs=wdUniq((WD.wods||[]).map(w=>w.event)).sort();
@@ -604,6 +622,7 @@ function wdFilterHtml(p){
       '<option value="kwalificatie"'+(WD[p+"Fase"]==="kwalificatie"?" selected":"")+'>'+(p==="f"?"Alleen kwalificatie":"Kwalificatie")+'</option>'+
       '<option value="finale"'+(WD[p+"Fase"]==="finale"?" selected":"")+'>'+(p==="f"?"Alleen finale":"Finale")+'</option></select>'+
     sel("Div",WD[p+"Div"],divs,"Alle divisies")+
+    sel("Struct",WD[p+"Struct"],WD_STRUCTS,"Alle structuren")+
   '</div>';
 }
 function wdFilter(p,veld,v){WD[p+veld]=v;wdRenderView();}
@@ -626,6 +645,20 @@ function wdOverzicht(h){
   const sk={};
   sel.forEach(w=>(w.movements||[]).forEach(m=>{if(WD_MOV[m]&&WD_MOV[m].skill===3)sk[m]=(sk[m]||0)+1;}));
   const sks=Object.entries(sk).sort((a,b)=>b[1]-a[1]);
+  // structuur-verdeling, samenstellingen-top en duo-paren (afgeleid, 18 juli)
+  const structTel={};
+  sel.forEach(w=>{const s=wdStructuur(w);structTel[s.label]=(structTel[s.label]||0)+1;});
+  const structMax=Math.max(...WD_STRUCTS.map(s=>structTel[s]||0),1);
+  const mixTel={};
+  sel.forEach(w=>{const s=wdStructuur(w);if(!s.n)return;const k=s.label+" · "+s.mix;mixTel[k]=(mixTel[k]||0)+1;});
+  const mixTop=Object.entries(mixTel).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const mixMax=mixTop.length?mixTop[0][1]:1;
+  const duoTel={};
+  sel.forEach(w=>{const ms=[...new Set(w.movements||[])].sort();
+    for(let i=0;i<ms.length;i++)for(let j=i+1;j<ms.length;j++){const k=ms[i]+" + "+ms[j];duoTel[k]=(duoTel[k]||0)+1;}});
+  const duoTop=Object.entries(duoTel).filter(([,c])=>c>=2).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const duoMax=duoTop.length?duoTop[0][1]:1;
+  const elite=sel.filter(w=>wdStructuur(w).maxSkill===3).length;
   h.innerHTML='<div class="hrow" style="margin-bottom:10px"><h2 style="font-size:19px">Wat wordt er getest?</h2></div>'+
     wdFilterHtml("f")+
     '<div class="dt-kpis">'+
@@ -633,12 +666,32 @@ function wdOverzicht(h){
       '<div class="dt-kpi"><div class="v">'+kw+' / '+fi+'</div><div class="l">Kwalificatie / finale</div></div>'+
       '<div class="dt-kpi"><div class="v">'+wdUniq(sel.map(w=>w.event+w.jaar)).length+'</div><div class="l">Edities</div></div>'+
       '<div class="dt-kpi"><div class="v">'+(loads.length?Math.max(...loads)+' kg':'—')+'</div><div class="l">Zwaarste barbell-load</div></div>'+
+      '<div class="dt-kpi"><div class="v">'+(sel.length?Math.round(elite/sel.length*100)+'%':'—')+'</div><div class="l">Met elite-skill (niveau 3)</div></div>'+
     '</div>'+
     '<div class="dt-grid2">'+
       '<div class="panel" style="padding:16px"><h3 class="dt-h3">Modaliteit-mix per editie</h3><canvas id="wd-chmix" height="260"></canvas>'+
         '<div class="dt-legend">'+Object.keys(WD_MODNAAM).map(m=>'<span><span class="dot" style="background:'+WD_MODKLEUR[m]+'"></span>'+WD_MODNAAM[m]+'</span>').join("")+'</div></div>'+
       '<div class="panel" style="padding:16px"><h3 class="dt-h3">Tijdsdomein</h3><canvas id="wd-chtime" height="260"></canvas></div>'+
     '</div>'+
+    '<div class="dt-grid2" style="margin-top:16px">'+
+      '<div class="panel" style="padding:16px"><h3 class="dt-h3">Workout-structuur</h3>'+
+        WD_STRUCTS.map(s=>{const c=structTel[s]||0;
+          return '<div class="wd-mrow"><div class="mn">'+s+'</div>'+
+            '<div class="mbar"><div class="fill" style="width:'+(c/structMax*100)+'%;background:#C9A227"></div></div>'+
+            '<div class="mc">'+c+'</div></div>';}).join("")+
+        '<div class="sm muted" style="margin-top:8px">Single = 1 movement, couplet = 2, triplet = 3, chipper-formaat = 4 of meer.</div></div>'+
+      '<div class="panel" style="padding:16px"><h3 class="dt-h3">Meest geteste samenstellingen</h3>'+
+        (mixTop.length?mixTop.map(([k,c])=>
+          '<div class="wd-mrow"><div class="mn" style="width:260px" title="'+esc(k)+'">'+esc(k)+'</div>'+
+          '<div class="mbar"><div class="fill" style="width:'+(c/mixMax*100)+'%;background:#8b5cf6"></div></div>'+
+          '<div class="mc">'+c+'</div></div>').join(""):'<div class="cempty">Geen workouts in de selectie.</div>')+
+        '<div class="sm muted" style="margin-top:8px">Structuur + modaliteit-mix, bijv. "Triplet · 2× Gymnastics + 1× Barbell".</div></div>'+
+    '</div>'+
+    '<div class="panel" style="padding:16px;margin-top:16px"><h3 class="dt-h3">Veelvoorkomende duo\'s (movements die samen getest worden)</h3>'+
+      (duoTop.length?duoTop.map(([k,c])=>
+        '<div class="wd-mrow"><div class="mn" style="width:260px" title="'+esc(k)+'">'+esc(k)+'</div>'+
+        '<div class="mbar"><div class="fill" style="width:'+(c/duoMax*100)+'%;background:#14b8a6"></div></div>'+
+        '<div class="mc">'+c+'×</div></div>').join(""):'<div class="cempty">Nog geen combinaties die 2 keer of vaker voorkomen.</div>')+'</div>'+
     '<div class="panel" style="padding:16px;margin-top:16px"><h3 class="dt-h3">Meest voorkomende movements</h3>'+
       (top.length?top.map(([m,c])=>
         '<div class="wd-mrow"><div class="mn">'+esc(m)+'</div>'+
@@ -683,15 +736,18 @@ function wdOverzicht(h){
 function wdWorkouts(h){
   const sel=wdSelectie("w").slice().sort((a,b)=>b.jaar-a.jaar||a.event.localeCompare(b.event)||a.naam.localeCompare(b.naam));
   h.innerHTML=wdFilterHtml("w")+
-    (sel.length?sel.map(w=>
-      '<div class="panel wd-kaart">'+
+    (sel.length?sel.map(w=>{
+      const st=wdStructuur(w);
+      return '<div class="panel wd-kaart">'+
         '<div class="wd-kop"><b>'+esc(w.event)+' '+w.jaar+' · '+esc(w.naam)+'</b>'+
           '<span class="sm muted">'+esc(w.fase)+(w.divisie&&w.divisie!=="Alle divisies"?' · '+esc(w.divisie):'')+' · '+esc(w.tijd)+(w.maxload?' · max '+w.maxload+' kg':'')+'</span></div>'+
         '<pre class="wd-pre">'+esc(w.tekst)+'</pre>'+
         '<div>'+(w.movements||[]).map(m=>'<span class="wd-tag" style="color:'+WD_MODKLEUR[(WD_MOV[m]||{}).mod||"bar"]+'">'+esc(m)+'</span>').join("")+
-          '<span class="wd-tag meta">'+esc(w.format)+'</span></div>'+
+          '<span class="wd-tag meta">'+esc(w.format)+'</span>'+
+          (st.n?'<span class="wd-tag meta">'+st.label+(st.mix?' · '+esc(st.mix):'')+'</span>':'')+
+          (st.maxSkill===3?'<span class="wd-tag skill">elite-skill</span>':'')+'</div>'+
         '<div style="margin-top:10px"><button class="btn ghost sm" style="color:var(--bad)" onclick="wdVerwijder(\''+w.id+'\')">Verwijderen</button></div>'+
-      '</div>').join(""):'<div class="cempty">Geen workouts in deze selectie.</div>');
+      '</div>';}).join(""):'<div class="cempty">Geen workouts in deze selectie.</div>');
 }
 async function wdVerwijder(id){
   if(!confirm("Workout verwijderen?"))return;
@@ -733,10 +789,12 @@ function wdAnalyse(){
   WD.pending={movements:new Set(c.movements),meta:c};
   const all=Object.keys(WD_MOV);
   const tagHtml=(m,aan)=>'<span class="wd-tag click'+(aan?'':' off')+'" style="color:'+WD_MODKLEUR[WD_MOV[m].mod]+'" data-m="'+esc(m)+'" onclick="wdTagToggle(this)">'+esc(m)+'</span>';
+  const st=wdStructuur({movements:c.movements});
   document.getElementById("wd-tags").innerHTML=
     '<div class="sm muted" style="margin-bottom:6px">Herkende tags (klik om aan/uit te zetten):</div>'+
     all.filter(m=>WD.pending.movements.has(m)).map(m=>tagHtml(m,true)).join("")+
     '<span class="wd-tag meta">'+esc(c.format)+'</span><span class="wd-tag meta">'+esc(c.tijd)+'</span>'+(c.maxload?'<span class="wd-tag meta">max '+c.maxload+' kg</span>':'')+
+    (st.n?'<span class="wd-tag meta">'+st.label+(st.mix?' · '+esc(st.mix):'')+'</span>':'')+
     '<details style="margin-top:8px"><summary class="sm muted" style="cursor:pointer">Tag handmatig toevoegen</summary><div style="margin-top:6px">'+
     all.filter(m=>!WD.pending.movements.has(m)).map(m=>tagHtml(m,false)).join("")+'</div></details>';
   document.getElementById("wd-addbtn").style.display="inline-block";
