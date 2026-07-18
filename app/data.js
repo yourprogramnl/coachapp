@@ -594,7 +594,7 @@ async function wdLaad(){
 }
 async function wdRender(h){
   if(WD.wods===null){h.innerHTML='<div class="spin">Laden…</div>';await wdLaad();}
-  const sub=[["overzicht","Overzicht"],["workouts","Workouts"],["invoer","Invoer"]]
+  const sub=[["overzicht","Overzicht"],["workouts","Workouts"],["invoer","Invoer"],["pipeline","Pipeline"]]
     .map(v=>'<button class="'+(WD.view===v[0]?"on":"")+'" onclick="wdGo(\''+v[0]+'\')">'+v[1]+'</button>').join("");
   h.innerHTML='<div class="dt-subnav">'+sub+'</div><div id="wd-view"></div>';
   wdRenderView();
@@ -630,7 +630,38 @@ function wdRenderView(){
   const h=document.getElementById("wd-view");if(!h)return;
   if(WD.view==="overzicht")wdOverzicht(h);
   else if(WD.view==="workouts")wdWorkouts(h);
+  else if(WD.view==="pipeline")wdPipeline(h);
   else wdInvoer(h);
+}
+
+// ---------- Pipeline: zo verzamel je de data (uitleg + extractieprompt uit het origineel) ----------
+const WD_PROMPT=`Je krijgt de aankondigingstekst van één of meer CrossFit-wedstrijdworkouts. Zet elke workout om naar JSON. Antwoord met ALLEEN een JSON-array, geen uitleg, geen markdown.
+
+Per workout:
+{"event":"<naam wedstrijd>","jaar":<jaartal>,"fase":"kwalificatie"|"finale","naam":"<workoutnaam of nummer>","divisie":"<divisie, of Alle divisies>","tekst":"<volledige workout-omschrijving, letterlijk>","maxload":<zwaarste barbell-gewicht mannen in kg, of null>}
+
+Regels:
+- Splits meerdere workouts in losse objecten.
+- "tekst" bevat het complete schema: reps, movements, gewichten, time cap.
+- Gebruik het jaartal van de editie, niet van vandaag.
+- Weet je event/jaar/fase/divisie niet zeker uit de tekst, neem ze over uit de contextregel die erboven staat.
+
+Context: {{event}} {{jaar}} {{fase}} {{divisie}}
+Tekst:
+{{tekst}}`;
+function wdPipeline(h){
+  h.innerHTML=
+    '<div class="panel" style="padding:16px"><h3 class="dt-h3">Zo verzamel je de data</h3>'+
+      '<p style="margin-bottom:10px;font-size:13.5px;line-height:1.6"><b>1 · Bronnen.</b> Kwalificatie-workouts staan per jaar op Competition Corner (2023-2025) en vanaf 2026 op WeTime / Circle21. Finale-workouts staan meestal in Instagram-posts van het event of in heat-briefings (PDF). Houd een bronnenlijst bij per event × jaar × fase.</p>'+
+      '<p style="margin-bottom:10px;font-size:13.5px;line-height:1.6"><b>2 · Ophalen.</b> Deze platforms zijn JavaScript-apps: een gewone HTTP-request geeft een lege pagina. Twee routes die wél werken: (a) open de workouts-pagina in Chrome met DevTools → Network → XHR en kopieer de JSON-URL die de pagina zelf aanroept; die URL kan n8n direct gebruiken. (b) laat n8n een headless browser renderen (Playwright/Browserless) en pak de paginatekst. Instagram-captions plak je gewoon in het Invoer-tabblad.</p>'+
+      '<p style="margin-bottom:10px;font-size:13.5px;line-height:1.6"><b>3 · Extraheren.</b> Ruwe tekst → JSON via een Claude-node in n8n met de prompt hieronder. De uitkomst plak je in het Bulk-import-veld op het Invoer-tabblad, of n8n schrijft hem rechtstreeks naar de database.</p>'+
+      '<p style="font-size:13.5px;line-height:1.6"><b>4 · Analyseren.</b> Het Overzicht-tabblad. Nieuwe invoer wordt automatisch geclassificeerd (movements, format, tijdsdomein, structuur).</p></div>'+
+    '<div class="panel" style="padding:16px;margin-top:16px"><h3 class="dt-h3" style="display:flex;align-items:center;gap:10px">Claude-extractieprompt voor n8n <button class="btn ghost sm" onclick="wdPromptKopieer(this)">Kopieer</button></h3>'+
+      '<pre class="wd-pre" style="margin:0">'+esc(WD_PROMPT)+'</pre></div>';
+}
+async function wdPromptKopieer(btn){
+  try{await navigator.clipboard.writeText(WD_PROMPT);btn.textContent="Gekopieerd ✓";}
+  catch(e){toast("Kopiëren lukte niet; selecteer de tekst handmatig");}
 }
 
 // ---------- Overzicht ----------

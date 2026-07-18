@@ -133,7 +133,8 @@ function dashRender(){
       const statusBtn=r?'<span class="okc2'+(r.status==="missed"?" miss":"")+'" style="cursor:pointer" title="'+(r.status==="missed"?"Gemist — klik om op voltooid te zetten":"Voltooid — klik om op gemist te zetten")+'" onclick="dashToggleStatus(\''+r.id+'\',\''+r.status+'\')"><svg class="i sm-i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'';
       // Geschiedenis-knop: opent de geschiedenis-zoeker voor deze klant + oefening (niet bij de warming-up)
       const histBtn=badge!=="W"?'<svg class="i sm-i" title="Zoek in geschiedenis" style="cursor:pointer" data-aid="'+esc(w.client_id)+'" data-ex="'+esc(titel)+'" onclick="dashHistory(this)"><use href="#i-hist"/></svg>':'';
-      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+vidHtml+'</div>'+
+      const noot=(r&&r.note)?'<div class="pr2" style="font-style:italic;color:#8a919c">💬 '+esc(r.note)+'</div>':'';
+      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+noot+vidHtml+'</div>'+
         '<div class="fside">'+statusBtn+histBtn+'</div></div>';
     };
     let rows="";

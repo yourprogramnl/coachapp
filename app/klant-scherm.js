@@ -419,6 +419,7 @@ function mcardHtml(w){
     inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
+      ((r&&r.note)?'<div class="pr" style="font-style:italic;color:#8a919c" title="Notitie van het lid">💬 '+esc(r.note)+'</div>':'')+
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+
       '</div>';
   });
