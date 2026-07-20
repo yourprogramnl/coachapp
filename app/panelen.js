@@ -168,9 +168,23 @@ async function assOpslaan(){
 // ---------- METRICS & 1RM (zoals het ontwerp; waarden uit de metrics-tabel) ----------
 const METRICS_DEF={
  "Resistance":["Air Squat","Back Squat 1RM","CGBP 1RM","Clean 1RM","DB External Rotation 8RM","DB Powell Raise 8RM","DB Prone Row 6RM","Deadlift","Front Leaning Rest","Front Squat 1RM","Goblet Squat 20RM","Power Clean 1RM","Power Snatch 1RM","Push-up","Reverse Plank","RFESS","Seated DB OH Press 6RM","Side Plank Left","Side Plank Right","Snatch 1RM","Sorenson Hold","Strict Dip","Strict Knees to Elbow","Strict Press 1RM","Strict Pullup","Thruster 1RM","Unloaded RFESS","Weighted Pull-up 1RM","Weighted Strict Dip 1RM"],
+ // Barbell-liften (21 juli, lijst Stefan; dubbelen met Resistance weggelaten:
+ // back/front squat, squat clean, power clean, shoulder press, snatch,
+ // power snatch, deadlift en thruster bestonden al).
+ "Barbell Squats":["Back Pause Squat","Box Squat","Front Box Squat","Front Pause Squat","High Bar Back Squat","Low Bar Back Squat","Overhead Squat","Split Squat"],
+ "Barbell Cleans":["Clean Pull","Hang Power Clean","Hang Squat Clean","Muscle Clean"],
+ "Barbell Presses":["Bench Press","Floor Press","Push Press","Seated Press","Snatch Grip Push Press","Sots Press"],
+ "Barbell Jerks":["Jerk Balance","Jerk Dip","Push Jerk","Split Jerk","Squat Jerk"],
+ "Barbell Snatches":["Hang Power Snatch","Hang Squat Snatch","Muscle Snatch","Snatch Balance","Snatch Extension","Snatch Pull","Squat Pause Snatch"],
+ "Barbell Deadlifts":["Romanian Deadlift","Snatch Grip Deadlift","Sumo Deadlift","Sumo Deadlift High Pull"],
+ "Olympic Lifts":["Clean & Jerk","Power Clean & Jerk"],
+ "Barbell Overig":["Back Rack Lunges","Bent Over Row","Front Rack Lunges","Good Morning","Overhead Lunge","Pendlay Row","Squat Clean Thruster","Step Up"],
  "Energy System Beginner":["10 minute AirBike","5k Row","60min Row","AirBike Weight Conversion"],
  "Energy System Intermediate":["2k Row","30/30 Row (Row 1)","30/30 Row (Row 2)","30/30 Row (Row 3)","30/30 Row (Row 4)","3K running","500m Row","60 sec AirBike","60 sec Row","90min AMRAP","Row/Burpee Over Erg"],
  "Energy System Advanced":["18 min AMRAP","Back Squat Neuromuscular Efficiency (NME)","Constant Variance (Set 1: A,B,C,D,E,F)","Constant Variance (Set 2: D,E,F,C,B,A)","Constant Variance (Set 3: B,D,E,A,F,C)","Constant Variance (Set 4: F,A,D,E,C,B)","Constant Variance (Set 5: C,F,B,D,A,E)","Power Clean/Burpee Repeat (Set 1)","Power Clean/Burpee Repeat (Set 2)","Push/Pull","Row/KBS/Burpee (Set 1)","Row/KBS/Burpee (Set 2)","Row/KBS/Burpee (Set 3)","Strict PU + Strict HSPU (PU)","Strict PU + Strict HSPU (sHSPU)"],
+ // Benchmark-workouts (de Girls); score per workout verschilt (tijd/rondes/reps),
+ // dus deze houden het vrije invoertype met keuzemenu.
+ "Benchmarks (Girls)":["Amanda","Andi","Angie","Annie","Barbara","Barbara Ann","Candy","Chelsea","Christine","Cindy","Diane","Elizabeth","Ellen","Eva","Fran","Grace","Grettel","Gwen","Helen","Ingrid","Isabel","Jackie","Karen","Kelly","Lane","Linda","Lyla","Lynne","Maggie","Mary","Megan","Nancy","Nicole"],
  "Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
 };
 let mxData=[],mxOpen={},balKeuze="Deadlift";
@@ -241,9 +255,10 @@ const MX_TYPE={
   "Constant Variance (Set 3: B,D,E,A,F,C)":"time","Constant Variance (Set 4: F,A,D,E,C,B)":"time",
   "Constant Variance (Set 5: C,F,B,D,A,E)":"time"
 };
+const MX_KG_GROEPEN=["Resistance","Barbell Squats","Barbell Cleans","Barbell Presses","Barbell Jerks","Barbell Snatches","Barbell Deadlifts","Olympic Lifts","Barbell Overig"];
 function mxType(naam){
   if(MX_TYPE[naam])return MX_TYPE[naam];
-  if((METRICS_DEF["Resistance"]||[]).includes(naam))return "kg";
+  if(MX_KG_GROEPEN.some(g=>(METRICS_DEF[g]||[]).includes(naam)))return "kg";
   return "vrij";
 }
 const mxSecNaarTijd=sec=>{sec=Math.round(sec||0);return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");};
