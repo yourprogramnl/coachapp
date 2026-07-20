@@ -1,11 +1,43 @@
 // app/auth.js — inloggen, account maken, uitloggen en het opstarten van de app.
 // loadApp() bepaalt op basis van de rol welk scherm getoond wordt.
 let mode="in";
-function setMode(m){mode=m;document.getElementById("tab-in").classList.toggle("on",m==="in");document.getElementById("tab-up").classList.toggle("on",m==="up");document.getElementById("go").textContent=m==="in"?"Inloggen":"Account maken";setMsg("");}
+function setMode(m){
+  mode=m;
+  document.getElementById("tab-in").classList.toggle("on",m==="in");
+  document.getElementById("tab-up").classList.toggle("on",m==="up");
+  document.getElementById("go").textContent=m==="in"?"Inloggen":"Account aanmaken";
+  const p2=document.getElementById("pw2-veld");if(p2)p2.style.display=m==="up"?"":"none";
+  setMsg("");
+}
 function setMsg(t,k){const e=document.getElementById("msg");e.textContent=t||"";e.className="msg "+(k||"");}
+
+// Uitnodigingslink (?invite=TOKEN): e-mailadres en naam ophalen zodat de
+// nieuwe klant alleen nog een wachtwoord hoeft te kiezen.
+async function initInvite(token){
+  if(!token)return;
+  try{
+    const{data}=await db.rpc("invite_info",{p_token:token});
+    const inv=(data||[])[0];
+    if(!inv||!inv.email){
+      setMsg("Deze uitnodigingslink is verlopen of al gebruikt. Vraag je coach om een nieuwe uitnodiging.","err");
+      return;
+    }
+    setMode("up");
+    const em=document.getElementById("email");
+    em.value=inv.email;em.readOnly=true;em.style.opacity=".65";
+    const w=document.getElementById("inv-welkom");
+    if(w){w.style.display="";w.textContent="Hoi"+(inv.first_name?" "+inv.first_name:"")+"! Kies een wachtwoord voor je account, daarna staat je programma voor je klaar.";}
+  }catch(e){}
+}
+
 async function submitAuth(){
   const email=document.getElementById("email").value.trim(),pw=document.getElementById("pw").value;
   if(!email||!pw){setMsg("Vul e-mail en wachtwoord in.","err");return;}
+  if(mode==="up"){
+    const pw2=(document.getElementById("pw2")||{}).value||"";
+    if(pw.length<8){setMsg("Kies een wachtwoord van minimaal 8 tekens.","err");return;}
+    if(pw!==pw2){setMsg("De wachtwoorden zijn niet gelijk.","err");return;}
+  }
   document.getElementById("go").disabled=true;
   try{
     if(mode==="in"){const{error}=await db.auth.signInWithPassword({email,password:pw});if(error)throw error;}
@@ -15,12 +47,42 @@ async function submitAuth(){
       const tok=new URLSearchParams(location.search).get("invite");
       if(tok)localStorage.setItem("invite_token",tok);
       const redir=location.origin+location.pathname+(tok?"?invite="+tok:"");
-      const{error}=await db.auth.signUp({email,password:pw,options:{emailRedirectTo:redir}});if(error)throw error;
-      setMsg("Account gemaakt. Mogelijk e-mail bevestigen, log daarna in.","ok");document.getElementById("go").disabled=false;setMode("in");return;
+      const{data,error}=await db.auth.signUp({email,password:pw,options:{emailRedirectTo:redir}});if(error)throw error;
+      document.getElementById("go").disabled=false;
+      toonAccountKlaar(!!(data&&data.session));
+      return;
     }
     await loadApp();
   }catch(e){setMsg(e.message||"Er ging iets mis.","err");}
   document.getElementById("go").disabled=false;
+}
+
+// Duidelijk succes-scherm na het aanmaken. Is er meteen een sessie (geen
+// e-mailbevestiging nodig), dan logt de knop direct in; anders eerst de
+// bevestigingsmail.
+function toonAccountKlaar(ingelogd){
+  const kaart=document.querySelector("#login .card");if(!kaart)return;
+  if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  kaart.innerHTML='<div style="text-align:center;padding:8px 0">'+
+    '<div style="font-size:40px;line-height:1;margin-bottom:10px">✅</div>'+
+    '<h3 style="margin:0 0 8px">Account aangemaakt!</h3>'+
+    (ingelogd
+      ?'<div class="muted" style="font-size:13px;margin-bottom:16px">Je account is klaar.</div>'+
+       '<button class="btn" style="width:100%" onclick="accountDoorgaan()">Klik hier om in te loggen</button>'
+      :'<div class="muted" style="font-size:13px;margin-bottom:16px;line-height:1.5">We hebben je een mail gestuurd om je e-mailadres te bevestigen. Klik op de link in die mail en log daarna in.</div>'+
+       '<button class="btn" style="width:100%" onclick="accountTerug()">Naar inloggen</button>')+
+    '</div>';
+}
+async function accountDoorgaan(){
+  const kaart=document.querySelector("#login .card");
+  if(kaart&&kaart.dataset.orig){kaart.innerHTML=kaart.dataset.orig;delete kaart.dataset.orig;}
+  await loadApp();
+}
+function accountTerug(){
+  const kaart=document.querySelector("#login .card");
+  if(kaart&&kaart.dataset.orig){kaart.innerHTML=kaart.dataset.orig;delete kaart.dataset.orig;}
+  setMode("in");
+  setMsg("Bevestig eerst je e-mailadres via de mail, log daarna hier in.","ok");
 }
 function show(which){
   if(which!=="app"){
