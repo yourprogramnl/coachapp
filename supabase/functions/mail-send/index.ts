@@ -99,6 +99,29 @@ function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMa
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
 }
 
+// Compacte weergave van een gelogde score (zelfde volgorde als de apps)
+function scoreTxt(r: { score_text?: string | null; time_seconds?: number | null; load_kg?: number | null; reps?: number | null; rounds?: number | null; status?: string } | null): string {
+  if (!r) return "";
+  if (r.status === "missed") return "gemist";
+  if (r.score_text) return r.score_text;
+  if (r.time_seconds != null) { const m = Math.floor(r.time_seconds / 60), s = r.time_seconds % 60; return `${m}:${String(s).padStart(2, "0")}`; }
+  if (r.load_kg != null) return `${r.load_kg} kg`;
+  if (r.rounds != null) return `${r.rounds} rondes${r.reps != null ? " + " + r.reps : ""}`;
+  if (r.reps != null) return `${r.reps} reps`;
+  return "voltooid";
+}
+
+// Eenvoudige mail: titel + intro + losse regels (voor bericht/workout/video/foto)
+function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet: string }): string {
+  const rijen = opts.regels.map((r) =>
+    `<div style="margin:6px 0;padding:9px 11px;border-left:3px solid #D9B44A;background:#1a1a1e;border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${r}</div>`).join("");
+  return KADER_OPEN +
+    `<h2 style="color:#D9B44A;margin:0 0 6px;font-size:20px">${esc(opts.titel)}</h2>` +
+    `<p style="margin:0 0 12px;line-height:1.5;color:#c9c9ce">${esc(opts.intro)}</p>` +
+    rijen +
+    `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
+}
+
 async function verstuur(naar: string, afzenderNaam: string, onderwerp: string, html: string): Promise<Response> {
   return await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -159,6 +182,91 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const pogingen = ((rij.attempts as number) || 0) + 1;
     await klaar({ attempts: pogingen, last_error: fout.slice(0, 500), status: pogingen >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
     return "fout";
+  }
+
+  const coachVoet = "Mail-meldingen beheer je in het dashboard onder Instellingen > Notificaties.";
+  const klantNaam = async (aid: string) => {
+    const { data } = await db.from("profiles").select("first_name,last_name").eq("id", aid).maybeSingle();
+    return naamVan(data || null);
+  };
+  const stuurEnBoek = async (onderwerp: string, html: string): Promise<string> => {
+    const r = await verstuur(ontvanger.email, afzenderNaam, onderwerp, html);
+    if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
+    const fout = await r.text().catch(() => String(r.status));
+    const pogingen = ((rij.attempts as number) || 0) + 1;
+    await klaar({ attempts: pogingen, last_error: fout.slice(0, 500), status: pogingen >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+    return "fout";
+  };
+
+  // Klant stuurde chatberichten (mail naar de coach, laatste berichten erbij)
+  if (event === "bericht") {
+    const aid = payload.athlete_id as string;
+    const naam = await klantNaam(aid);
+    const { data: ms } = await db.from("messages").select("body,created_at").eq("athlete_id", aid).eq("sender_id", aid).order("created_at", { ascending: false }).limit(4);
+    const regels = (ms || []).reverse().map((m) => esc(m.body));
+    if (!regels.length) { await klaar({ status: "skipped", last_error: "geen berichten gevonden" }); return "skipped"; }
+    return await stuurEnBoek(`${naam} heeft je een bericht gestuurd`, simpelHtml({
+      titel: `Nieuw bericht van ${naam}`,
+      intro: "De laatste berichten:",
+      regels,
+      voet: "Antwoorden doe je via Berichten in het dashboard. " + coachVoet,
+    }));
+  }
+
+  // Klant tekende een workout af (mail naar de coach met de scores per blok)
+  if (event === "workout") {
+    const wid = payload.workout_id as string, aid = payload.athlete_id as string;
+    const naam = await klantNaam(aid);
+    const [{ data: workout }, { data: blokken }, { data: results }] = await Promise.all([
+      db.from("workouts").select("title,workout_date").eq("id", wid).maybeSingle(),
+      db.from("blocks").select("id,label,exercise").eq("workout_id", wid).order("sort"),
+      db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds").eq("workout_id", wid).eq("athlete_id", aid),
+    ]);
+    if (!workout) { await klaar({ status: "skipped", last_error: "workout niet meer gevonden" }); return "skipped"; }
+    const datum = workout.workout_date ? datumNL(workout.workout_date) : "vandaag";
+    const regels = (blokken || []).map((b) => {
+      const r = (results || []).find((x) => x.block_id === b.id) || null;
+      const sc = scoreTxt(r);
+      return `<b>${esc([b.label, b.exercise].filter(Boolean).join(" · "))}</b>${sc ? `: ${esc(sc)}` : ": nog niet gelogd"}`;
+    });
+    return await stuurEnBoek(`${naam} heeft een workout afgetekend`, simpelHtml({
+      titel: `${naam} heeft getraind`,
+      intro: `${workout.title || "Workout"} · ${datum}`,
+      regels,
+      voet: "Bekijk de details in de activiteit-feed van het dashboard. " + coachVoet,
+    }));
+  }
+
+  // Klant uploadde video's (mail naar de coach)
+  if (event === "video") {
+    const wid = payload.workout_id as string, aid = payload.athlete_id as string;
+    const naam = await klantNaam(aid);
+    const [{ data: workout }, { count }] = await Promise.all([
+      db.from("workouts").select("title,workout_date").eq("id", wid).maybeSingle(),
+      db.from("result_media").select("id", { count: "exact", head: true }).eq("workout_id", wid).eq("athlete_id", aid),
+    ]);
+    const datum = workout?.workout_date ? datumNL(workout.workout_date) : "vandaag";
+    const n = count || 1;
+    return await stuurEnBoek(`${naam} heeft ${n === 1 ? "een video" : n + " video's"} geüpload`, simpelHtml({
+      titel: `Nieuwe video's van ${naam}`,
+      intro: `Bij ${workout?.title || "de workout"} van ${datum} ${n === 1 ? "staat nu een video" : "staan nu " + n + " video's"}.`,
+      regels: [],
+      voet: "Bekijk en beoordeel ze in de activiteit-feed van het dashboard. " + coachVoet,
+    }));
+  }
+
+  // Klant uploadde voortgangsfoto's (mail naar de coach)
+  if (event === "foto") {
+    const aid = payload.athlete_id as string;
+    const naam = await klantNaam(aid);
+    const { count } = await db.from("progress_photos").select("id", { count: "exact", head: true }).eq("athlete_id", aid).eq("taken_on", payload.taken_on as string);
+    const n = count || 1;
+    return await stuurEnBoek(`${naam} heeft voortgangsfoto's geüpload`, simpelHtml({
+      titel: `Nieuwe voortgangsfoto's van ${naam}`,
+      intro: `Er ${n === 1 ? "staat 1 nieuwe foto" : "staan " + n + " nieuwe foto's"} klaar (datum ${datumNL(String(payload.taken_on || ""))}).`,
+      regels: [],
+      voet: "Bekijk ze via het klantprofiel > Voortgangsfoto's. " + coachVoet,
+    }));
   }
 
   if (event !== "reactie") { await klaar({ status: "skipped", last_error: "onbekend event" }); return "skipped"; }
