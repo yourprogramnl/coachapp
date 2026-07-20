@@ -64,7 +64,7 @@ async function dtLaad(){
   ]);
   if(aq.error||sq.error){toast("Data laden mislukt");return;}
   const map={};
-  (aq.data||[]).forEach(a=>{map[a.name]={id:a.id,bw:a.bw==null?null:Number(a.bw),gender:a.gender||"man",scores:{}};});
+  (aq.data||[]).forEach(a=>{map[a.name]={id:a.id,bw:a.bw==null?null:Number(a.bw),gender:a.gender||"man",profile_id:a.profile_id||null,scores:{}};});
   const opId={};(aq.data||[]).forEach(a=>{opId[a.id]=a.name;});
   (sq.data||[]).forEach(s=>{const n=opId[s.athlete_id];if(n)map[n].scores[s.test_key]=Number(s.value);});
   DT.athletes=map;DT.geladen=true;
@@ -307,15 +307,66 @@ async function dtVerwijderAtleet(){
   DT.sel=dtRanked()[0]||"";dataRender();
 }
 
+// ---------- Koppeling met een klant (metingen stromen dan automatisch door) ----------
+// dtKlanten = cache van de klantenlijst (RLS bepaalt wie je ziet: coach de
+// eigen klanten, eigenaar/platform_admin iedereen in het bedrijf).
+let dtKlanten=null;
+async function dtLaadKlanten(){
+  if(dtKlanten)return dtKlanten;
+  const{data}=await db.from("profiles").select("id,first_name,last_name").eq("role","lid").order("first_name");
+  dtKlanten=(data||[]).map(p=>({id:p.id,naam:[p.first_name,p.last_name].filter(Boolean).join(" ")||"Naamloos"}));
+  return dtKlanten;
+}
+async function dtVulKoppelNaam(){
+  const el=document.getElementById("dt-koppel-naam");
+  const a=DT.sel,pid=DT.athletes[a]&&DT.athletes[a].profile_id;
+  if(!el||!pid)return;
+  const ks=await dtLaadKlanten();
+  const k=ks.find(x=>x.id===pid);
+  if(k&&document.getElementById("dt-koppel-naam"))document.getElementById("dt-koppel-naam").textContent=" "+k.naam;
+}
+async function dtKoppelOpen(){
+  const host=document.getElementById("dt-koppel");if(!host)return;
+  host.innerHTML='<span class="sm muted">laden…</span>';
+  const ks=await dtLaadKlanten();
+  if(!ks.length){host.innerHTML='<span class="sm muted">Geen klanten gevonden</span>';return;}
+  host.innerHTML='<select class="lid-in" id="dt-koppel-sel" style="width:auto;min-width:180px">'+
+    '<option value="">Kies klant…</option>'+ks.map(k=>'<option value="'+esc(k.id)+'">'+esc(k.naam)+'</option>').join("")+'</select> '+
+    '<button class="btn sm" onclick="dtKoppelDoe()">Koppel</button> '+
+    '<button class="btn ghost sm" onclick="dtRenderView()">Annuleren</button>';
+}
+async function dtKoppelDoe(){
+  const sel=document.getElementById("dt-koppel-sel");
+  const pid=sel&&sel.value;
+  if(!pid){toast("Kies eerst een klant");return;}
+  const a=DT.sel;if(!DT.athletes[a])return;
+  const{error}=await db.rpc("data_koppel_atleet",{p_athlete:DT.athletes[a].id,p_profile:pid});
+  if(error){toast(error.message||"Koppelen mislukt");return;}
+  toast("Gekoppeld; metingen van deze klant stromen nu automatisch binnen");
+  await dtLaad();dtRenderView();
+}
+async function dtOntkoppel(ev){
+  ev.preventDefault();
+  const a=DT.sel;if(!DT.athletes[a])return;
+  if(!confirm("Koppeling met de klant verwijderen? De scores die er nu staan blijven bewaard."))return;
+  const{error}=await db.rpc("data_koppel_atleet",{p_athlete:DT.athletes[a].id,p_profile:null});
+  if(error){toast(error.message||"Ontkoppelen mislukt");return;}
+  DT.athletes[a].profile_id=null;dtRenderView();
+}
+
 // ---------- Atleet (scores altijd direct bewerkbaar; opslaan bij wijzigen) ----------
 function dtAtleetView(h){
   if(!dtNames().includes(DT.sel))DT.sel=dtRanked()[0]||"";
   const a=DT.sel;
   const t=dtTotPct(a);
   const opts=dtRanked().map(n=>'<option value="'+esc(n)+'"'+(n===a?" selected":"")+'>'+esc(n)+'</option>').join("");
+  const gekoppeld=DT.athletes[a]&&DT.athletes[a].profile_id;
   h.innerHTML=
     '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'+
       '<select class="lid-in" style="width:auto;min-width:200px" onchange="dtSelAtleet(this.value)">'+opts+'</select>'+
+      '<span id="dt-koppel">'+(gekoppeld
+        ?'<span class="sm muted">🔗 Gekoppeld aan klant<span id="dt-koppel-naam"></span> · <a href="#" onclick="dtOntkoppel(event)">ontkoppelen</a></span>'
+        :'<button class="btn ghost sm" onclick="dtKoppelOpen()">Koppel aan klant</button>')+'</span>'+
       '<button class="btn ghost sm" style="color:var(--bad)" onclick="dtVerwijderAtleet()">Verwijder atleet</button>'+
     '</div>'+
     '<div class="dt-athead">'+
@@ -352,6 +403,7 @@ function dtAtleetView(h){
           }).join("")+'</div>';
       }).join("")+
     '</div>';
+  dtVulKoppelNaam();
   dtChart(()=>{
     const cv=document.getElementById("dt-radarP");if(!cv||!window.Chart)return;
     if(dtRadarP)dtRadarP.destroy();
