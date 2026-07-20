@@ -50,6 +50,7 @@ function ensureLibModals(){
       '<div class="field"><label>Soort</label><select id="tpl-type"><option value="warmup">Warming-up</option><option value="other">Workout</option><option value="cooldown">Cooldown</option></select></div>'+
       '<div class="field"><label>Kleur</label><div class="kleurdots" id="tpl-kleuren"></div></div>'+
       '<div class="field"><label>Instructies</label><textarea id="tpl-instr" style="min-height:140px"></textarea></div>'+
+      '<div id="tpl-media"></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="tplmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="progmodal"><div class="box"><h3 id="progmodal-titel">Programma toevoegen</h3>'+
@@ -103,7 +104,7 @@ function libLaad(){
       if(!data||data.length<1000)break;
       from+=1000;
     }
-    const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach").order("naam");
+    const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media").order("naam");
     const{data:progs}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
     const{data:asgs}=await db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks");
     LIB.oef=alles;LIB.tpl=tpl||[];LIB.programs=progs||[];LIB.programAsgs=asgs||[];LIB.geladen=true;LIB.busy=false;
@@ -595,6 +596,24 @@ async function oefVerwijder(){
 function tplKleurDots(){
   document.getElementById("tpl-kleuren").innerHTML=TPLKLEUREN.map(k=>'<span class="'+(k===LIB.tplKleur?"aan":"")+'" title="'+LEGNAAM[k]+'" onclick="LIB.tplKleur=\''+k+'\';tplKleurDots()" style="background:'+TPLKLEUR[k]+'"></span>').join("");
 }
+// Video's uit Strivee bij een template: klein afspeelbaar (thumbnail met
+// play-knop; klik = YouTube-speler in de plaats van de tegel).
+function tplMediaRender(media){
+  const host=document.getElementById("tpl-media");if(!host)return;
+  const vids=Array.isArray(media)?media.filter(m=>m&&m.youtube_id):[];
+  if(!vids.length){host.innerHTML="";return;}
+  host.innerHTML='<label style="font-weight:800;font-size:12.5px;color:#5b6470;display:block;margin:2px 0 8px">Video\'s ('+vids.length+')</label>'+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
+    vids.map((v,i)=>'<div class="tplvid" data-yt="'+esc(v.youtube_id)+'" style="display:flex;align-items:center;gap:10px">'+
+      '<div class="tplvid-thumb" onclick="tplVidSpeel(this)" style="position:relative;width:92px;height:56px;border-radius:8px;background:#000 url(\'https://i.ytimg.com/vi/'+esc(v.youtube_id)+'/mqdefault.jpg\') center/cover;cursor:pointer;flex:none">'+
+        '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 12 12" fill="#fff"><path d="M2 1l8 5-8 5z"/></svg></span></span></div>'+
+      '<div class="sm" style="flex:1;line-height:1.35">'+esc(v.titel||"Video")+'</div></div>').join("")+
+    '</div>';
+}
+function tplVidSpeel(el){
+  const rij=el.closest(".tplvid");const yt=rij&&rij.getAttribute("data-yt");if(!yt)return;
+  el.outerHTML='<div style="width:220px;flex:none;aspect-ratio:16/9;border-radius:8px;overflow:hidden"><iframe width="220" height="124" src="https://www.youtube.com/embed/'+esc(yt)+'?autoplay=1" title="Video" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;height:100%"></iframe></div>';
+}
 function tplBewerk(id){
   LIB.editTpl=id;
   const o=id?LIB.tpl.find(x=>x.id===id):null;
@@ -605,6 +624,7 @@ function tplBewerk(id){
   document.getElementById("tplmodal-msg").textContent="";
   LIB.tplKleur=o&&TPLKLEUREN.includes(o.kleur)?o.kleur:"yellow";
   tplKleurDots();
+  tplMediaRender(o&&o.media);
   const del=document.getElementById("tplmodal-del");
   del.innerHTML=(o&&myRole()==="platform_admin")?'<button class="btn ghost sm" onclick="tplVerwijder()">Verwijderen</button>':"";
   document.getElementById("tplmodal").classList.add("show");
