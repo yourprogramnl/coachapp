@@ -136,6 +136,28 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   const payload = (rij.payload || {}) as Record<string, unknown>;
   const klaar = async (patch: Record<string, unknown>) => { await db.from("mail_queue").update(patch).eq("id", id); };
 
+  // Uitnodigingsmail: de ontvanger heeft nog geen profiel, dus geen vinkjes of
+  // werkuren; gaat rechtstreeks naar het e-mailadres uit de uitnodiging.
+  if (event === "invite") {
+    const naar = rij.recipient_email as string;
+    if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
+    const { data: bedrijfI } = await db.from("companies").select("name").eq("id", rij.company_id).maybeSingle();
+    const bedrijfsNaam = bedrijfI?.name || "je coach";
+    const link = `https://coachapp-steel.vercel.app/?invite=${payload.token}`;
+    const voornaam = (payload.first_name as string) || "";
+    const html = KADER_OPEN +
+      `<h2 style="color:#D9B44A;margin:0 0 6px;font-size:20px">Welkom${voornaam ? " " + esc(voornaam) : ""}!</h2>` +
+      `<p style="margin:0 0 14px;line-height:1.5;color:#c9c9ce">${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je eigen inlog aan via de knop hieronder, daarna staat je programma voor je klaar.</p>` +
+      `<a href="${link}" style="display:inline-block;background:#D9B44A;color:#0E0E10;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none">Account aanmaken</a>` +
+      `<p style="margin:16px 0 0;color:#8a919c;font-size:12px;line-height:1.5">Werkt de knop niet? Kopieer dan deze link naar je browser:<br>${esc(link)}<br><br>De uitnodiging is 14 dagen geldig. Gebruik bij het aanmelden dit e-mailadres (${esc(naar)}).</p></div>`;
+    const r = await verstuur(naar, bedrijfsNaam, `Je uitnodiging van ${bedrijfsNaam}`, html);
+    if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
+    const foutI = await r.text().catch(() => String(r.status));
+    const pogingenI = ((rij.attempts as number) || 0) + 1;
+    await klaar({ attempts: pogingenI, last_error: foutI.slice(0, 500), status: pogingenI >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+    return "fout";
+  }
+
   const { data: ontvanger } = await db.from("profiles").select("id,first_name,last_name,email,role,notify_prefs,company_id").eq("id", rij.recipient_id).single();
   if (!ontvanger || !ontvanger.email) { await klaar({ status: "skipped", last_error: "geen ontvanger/e-mail" }); return "skipped"; }
 
