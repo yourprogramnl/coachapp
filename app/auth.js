@@ -34,6 +34,59 @@ function show(which){
 }
 async function signOut(){if(typeof msgBadgeStop==="function")msgBadgeStop();if(typeof stopNotifs==="function")stopNotifs();await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
+// ---------- Wachtwoord vergeten / herstellen ----------
+// De herstel-mail van Supabase komt terug op deze pagina met tokens in de
+// #hash (type=recovery). detectSessionInUrl staat uit, dus we verwerken de
+// hash zelf: sessie zetten en een formulier tonen voor een nieuw wachtwoord.
+async function wachtwoordVergeten(){
+  const email=(document.getElementById("email").value||"").trim();
+  if(!email){setMsg("Vul eerst je e-mailadres in, dan sturen we je een herstel-link.","err");return;}
+  const{error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){setMsg(error.message||"Versturen mislukt. Probeer het later opnieuw.","err");return;}
+  setMsg("Als dit adres bij ons bekend is, staat er zo een e-mail met een herstel-link in je inbox.","ok");
+}
+async function checkRecovery(){
+  const h=new URLSearchParams((location.hash||"").replace(/^#/,""));
+  if(h.get("type")==="recovery"&&h.get("access_token")){
+    const{error}=await db.auth.setSession({access_token:h.get("access_token"),refresh_token:h.get("refresh_token")||""});
+    history.replaceState(null,"",location.pathname);
+    if(error){show("login");setMsg("De herstel-link is verlopen. Vraag een nieuwe aan via 'Wachtwoord vergeten?'.","err");return true;}
+    toonNieuwWachtwoord();
+    return true;
+  }
+  if(h.get("error_description")){
+    // Verlopen of al gebruikte link: nette melding, daarna gewoon doorstarten.
+    history.replaceState(null,"",location.pathname);
+    setMsg("Deze link is verlopen of al gebruikt. Vraag zo nodig een nieuwe aan via 'Wachtwoord vergeten?'.","err");
+  }
+  return false;
+}
+function toonNieuwWachtwoord(){
+  show("login");
+  const kaart=document.querySelector("#login .card");if(!kaart)return;
+  if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  kaart.innerHTML='<h3 style="margin:0 0 6px">Nieuw wachtwoord instellen</h3>'+
+    '<div class="muted" style="font-size:13px;margin-bottom:14px">Kies een nieuw wachtwoord voor je account (minimaal 8 tekens).</div>'+
+    '<div class="field"><label>Nieuw wachtwoord</label><input id="rc-pw1" type="password" placeholder="••••••••"></div>'+
+    '<div class="field"><label>Herhaal nieuw wachtwoord</label><input id="rc-pw2" type="password" placeholder="••••••••"></div>'+
+    '<button class="btn" id="rc-go" style="width:100%" onclick="nieuwWachtwoordOpslaan()">Opslaan en inloggen</button>'+
+    '<div class="msg" id="rc-msg"></div>';
+}
+async function nieuwWachtwoordOpslaan(){
+  const p1=document.getElementById("rc-pw1").value,p2=document.getElementById("rc-pw2").value;
+  const m=document.getElementById("rc-msg");
+  const zeg=(t,k)=>{m.textContent=t;m.className="msg "+(k||"");};
+  if(p1.length<8){zeg("Minimaal 8 tekens.","err");return;}
+  if(p1!==p2){zeg("De wachtwoorden zijn niet gelijk.","err");return;}
+  document.getElementById("rc-go").disabled=true;
+  const{error}=await db.auth.updateUser({password:p1});
+  if(error){zeg(error.message||"Opslaan mislukt. Probeer het opnieuw.","err");document.getElementById("rc-go").disabled=false;return;}
+  const kaart=document.querySelector("#login .card");
+  if(kaart&&kaart.dataset.orig){kaart.innerHTML=kaart.dataset.orig;delete kaart.dataset.orig;}
+  toast("Wachtwoord aangepast, je bent ingelogd");
+  await loadApp();
+}
+
 async function loadApp(){
   const{data:{user}}=await db.auth.getUser();
   if(!user){show("login");return;}

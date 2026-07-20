@@ -47,6 +47,7 @@
       <div class="field"><label>E-mailadres</label><input id="email" type="email" placeholder="naam@voorbeeld.nl"></div>
       <div class="field"><label>Wachtwoord</label><input id="pw" type="password" placeholder="••••••••"></div>
       <button class="btn" id="go" style="width:100%" onclick="submitAuth()">Inloggen</button>
+      <div style="text-align:center;margin-top:10px"><button onclick="wachtwoordVergeten()" style="background:none;border:none;padding:0;color:#8a919c;font-size:12.5px;text-decoration:underline;cursor:pointer">Wachtwoord vergeten?</button></div>
       <div class="msg" id="msg"></div>
     </div>
   </div>
@@ -85,7 +86,7 @@
 <script src="app/notificaties.js"></script>
 <script>
 
-(async()=>{const{data:{session}}=await db.auth.getSession();if(session)await loadApp();else show("login");})();
+(async()=>{if(await checkRecovery())return;const{data:{session}}=await db.auth.getSession();if(session)await loadApp();else show("login");})();
 </script>
 </body>
 </html>

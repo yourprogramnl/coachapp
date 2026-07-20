@@ -287,6 +287,7 @@ function openKlantMenu(ev,id,archived){
     '<button onclick="event.stopPropagation();klantEditProfiel(\''+id+'\')">Profiel bewerken</button>'+
     '<button onclick="event.stopPropagation();klantIntake(\''+id+'\')">Intakeformulier</button>'+
     '<button onclick="event.stopPropagation();klantBericht(\''+id+'\')">Bericht sturen</button>'+
+    '<button onclick="event.stopPropagation();klantResetlink(\''+id+'\')">Wachtwoordlink sturen</button>'+
     (staff?'<button onclick="event.stopPropagation();klantOverzetten(event,\''+id+'\')">Overzetten</button>':'')+
     (archived
       ? '<button onclick="event.stopPropagation();klantArchiveer(\''+id+'\',false)">Terughalen</button>'
@@ -296,6 +297,16 @@ function openKlantMenu(ev,id,archived){
 function klantEditProfiel(id){klantMenuWeg();openClient(id);renderClient("profiel");}
 function klantIntake(id){klantMenuWeg();openClient(id);renderClient("profiel");pfSwitchTab("intake");}
 function klantBericht(id){klantMenuWeg();openClient(id);if(typeof openChatPop==="function")openChatPop();}
+// Stuurt de klant een wachtwoord-herstellink per e-mail (voor als hij zijn
+// wachtwoord kwijt is); de link komt uit op de herstel-pagina van deze app.
+async function klantResetlink(id){
+  klantMenuWeg();
+  const p=coachClients.find(x=>x.id===id);
+  if(!p||!p.email){toast("Geen e-mailadres bekend voor deze klant");return;}
+  if(!confirm("Wachtwoord-herstellink mailen naar "+p.email+"?"))return;
+  const{error}=await db.auth.resetPasswordForEmail(p.email,{redirectTo:location.origin+location.pathname});
+  toast(error?(error.message||"Versturen mislukt"):"Herstel-link gestuurd naar "+p.email);
+}
 async function klantArchiveer(id,arch){
   klantMenuWeg();
   const{error}=await db.from("profiles").update({archived:arch}).eq("id",id);
