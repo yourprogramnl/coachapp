@@ -55,13 +55,20 @@ function datumNL(iso: string): string {
 
 const KADER_OPEN = `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:26px;background:#0E0E10;color:#f4f4f5;border-radius:14px">`;
 
-function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string; body: string; vanMij: boolean }[]; workoutTitel: string; voet: string }): string {
+// Merkkleur uit het bedrijfsthema (Instellingen > Thema); anders FORGE-goud.
+const accentVan = (theme: unknown): string => {
+  const kleur = (theme as { color?: string } | null)?.color || "";
+  return /^#[0-9a-fA-F]{6}$/.test(kleur) ? kleur : "#D9B44A";
+};
+
+function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string; body: string; vanMij: boolean }[]; workoutTitel: string; voet: string; accent: string }): string {
+  const accent = opts.accent;
   const bubbels = opts.draad.map((c) =>
     `<div style="margin:6px 0;padding:10px 12px;border-radius:10px;background:${c.vanMij ? "#26221a" : "#1d1d21"};border:1px solid #2c2c31">` +
-    `<div style="font-size:12px;color:#D9B44A;margin-bottom:3px">${esc(c.naam)}</div>` +
+    `<div style="font-size:12px;color:${accent};margin-bottom:3px">${esc(c.naam)}</div>` +
     `<div style="font-size:14px;line-height:1.45;color:#f4f4f5;white-space:pre-wrap">${esc(c.body)}</div></div>`).join("");
   return KADER_OPEN +
-    `<h2 style="color:#D9B44A;margin:0 0 6px;font-size:20px">${esc(opts.titel)}</h2>` +
+    `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">${esc(opts.titel)}</h2>` +
     `<p style="margin:0 0 14px;line-height:1.5;color:#c9c9ce">${esc(opts.intro)}</p>` +
     `<div style="font-size:13px;color:#8a919c;margin-bottom:4px">${esc(opts.workoutTitel)}</div>` +
     bubbels +
@@ -71,7 +78,8 @@ function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string
 type Blok = { label: string | null; exercise: string | null; prescription: string | null; notes: string | null };
 type WorkoutMail = { title: string | null; coach_notes: string | null; warmup: string | null; cooldown: string | null; blokken: Blok[] };
 
-function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMail[]; voet: string }): string {
+function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMail[]; voet: string; accent: string }): string {
+  const accent = opts.accent;
   const sectie = (kop: string, tekst: string | null) => tekst
     ? `<div style="margin:8px 0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a919c;margin-bottom:2px">${esc(kop)}</div><div style="font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${esc(tekst)}</div></div>`
     : "";
@@ -79,13 +87,13 @@ function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMa
     const blokken = w.blokken.map((b) => {
       const kop = [b.label, b.exercise].filter(Boolean).join(" · ");
       const regels = [b.prescription, b.notes].filter(Boolean).join("\n");
-      return `<div style="margin:8px 0;padding:9px 11px;border-left:3px solid #D9B44A;background:#1a1a1e;border-radius:0 8px 8px 0">` +
+      return `<div style="margin:8px 0;padding:9px 11px;border-left:3px solid ${accent};background:#1a1a1e;border-radius:0 8px 8px 0">` +
         (kop ? `<div style="font-size:13.5px;font-weight:600;color:#f4f4f5;margin-bottom:2px">${esc(kop)}</div>` : "") +
         (regels ? `<div style="font-size:13px;line-height:1.5;color:#c9c9ce;white-space:pre-wrap">${esc(regels)}</div>` : "") +
         `</div>`;
     }).join("");
     return `<div style="margin:14px 0;padding:14px 16px;background:#141417;border:1px solid #26262b;border-radius:12px">` +
-      `<div style="font-size:16px;font-weight:700;color:#D9B44A;margin-bottom:6px">${esc(w.title || "Workout")}</div>` +
+      `<div style="font-size:16px;font-weight:700;color:${accent};margin-bottom:6px">${esc(w.title || "Workout")}</div>` +
       sectie("Notities van je coach", w.coach_notes) +
       sectie("Warming-up", w.warmup) +
       blokken +
@@ -93,7 +101,7 @@ function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMa
       `</div>`;
   }).join("");
   return KADER_OPEN +
-    `<h2 style="color:#D9B44A;margin:0 0 6px;font-size:20px">Je workout voor vandaag</h2>` +
+    `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">Je workout voor vandaag</h2>` +
     `<p style="margin:0 0 6px;line-height:1.5;color:#c9c9ce">Goedemorgen ${esc(opts.naam)}, dit staat er vandaag (${esc(opts.datum)}) voor je klaar.</p>` +
     kaarten +
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
@@ -112,11 +120,12 @@ function scoreTxt(r: { score_text?: string | null; time_seconds?: number | null;
 }
 
 // Eenvoudige mail: titel + intro + losse regels (voor bericht/workout/video/foto)
-function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet: string }): string {
+function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet: string; accent: string }): string {
+  const accent = opts.accent;
   const rijen = opts.regels.map((r) =>
-    `<div style="margin:6px 0;padding:9px 11px;border-left:3px solid #D9B44A;background:#1a1a1e;border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${r}</div>`).join("");
+    `<div style="margin:6px 0;padding:9px 11px;border-left:3px solid ${accent};background:#1a1a1e;border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${r}</div>`).join("");
   return KADER_OPEN +
-    `<h2 style="color:#D9B44A;margin:0 0 6px;font-size:20px">${esc(opts.titel)}</h2>` +
+    `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">${esc(opts.titel)}</h2>` +
     `<p style="margin:0 0 12px;line-height:1.5;color:#c9c9ce">${esc(opts.intro)}</p>` +
     rijen +
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
@@ -141,14 +150,15 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   if (event === "invite") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
-    const { data: bedrijfI } = await db.from("companies").select("name").eq("id", rij.company_id).maybeSingle();
+    const { data: bedrijfI } = await db.from("companies").select("name,theme").eq("id", rij.company_id).maybeSingle();
+    const accent = accentVan(bedrijfI?.theme);
     const bedrijfsNaam = bedrijfI?.name || "je coach";
     const link = `https://coachapp-steel.vercel.app/?invite=${payload.token}`;
     const voornaam = (payload.first_name as string) || "";
     const html = KADER_OPEN +
-      `<h2 style="color:#D9B44A;margin:0 0 6px;font-size:20px">Welkom${voornaam ? " " + esc(voornaam) : ""}!</h2>` +
+      `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">Welkom${voornaam ? " " + esc(voornaam) : ""}!</h2>` +
       `<p style="margin:0 0 14px;line-height:1.5;color:#c9c9ce">${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je eigen inlog aan via de knop hieronder, daarna staat je programma voor je klaar.</p>` +
-      `<a href="${link}" style="display:inline-block;background:#D9B44A;color:#0E0E10;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none">Account aanmaken</a>` +
+      `<a href="${link}" style="display:inline-block;background:${accent};color:#0E0E10;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none">Account aanmaken</a>` +
       `<p style="margin:16px 0 0;color:#8a919c;font-size:12px;line-height:1.5">Werkt de knop niet? Kopieer dan deze link naar je browser:<br>${esc(link)}<br><br>De uitnodiging is 14 dagen geldig. Gebruik bij het aanmelden dit e-mailadres (${esc(naar)}).</p></div>`;
     const r = await verstuur(naar, bedrijfsNaam, `Je uitnodiging van ${bedrijfsNaam}`, html);
     if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
@@ -179,8 +189,9 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     }
   }
 
-  const { data: bedrijf } = await db.from("companies").select("name").eq("id", ontvanger.company_id).maybeSingle();
+  const { data: bedrijf } = await db.from("companies").select("name,theme").eq("id", ontvanger.company_id).maybeSingle();
   const afzenderNaam = bedrijf?.name || "CoachApp";
+  const accent = accentVan(bedrijf?.theme);
 
   if (event === "dagworkout") {
     const ids = (payload.workout_ids || []) as string[];
@@ -197,6 +208,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       datum,
       workouts,
       voet: "Je krijgt deze mail elke ochtend omdat je 'Workout per e-mail' hebt aangezet op je Profiel in de app. Daar kun je hem ook weer uitzetten.",
+      accent,
     });
     const r = await verstuur(ontvanger.email, afzenderNaam, `Je workout voor vandaag · ${datum}`, html);
     if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
@@ -232,6 +244,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       intro: "De laatste berichten:",
       regels,
       voet: "Antwoorden doe je via Berichten in het dashboard. " + coachVoet,
+      accent,
     }));
   }
 
@@ -256,6 +269,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       intro: `${workout.title || "Workout"} · ${datum}`,
       regels,
       voet: "Bekijk de details in de activiteit-feed van het dashboard. " + coachVoet,
+      accent,
     }));
   }
 
@@ -274,6 +288,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       intro: `Bij ${workout?.title || "de workout"} van ${datum} ${n === 1 ? "staat nu een video" : "staan nu " + n + " video's"}.`,
       regels: [],
       voet: "Bekijk en beoordeel ze in de activiteit-feed van het dashboard. " + coachVoet,
+      accent,
     }));
   }
 
@@ -288,6 +303,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       intro: `Er ${n === 1 ? "staat 1 nieuwe foto" : "staan " + n + " nieuwe foto's"} klaar (datum ${datumNL(String(payload.taken_on || ""))}).`,
       regels: [],
       voet: "Bekijk ze via het klantprofiel > Voortgangsfoto's. " + coachVoet,
+      accent,
     }));
   }
 
@@ -318,6 +334,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     draad: (draad || []).slice(-4).map((c) => ({ naam: naamBij(c.author_id), body: c.body, vanMij: c.author_id === ontvanger.id })),
     workoutTitel: workout?.title ? `Workout: ${workout.title} · ${datum}` : `Workout van ${datum}`,
     voet,
+    accent,
   });
 
   const r = await verstuur(ontvanger.email, afzenderNaam, isLid ? `Nieuwe reactie op je workout van ${datum}` : `${anderNaam} reageerde op een workout-dag`, html);

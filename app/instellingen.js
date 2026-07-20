@@ -106,7 +106,7 @@ async function instPaneel(){
         (mag?'<div style="display:flex;gap:10px;margin-top:10px"><button class="btn" onclick="thOpslaan()">Thema opslaan</button><button class="btn ghost" onclick="thStandaard()">Terug naar standaard</button></div>':'')+
       '</div>'+
       '<div><div class="sm" style="font-weight:800;margin-bottom:2px">Live voorbeeld</div><div class="sm muted" style="margin-bottom:10px">Zo ziet je klant het straks.</div>'+
-        '<div style="display:flex;gap:6px;margin-bottom:10px">'+[["home","Home"],["splash","Splash"],["prog","Programma"],["msg","Bericht"]].map(t=>'<button class="btn '+(instPrevTab===t[0]?"":"ghost ")+'sm" onclick="thPrev(\''+t[0]+'\')">'+t[1]+'</button>').join("")+'</div>'+
+        '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'+[["home","Home"],["splash","Splash"],["prog","Programma"],["msg","Bericht"],["mail","E-mail"]].map(t=>'<button class="btn '+(instPrevTab===t[0]?"":"ghost ")+'sm" onclick="thPrev(\''+t[0]+'\')">'+t[1]+'</button>').join("")+'</div>'+
         '<div id="th-preview"></div>'+
       '</div></div>';
     thPreviewRender();
@@ -216,6 +216,25 @@ function thPreviewRender(){
       '<div style="background:#17171A;border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:11px;margin-top:9px">'+
         '<div style="font-size:12px;font-weight:800;color:'+k+'">D) WOD</div>'+
         '<div style="font-size:10.5px;color:#D8D7D4;margin-top:3px">3 × 4 min on / 1 min off<br>12 cal bike erg · 5-7 strict pull-ups</div></div>';
+  }else if(instPrevTab==="mail"){
+    // E-mail: zo ziet de ochtend-workoutmail eruit (mail-send gebruikt dezelfde
+    // opbouw en sinds v5 ook de merkkleur van het thema).
+    const blok=(kop,regels)=>'<div style="margin:6px 0;padding:7px 9px;border-left:3px solid '+k+';background:#1a1a1e;border-radius:0 7px 7px 0">'+
+      '<div style="font-size:10.5px;font-weight:600;color:#f4f4f5">'+kop+'</div>'+
+      '<div style="font-size:9.5px;line-height:1.5;color:#c9c9ce">'+regels+'</div></div>';
+    scherm='<div style="border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;margin-bottom:10px">'+
+      '<div style="font-size:9.5px;color:#9A9A9E">Van: '+esc(bedrijf)+' &lt;coach@mail.yourprogram.nl&gt;</div>'+
+      '<div style="font-size:11px;font-weight:800;margin-top:3px">Je workout voor vandaag · 17 juli 2026</div></div>'+
+      '<div style="background:#0E0E10;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px">'+
+      '<div style="color:'+k+';font-size:13.5px;font-weight:800;margin-bottom:4px">Je workout voor vandaag</div>'+
+      '<div style="font-size:9.5px;line-height:1.5;color:#c9c9ce;margin-bottom:8px">Goedemorgen '+esc(naam)+', dit staat er vandaag voor je klaar.</div>'+
+      '<div style="background:#141417;border:1px solid #26262b;border-radius:10px;padding:9px 10px">'+
+        '<div style="font-size:11.5px;font-weight:700;color:'+k+';margin-bottom:4px">Kracht + conditie</div>'+
+        blok("A · Back Squat","5×5 reps @20X1 · rust 2 min")+
+        blok("B · WOD","3 × 4 min on / 1 min off<br>12 cal bike erg · 5-7 strict pull-ups")+
+      '</div>'+
+      '<div style="font-size:8.5px;color:#8a919c;line-height:1.5;margin-top:9px">Je krijgt deze mail omdat je ‘Workout per e-mail’ hebt aangezet op je Profiel in de app.</div>'+
+      '</div>';
   }else{
     // Bericht: de chat met de coach, in de themakleur; invoerbalk vast onderaan.
     const coachN=naamVan(ME.profile)||"Je coach";
@@ -240,7 +259,7 @@ function thPreviewRender(){
   host.innerHTML='<div class="th-phone"><div class="th-screen2">'+
     '<div class="th-status"><span>13:37</span><span class="th-island"></span><span class="th-ico">'+statIco+'</span></div>'+
     '<div class="th-scherm">'+scherm+'</div>'+
-    '<div class="th-tabbar">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>'+
+    (instPrevTab==="mail"?"":'<div class="th-tabbar">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>')+
     '<div class="th-homebar"></div></div></div>';
 }
 function thWorkoutKaartHtml(k){
