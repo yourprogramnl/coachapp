@@ -11,10 +11,10 @@ async function fillBerichten(){
   else if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
   const{data:cs}=await q.order("first_name");
   BER.clients=cs||[];
-  if(myRole()!=="coach"){
-    const{data:co}=await db.from("profiles").select("id,first_name,last_name").in("role",["coach","eigenaar"]).eq("company_id",ME.profile.company_id).order("first_name");
-    BER.coaches=co||[];
-  }
+  // Stafnamen via de veilige RPC (een coach mag collega-profielen niet direct
+  // lezen); ook nodig om coaches aan een groepschat te kunnen toevoegen.
+  const{data:co}=await db.rpc("company_coaches");
+  BER.coaches=co||[];
   const{data:ms}=await db.from("messages").select("*").order("created_at");
   BER.msgs=ms||[];
   // Groepschats: groepen + lidmaatschappen + berichten + blogprogramma's (voor de snelkeuzes)
@@ -55,10 +55,11 @@ function berNaam(id){
 }
 function berRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
-  const filter=myRole()!=="coach"&&BER.coaches.length?
+  const filterCoaches=BER.coaches.filter(c=>c.role!=="platform_admin");
+  const filter=myRole()!=="coach"&&filterCoaches.length?
     '<select class="lid-in" style="padding:8px 10px" onchange="berCoachF(this.value)">'+
       '<option value="">Alle coaches</option>'+
-      BER.coaches.map(c=>'<option value="'+c.id+'"'+(BER.coachF===c.id?" selected":"")+'>'+naamVan(c)+'</option>').join("")+
+      filterCoaches.map(c=>'<option value="'+c.id+'"'+(BER.coachF===c.id?" selected":"")+'>'+naamVan(c)+'</option>').join("")+
     '</select>':'';
   cp.innerHTML='<div class="hrow"><h1>Berichten</h1>'+filter+'<button class="btn ghost sm" style="margin-left:auto" onclick="berGroepNieuw()">+ Groepschat</button></div>'+
     '<div class="chatwrap">'+
@@ -242,7 +243,7 @@ function berGroepModal(){
   let m=document.getElementById("bgmodal");if(m)m.remove();
   const bestaand=bgmGid?berGroepLeden(bgmGid).map(x=>x.profile_id):[];
   const g=bgmGid?berGroep(bgmGid):null;
-  const chips=[["een","Alle 1-op-1 klanten"],["blog","Alle blog-leden"]].concat(BER.programs.map(p=>["p:"+p.id,"Blog: "+p.name]));
+  const chips=[["een","Alle 1-op-1 klanten"],["blog","Alle blog-leden"],["coaches","Alle coaches"]].concat(BER.programs.map(p=>["p:"+p.id,"Blog: "+p.name]));
   const wrap=document.createElement("div");
   wrap.innerHTML='<div class="lmodal" id="bgmodal" style="z-index:430"><div class="box" style="width:520px;max-width:96vw">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px"><h3 style="margin:0">'+(bgmGid?'Leden beheren · '+esc(g?g.name:""):'Nieuwe groepschat')+'</h3>'+
@@ -261,13 +262,19 @@ function berGroepModal(){
   document.getElementById("bgmodal").addEventListener("click",e=>{if(e.target.id==="bgmodal")e.target.remove();});
 }
 function berGroepKiesHtml(zoek,aangevinkt){
+  // Coaches (staf, zonder jezelf: de maker is altijd al lid) boven de klanten.
+  let sts=BER.coaches.filter(c=>c.id!==ME.user.id);
   let cs=BER.clients;
-  if(zoek)cs=cs.filter(c=>naamVan(c).toLowerCase().includes(zoek));
-  if(!cs.length)return '<div class="cempty">Geen klanten gevonden.</div>';
-  return cs.map(c=>'<label style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'#f4f6f8\'" onmouseout="this.style.background=\'\'">'+
-    '<input type="checkbox" class="bg-lid" value="'+c.id+'" style="width:auto;margin:0" data-mt="'+esc(c.membership_type||"")+'" data-bp="'+esc(c.blog_program_id||"")+'"'+(aangevinkt.includes(c.id)?" checked":"")+'>'+
+  if(zoek){sts=sts.filter(c=>naamVan(c).toLowerCase().includes(zoek));cs=cs.filter(c=>naamVan(c).toLowerCase().includes(zoek));}
+  if(!sts.length&&!cs.length)return '<div class="cempty">Niemand gevonden.</div>';
+  const rij=(c,rol,extra)=>'<label style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'#f4f6f8\'" onmouseout="this.style.background=\'\'">'+
+    '<input type="checkbox" class="bg-lid" value="'+c.id+'" style="width:auto;margin:0" '+extra+(aangevinkt.includes(c.id)?" checked":"")+'>'+
     '<span class="cavc" style="width:26px;height:26px;font-size:9px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</span>'+naamVan(c)+
-    '<span class="sm muted" style="margin-left:auto">'+(c.membership_type==="free_blog"?"blog":"1-op-1")+'</span></label>').join("");
+    '<span class="sm muted" style="margin-left:auto">'+rol+'</span></label>';
+  const kop=t=>'<div class="sm muted" style="padding:4px 8px;font-weight:600">'+t+'</div>';
+  const stafHtml=sts.map(c=>rij(c,c.role==="coach"?"coach":c.role==="eigenaar"?"eigenaar":"admin",'data-rol="staf" ')).join("");
+  const klantHtml=cs.map(c=>rij(c,c.membership_type==="free_blog"?"blog":"1-op-1",'data-mt="'+esc(c.membership_type||"")+'" data-bp="'+esc(c.blog_program_id||"")+'" ')).join("");
+  return (stafHtml?kop("Coaches")+stafHtml:"")+(klantHtml?(stafHtml?kop("Klanten"):"")+klantHtml:"");
 }
 function berGroepZoekF(v){
   const aangevinkt=[...document.querySelectorAll(".bg-lid:checked")].map(x=>x.value);
@@ -279,6 +286,7 @@ function berGroepSnel(wat){
     if(wat==="geen")cb.checked=false;
     else if(wat==="een"&&cb.dataset.mt==="one_on_one")cb.checked=true;
     else if(wat==="blog"&&cb.dataset.mt==="free_blog")cb.checked=true;
+    else if(wat==="coaches"&&cb.dataset.rol==="staf")cb.checked=true;
     else if(wat.indexOf("p:")===0&&cb.dataset.bp===wat.slice(2))cb.checked=true;
   });
 }
