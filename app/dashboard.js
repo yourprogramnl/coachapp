@@ -127,8 +127,10 @@ function dashRender(){
     let done=0;
     const rij=(badge,titel,tekst,r,vids)=>{
       const sc=resultScoreTxt(r);
-      // Video-uploads van het lid bij dit blok (result_media): klik = bekijken via signed URL
-      const vidHtml=(vids&&vids.length)?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+vids.map((v,i)=>'<button class="btn ghost sm" style="padding:3px 10px;font-size:11px" onclick="dashVideoOpen(\''+esc(v.storage_path)+'\')">🎥 Video '+(i+1)+'</button>').join("")+'</div>':'';
+      // Video-uploads van het lid bij dit blok (result_media): inline in de feed
+      // zoals CoachRx; klik = direct afspelen, geen apart scherm. De src (signed
+      // URL) wordt na het renderen in één keer gezet door dashVidSrcs().
+      const vidHtml=(vids&&vids.length)?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+vids.map(v=>'<video class="dashvid" controls preload="metadata" playsinline data-vp="'+esc(v.storage_path)+'"></video>').join("")+'</div>':'';
       // Vinkje/kruisje: klikbaar om tussen voltooid en gemist te wisselen (coach corrigeert de status)
       const statusBtn=r?'<span class="okc2'+(r.status==="missed"?" miss":"")+'" style="cursor:pointer" title="'+(r.status==="missed"?"Gemist — klik om op voltooid te zetten":"Voltooid — klik om op gemist te zetten")+'" onclick="dashToggleStatus(\''+r.id+'\',\''+r.status+'\')"><svg class="i sm-i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'';
       // Geschiedenis-knop: opent de geschiedenis-zoeker voor deze klant + oefening (niet bij de warming-up)
@@ -194,6 +196,19 @@ function dashRender(){
       '<div class="sideblock"><div class="shead"><h2>Workout van de week</h2>'+(blog?'<span class="cpill ok">live</span>':'')+'</div>'+weekHtml+'</div>'+
     '</div>'+
   '</div>';
+  dashVidSrcs();
+}
+// Signed URL's voor alle inline feed-video's in één keer ophalen en zetten.
+async function dashVidSrcs(){
+  const els=[...document.querySelectorAll("video.dashvid[data-vp]:not([src])")];
+  if(!els.length)return;
+  try{
+    const paden=[...new Set(els.map(e=>e.dataset.vp))];
+    const{data,error}=await db.storage.from("media").createSignedUrls(paden,3600);
+    if(error||!data)return;
+    const url={};data.forEach(d=>{if(d.signedUrl)url[d.path]=d.signedUrl;});
+    els.forEach(e=>{const u=url[e.dataset.vp];if(u)e.src=u;});
+  }catch(e){}
 }
 function taakInvoer(){const r=document.getElementById("taak-row");if(!r)return;r.style.display="flex";const i=document.getElementById("taak-inp");if(i)i.focus();}
 async function taakToevoegen(){
@@ -307,7 +322,6 @@ async function vidSpeel(pad){
   ov.style.display="flex";
 }
 function vidSluit(){const ov=document.getElementById("vidoverlay");if(ov){ov.style.display="none";ov.innerHTML="";}}
-function dashVideoOpen(pad){return vidSpeel(pad);} // oude naam blijft werken
 // Vinkje/kruisje in de feed: wissel de status van een gelogd blok (voltooid <-> gemist).
 async function dashToggleStatus(resId,huidig){
   const nieuw=huidig==="completed"?"missed":"completed";
