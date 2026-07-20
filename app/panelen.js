@@ -171,7 +171,7 @@ const METRICS_DEF={
  // Barbell-liften (21 juli, lijst Stefan; dubbelen met Resistance weggelaten:
  // back/front squat, squat clean, power clean, shoulder press, snatch,
  // power snatch, deadlift en thruster bestonden al).
- "Barbell Squats":["Back Pause Squat","Box Squat","Front Box Squat","Front Pause Squat","High Bar Back Squat","Low Bar Back Squat","Overhead Squat","Split Squat"],
+ "Barbell Squats":["Box Squat","Front Box Squat","High Bar Back Squat","Low Bar Back Squat","Overhead Squat","Pause Back Squat","Pause Front Squat","Split Squat"],
  "Barbell Cleans":["Clean Pull","Hang Power Clean","Hang Squat Clean","Muscle Clean"],
  "Barbell Presses":["Bench Press","Floor Press","Push Press","Seated Press","Snatch Grip Push Press","Sots Press"],
  "Barbell Jerks":["Jerk Balance","Jerk Dip","Push Jerk","Split Jerk","Squat Jerk"],
