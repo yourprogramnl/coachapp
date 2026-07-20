@@ -257,6 +257,7 @@ function berGroepModal(){
     '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" onclick="berGroepOpslaan()">'+(bgmGid?'Leden opslaan':'Groep aanmaken')+'</button><button class="btn ghost" onclick="document.getElementById(\'bgmodal\').remove()">Annuleren</button></div>'+
     '</div></div>';
   document.body.appendChild(wrap.firstChild);
+  document.getElementById("bgmodal").classList.add("show");
   document.getElementById("bgmodal").addEventListener("click",e=>{if(e.target.id==="bgmodal")e.target.remove();});
 }
 function berGroepKiesHtml(zoek,aangevinkt){
