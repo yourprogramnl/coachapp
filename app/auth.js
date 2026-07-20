@@ -183,6 +183,20 @@ async function loadApp(){
   document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();
   show("app");
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="";
-  if(role==="lid")renderLid();
+  if(role==="lid"){
+    if(ME.profile.archived){renderGearchiveerd();return;}
+    renderLid();
+  }
   else{const b=document.getElementById("lidchat-btn");if(b)b.remove();routeHash();}
+}
+
+// Gearchiveerd lid: alle data blijft bewaard, maar de app is op slot tot de
+// coach het account weer activeert (Klanten > Archief > Terughalen).
+function renderGearchiveerd(){
+  const c=document.getElementById("content");
+  c.innerHTML='<div class="cwrap" style="max-width:520px;margin:60px auto;text-align:center">'+
+    '<div style="font-size:34px;margin-bottom:10px">📦</div>'+
+    '<h2 style="margin:0 0 8px">Je account is niet actief</h2>'+
+    '<div class="muted" style="line-height:1.6;margin-bottom:18px">Je account staat in het archief. Al je gegevens en resultaten blijven gewoon bewaard. Wil je weer starten? Neem dan contact op met je coach, die zet je account direct weer aan.</div>'+
+    '<button class="btn" onclick="signOut()">Uitloggen</button></div>';
 }

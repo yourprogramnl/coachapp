@@ -608,13 +608,13 @@ async function renderMonth(opts){
   // Coach-chip: eigenaar/platform_admin mogen van coach wisselen; een coach ziet alleen zijn eigen klanten (chip verborgen).
   const isStaff=myRole()!=="coach";
   const coachNaamTxt=coachChipNaam||"";
-  const coachAantal=coachClients.filter(k=>k.coach_id===coachFilterId).length;
+  const coachAantal=actieveKlanten().filter(k=>k.coach_id===coachFilterId).length;
   const coachChip=isStaff?
     '<div class="progsel" id="coachsel" style="margin-left:auto" onclick="toggleCoachDrop(event)"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">'+esc((coachNaamTxt||"C").slice(0,1).toUpperCase())+'</div><div><div class="pn" id="cs-coach">'+(coachNaamTxt?'Coach '+esc(coachNaamTxt):'Geen coach')+'</div><div class="pt">'+coachAantal+' '+(coachAantal===1?'klant':'klanten')+'</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="coachdrop" style="width:260px" onclick="event.stopPropagation()"><div class="pd-lijst" id="cd-lijst"><div class="cempty" style="padding:10px">Coaches laden…</div></div></div></div>'
     :'';
   // Klant-dropdown: staff ziet de klanten van de gekozen coach; een coach ziet zijn eigen lijst.
-  let dropKlanten=isStaff?coachClients.filter(k=>k.coach_id===coachFilterId):coachClients.slice();
+  let dropKlanten=isStaff?actieveKlanten().filter(k=>k.coach_id===coachFilterId):actieveKlanten();
   if(!dropKlanten.some(k=>k.id===p.id))dropKlanten=dropKlanten.concat([p]);
   const calhead='<div class="calhead">'+
     '<button class="btn ghost sm" onclick="renderCoach(\'clients\')">‹ Alle klanten</button>'+
@@ -726,7 +726,7 @@ async function laadCoaches(){
 function vulCoachDrop(){
   const host=document.getElementById("cd-lijst");if(!host)return;
   const rows=coachList.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
-    const n=coachClients.filter(k=>k.coach_id===c.id).length;
+    const n=actieveKlanten().filter(k=>k.coach_id===c.id).length;
     const rol=c.role==="eigenaar"?" · eigenaar":"";
     return '<div class="pd-row'+(c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   }).join("");

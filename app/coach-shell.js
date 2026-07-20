@@ -4,6 +4,9 @@
 // De actieve sectie staat in de link (#coaches), zodat je na verversen op
 // dezelfde pagina blijft.
 let coachClients=[],coachExercises=[],monthWorkouts={},sideCollapsed=false,coachSection="dash";
+// Gearchiveerde klanten tellen nergens meer mee behalve op het Archief-tabblad
+// van de Klanten-pagina; het dashboard en de keuzelijsten gebruiken deze lijst.
+const actieveKlanten=()=>((coachClients||[]).filter(p=>!p.archived));
 
 // ---------- Ongelezen-teller op de Berichten-knop in de topnav ----------
 // Telt ongelezen berichten van je éígen klanten (ook een eigenaar ziet hier

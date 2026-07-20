@@ -2,7 +2,7 @@
 // activiteit-feed, mijn cijfers, mijn taken en workout van de week.
 let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false,dashFeedLimit=6;
 async function fillDashboard(){
-  const ids=coachClients.map(p=>p.id);
+  const ids=actieveKlanten().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
   let ws=[],rs=[],md=[],wc=[],msgs=[],blog=null,blogRes=[];
   if(ids.length){
@@ -65,7 +65,7 @@ function dashRender(){
   const cp=document.getElementById("cpage");if(!cp||!DASH)return;
   const{ws,rs,md,wc,msgs,tasks,blog,blogRes}=DASH;
   const td=todayStr(),from7=ymd(addDays(new Date(),-6));
-  const byId={};coachClients.forEach(p=>byId[p.id]=p);
+  const byId={};actieveKlanten().forEach(p=>byId[p.id]=p);
   const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
   const doneWo=new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id));
   const resByBlock={};rs.forEach(r=>resByBlock[r.block_id]=r);
@@ -74,7 +74,7 @@ function dashRender(){
   const compVanKlant=pid=>{const s=echte.filter(w=>w.client_id===pid&&w.workout_date>=from30&&w.workout_date<=td);if(s.length<3)return null;return Math.round(s.filter(w=>doneWo.has(w.id)).length/s.length*100);};
   // Aandacht nodig
   const attn=[];let nTeDoen=0,nLaag=0;
-  coachClients.forEach(p=>{
+  actieveKlanten().forEach(p=>{
     const wos=echte.filter(w=>w.client_id===p.id);
     const teDoen=wos.some(w=>w.workout_date>=from7&&w.workout_date<=td&&!doneWo.has(w.id));
     const past=wos.filter(w=>w.workout_date<td).sort((a,b)=>b.workout_date.localeCompare(a.workout_date));
@@ -109,13 +109,13 @@ function dashRender(){
     '<span class="fchip'+(dashFilter==="laag"?" on":"")+'" onclick="dashSetFilter(\'laag\')">Lage compliance ('+nLaag+')</span></div>';
   // Contactmomenten: chat-berichten deze week per klant
   const msgCount={};msgs.forEach(m=>msgCount[m.athlete_id]=(msgCount[m.athlete_id]||0)+1);
-  const gesproken=coachClients.filter(p=>msgCount[p.id]).length;
-  const cmPct=coachClients.length?Math.round(gesproken/coachClients.length*100):0;
+  const gesproken=actieveKlanten().filter(p=>msgCount[p.id]).length;
+  const cmPct=actieveKlanten().length?Math.round(gesproken/actieveKlanten().length*100):0;
   const mon=mondayOf(new Date());
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2)+"-"+mon.getFullYear();
   const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten <span class="muted" style="font-weight:600">('+cmPct+'%)</span></h2>'+
-    '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+coachClients.length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
-    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+coachClients.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
+    '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+actieveKlanten().length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
+    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+actieveKlanten().map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
   let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
   if(dashFeedClient!=="all")metAll=metAll.filter(w=>w.client_id===dashFeedClient);
@@ -160,7 +160,7 @@ function dashRender(){
   const cardCompliance='<div class="statecard"><div class="ring" style="'+ringCss(pct)+'"><i>'+(pct==null?'–':pct+'%')+'</i></div>'+
     '<div><b>Compliance klanten</b><div class="sm muted" style="margin-top:3px">'+(pct==null?'Geen geplande workouts in deze periode.':'Percentage van de voorgeschreven workouts dat je klanten echt gedaan hebben.')+'</div></div></div>';
   const cardTouch='<div class="statecard"><div class="ring" style="'+ringCss(cmPct,'#8b5cf6')+'"><i>'+cmPct+'%</i></div>'+
-    '<div><b>Contactmomenten</b><div class="sm muted" style="margin-top:3px">'+gesproken+' van '+coachClients.length+' klanten deze week gesproken.</div></div></div>';
+    '<div><b>Contactmomenten</b><div class="sm muted" style="margin-top:3px">'+gesproken+' van '+actieveKlanten().length+' klanten deze week gesproken.</div></div></div>';
   const cardAandacht='<div class="statecard"><div class="statbig">'+(nTeDoen+nLaag)+'</div>'+
     '<div><b>Vraagt aandacht</b><div class="sm muted" style="margin-top:3px">'+nTeDoen+' met workout te doen · '+nLaag+' met lage compliance.</div></div></div>';
   const statCards=[cardCompliance,cardTouch,cardAandacht];
@@ -186,7 +186,7 @@ function dashRender(){
       '<div class="ctabs"><button class="on">Aandacht nodig</button></div>'+
       chips+attnHtml+cmHtml+
       '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px;flex-wrap:wrap"><h2 style="margin:0">Activiteit</h2>'+
-        '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+coachClients.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>'+
+        '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+actieveKlanten().slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>'+
         '<div class="ctabs" style="margin:0"><button class="on">Workouts</button><button onclick="toast(\'Lifestyle komt later\')">Lifestyle</button><button onclick="toast(\'Check-ins komen later\')">Check-ins</button></div></div>'+
       feedHtml+meerLink+
     '</div>'+
@@ -254,7 +254,7 @@ function wcRender(){
   const host=document.getElementById("wc-body");if(!host)return;
   host.innerHTML=WCC.map(m=>{
     const mij=m.author_id===ME.user.id;
-    const naam=m.author_id===m.athlete_id?naamVan(coachClients.find(x=>x.id===m.athlete_id)||{}):(mij?"Jij":"Coach");
+    const naam=m.author_id===m.athlete_id?naamVan(actieveKlanten().find(x=>x.id===m.athlete_id)||{}):(mij?"Jij":"Coach");
     return '<div class="bub '+(mij?"me":"them")+'">'+esc(m.body)+'<div class="meta">'+esc(naam)+' · '+tijdNL(m.created_at)+'</div></div>';
   }).join("")||'<div class="sm muted" style="text-align:center;padding:10px">Nog geen reacties op deze dag. Schrijf de eerste.</div>';
   host.scrollTop=host.scrollHeight;
@@ -268,7 +268,7 @@ function wcVerversUI(){
 async function openDayComments(wid,aid){
   ensureWcModal();
   wcWid=wid;wcAid=aid;
-  const p=coachClients.find(x=>x.id===aid)||{};
+  const p=actieveKlanten().find(x=>x.id===aid)||{};
   const{data:rows}=await db.from("workout_comments").select("*").eq("workout_id",wid).eq("athlete_id",aid).order("created_at");
   WCC=rows||[];
   const w=(DASH&&(DASH.ws||[]).find(x=>x.id===wid))||(typeof monthWorkouts!=="undefined"&&monthWorkouts[wid])||{};
@@ -347,7 +347,7 @@ function dashHistory(el){
 async function stuurNote(aid,el){
   const row=el.closest(".notesend");const inp=row.querySelector("input");
   const v=(inp.value||"").trim();if(!v)return;
-  const p=coachClients.find(x=>x.id===aid)||{};
+  const p=actieveKlanten().find(x=>x.id===aid)||{};
   const{error}=await db.from("messages").insert({company_id:ME.profile.company_id,athlete_id:aid,sender_id:ME.user.id,body:v});
   if(error){toast(error.message||"Versturen mislukt");return;}
   inp.value="";
