@@ -38,7 +38,7 @@ function instNotifHtml(){
   const uurOpts=(sel)=>Array.from({length:24},(_,u)=>'<option value="'+u+'"'+(u===sel?" selected":"")+'>'+String(u).padStart(2,"0")+':00</option>').join("");
   const t=n.mail_tijden;
   return '<h2 style="margin:0 0 4px">Notificaties</h2>'+
-    '<div class="sm muted" style="margin-bottom:14px">Kies waarvan je een melding wilt. App-meldingen verschijnen direct in het dashboard; e-mails starten zodra het e-mailblok live is (je keuzes staan alvast klaar).</div>'+
+    '<div class="sm muted" style="margin-bottom:14px">Kies waarvan je een melding wilt. App-meldingen verschijnen direct in het dashboard. E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.</div>'+
     '<div style="max-width:560px">'+NOTIF_EVENTS.map(e=>rij(e[0],e[1])).join("")+'</div>'+
     '<h3 style="margin:20px 0 4px;font-size:14px">Geluiden</h3>'+
     '<div style="display:flex;gap:22px;flex-wrap:wrap">'+
