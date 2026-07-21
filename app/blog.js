@@ -14,10 +14,26 @@ async function fillBlog(){
     db.from("profiles").select("id,blog_program_id").eq("role","lid").eq("archived",false)
   ]);
   BLOG.list=rp.data||[];
+  // Een coach ziet alleen blogs die aan hem zijn toegewezen (coach_ids leeg =
+  // iedereen); eigenaar/platform_admin zien alles. Zelfde regel als het
+  // wisselmenu op het klant-scherm.
+  if(myRole()==="coach")BLOG.list=BLOG.list.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id));
+  kalBlogs=BLOG.list; // wisselmenu op het klant-scherm meteen bijwerken
   BLOG.counts={};(rl.data||[]).forEach(p=>{if(p.blog_program_id)BLOG.counts[p.blog_program_id]=(BLOG.counts[p.blog_program_id]||0)+1;});
   ensureBlogModals();
   if(BLOG.cur){const v=BLOG.list.find(p=>p.id===BLOG.cur.id);if(v)BLOG.cur=v;else BLOG.cur=null;}
+  // Vanuit het wisselmenu op het klant-scherm: direct door naar dit programma.
+  if(BLOG.openNaId){
+    const pid=BLOG.openNaId;BLOG.openNaId=null;
+    if(BLOG.list.some(p=>p.id===pid)){blogOpen(pid);return;}
+  }
   blogRender();
+}
+// Spring vanuit het klant-wisselmenu rechtstreeks naar de programmering
+// van een blogprogramma (verzoek Stefan, 21 juli).
+function blogGaNaar(id){
+  BLOG.openNaId=id;
+  coachGo("blog");
 }
 function blogRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
@@ -77,7 +93,28 @@ function blogpModal(id){
   document.getElementById("blogp-type").value=p?(p.type||"classic"):"classic";
   document.getElementById("blogp-prijs").value=p?(p.price_text||""):"";
   document.getElementById("blogp-msg").textContent="";
+  blogpVulCoaches(p);
   document.getElementById("blogpmodal").classList.add("show");
+}
+// "Zichtbaar voor coaches": standaard alle coaches (coach_ids leeg); anders
+// alleen de aangevinkte. Eigenaar/platform_admin zien altijd alle programma's.
+async function blogpVulCoaches(p){
+  const host=document.getElementById("blogp-coaches");if(!host)return;
+  host.innerHTML='<div class="sm muted">Coaches laden…</div>';
+  let q=db.from("profiles").select("id,first_name,last_name,email").eq("role","coach");
+  if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  const{data}=await q;
+  const coaches=(data||[]).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
+  const ids=(p&&p.coach_ids)||[];
+  const alle=!ids.length;
+  host.innerHTML='<label class="pf-toggle" style="margin:0"><input type="checkbox" id="blogp-alle"'+(alle?' checked':'')+' onchange="blogpAlleToggle()"><span class="pf-sw"></span> Alle coaches</label>'+
+    '<div id="blogp-clijst" style="margin-top:8px'+(alle?';display:none':'')+'">'+
+    (coaches.map(c=>'<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" class="blogp-c" value="'+c.id+'"'+(ids.includes(c.id)?' checked':'')+'> '+esc(naamVan(c))+'</label>').join("")||'<div class="sm muted">Nog geen coaches in dit bedrijf.</div>')+
+    '</div>';
+}
+function blogpAlleToggle(){
+  const alle=document.getElementById("blogp-alle"),l=document.getElementById("blogp-clijst");
+  if(alle&&l)l.style.display=alle.checked?"none":"";
 }
 function blogpDicht(){document.getElementById("blogpmodal").classList.remove("show");BLOG.editPid=null;}
 async function blogpOpslaan(){
@@ -85,6 +122,12 @@ async function blogpOpslaan(){
   const msg=document.getElementById("blogp-msg");
   if(!naam){msg.textContent="Geef het programma een naam.";msg.className="msg err";return;}
   const rec={name:naam,description:document.getElementById("blogp-desc").value.trim()||null,type:document.getElementById("blogp-type").value,price_text:document.getElementById("blogp-prijs").value.trim()||null};
+  // Zichtbaarheid: leeg/alle = null (iedereen ziet hem), anders de gekozen coaches.
+  const alleEl=document.getElementById("blogp-alle");
+  if(alleEl){
+    const gekozen=[...document.querySelectorAll(".blogp-c:checked")].map(x=>x.value);
+    rec.coach_ids=(alleEl.checked||!gekozen.length)?null:gekozen;
+  }
   if(BLOG.editPid){
     const{error}=await db.from("blog_programs").update(rec).eq("id",BLOG.editPid);
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
@@ -330,6 +373,7 @@ function ensureBlogModals(){
       '<div class="field"><label>Omschrijving</label><textarea id="blogp-desc" style="min-height:70px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
       '<div class="field"><label>Type</label><select id="blogp-type">'+BLOG_TYPES.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join("")+'</select></div>'+
       '<div class="field"><label>Prijs (alleen weergave; betalen loopt via Strivee)</label><input id="blogp-prijs" placeholder="bijv. €39 /maand (leeg = gratis)"></div>'+
+      '<div class="field"><label>Zichtbaar voor coaches</label><div class="sm muted" style="margin:-2px 0 6px">Eigenaar en beheerder zien altijd alle programma\'s; geen selectie = alle coaches.</div><div id="blogp-coaches"></div></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="blogpOpslaan()">Opslaan</button><button class="btn ghost" onclick="blogpDicht()">Annuleren</button></div>'+
       '<div class="msg" id="blogp-msg"></div></div></div>'+
     '<div class="lmodal" id="blogledmodal" style="z-index:398"><div class="box" style="width:460px;max-width:94vw">'+

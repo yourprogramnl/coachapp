@@ -643,6 +643,7 @@ async function renderMonth(opts){
     '<div class="progsel" id="klantsel"'+(isStaff?'':' style="margin-left:auto"')+' onclick="toggleKlantDrop(event)"><div class="pav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="klantdrop" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een klant…" oninput="filterKlantDrop(this.value)"></div><div class="pd-lijst" id="kd-lijst">'+
       dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
+      '<div id="kd-blogs"></div>'+
       '</div></div></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
     '<button class="btn ghost sm" title="Print of bewaar als PDF" onclick="window.print()"><svg class="i sm-i"><use href="#i-dl"/></svg> Export PDF</button>'+
@@ -731,8 +732,23 @@ document.addEventListener("click",e=>{
   if(!e.target.closest(".progsel"))document.querySelectorAll(".progdrop.show").forEach(d=>d.classList.remove("show"));
 });
 function dagLeave(cell){const m=cell.querySelector(".daymenu");if(m)m.remove();}
-function toggleKlantDrop(ev){ev.stopPropagation();const d=document.getElementById("klantdrop");if(!d)return;const openNu=!d.classList.contains("show");document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));if(openNu)d.classList.add("show");}
+function toggleKlantDrop(ev){ev.stopPropagation();const d=document.getElementById("klantdrop");if(!d)return;const openNu=!d.classList.contains("show");document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));if(openNu){d.classList.add("show");vulBlogDrop();}}
 function filterKlantDrop(v){const z=(v||"").toLowerCase();document.querySelectorAll("#kd-lijst .pd-row").forEach(r=>{r.style.display=(r.dataset.n||"").includes(z)?"":"none";});}
+// Blogprogramma's onderin het klant-wisselmenu (verzoek Stefan, 21 juli):
+// snel doorspringen naar de programmering van een blog. Een coach ziet alleen
+// blogs die aan hem zijn toegewezen (coach_ids leeg = iedereen); de Blog-sectie
+// vult kalBlogs ook bij, zodat een nieuw blog er meteen tussen staat.
+let kalBlogs=null;
+async function vulBlogDrop(){
+  const host=document.getElementById("kd-blogs");if(!host)return;
+  if(kalBlogs===null){
+    let q=db.from("blog_programs").select("id,name,coach_ids").order("name");
+    if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+    const{data}=await q;kalBlogs=data||[];
+  }
+  const zicht=myRole()==="coach"?kalBlogs.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id)):kalBlogs;
+  host.innerHTML=zicht.length?'<div class="pd-kop">Blogprogramma\'s</div>'+zicht.map(p=>'<div class="pd-row" data-n="'+esc((p.name||"").toLowerCase())+'" onclick="blogGaNaar(\''+p.id+'\')"><div class="pd-badge" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div><div class="pd-naam">'+esc(p.name)+'</div></div>').join(""):"";
+}
 // ---------- Coach wisselen (alleen eigenaar/platform_admin) ----------
 async function laadCoaches(){
   if(coachList.length)return;
