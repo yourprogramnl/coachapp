@@ -527,8 +527,15 @@ async function histZoek(){
   if(host)host.innerHTML='<div class="cempty">Zoeken…</div>';
   const pat=exact?q:"%"+q+"%";
   // Oefeningen: workouts van dit lid met een blok waarvan de oefeningsnaam matcht (blocks!inner filtert de blokken).
-  const{data:wrows}=await db.from("workouts").select("id,title,workout_date,blocks!inner(label,exercise,prescription,notes)").eq("client_id",calClient).ilike("blocks.exercise",pat).order("workout_date",{ascending:false}).limit(60);
-  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes})));
+  const{data:wrows}=await db.from("workouts").select("id,title,workout_date,blocks!inner(id,label,exercise,prescription,notes)").eq("client_id",calClient).ilike("blocks.exercise",pat).order("workout_date",{ascending:false}).limit(60);
+  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({blockId:b.id,title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes})));
+  // Wat het lid erbij logde (score, gemist, notitie) — dat wil je als coach juist zien.
+  const bids=oef.map(o=>o.blockId).filter(Boolean);
+  if(bids.length){
+    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,rx,note").eq("athlete_id",calClient).in("block_id",bids);
+    const perBlok={};(rres||[]).forEach(r=>{perBlok[r.block_id]=r;});
+    oef.forEach(o=>{o.result=perBlok[o.blockId]||null;});
+  }
   // Workouts op titel
   const{data:worows}=await db.from("workouts").select("id,title,workout_date").eq("client_id",calClient).ilike("title",pat).order("workout_date",{ascending:false}).limit(60);
   const wo=(worows||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
@@ -548,9 +555,19 @@ function histTab(t){
 function histRender(){
   const host=document.getElementById("hist-lijst");if(!host)return;
   if(histTabF==="oef"){
-    host.innerHTML=histData.oef.map(b=>'<div class="histcard"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+'</span></div>'+
-      '<div class="hbody"><span class="hlabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
-      (b.prescription?'<div class="hpr">'+esc(b.prescription)+'</div>':'')+(b.notes?'<div class="hpr">'+esc(b.notes)+'</div>':'')+'</div></div>').join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
+    host.innerHTML=histData.oef.map(b=>{
+      // Gelogde score van het lid onder het voorschrift (groen), gemist rood.
+      const r=b.result;
+      const sc=r
+        ?(r.status==="missed"
+          ?'<div class="hsc miss">✕ Gemist</div>'
+          :'<div class="hsc">✓ '+esc(resultScoreTxt(r)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
+            (r.note?'<div class="hpr" style="font-style:italic">💬 '+esc(r.note)+'</div>':''))
+        :'<div class="hsc leeg">Nog niet gelogd</div>';
+      return '<div class="histcard"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+'</span></div>'+
+        '<div class="hbody"><span class="hlabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
+        (b.prescription?'<div class="hpr">'+esc(b.prescription)+'</div>':'')+(b.notes?'<div class="hpr">'+esc(b.notes)+'</div>':'')+sc+'</div></div>';
+    }).join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
   }else if(histTabF==="wo"){
     host.innerHTML=histData.wo.map(w=>'<div class="histcard"><div class="hh"><b>'+esc(w.title||"Workout")+'</b><span class="sm muted">'+esc(w.workout_date?datumNL(w.workout_date):"")+'</span></div></div>').join("")||'<div class="cempty">Geen workouts gevonden.</div>';
   }else{
