@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programma's — FORGE</title>
+<style>
+  /* Winkelpagina voor blogprogramma's: donkere FORGE-stijl, publiek. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0E0E10;color:#F5F4F2;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  .kop{padding:34px 22px 10px;text-align:center}
+  .logo{font-size:30px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+  .logo b{color:#D9B44A}
+  .sub{color:#9A9A9E;margin-top:6px;font-size:14.5px}
+  main{flex:1;width:100%;max-width:680px;margin:0 auto;padding:22px}
+  .melding{border:1px solid rgba(70,200,138,.45);background:rgba(70,200,138,.08);color:#46C88A;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:14.5px;line-height:1.5}
+  .melding.grijs{border-color:rgba(255,255,255,.14);background:#17171A;color:#9A9A9E}
+  .kaart{background:#17171A;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;margin-bottom:14px}
+  .kaart h2{font-size:19px;font-weight:800;letter-spacing:.4px}
+  .kaart p{color:#C9C8C4;font-size:14px;line-height:1.55;margin-top:8px}
+  .rij{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+  .prijs{color:#D9B44A;font-weight:800;font-size:17px}
+  .prijs span{color:#9A9A9E;font-weight:600;font-size:12.5px}
+  .knop{margin-left:auto;background:linear-gradient(135deg,#F0D27E,#D9B44A,#A8842B);color:#0E0E10;border:0;border-radius:11px;padding:12px 26px;font-size:14px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer}
+  .knop:disabled{opacity:.6;cursor:wait}
+  .leeg{color:#9A9A9E;text-align:center;padding:40px 10px;line-height:1.6}
+  footer{padding:26px;text-align:center;color:#66666B;font-size:12.5px}
+  footer a{color:#9A9A9E;text-decoration:none}
+  footer a:hover{color:#D9B44A}
+</style>
+</head>
+<body>
+  <div class="kop">
+    <div class="logo">FOR<b>GE</b></div>
+    <div class="sub">Online trainingsprogramma's · volg je programma in de FORGE-app</div>
+  </div>
+  <main>
+    <div id="melding"></div>
+    <div id="lijst"><div class="leeg">Programma's laden…</div></div>
+  </main>
+  <footer><a href="/">Inloggen voor coaches</a></footer>
+<script>
+const FN = "https://ujuvbxqgnxkyjcmcrqpw.supabase.co/functions/v1";
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const PER = { week: "per week", month: "per maand", year: "per jaar" };
+const eur = c => "€" + (c/100).toFixed(2).replace(".", ",").replace(",00","");
+
+// Terug van Stripe: gelukt of geannuleerd
+const q = new URLSearchParams(location.search);
+if (q.get("besteld")) {
+  document.getElementById("melding").innerHTML =
+    '<div class="melding">✅ Gelukt! Je betaling is ontvangen. Binnen een paar minuten krijg je een e-mail met de link om je account aan te maken; daarna staat je programma voor je klaar in de FORGE-app.</div>';
+} else if (q.get("geannuleerd")) {
+  document.getElementById("melding").innerHTML =
+    '<div class="melding grijs">De betaling is afgebroken. Je kunt het hieronder gewoon opnieuw proberen.</div>';
+}
+
+async function laad() {
+  const host = document.getElementById("lijst");
+  try {
+    const r = await fetch(FN + "/shop-catalog");
+    const progs = await r.json();
+    if (!Array.isArray(progs) || !progs.length) {
+      host.innerHTML = '<div class="leeg">Er staan op dit moment geen programma\'s in de winkel.<br>Kom snel terug!</div>';
+      return;
+    }
+    host.innerHTML = progs.map(p =>
+      '<div class="kaart"><h2>' + esc(p.name) + '</h2>' +
+      (p.description ? '<p>' + esc(p.description) + '</p>' : '') +
+      '<div class="rij"><span class="prijs">' + eur(p.price_cents) + ' <span>' + (PER[p.price_interval] || "") + '</span></span>' +
+      '<button class="knop" onclick="bestel(this,\'' + esc(p.id) + '\')">Bestellen</button></div></div>'
+    ).join("");
+  } catch (e) {
+    host.innerHTML = '<div class="leeg">De winkel kon niet laden. Probeer het later opnieuw.</div>';
+  }
+}
+
+async function bestel(knop, id) {
+  knop.disabled = true; knop.textContent = "Even geduld…";
+  try {
+    const r = await fetch(FN + "/shop-checkout", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ program_id: id }),
+    });
+    const j = await r.json();
+    if (j.url) { location.href = j.url; return; }
+    alert(j.error || "Afrekenen kon niet gestart worden.");
+  } catch (e) {
+    alert("Afrekenen kon niet gestart worden. Probeer het later opnieuw.");
+  }
+  knop.disabled = false; knop.textContent = "Bestellen";
+}
+laad();
+</script>
+</body>
+</html>

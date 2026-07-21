@@ -93,8 +93,16 @@ function blogpModal(id){
   document.getElementById("blogp-type").value=p?(p.type||"classic"):"classic";
   document.getElementById("blogp-prijs").value=p?(p.price_text||""):"";
   document.getElementById("blogp-msg").textContent="";
+  document.getElementById("blogp-koop").checked=!!(p&&p.for_sale);
+  document.getElementById("blogp-koopprijs").value=p&&p.price_cents?String(p.price_cents/100).replace(".",","):"";
+  document.getElementById("blogp-koopint").value=(p&&p.price_interval)||"month";
+  blogpKoopToggle();
   blogpVulCoaches(p);
   document.getElementById("blogpmodal").classList.add("show");
+}
+function blogpKoopToggle(){
+  const aan=document.getElementById("blogp-koop").checked;
+  document.getElementById("blogp-koopvak").style.display=aan?"flex":"none";
 }
 // "Zichtbaar voor coaches": standaard alle coaches (coach_ids leeg); anders
 // alleen de aangevinkte. Eigenaar/platform_admin zien altijd alle programma's.
@@ -127,6 +135,16 @@ async function blogpOpslaan(){
   if(alleEl){
     const gekozen=[...document.querySelectorAll(".blogp-c:checked")].map(x=>x.value);
     rec.coach_ids=(alleEl.checked||!gekozen.length)?null:gekozen;
+  }
+  // Winkel: prijs in centen; te koop kan alleen met een geldige prijs (min. €1).
+  rec.for_sale=document.getElementById("blogp-koop").checked;
+  const prijsTxt=document.getElementById("blogp-koopprijs").value.trim();
+  const prijs=Math.round(parseFloat(prijsTxt.replace(",","."))*100);
+  if(rec.for_sale){
+    if(isNaN(prijs)||prijs<100){msg.textContent="Vul een winkelprijs in van minstens €1 (bijv. 39,00).";msg.className="msg err";return;}
+    rec.price_cents=prijs;rec.price_interval=document.getElementById("blogp-koopint").value;
+  }else if(!isNaN(prijs)&&prijs>0){
+    rec.price_cents=prijs;rec.price_interval=document.getElementById("blogp-koopint").value;
   }
   if(BLOG.editPid){
     const{error}=await db.from("blog_programs").update(rec).eq("id",BLOG.editPid);
@@ -373,6 +391,10 @@ function ensureBlogModals(){
       '<div class="field"><label>Omschrijving</label><textarea id="blogp-desc" style="min-height:70px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
       '<div class="field"><label>Type</label><select id="blogp-type">'+BLOG_TYPES.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join("")+'</select></div>'+
       '<div class="field"><label>Prijs (alleen weergave; betalen loopt via Strivee)</label><input id="blogp-prijs" placeholder="bijv. €39 /maand (leeg = gratis)"></div>'+
+      '<div class="field"><label>Winkel</label>'+
+        '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-koop" onchange="blogpKoopToggle()"><span class="pf-sw"></span> Te koop op de winkelpagina (/winkel.html)</label>'+
+        '<div id="blogp-koopvak" style="display:none;gap:8px;align-items:center"><span class="sm muted">Prijs €</span><input id="blogp-koopprijs" placeholder="39,00" style="width:90px"><select id="blogp-koopint" style="width:130px"><option value="month">per maand</option><option value="week">per week</option><option value="year">per jaar</option></select></div>'+
+        '<div class="sm muted" style="margin-top:4px">Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma.</div></div>'+
       '<div class="field"><label>Zichtbaar voor coaches</label><div class="sm muted" style="margin:-2px 0 6px">Eigenaar en beheerder zien altijd alle programma\'s; geen selectie = alle coaches.</div><div id="blogp-coaches"></div></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="blogpOpslaan()">Opslaan</button><button class="btn ghost" onclick="blogpDicht()">Annuleren</button></div>'+
       '<div class="msg" id="blogp-msg"></div></div></div>'+
