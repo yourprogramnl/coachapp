@@ -11,6 +11,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
 const AFZENDER_ADRES = "coach@mail.yourprogram.nl";
+// Zodra de FORGE-app publiek in de App Store staat: hier de link invullen
+// (zelfde plek als APP_STORE_URL in app/auth.js van het dashboard).
+const APP_STORE_URL = "";
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -147,6 +150,8 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
 
   // Uitnodigingsmail: de ontvanger heeft nog geen profiel, dus geen vinkjes of
   // werkuren; gaat rechtstreeks naar het e-mailadres uit de uitnodiging.
+  // Een lid krijgt er stap 2 bij: download de FORGE-app (verzoek Stefan, 21 juli);
+  // een coach-uitnodiging houdt de webtekst.
   if (event === "invite") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
@@ -155,9 +160,17 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const bedrijfsNaam = bedrijfI?.name || "je coach";
     const link = `https://coachapp-steel.vercel.app/?invite=${payload.token}`;
     const voornaam = (payload.first_name as string) || "";
+    const { data: invRij } = await db.from("invites").select("role").eq("token", payload.token as string).maybeSingle();
+    const isLidInvite = !invRij || invRij.role === "lid";
+    const appStap = APP_STORE_URL
+      ? `download daarna de <a href="${APP_STORE_URL}" style="color:${accent}">FORGE-app</a> op je telefoon en log daar in met je e-mailadres en wachtwoord.`
+      : `download daarna de FORGE-app op je telefoon en log daar in met je e-mailadres en wachtwoord. (Staat de app nog niet in de App Store, dan stuurt je coach je de downloadlink.)`;
+    const introInvite = isLidInvite
+      ? `${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je inlog aan via de knop hieronder en ${appStap}`
+      : `${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je eigen inlog aan via de knop hieronder, daarna staat je programma voor je klaar.`;
     const html = KADER_OPEN +
       `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">Welkom${voornaam ? " " + esc(voornaam) : ""}!</h2>` +
-      `<p style="margin:0 0 14px;line-height:1.5;color:#c9c9ce">${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je eigen inlog aan via de knop hieronder, daarna staat je programma voor je klaar.</p>` +
+      `<p style="margin:0 0 14px;line-height:1.6;color:#c9c9ce">${introInvite}</p>` +
       `<a href="${link}" style="display:inline-block;background:${accent};color:#0E0E10;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none">Account aanmaken</a>` +
       `<p style="margin:16px 0 0;color:#8a919c;font-size:12px;line-height:1.5">Werkt de knop niet? Kopieer dan deze link naar je browser:<br>${esc(link)}<br><br>De uitnodiging is 14 dagen geldig. Gebruik bij het aanmelden dit e-mailadres (${esc(naar)}).</p></div>`;
     const r = await verstuur(naar, bedrijfsNaam, `Je uitnodiging van ${bedrijfsNaam}`, html);

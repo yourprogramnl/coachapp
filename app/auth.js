@@ -1,5 +1,9 @@
 // app/auth.js — inloggen, account maken, uitloggen en het opstarten van de app.
 // loadApp() bepaalt op basis van de rol welk scherm getoond wordt.
+// Zodra de FORGE-app publiek in de App Store staat: hier de link invullen; het
+// succes-scherm voor nieuwe leden toont dan een echte downloadknop.
+const APP_STORE_URL="";
+let inviteRol="";
 let mode="in";
 function setMode(m){
   mode=m;
@@ -23,6 +27,7 @@ async function initInvite(token){
       return;
     }
     setMode("up");
+    inviteRol=inv.role||"lid";
     const em=document.getElementById("email");
     em.value=inv.email;em.readOnly=true;em.style.opacity=".65";
     const w=document.getElementById("inv-welkom");
@@ -48,6 +53,12 @@ async function submitAuth(){
       if(tok)localStorage.setItem("invite_token",tok);
       const redir=location.origin+location.pathname+(tok?"?invite="+tok:"");
       const{data,error}=await db.auth.signUp({email,password:pw,options:{emailRedirectTo:redir}});if(error)throw error;
+      // Uitnodiging meteen inwisselen (er is direct een sessie): het account is
+      // dan al volledig gekoppeld, óók als de klant hierna rechtstreeks de
+      // FORGE-app op zijn telefoon pakt en de browser nooit meer opent.
+      if(data&&data.session&&tok){
+        try{await db.rpc("redeem_invite",{p_token:tok});localStorage.removeItem("invite_token");}catch(e){}
+      }
       document.getElementById("go").disabled=false;
       toonAccountKlaar(!!(data&&data.session));
       return;
@@ -63,10 +74,19 @@ async function submitAuth(){
 function toonAccountKlaar(ingelogd){
   const kaart=document.querySelector("#login .card");if(!kaart)return;
   if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  // Een nieuw lid hoort in de FORGE-app op zijn telefoon te belanden, niet in
+  // het web-scherm (verzoek Stefan, 21 juli); coaches loggen wél hier in.
+  const lidNaarApp=ingelogd&&(inviteRol||"lid")==="lid";
   kaart.innerHTML='<div style="text-align:center;padding:8px 0">'+
     '<div style="font-size:40px;line-height:1;margin-bottom:10px">✅</div>'+
     '<h3 style="margin:0 0 8px">Account aangemaakt!</h3>'+
-    (ingelogd
+    (lidNaarApp
+      ?'<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Je account is klaar. Nog één stap: download de <b>FORGE-app</b> op je telefoon en log daar in met dit e-mailadres en je wachtwoord.</div>'+
+       (APP_STORE_URL
+         ?'<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+APP_STORE_URL+'">Download de FORGE-app</a>'
+         :'<div class="muted" style="font-size:12.5px;line-height:1.5">De app staat binnenkort in de App Store; je coach stuurt je de downloadlink zodra hij klaarstaat.</div>')+
+       '<button class="lnk" style="margin-top:12px" onclick="accountDoorgaan()">Of bekijk je programma alvast in de browser</button>'
+      :ingelogd
       ?'<div class="muted" style="font-size:13px;margin-bottom:16px">Je account is klaar.</div>'+
        '<button class="btn" style="width:100%" onclick="accountDoorgaan()">Klik hier om in te loggen</button>'
       :'<div class="muted" style="font-size:13px;margin-bottom:16px;line-height:1.5">We hebben je een mail gestuurd om je e-mailadres te bevestigen. Klik op de link in die mail en log daarna in.</div>'+
