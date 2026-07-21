@@ -642,8 +642,8 @@ async function renderMonth(opts){
     coachChip+
     '<div class="progsel" id="klantsel"'+(isStaff?'':' style="margin-left:auto"')+' onclick="toggleKlantDrop(event)"><div class="pav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="klantdrop" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een klant…" oninput="filterKlantDrop(this.value)"></div><div class="pd-lijst" id="kd-lijst">'+
-      dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '<div id="kd-blogs"></div>'+
+      dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '</div></div></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
     '<button class="btn ghost sm" title="Print of bewaar als PDF" onclick="window.print()"><svg class="i sm-i"><use href="#i-dl"/></svg> Export PDF</button>'+
@@ -747,7 +747,9 @@ async function vulBlogDrop(){
     const{data}=await q;kalBlogs=data||[];
   }
   const zicht=myRole()==="coach"?kalBlogs.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id)):kalBlogs;
-  host.innerHTML=zicht.length?'<div class="pd-kop">Blogprogramma\'s</div>'+zicht.map(p=>'<div class="pd-row" data-n="'+esc((p.name||"").toLowerCase())+'" onclick="blogGaNaar(\''+p.id+'\')"><div class="pd-badge" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div><div class="pd-naam">'+esc(p.name)+'</div></div>').join(""):"";
+  // Blogs bovenaan (verzoek Stefan: bij 50+ klanten zie je ze onderaan nooit),
+  // daarna een kopje "Klanten" boven de gewone lijst.
+  host.innerHTML=zicht.length?'<div class="pd-kop" style="border-top:0;margin-top:0">Blogprogramma\'s</div>'+zicht.map(p=>'<div class="pd-row" data-n="'+esc((p.name||"").toLowerCase())+'" onclick="blogGaNaar(\''+p.id+'\')"><div class="pd-badge" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div><div class="pd-naam">'+esc(p.name)+'</div></div>').join("")+'<div class="pd-kop">Klanten</div>':"";
 }
 // ---------- Coach wisselen (alleen eigenaar/platform_admin) ----------
 async function laadCoaches(){
