@@ -200,9 +200,22 @@ function exMediaHtml(media){
   if(!vids.length)return"";
   return '<div class="exmedia" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;align-items:center">'+
     vids.map(v=>'<div class="tplvid" data-yt="'+esc(v.youtube_id)+'" title="'+esc(v.titel||"Video")+'">'+
-      '<div class="tplvid-thumb" onclick="event.stopPropagation();tplVidSpeel(this)" style="position:relative;width:76px;height:46px;border-radius:7px;background:#000 url(\'https://i.ytimg.com/vi/'+esc(v.youtube_id)+'/mqdefault.jpg\') center/cover;cursor:pointer;flex:none">'+
+      '<div class="tplvid-thumb" onclick="event.stopPropagation();ytSpeel(this.closest(\'.tplvid\').getAttribute(\'data-yt\'))" style="position:relative;width:76px;height:46px;border-radius:7px;background:#000 url(\'https://i.ytimg.com/vi/'+esc(v.youtube_id)+'/mqdefault.jpg\') center/cover;cursor:pointer;flex:none">'+
         '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center"><svg width="9" height="9" viewBox="0 0 12 12" fill="#fff"><path d="M2 1l8 5-8 5z"/></svg></span></span></div></div>').join("")+
     '<span class="sm muted" style="margin-left:2px">'+vids.length+' demo-video'+(vids.length===1?"":"\'s")+' · gaan mee voor het lid</span></div>';
+}
+// Demo-video groot in het midden van het scherm, met kruisje om te sluiten
+// (zelfde overlay als de klant-video's; vidSluit staat in dashboard.js).
+function ytSpeel(yt){
+  if(!yt)return;
+  let ov=document.getElementById("vidoverlay");
+  if(!ov){
+    ov=document.createElement("div");ov.id="vidoverlay";
+    ov.addEventListener("click",e=>{if(e.target.id==="vidoverlay"||e.target.classList.contains("vx"))vidSluit();});
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML='<span class="vx" title="Sluiten">×</span><div class="ytvak"><iframe src="https://www.youtube.com/embed/'+esc(yt)+'?autoplay=1" title="Video" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
+  ov.style.display="flex";
 }
 function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;let media=null;try{media=r.dataset.media?JSON.parse(r.dataset.media):null;}catch(e){}if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,media,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,media,prescription:r.querySelector(".f-presc").value.trim()};}
