@@ -191,9 +191,9 @@ function kiesBlokKleur(el,k){
 }
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
-function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
-function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,prescription:r.querySelector(".f-presc").value.trim()};}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+(b.media&&b.media.length?'<div class="sm muted" style="margin-top:6px">🎥 '+b.media.length+' demo-video\'s uit de bibliotheek gaan mee voor het lid</div>':'')+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'</div>';}
+function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;let media=null;try{media=r.dataset.media?JSON.parse(r.dataset.media):null;}catch(e){}if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,media,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,media,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
   const row=inp.closest(".exrow"),drop=row.querySelector(".exdrop");
@@ -416,7 +416,7 @@ function mcardHtml(w){
     const sc=resultScoreTxt(r);
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
     const vids=(monthMedia[b.id]||[]).map(v=>'<span class="vidtile" title="Video van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\')">▶</span>').join("");
-    inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+
+    inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
       ((r&&r.note)?'<div class="pr" style="font-style:italic;color:#8a919c" title="Notitie van het lid">💬 '+esc(r.note)+'</div>':'')+
@@ -864,21 +864,24 @@ function insRender(){
 async function insInvoegen(id){
   const o=LIB.tpl.find(x=>x.id===id);if(!o)return;
   const kleur=TPLKLEUREN.includes(o.kleur)?o.kleur:null;
+  // Demo-video's van de template reizen mee naar het blok (blocks.media),
+  // zodat het lid ze in de app bij dit onderdeel kan afspelen.
+  const media=(o.media&&o.media.length)?o.media:null;
   if(insDoel==="bouwer"){
     const host=document.getElementById("exrows");
-    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:o.naam,prescription:o.instructies,color:kleur}));relabel();groei();}
+    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:o.naam,prescription:o.instructies,color:kleur,media}));relabel();groei();}
     closeIns();toast("Template als blok toegevoegd, pas gerust aan");return;
   }
   if(insDoel==="blogcel"){ // invoegen op de blog-kalender (Blog-sectie)
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:o.naam}).select().single();
     if(error){toast(error.message||"Invoegen mislukt");return;}
-    const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text"});
+    const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text",media});
     if(be){toast(be.message);return;}
     closeIns();toast("Template ingevoegd");await blogHerlaad();return;
   }
   const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:o.naam}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
-  const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text"});
+  const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text",media});
   if(be){toast(be.message);return;}
   closeIns();toast("Template ingevoegd");renderMonth();
 }
@@ -887,15 +890,16 @@ async function insWeekwod(id){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(insDoel==="bouwer"){
     const txt=blocks.map(b=>{const pr=composePresc(b);return (b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n"+pr:"");}).join("\n\n");
+    const wwMedia=blocks.flatMap(b=>b.media||[]);
     const host=document.getElementById("exrows");
-    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:w.title,prescription:txt,color:"blue",source_blog_workout_id:w.id,score_type:(blocks[0]&&blocks[0].score_type)||"text"}));relabel();groei();}
+    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:w.title,prescription:txt,color:"blue",source_blog_workout_id:w.id,score_type:(blocks[0]&&blocks[0].score_type)||"text",media:wwMedia.length?wwMedia:null}));relabel();groei();}
     closeIns();toast("Weekworkout als blok toegevoegd; het lid logt hem met Rx/Scaled en komt op het gedeelde leaderboard");return;
   }
   if(insDoel==="blogcel"){ // weekworkout-kopie op de blog-kalender (Blog-sectie)
     const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,source_blog_workout_id:w.id}).select().single();
     if(error){toast(error.message||"Invoegen mislukt");return;}
     if(blocks.length){
-      const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
+      const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null})));
       if(be){toast(be.message);return;}
     }
     closeIns();toast("Weekworkout ingevoegd in het programma");await blogHerlaad();return;
@@ -903,7 +907,7 @@ async function insWeekwod(id){
   const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,source_blog_workout_id:w.id}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   if(blocks.length){
-    const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id})));
+    const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null})));
     if(be){toast(be.message);return;}
   }
   closeIns();toast("Weekworkout ingevoegd als eigen kopie; voor het leaderboard logt het lid de weekworkout zelf in de app");renderMonth();
@@ -915,7 +919,7 @@ async function insWeekwod(id){
 // Voorheen was dit delete-alles + insert, waardoor elke bewerking door de
 // coach alle resultaten van het lid op die workout wiste.
 async function syncBlocks(wid,rows){
-  const velden=b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null});
+  const velden=b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null});
   const{data:oud,error:oe}=await db.from("blocks").select("id").eq("workout_id",wid);if(oe)throw oe;
   const oudIds=new Set((oud||[]).map(x=>x.id));
   const weg=[...oudIds].filter(id=>!rows.some(b=>b.id===id));
@@ -934,7 +938,7 @@ async function saveWorkout(){
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   g("saveW").disabled=true;
   const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown")};
-  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null}));
+  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null}));
   try{
     if(editWid){
       const{error:ue}=await db.from("workouts").update(wf).eq("id",editWid);if(ue)throw ue;
