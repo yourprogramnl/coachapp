@@ -12,12 +12,15 @@ function pwProbleem(pw){
   return "";
 }
 let inviteRol="";
+// Nieuwe uitnodigingsflow: het account is al door de coach aangemaakt en de
+// klant hoeft alleen nog een wachtwoord te kiezen (invite-account Edge Function).
+let inviteAccountBestaat=false;
 let mode="in";
 function setMode(m){
   mode=m;
   document.getElementById("tab-in").classList.toggle("on",m==="in");
   document.getElementById("tab-up").classList.toggle("on",m==="up");
-  document.getElementById("go").textContent=m==="in"?"Inloggen":"Account aanmaken";
+  document.getElementById("go").textContent=m==="in"?"Inloggen":(inviteAccountBestaat?"Account activeren":"Account aanmaken");
   const p2=document.getElementById("pw2-veld");if(p2)p2.style.display=m==="up"?"":"none";
   const eis=document.getElementById("pw-eis");if(eis)eis.style.display=m==="up"?"":"none";
   setMsg("");
@@ -35,6 +38,7 @@ async function initInvite(token){
       setMsg("Deze uitnodigingslink is verlopen of al gebruikt. Vraag je coach om een nieuwe uitnodiging.","err");
       return;
     }
+    inviteAccountBestaat=!!inv.account_bestaat;
     setMode("up");
     inviteRol=inv.role||"lid";
     const em=document.getElementById("email");
@@ -57,6 +61,23 @@ async function submitAuth(){
   try{
     if(mode==="in"){const{error}=await db.auth.signInWithPassword({email,password:pw});if(error)throw error;}
     else{
+      const tokNieuw=new URLSearchParams(location.search).get("invite");
+      if(inviteAccountBestaat&&tokNieuw){
+        // Nieuwe flow: het account bestaat al, we zetten alleen het gekozen
+        // wachtwoord via de serverfunctie en loggen daarna direct in.
+        const{data:wd,error:wErr}=await db.functions.invoke("invite-account",{body:{actie:"wachtwoord",token:tokNieuw,wachtwoord:pw}});
+        if(wErr||(wd&&wd.error)){
+          let t=(wd&&wd.error)||"";
+          if(!t&&wErr&&wErr.context&&wErr.context.json){try{t=((await wErr.context.json())||{}).error||"";}catch(e2){}}
+          throw new Error(t||"Activeren mislukt, probeer het opnieuw.");
+        }
+        const{error:inErr}=await db.auth.signInWithPassword({email,password:pw});
+        if(inErr)throw inErr;
+        localStorage.removeItem("invite_token");
+        document.getElementById("go").disabled=false;
+        toonAccountKlaar(true);
+        return;
+      }
       // Bewaar de invite-token ook lokaal: na e-mailbevestiging komt de gebruiker
       // zonder ?invite= terug en moet de koppeling alsnog gebeuren (zie loadApp).
       const tok=new URLSearchParams(location.search).get("invite");

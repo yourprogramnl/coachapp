@@ -19,7 +19,7 @@ function klantTab(a){klantArchief=a;klantenRender();}
 async function fillKlanten(){
   const ids=klantScope().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89)),plus14=ymd(addDays(new Date(),14));
-  let ws=[],rs=[],msgs=[],alleTags=[],ptags=[],cons=[];
+  let ws=[],rs=[],msgs=[],alleTags=[],ptags=[],cons=[],openInv=[];
   if(ME.profile.company_id)alleTags=(await db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name")).data||[];
   if(ids.length){
     ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
@@ -28,10 +28,13 @@ async function fillKlanten(){
     msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
     ptags=(await db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids)).data||[];
     cons=(await db.from("consults").select("athlete_id,consult_date").in("athlete_id",ids)).data||[];
+    // Open uitnodigingen (account bestaat al, klant heeft nog geen wachtwoord gekozen)
+    openInv=(await db.from("invites").select("profile_id,expires_at").is("accepted_at",null).not("profile_id","is",null).in("profile_id",ids)).data||[];
   }
   const tagsByClient={};ptags.forEach(pt=>{(tagsByClient[pt.profile_id]=tagsByClient[pt.profile_id]||[]).push(pt.tag_id);});
   const lastConsult={};cons.forEach(c=>{if(c.consult_date&&(!lastConsult[c.athlete_id]||c.consult_date>lastConsult[c.athlete_id]))lastConsult[c.athlete_id]=c.consult_date;});
-  KDATA={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient,cons,lastConsult};
+  const pending={};openInv.forEach(i=>{pending[i.profile_id]=i.expires_at;});
+  KDATA={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient,cons,lastConsult,pending};
   klantenRender();
 }
 function klantWorkoutChip(p){
@@ -69,8 +72,17 @@ function klantRijen(){
     const wp=klantComp([p]);
     const af=klantTagSel&&klantAf.has(p.id);
     const afBtn=klantTagSel?'<button class="afvink'+(af?" aan":"")+'" title="'+(af?"Terugzetten in het lijstje":"Afstrepen: klaar met programmeren")+'" onclick="event.stopPropagation();klantAfToggle(\''+p.id+'\')">'+(af?"✓":"")+'</button>':'';
+    // Label voor klanten die hun uitnodiging nog niet hebben geaccepteerd
+    // (account bestaat al, programmeren kan gewoon).
+    let pend="";
+    if(KDATA.pending&&(p.id in KDATA.pending)){
+      const verlopen=KDATA.pending[p.id]&&KDATA.pending[p.id]<new Date().toISOString();
+      pend=verlopen
+        ?' <span class="pendtag" style="color:#e5484d;background:rgba(229,72,77,.1);border-color:rgba(229,72,77,.35)" title="De uitnodiging is verlopen; stuur een nieuwe via + Klant toevoegen">Uitnodiging verlopen</span>'
+        :' <span class="pendtag" title="De klant heeft zijn account nog niet geactiveerd; programmeren kan al wel">Uitnodiging open</span>';
+    }
     return '<div class="trow click"'+(af?' style="opacity:.45"':'')+' onclick="openClient(\''+p.id+'\')">'+afBtn+
-      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div style="font-weight:700;font-size:13px'+(af?';text-decoration:line-through':'')+'">'+naamVan(p)+'</div><div class="sm muted">Laatste consult: '+(KDATA.lastConsult[p.id]?esc(datumNL(KDATA.lastConsult[p.id])):"n.v.t.")+'</div></div></div>'+
+      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div style="font-weight:700;font-size:13px'+(af?';text-decoration:line-through':'')+'">'+naamVan(p)+pend+'</div><div class="sm muted">Laatste consult: '+(KDATA.lastConsult[p.id]?esc(datumNL(KDATA.lastConsult[p.id])):"n.v.t.")+'</div></div></div>'+
       '<div style="flex:1.2">'+klantWorkoutChip(p)+'</div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
       '<div style="flex:1.6" onclick="event.stopPropagation()">'+klantTagCel(p)+'</div>'+
@@ -477,17 +489,38 @@ async function openInvModal(rol){
     document.getElementById("inv-coach").innerHTML=(cs||[]).map(c=>'<option value="'+c.id+'"'+(c.id===ME.user.id?" selected":"")+'>'+naamVan(c)+'</option>').join("");
   }
 }
+// Sinds 22 juli maakt de Edge Function invite-account het account + profiel
+// meteen aan: de klant staat direct in de lijst (label "Uitnodiging open") en
+// de coach kan al programmeren; de klant kiest via de maillink zijn wachtwoord.
 async function invAanmaken(){
   const vn=document.getElementById("inv-vn").value.trim(),an=document.getElementById("inv-an").value.trim(),em=document.getElementById("inv-email").value.trim();
   const msg=document.getElementById("inv-msg");
-  if(!em){msg.textContent="Vul een e-mailadres in.";return;}
-  const rec={company_id:ME.profile.company_id,coach_id:invRol==="coach"?null:(klantCoachFilter||document.getElementById("inv-coach").value||null),email:em,first_name:vn||null,last_name:an||null,role:invRol,membership_type:invRol==="coach"?null:document.getElementById("inv-type").value,created_by:ME.user.id,expires_at:new Date(Date.now()+14*864e5).toISOString()};
-  const{data,error}=await db.from("invites").insert(rec).select().single();
-  if(error){msg.textContent=error.message||"Aanmaken mislukt";return;}
+  if(!em){msg.className="msg err";msg.textContent="Vul een e-mailadres in.";return;}
+  msg.className="msg";msg.textContent="Bezig met aanmaken…";
+  const knop=document.getElementById("inv-maak");if(knop)knop.disabled=true;
+  const body={actie:"aanmaken",rol:invRol,email:em,first_name:vn||null,last_name:an||null};
+  if(invRol!=="coach"){
+    body.coach_id=klantCoachFilter||document.getElementById("inv-coach").value||null;
+    body.membership_type=document.getElementById("inv-type").value;
+  }
+  const{data,error}=await db.functions.invoke("invite-account",{body});
+  if(knop)knop.disabled=false;
+  if(error||(data&&data.error)){
+    let t=(data&&data.error)||"";
+    if(!t&&error&&error.context&&error.context.json){try{t=((await error.context.json())||{}).error||"";}catch(e){}}
+    msg.className="msg err";msg.textContent=t||(error&&error.message)||"Aanmaken mislukt";return;
+  }
   document.getElementById("inv-link").value=location.origin+location.pathname+"?invite="+data.token;
   document.getElementById("inv-result").style.display="";
   document.getElementById("inv-maak").style.display="none";
-  msg.textContent="";
+  msg.className="msg ok";
+  msg.textContent=invRol==="coach"?"De coach staat klaar; de uitnodigingsmail is onderweg.":"De klant staat nu al in je klantenlijst en je kunt direct programmeren.";
+  // Lijst meteen verversen zodat de nieuwe klant/coach er direct tussen staat.
+  try{
+    coachClients=[];await ensureClients();
+    if(invRol==="coach"){if(typeof fillCoaches==="function")await fillCoaches();}
+    else if(typeof fillKlanten==="function")await fillKlanten();
+  }catch(e){}
 }
 function kopieerInvLink(){const i=document.getElementById("inv-link");i.select();navigator.clipboard.writeText(i.value).then(()=>toast("Link gekopieerd"),()=>toast("Kopiëren lukte niet, selecteer de link zelf"));}
 async function fillCompanies(){

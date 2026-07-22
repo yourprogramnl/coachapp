@@ -323,6 +323,8 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .trow.crow:hover{background:#fafbfc}
 .trow.click{cursor:pointer;position:relative}
 .trow.click:hover{background:#fafbfc}
+/* Label op de klantenrij: uitnodiging nog niet geaccepteerd */
+.pendtag{display:inline-block;font-size:10.5px;font-weight:700;color:#9a7b1f;background:rgba(217,180,74,.16);border:1px solid rgba(217,180,74,.45);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px;white-space:nowrap}
 /* Klant-tags + tag-picker + tags beheren */
 .ktagcel{display:flex;align-items:center;gap:6px;flex-wrap:wrap;position:relative}
 .ktag{display:inline-flex;align-items:center;gap:6px;background:#f2f4f6;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:600;color:#3a4048}
