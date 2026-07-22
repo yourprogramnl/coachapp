@@ -187,9 +187,9 @@ function belToggle(ev){
 // paneel werken alleen de badge bij.
 function belPanelVernieuw(){
   const p=document.getElementById("bel-panel");if(!p||!p.classList.contains("show"))return;
-  const rows=belZichtbaar().slice(0,30);
+  const rows=belZichtbaar().slice(0,10);
   const ongelezen=rows.some(r=>!r.read_at);
-  p.innerHTML='<div class="belkop">'+(ongelezen?'<span class="bellink" onclick="belAllesGelezen()">Markeer alles als gelezen</span>':'<span class="sm muted">Notificaties</span>')+'</div>'+
+  p.innerHTML='<div class="belkop">'+(ongelezen?'<span class="bellink" onclick="belAllesGelezen()">Markeer alles als gelezen</span> <span class="muted" style="font-size:11px">|</span> ':'')+'<span class="bellink" onclick="this.closest(\'.belpanel\').classList.remove(\'show\');coachGo(\'notifs\')">Alles bekijken</span></div>'+
     (rows.length?rows.map(belRijHtml).join(""):'<div class="belleeg">'+(BEL.geladen?"Geen notificaties.":"Laden…")+'</div>');
 }
 function belRijHtml(r){
@@ -250,3 +250,44 @@ function belMarkeerSoort(athleteId,soort){
   db.from("notifications").update({read_at:nu}).eq("recipient_id",ME.user.id).eq("athlete_id",athleteId).eq("soort",soort).is("read_at",null).then(()=>{});
 }
 document.addEventListener("click",()=>{const p=document.getElementById("bel-panel");if(p)p.classList.remove("show");});
+// ---------- Notificaties-pagina (#notifs, via "Alles bekijken" in de bel) ----------
+// Zelfde data en voorkeuren als de bel; de filters rechts zijn de app-vinkjes
+// uit Instellingen > Notificaties (één plek in de database, direct opgeslagen).
+let ncAlleenOngelezen=false;
+async function fillNotifCentrum(){
+  const cp=document.getElementById("cpage");if(!cp)return;
+  // Verse, ruimere lading voor de pagina (de bel laadt er maar 40)
+  const{data}=await db.from("notifications").select("*").eq("recipient_id",ME.user.id).order("created_at",{ascending:false}).limit(200);
+  BEL.rows=data||BEL.rows;BEL.geladen=true;belBadge();
+  cp.innerHTML='<h1>Notificaties</h1>'+
+    '<div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap">'+
+      '<div class="card" style="flex:1;min-width:340px;padding:0" id="nc-lijst"></div>'+
+      '<div class="card" style="width:300px;padding:16px 18px">'+
+        '<b style="font-size:14px">Filters</b><div class="sm muted" id="nc-aantal" style="margin:2px 0 10px"></div>'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f1f3"><span style="font-size:13px">Alleen ongelezen</span><label class="pf-toggle" style="margin:0"><input type="checkbox" id="nc-ongelezen"'+(ncAlleenOngelezen?" checked":"")+' onchange="ncOngelezen(this.checked)"><span class="pf-sw"></span></label></div>'+
+        NOTIF_EVENTS.map(e=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f1f3"><span style="font-size:13px">'+e[1]+'</span><label class="pf-toggle" style="margin:0"><input type="checkbox" data-ncev="'+e[0]+'"'+(notifPrefs().app[e[0]]!==false?" checked":"")+' onchange="ncFilter(\''+e[0]+'\',this.checked)"><span class="pf-sw"></span></label></div>').join("")+
+        '<div class="sm muted" style="margin-top:10px;font-size:11px">Uitgevinkte soorten komen niet meer in de bel en op deze pagina. Dezelfde keuzes staan bij Instellingen > Notificaties.</div>'+
+      '</div>'+
+    '</div>';
+  ncLijst();
+}
+function ncLijst(){
+  const host=document.getElementById("nc-lijst");if(!host)return;
+  let rows=belZichtbaar();
+  if(ncAlleenOngelezen)rows=rows.filter(r=>!r.read_at);
+  const ongelezen=rows.some(r=>!r.read_at);
+  host.innerHTML='<div class="belkop">'+(ongelezen?'<span class="bellink" onclick="belAllesGelezen();ncLijst()">Markeer alles als gelezen</span>':'<span class="sm muted">&nbsp;</span>')+'</div>'+
+    (rows.length?rows.map(belRijHtml).join(""):'<div class="belleeg">'+(ncAlleenOngelezen?"Geen ongelezen notificaties.":"Nog geen notificaties. Zodra je klanten workouts afronden, reageren of berichten sturen, zie je dat hier.")+'</div>');
+  const teller=document.getElementById("nc-aantal");
+  if(teller)teller.textContent=rows.length+(rows.length===1?" notificatie":" notificaties");
+}
+function ncOngelezen(aan){ncAlleenOngelezen=aan;ncLijst();}
+// Filter aan/uit = direct opslaan in profiles.notify_prefs (app-vinkje)
+async function ncFilter(ev,aan){
+  const n=notifPrefs();
+  n.app[ev]=aan;
+  const{data,error}=await db.from("profiles").update({notify_prefs:n}).eq("id",ME.user.id).select().single();
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  Object.assign(ME.profile,data||{notify_prefs:n});
+  belBadge();ncLijst();
+}

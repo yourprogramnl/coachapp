@@ -85,7 +85,7 @@ function cnavItems(){
 function sectionFromHash(){
   let h=(location.hash||"").replace(/^#/,"");
   if(h.indexOf("settings")===0)h="settings"; // #settings/<pagina> telt als settings
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings"]); // settings zit niet in de topnav (avatar-menu)
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs"]); // settings/notifs zitten niet in de topnav
   return geldig.includes(h)?h:"dash";
 }
 // De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
@@ -97,7 +97,7 @@ function parseHash(){
     if(p[1]&&typeof INST_TABS!=="undefined"&&INST_TABS.some(t=>t[0]===p[1]))instTab=p[1];
     return{type:"section",section:"settings"};
   }
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings"]);
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
 // Zet de link zonder de router opnieuw te laten vuren (eigen wijziging).
@@ -186,6 +186,7 @@ function coachRenderSection(){
   if(coachSection==="msgs"){c.innerHTML=coachShellHtml('<h1>Berichten</h1><div class="spin">Laden…</div>');fillBerichten();return;}
   if(coachSection==="data"){c.innerHTML=coachShellHtml('<h1>Data</h1><div class="spin">Laden…</div>');fillData();return;}
   if(coachSection==="ai"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillAiCoach();return;}
+  if(coachSection==="notifs"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillNotifCentrum();return;}
   if(coachSection==="settings"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillInstellingen();return;}
   c.innerHTML=coachShellHtml('<div class="csoon">Deze sectie bestaat niet (meer).</div>');
 }
