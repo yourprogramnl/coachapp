@@ -141,6 +141,8 @@ async function berOpen(id){
       if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
     }catch(e){}
   }
+  // Bel-notificatie van dit gesprek gaat ook op gelezen
+  if(typeof belMarkeerSoort==="function")belMarkeerSoort(id,"bericht");
   berLijstVernieuw();
 }
 async function berStuur(){

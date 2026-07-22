@@ -4,8 +4,8 @@
 // heeft staan, met het gekozen geluid. E-mailvinkjes en werkuren worden
 // alvast opgeslagen; de mails zelf volgen met het e-mailblok.
 const NOTIF_STD={
-  app:{workout:true,reactie:true,bericht:true,video:true,foto:true},
-  mail:{workout:false,reactie:false,bericht:false,video:false,foto:false},
+  app:{workout:true,reactie:true,bericht:true,video:true,foto:true,pr:true},
+  mail:{workout:false,reactie:false,bericht:false,video:false,foto:false,pr:false},
   geluid_bericht:"pop",geluid_melding:"pop",
   mail_tijden:{modus:"altijd",van:9,tot:17,dagen:[true,true,true,true,true,false,false]},
 };
@@ -13,6 +13,7 @@ const NOTIF_EVENTS=[
   ["workout","Als een klant een workout aftekent"],
   ["reactie","Als een klant reageert op een workout-dag"],
   ["bericht","Als een klant een chatbericht stuurt"],
+  ["pr","Als een klant een nieuwe PR logt"],
   ["video","Als een klant een video uploadt"],
   ["foto","Als een klant voortgangsfoto's uploadt"],
 ];
@@ -141,4 +142,111 @@ function stopNotifs(){
   notifGestart=false;
   notifKanalen.forEach(k=>{try{db.removeChannel(k);}catch(e){}});
   notifKanalen=[];
+  belStop();
 }
+// ---------- Het belletje in de balk (notificatiecentrum, tabel notifications) ----------
+let BEL={rows:[],geladen:false,kanaal:null,laden:null};
+function belHtml(){
+  return '<div class="belwrap"><button class="belbtn" title="Notificaties" onclick="belToggle(event)"><svg class="i"><use href="#i-bell"/></svg><span class="belbadge" id="bel-badge" style="display:none"></span></button>'+
+    '<div class="belpanel" id="bel-panel" onclick="event.stopPropagation()"></div></div>';
+}
+// De soorten die de coach aan heeft staan (Instellingen > Notificaties, app-vinkje)
+function belZichtbaar(){const n=notifPrefs();return BEL.rows.filter(r=>n.app[r.soort]!==false);}
+function belStart(){
+  if(myRole()==="lid")return;
+  belBadge();
+  if(!BEL.laden){
+    BEL.laden=db.from("notifications").select("*").eq("recipient_id",ME.user.id).order("created_at",{ascending:false}).limit(40)
+      .then(({data})=>{BEL.rows=data||[];BEL.geladen=true;belBadge();});
+  }
+  if(!BEL.kanaal){
+    try{
+      BEL.kanaal=db.channel("bel").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},p=>{
+        const r=p.new;if(!r||r.recipient_id!==ME.user.id)return;
+        BEL.rows.unshift(r);belBadge();belPanelVernieuw();
+      }).subscribe();
+    }catch(e){}
+  }
+}
+function belStop(){
+  if(BEL.kanaal){try{db.removeChannel(BEL.kanaal);}catch(e){}BEL.kanaal=null;}
+  BEL={rows:[],geladen:false,kanaal:null,laden:null};
+}
+function belBadge(){
+  const b=document.getElementById("bel-badge");if(!b)return;
+  const n=belZichtbaar().filter(r=>!r.read_at).length;
+  b.style.display=n?"":"none";b.textContent=n>9?"9+":n;
+}
+function belToggle(ev){
+  ev.stopPropagation();
+  const p=document.getElementById("bel-panel");if(!p)return;
+  if(p.classList.contains("show")){p.classList.remove("show");return;}
+  p.classList.add("show");belPanelVernieuw();
+}
+// Alleen (her)tekenen als het paneel open is; realtime-inserts bij een dicht
+// paneel werken alleen de badge bij.
+function belPanelVernieuw(){
+  const p=document.getElementById("bel-panel");if(!p||!p.classList.contains("show"))return;
+  const rows=belZichtbaar().slice(0,30);
+  const ongelezen=rows.some(r=>!r.read_at);
+  p.innerHTML='<div class="belkop">'+(ongelezen?'<span class="bellink" onclick="belAllesGelezen()">Markeer alles als gelezen</span>':'<span class="sm muted">Notificaties</span>')+'</div>'+
+    (rows.length?rows.map(belRijHtml).join(""):'<div class="belleeg">'+(BEL.geladen?"Geen notificaties.":"Laden…")+'</div>');
+}
+function belRijHtml(r){
+  const iconen={workout:"✅",reactie:"💬",bericht:"💬",video:"🎥",foto:"📷",pr:"🏆"};
+  return '<div class="belrij'+(r.read_at?"":" on")+'" onclick="belKlik(\''+r.id+'\')">'+
+    '<span class="belico">'+(iconen[r.soort]||"🔔")+'</span>'+
+    '<span class="beltxt">'+esc(belTekst(r))+'<span class="beltijd">'+belTijd(r.created_at)+'</span></span>'+
+    (r.read_at?"":'<span class="beldot"></span>')+'</div>';
+}
+function belTekst(r){
+  const naam=notifKlantNaam(r.athlete_id);
+  const dag=r.workout_date?" van "+datumNL(r.workout_date):"";
+  if(r.soort==="workout")return naam+" heeft de hele workout"+dag+" afgerond";
+  if(r.soort==="reactie")return naam+" reageerde op de workout"+dag;
+  if(r.soort==="bericht")return naam+" heeft je een bericht gestuurd";
+  if(r.soort==="video")return naam+" uploadde een video bij de workout"+dag;
+  if(r.soort==="foto")return naam+" uploadde voortgangsfoto's";
+  if(r.soort==="pr")return naam+" logde een nieuwe PR"+(r.info?" · "+r.info:"");
+  return naam;
+}
+function belTijd(ts){
+  const min=Math.max(0,Math.round((Date.now()-new Date(ts).getTime())/60000));
+  if(min<1)return "zojuist";
+  if(min<60)return min+" min geleden";
+  const uur=Math.round(min/60);
+  if(uur<24)return uur+" uur geleden";
+  const dag=Math.round(uur/24);
+  return dag===1?"gisteren":dag+" dagen geleden";
+}
+async function belKlik(id){
+  const r=BEL.rows.find(x=>x.id===id);if(!r)return;
+  if(!r.read_at){
+    r.read_at=new Date().toISOString();
+    belBadge();
+    db.from("notifications").update({read_at:r.read_at}).eq("id",id).then(()=>{});
+  }
+  const p=document.getElementById("bel-panel");if(p)p.classList.remove("show");
+  // Met één klik naar de juiste plek
+  if(r.soort==="bericht"){if(typeof dashBericht==="function")dashBericht(r.athlete_id);return;}
+  if(!r.athlete_id)return;
+  const bestaat=(coachClients||[]).some(c=>c.id===r.athlete_id);
+  if(!bestaat){toast("Deze klant staat niet (meer) in jouw lijst");return;}
+  openClient(r.athlete_id);
+  if(r.soort==="pr"&&typeof openMx==="function")setTimeout(()=>{try{openMx();}catch(e){}},150);
+  if(r.soort==="foto")setTimeout(()=>{try{renderClient("profiel");if(typeof pfTab!=="undefined"){pfTab="fotos";renderProfielPagina();}}catch(e){}},150);
+}
+async function belAllesGelezen(){
+  const nu=new Date().toISOString();
+  BEL.rows.forEach(r=>{if(!r.read_at)r.read_at=nu;});
+  belBadge();belPanelVernieuw();
+  try{await db.from("notifications").update({read_at:nu}).eq("recipient_id",ME.user.id).is("read_at",null);}catch(e){}
+}
+// Gelezen-sync: als de coach het gesprek zelf opent, gaat de bel-melding ook uit.
+function belMarkeerSoort(athleteId,soort){
+  const nu=new Date().toISOString();
+  BEL.rows.forEach(r=>{if(r.athlete_id===athleteId&&r.soort===soort&&!r.read_at)r.read_at=nu;});
+  belBadge();belPanelVernieuw();
+  db.from("notifications").update({read_at:nu}).eq("recipient_id",ME.user.id).eq("athlete_id",athleteId).eq("soort",soort).is("read_at",null).then(()=>{});
+}
+document.addEventListener("click",()=>{const p=document.getElementById("bel-panel");if(p)p.classList.remove("show");});

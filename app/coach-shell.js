@@ -155,8 +155,8 @@ function coachShellHtml(inner){
   // Avatar rechtsboven = uitklapmenu (naar CoachRx-voorbeeld, 17 juli): naam +
   // rol bovenin, Instellingen (komt nog) en Uitloggen (losse knop is weg).
   return '<div class="cwrap"><div class="cbar"><span class="logo"><img class="ypmark" src="img/logo-yp-mark.png" alt="">Your<b>Program</b></span><div class="cnav2">'+btns+'</div>'+
-    '<div class="cbar-right"><span style="font-size:10px;color:#8f959d;font-weight:700;text-transform:uppercase;letter-spacing:.6px">'+esc(ROLE_NL[myRole()]||"")+'</span>'+
-    '<div class="avwrap"><button class="cav" style="'+avFotoStyle(ME.profile)+'" title="Menu" onclick="avMenuToggle(event)">'+avFotoText(ME.profile)+'</button>'+
+    '<div class="cbar-right">'+(typeof belHtml==="function"?belHtml():"")+
+    '<div class="avwrap"><button class="cavbtn" title="Menu" onclick="avMenuToggle(event)"><span class="cav" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><svg class="i cav-caret"><use href="#i-chev"/></svg></button>'+
     '<div class="avmenu" id="avmenu">'+
       '<div class="avm-kop"><span class="avm-av" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><span><b>'+esc(naamVan(ME.profile))+'</b><span class="avm-rol">'+esc(ROLE_NL[myRole()]||"")+'</span></span></div>'+
       '<button onclick="coachGo(\'settings\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+
@@ -174,6 +174,7 @@ document.addEventListener("click",e=>{
 function coachRenderSection(){
   msgBadgeStart();
   if(typeof startNotifs==="function")startNotifs();
+  if(typeof belStart==="function")belStart();
   const c=document.getElementById("content");
   if(coachSection==="clients"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillKlanten();return;}
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}

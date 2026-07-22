@@ -276,6 +276,8 @@ async function openDayComments(wid,aid){
   document.getElementById("wc-inp").value="";
   wcRender();
   document.getElementById("wcmodal").classList.add("show");
+  // Bel-notificatie van deze reacties gaat ook op gelezen
+  if(typeof belMarkeerSoort==="function")belMarkeerSoort(aid,"reactie");
   // Reacties van het lid op gelezen zetten (alleen de eigen coach mag dat)
   if(p.coach_id===ME.user.id){
     const ids=WCC.filter(m=>m.author_id===m.athlete_id&&!m.read_at).map(m=>m.id);
