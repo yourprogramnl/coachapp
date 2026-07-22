@@ -193,6 +193,11 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 #cs-dagen-pop.show{display:block}
 .dagknop{width:26px;height:26px;border-radius:7px;border:1px solid #3a3f46;background:#1c2025;color:#8f959d;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:capitalize}
 .dagknop.aan{background:#22c55e;border-color:#22c55e;color:#0c1116}
+/* Afstreep-vinkje op de klantenlijst (bij een actief tag-filter) */
+.afvink{width:22px;height:22px;border-radius:50%;border:2px solid #cfd4db;background:#fff;cursor:pointer;flex:none;margin-right:2px;color:#fff;font-size:12px;font-weight:800;line-height:1;padding:0}
+.afvink:hover{border-color:var(--accent)}
+.afvink.aan{background:var(--ok,#27b376);border-color:var(--ok,#27b376)}
+.ktag.aan{outline:2px solid var(--accent);outline-offset:1px}
 /* Randkleur-knopjes in het foto-bijsnijvenster */
 .fcbg{width:22px;height:22px;border-radius:50%;border:1px solid #d0d4da;cursor:pointer;padding:0}
 /* Tabellen in het AI-coach-antwoord */
