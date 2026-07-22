@@ -6,7 +6,7 @@ let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid
 let coachList=[],coachFilterId=null;
 // Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
 let resWid=null;
-const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
+const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 function openClient(id){
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
   // Staff (eigenaar/admin): standaard programmeer je de coach van deze klant.
@@ -27,7 +27,7 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()"};
+    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",coachrx:"openCoachRx()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()"};
     const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
     const later=acties[s[0]]?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
