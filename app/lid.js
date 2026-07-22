@@ -75,7 +75,7 @@ function lidChatKnop(unread){
   let btn=document.getElementById("lidchat-btn");
   if(!btn){
     btn=document.createElement("button");btn.id="lidchat-btn";btn.title="Chat met je coach";
-    btn.style.cssText="position:fixed;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:#4f8bff;color:#fff;border:none;box-shadow:0 6px 18px rgba(30,60,120,.35);cursor:pointer;z-index:60;display:flex;align-items:center;justify-content:center";
+    btn.style.cssText="position:fixed;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;box-shadow:0 6px 18px rgba(30,60,120,.35);cursor:pointer;z-index:60;display:flex;align-items:center;justify-content:center";
     btn.innerHTML='<svg class="i" style="width:22px;height:22px;color:#fff"><use href="#i-chat"/></svg><span id="lidchat-badge" style="position:absolute;top:-4px;right:-4px;background:#e5484d;color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 5px">0</span>';
     btn.onclick=lidChatOpen;
     document.body.appendChild(btn);
@@ -135,11 +135,11 @@ function lidWeekstrip(weekWs){
     if(blokken.length){
       if(klaar)mark='<span style="color:#25a56a;font-weight:800;font-size:11px">✓</span>';
       else if(dsr<todayStr())mark='<span style="color:#e5484d;font-weight:800;font-size:11px">×</span>';
-      else mark='<span style="width:6px;height:6px;border-radius:50%;background:#4f8bff;display:inline-block"></span>';
+      else mark='<span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>';
     }
     cells+='<div style="flex:1;text-align:center">'+
       '<div class="sm muted" style="font-size:10px;font-weight:700;letter-spacing:.4px">'+DAGEN[i]+'</div>'+
-      '<div style="width:36px;height:36px;margin:4px auto 0;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;'+(isToday?'border:2px solid #4f8bff':'border:2px solid transparent')+'">'+
+      '<div style="width:36px;height:36px;margin:4px auto 0;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;'+(isToday?'border:2px solid var(--accent)':'border:2px solid transparent')+'">'+
         '<div style="font-size:12px;font-weight:700">'+d.getDate()+'</div>'+
         '<div style="height:11px;line-height:11px;display:flex;align-items:center">'+mark+'</div>'+
       '</div></div>';

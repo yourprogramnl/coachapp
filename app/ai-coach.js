@@ -65,7 +65,7 @@ function aiTekstHtml(t){
 function aiRender(){
   const host=document.getElementById("ai-gesprek");if(!host)return;
   host.innerHTML=AI.gesprek.map(m=>{
-    if(m.role==="user")return '<div style="align-self:flex-end;max-width:82%;background:#e8f4fb;border:1px solid #cfe7f5;border-radius:14px 14px 4px 14px;padding:10px 14px;font-size:13.5px;white-space:pre-wrap">'+esc(m.content)+'</div>';
+    if(m.role==="user")return '<div style="align-self:flex-end;max-width:82%;background:color-mix(in srgb,var(--accent) 11%,#fff);border:1px solid color-mix(in srgb,var(--accent) 24%,#fff);border-radius:14px 14px 4px 14px;padding:10px 14px;font-size:13.5px;white-space:pre-wrap">'+esc(m.content)+'</div>';
     return '<div style="align-self:flex-start;max-width:92%;background:#fff;border:1px solid #e7e9ec;border-radius:14px 14px 14px 4px;padding:12px 16px;font-size:13.5px;line-height:1.6">'+aiTekstHtml(m.content)+
       (m.info?'<div class="sm muted" style="margin-top:10px;padding-top:8px;border-top:1px solid #f0f1f3;font-size:11px">'+esc(m.info)+'</div>':'')+'</div>';
   }).join("")+(AI.bezig?'<div style="align-self:flex-start" class="sm muted">De AI-coach leest het archief en schrijft een antwoord…</div>':'');

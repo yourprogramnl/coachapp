@@ -41,13 +41,21 @@ function composePresc(b){
 }
 
 // Merkkleur uit het bedrijfsthema ook in dit dashboard (Instellingen > Thema,
-// schakelaar "ook in dit dashboard"): zet de CSS-variabele --accent om.
+// schakelaar "ook in dit dashboard"). Let op: de coach-interface definieert
+// --accent opnieuw binnen .cwrap, dus we overschrijven op die laag, met
+// afgeleide tinten (donkerder voor tekst, heel licht voor pill-achtergronden).
+function kleurTint(hex,f){
+  const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  const t=v=>Math.max(0,Math.min(255,Math.round(f>0?v+(255-v)*f:v*(1+f))));
+  return "#"+[t(r),t(g),t(b)].map(v=>v.toString(16).padStart(2,"0")).join("");
+}
 function pasDashKleur(theme){
-  if(theme&&theme.dash_aan&&/^#[0-9a-fA-F]{6}$/.test(theme.color||"")){
-    document.documentElement.style.setProperty("--accent",theme.color);
-  }else{
-    document.documentElement.style.removeProperty("--accent");
-  }
+  let st=document.getElementById("dashkleur");
+  const aan=theme&&theme.dash_aan&&/^#[0-9a-fA-F]{6}$/.test(theme.color||"");
+  if(!aan){if(st)st.remove();return;}
+  const k=theme.color,d=kleurTint(k,-.22),licht=kleurTint(k,.88);
+  if(!st){st=document.createElement("style");st.id="dashkleur";document.head.appendChild(st);}
+  st.textContent=":root,.cwrap{--accent:"+k+";--accent-d:"+d+";--teal-bg:"+licht+"}";
 }
 // Gedeelde render-helpers (gebruikt door alle schermen)
 function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
