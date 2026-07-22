@@ -192,16 +192,15 @@ function kiesBlokKleur(el,k){
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
 function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+exMediaHtml(b.media)+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
-// Meegereisde template-video's in de bouwer: kleine klikbare tegels
-// (thumbnail + play; klik = YouTube-speler in de plaats van de tegel, via
-// tplVidSpeel uit de bibliotheek). Het lid krijgt dezelfde video's in de app.
+// Demo-video's op een blok in de bouwer: kleine klikbare tegels (thumbnail +
+// play) mét verwijder-kruisje; komen uit templates of uit Genereer media.
+// Het lid krijgt dezelfde video's in de app. gmTegel/gmRowTegelWeg staan in
+// genereer-media.js (zelfde globale scope).
 function exMediaHtml(media){
   const vids=Array.isArray(media)?media.filter(m=>m&&m.youtube_id):[];
   if(!vids.length)return"";
-  return '<div class="exmedia" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;align-items:center">'+
-    vids.map(v=>'<div class="tplvid" data-yt="'+esc(v.youtube_id)+'" title="'+esc(v.titel||"Video")+'">'+
-      '<div class="tplvid-thumb" onclick="event.stopPropagation();ytSpeel(this.closest(\'.tplvid\').getAttribute(\'data-yt\'))" style="position:relative;width:76px;height:46px;border-radius:7px;background:#000 url(\'https://i.ytimg.com/vi/'+esc(v.youtube_id)+'/mqdefault.jpg\') center/cover;cursor:pointer;flex:none">'+
-        '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center"><svg width="9" height="9" viewBox="0 0 12 12" fill="#fff"><path d="M2 1l8 5-8 5z"/></svg></span></span></div></div>').join("")+
+  return '<div class="exmedia" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:7px;align-items:center">'+
+    vids.map((v,i)=>gmTegel(v,"gmRowTegelWeg(this,"+i+")")).join("")+
     '<span class="sm muted" style="margin-left:2px">'+vids.length+' demo-video'+(vids.length===1?"":"\'s")+' · gaan mee voor het lid</span></div>';
 }
 // Demo-video groot in het midden van het scherm, met kruisje om te sluiten
@@ -292,10 +291,11 @@ function toggleVid(cam){
 // ---------- Demo-video koppelen aan warming-up / cooldown (vrije-tekstblokken) ----------
 function cwNaamVan(oefId){if(!oefId)return"";const o=(LIB.oef||[]).find(x=>String(x.id)===String(oefId));return o?o.naam:"";}
 function cwChipHtml(kind,naam){return '<span class="vidchip"><span onclick="cwToggleVid(\''+kind+'\')" style="cursor:pointer" title="Bekijk video">🎥 '+esc(naam||"Demo-video")+'</span> <span class="x" onclick="cwChipWeg(\''+kind+'\')">✕</span></span>';}
-function cwMediaHtml(kind,oefId){
+function cwMediaHtml(kind,oefId,media){
   const lbl=kind==="warmup"?"warming-up":"cooldown";
   const heeft=!!oefId;
-  return '<div class="cwmedia" id="wm_'+kind+'" data-oefid="'+(oefId||"")+'">'+
+  return '<div class="cwmedia" id="wm_'+kind+'" data-oefid="'+(oefId||"")+'" data-gmedia="'+esc(media&&media.length?JSON.stringify(media):"")+'">'+
+    gmStripHtml(kind,media)+
     '<input class="cwn" placeholder="Zoek een oefening voor de demo-video…" oninput="cwZoek(this,\''+kind+'\')" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();cwDropWeg(this);}" autocomplete="off" style="display:none">'+
     '<div class="exdrop"></div>'+
     '<div class="cwchip">'+(heeft?cwChipHtml(kind,cwNaamVan(oefId)):"")+'</div>'+
@@ -403,11 +403,11 @@ function inlineBuilderHtml(w){
       '<textarea id="w_notes" rows="1" placeholder="Coach&#39;s notes">'+esc(w.coach_notes||"")+'</textarea>'+
       '<div style="border-top:1px solid #e7e9ec;margin:6px 0 4px"></div>'+
       '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
-      cwMediaHtml("warmup",w.warmup_oefening_id)+
+      cwMediaHtml("warmup",w.warmup_oefening_id,w.warmup_media)+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
-    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+cwMediaHtml("cooldown",w.cooldown_oefening_id)+'</div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button><button title="Herken oefeningen in de tekst en stel demo-video\'s voor" onclick="gmOpen()">🎥 Genereer media</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+cwMediaHtml("cooldown",w.cooldown_oefening_id,w.cooldown_media)+'</div>'+
     '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+'</div>'+
     '<div class="msg" id="wmsg" style="font-size:11px;min-height:0"></div>';
 }
@@ -432,7 +432,7 @@ function mcardHtml(w){
       cardComBtn(w)+'</div>';
   }
   let done=0,total=0,inner="";
-  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+(w.warmup_oefening_id?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
+  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{
     total++;
     const r=monthResults[b.id];
@@ -450,7 +450,7 @@ function mcardHtml(w){
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+
       '</div>';
   });
-  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+(w.cooldown_oefening_id?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
+  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
     '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     cardComBtn(w)+'</div>';
@@ -822,7 +822,7 @@ async function pickRest(ev){
   toast("Dag ingesteld als rustdag");renderMonth();
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
-function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,
+function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
   blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
@@ -846,7 +846,7 @@ async function pickPaste(ev){
   for(const t of KLEMBORD){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const datum=off?ymdPlus(curDay,off):curDay;
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
@@ -941,7 +941,7 @@ async function insWeekwod(id){
     closeIns();toast("Weekworkout als blok toegevoegd; het lid logt hem met Rx/Scaled en komt op het gedeelde leaderboard");return;
   }
   if(insDoel==="blogcel"){ // weekworkout-kopie op de blog-kalender (Blog-sectie)
-    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,source_blog_workout_id:w.id}).select().single();
+    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,source_blog_workout_id:w.id}).select().single();
     if(error){toast(error.message||"Invoegen mislukt");return;}
     if(blocks.length){
       const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null})));
@@ -949,7 +949,7 @@ async function insWeekwod(id){
     }
     closeIns();toast("Weekworkout ingevoegd in het programma");await blogHerlaad();return;
   }
-  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,source_blog_workout_id:w.id}).select().single();
+  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,source_blog_workout_id:w.id}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   if(blocks.length){
     const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null})));
@@ -982,7 +982,7 @@ async function saveWorkout(){
   const wm=g("wmsg");
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   g("saveW").disabled=true;
-  const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown")};
+  const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown"),warmup_media:gmStripLees("warmup"),cooldown_media:gmStripLees("cooldown")};
   const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null}));
   try{
     if(editWid){
