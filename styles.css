@@ -21,7 +21,33 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#3eb3e0}
 textarea{min-height:54px;resize:vertical}
 label{font-size:13px;font-weight:600;color:var(--muted)}
 .field{margin-bottom:13px}
-#login{max-width:380px;margin:8vh auto 0}#login .card{padding:26px}
+/* ---------- Inlogscherm in YourProgram-stijl: donker met goud ---------- */
+#login{position:fixed;inset:0;z-index:300;margin:0;max-width:none;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 16px;overflow:auto;
+  background:#0E0E10;
+  background-image:radial-gradient(900px 520px at 50% -12%,rgba(217,180,74,.14),transparent 62%),radial-gradient(720px 440px at 88% 112%,rgba(217,180,74,.07),transparent 55%)}
+#login.hidden{display:none}
+.login-kop{text-align:center;margin-bottom:24px}
+.login-mark{height:60px;width:auto;display:block;margin:0 auto 12px;filter:drop-shadow(0 8px 22px rgba(217,180,74,.35))}
+.login-kop .logo{font-size:30px;color:#fff;letter-spacing:.5px}
+.login-sub{color:#83878f;font-size:11.5px;margin-top:8px;letter-spacing:2.4px;text-transform:uppercase}
+#login .card{width:100%;max-width:400px;background:linear-gradient(180deg,#1a1a1e,#141417);border:1px solid #2a2a30;border-radius:20px;padding:30px 28px;
+  box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(217,180,74,.05)}
+#login .tabs{background:#101013;border:1px solid #26262c;border-radius:12px;padding:4px;gap:4px;margin-bottom:20px}
+#login .tabs button{background:transparent;border:none;color:#8a8f98;border-radius:9px;padding:10px;font-weight:700}
+#login .tabs button.on{background:#232329;color:#f1d87b;box-shadow:inset 0 0 0 1px rgba(217,180,74,.35)}
+#login .field label{display:block;color:#9aa0a8;font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
+#login .field input{width:100%;box-sizing:border-box;background:#101013;border:1px solid #2b2b31;border-radius:11px;color:#f2f2f2;padding:12px 13px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+#login .field input:focus{border-color:#D9B44A;box-shadow:0 0 0 3px rgba(217,180,74,.14)}
+#login .field input::placeholder{color:#565b63}
+#login input[readonly]{opacity:.6}
+#login .btn{background:linear-gradient(135deg,#F0D27E,#D9B44A,#A8842B);color:#0E0E10;font-weight:800;letter-spacing:.4px;border-radius:12px;padding:13px 16px;font-size:14px}
+#login .btn:hover{filter:brightness(1.07)}
+#login .btn:disabled{opacity:.55;cursor:default}
+#login .muted{color:#8a8f98}
+#login h3{color:#fff}
+#login .msg{color:#9aa0a8}#login .msg.err{color:#ff8087}#login .msg.ok{color:#4ade80}
+#login #inv-welkom{background:rgba(217,180,74,.1);border:1px solid rgba(217,180,74,.35);color:#f1d87b;padding:11px 13px;border-radius:11px;font-size:13px;line-height:1.55}
+#login .lnk{background:none;border:none;color:#D9B44A;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:12.5px}
 .pfwrap{max-width:780px;margin:22px auto;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:28px}
 .pfav{width:76px;height:76px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;margin:0 auto 12px}
 .pfgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
