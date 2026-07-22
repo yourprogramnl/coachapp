@@ -172,11 +172,12 @@ async function blogOpen(id){
   await blogLaadWeek();
   blogRender();
 }
-function blogTerug(){BLOG.cur=null;BLOG.editDay=null;BLOG.editWid=null;fillBlog();}
+function blogTerug(){BLOG.cur=null;BLOG.editDay=null;BLOG.editWid=null;blogSelClear();fillBlog();}
 async function blogLaadWeek(){
   const start=ymd(BLOG.weekStart),eind=ymd(addDays(BLOG.weekStart,6));
   const{data}=await db.from("workouts").select("*, blocks(*)").eq("blog_program_id",BLOG.cur.id).gte("workout_date",start).lte("workout_date",eind).order("workout_date");
   BLOG.workouts=data||[];
+  blogSelClear(); // selectie hoort bij de zichtbare week
 }
 async function blogWeekGa(n){
   BLOG.weekStart=n===0?mondayOf(new Date()):addDays(BLOG.weekStart,n*7);
@@ -245,24 +246,103 @@ function blogDayCel(datum){
   const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
   const vandaag=datum===todayStr();
   const stijl="min-height:420px;"+(vandaag?"outline:2px solid #6ec4e8;outline-offset:-2px;":"");
+  const dragAttrs=' ondragover="blogDragOver(event,this)" ondragleave="blogDragLeave(this)" ondrop="blogDropDay(event,\''+datum+'\')"';
   if(BLOG.editDay===datum){
     let inner=wos.filter(w=>w.id!==BLOG.editWid).map(blogCard).join("");
     const w=BLOG.editWid?wos.find(x=>x.id===BLOG.editWid):null;
     const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.blocks||[])}:{};
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+blogBuilderHtml(wObj)+'</div>';
-    return '<div class="pe-cell" style="'+stijl+'">'+inner+'</div>';
+    return '<div class="pe-cell" style="'+stijl+'"'+dragAttrs+'>'+inner+'</div>';
   }
-  return '<div class="pe-cell" style="'+stijl+'"><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();blogDayMenu(event,\''+datum+'\')">+ Toevoegen</button></div>'+wos.map(blogCard).join("")+'</div>';
+  return '<div class="pe-cell" style="'+stijl+'"'+dragAttrs+'><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();blogDayMenu(event,\''+datum+'\')">+ Toevoegen</button>'+
+    (wos.length?'<button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();blogKopieerDag(\''+datum+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>':'')+
+    '</div>'+wos.map(blogCard).join("")+'</div>';
+}
+// Zweefmenu op elke blog-kaart: zelfde bediening als de klant-kalender
+// (potlood = bewerken, greep = slepen, kopiëren, verwijderen + selectievakje).
+function blogCardTools(w){
+  return '<input type="checkbox" class="cardsel"'+(blogSel.has(w.id)?' checked':'')+' title="Selecteren" onclick="event.stopPropagation();blogToggleSelect(this,\''+w.id+'\')">'+
+    '<span class="cardtools" onclick="event.stopPropagation()">'+
+    '<button title="Bewerken" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
+    '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="blogDragStart(event,\''+w.id+'\')" ondragend="blogDragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
+    '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();blogKopieer(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    '<button title="Verwijderen" onclick="event.stopPropagation();blogDeleteWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
+    '</span>';
 }
 function blogCard(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  const sel=blogSel.has(w.id)?" selected":"";
   const isRest=!blocks.length&&/^rest ?day$/i.test((w.title||"").trim());
-  if(isRest)return '<div class="mcard planned" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')"><div class="msc"><span style="color:#27b376">Rest Day</span></div></div>';
+  if(isRest)return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span style="color:#27b376">Rest Day</span></div></div>';
   let inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard planned" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="delx" title="Kopieer workout" onclick="event.stopPropagation();blogKopieer(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></span></div>'+inner+'</div>';
+  return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
+}
+// ---------- Slepen, dag kopiëren en selecteren (zelfde gedrag als de klant-kalender) ----------
+let blogDragWid=null,blogSel=new Set();
+function blogDragStart(ev,wid){
+  blogDragWid=wid;
+  try{ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",wid);}catch(e){}
+  const card=ev.target.closest(".mcard");
+  if(card&&ev.dataTransfer.setDragImage)ev.dataTransfer.setDragImage(card,24,18);
+}
+function blogDragEnd(){blogDragWid=null;document.querySelectorAll(".pe-cell.dragover").forEach(c=>c.classList.remove("dragover"));}
+function blogDragOver(ev,cell){if(!blogDragWid)return;ev.preventDefault();cell.classList.add("dragover");}
+function blogDragLeave(cell){cell.classList.remove("dragover");}
+async function blogDropDay(ev,ds){
+  ev.preventDefault();
+  document.querySelectorAll(".pe-cell.dragover").forEach(c=>c.classList.remove("dragover"));
+  const wid=blogDragWid;blogDragWid=null;
+  if(!wid)return;
+  const w=BLOG.workouts.find(x=>x.id===wid);
+  if(!w||w.workout_date===ds)return; // loslaten op dezelfde dag = niks doen
+  const{error}=await db.from("workouts").update({workout_date:ds}).eq("id",wid);
+  if(error){toast(error.message||"Verplaatsen mislukt");return;}
+  toast("Workout verplaatst");
+  await blogHerlaad();
+}
+function blogKopieerDag(datum){
+  const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
+  if(!wos.length){toast("Geen workout op deze dag");return;}
+  KLEMBORD=wos.map(wTemplate);
+  toast(wos.length>1?wos.length+" workouts gekopieerd, ga naar een dag en kies Plakken":"Workout gekopieerd, ga naar een dag en kies Plakken");
+}
+function blogToggleSelect(cb,wid){
+  if(cb.checked)blogSel.add(wid);else blogSel.delete(wid);
+  const card=cb.closest(".mcard");if(card)card.classList.toggle("selected",cb.checked);
+  blogSelBar();
+}
+function blogSelClear(){
+  blogSel.clear();
+  document.querySelectorAll(".mcard.selected").forEach(c=>c.classList.remove("selected"));
+  document.querySelectorAll(".cardsel:checked").forEach(c=>c.checked=false);
+  blogSelBar();
+}
+function blogSelKopieer(){
+  const ws=[...blogSel].map(id=>BLOG.workouts.find(w=>w.id===id)).filter(Boolean);
+  if(!ws.length){toast("Niets geselecteerd");return;}
+  KLEMBORD=ws.map(wTemplate);
+  toast(ws.length+" workout"+(ws.length>1?"s":"")+" gekopieerd, ga naar een dag en kies Plakken");
+}
+async function blogSelVerwijder(){
+  const ids=[...blogSel];
+  if(!ids.length)return;
+  if(!confirm(ids.length+" workout"+(ids.length>1?"s":"")+" uit het programma verwijderen?"))return;
+  const{error}=await db.from("workouts").delete().in("id",ids);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  toast(ids.length+" verwijderd");
+  await blogHerlaad();
+}
+// Zelfde zwarte selectiebalk als de klant-kalender (hergebruikt de #selbar-stijl).
+function blogSelBar(){
+  let bar=document.getElementById("selbar");
+  if(!blogSel.size){if(bar)bar.remove();return;}
+  if(!bar){bar=document.createElement("div");bar.id="selbar";document.body.appendChild(bar);}
+  bar.innerHTML='<span class="n">'+blogSel.size+'</span><span>geselecteerd</span><button class="lnk" onclick="blogSelClear()">Selectie wissen</button>'+
+    '<button class="ic" title="Klaarzetten om te plakken" onclick="blogSelKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    '<button class="ic" title="Verwijderen" onclick="blogSelVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
 }
 // Dag-menu met dezelfde vier opties als de klant-kalender.
 let insBlogDatum=null;
