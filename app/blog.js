@@ -9,9 +9,10 @@ const BLOG_TYPES=[["classic","Classic"],["fixed","Vast"],["one_on_one","1-op-1"]
 const blogTypeNL=t=>{const x=BLOG_TYPES.find(o=>o[0]===t);return x?x[1]:(t||"Classic");};
 
 async function fillBlog(){
-  const[rp,rl]=await Promise.all([
+  const[rp,rm]=await Promise.all([
     db.from("blog_programs").select("*").eq("company_id",ME.profile.company_id).order("name"),
-    db.from("profiles").select("id,blog_program_id").eq("role","lid").eq("archived",false)
+    // Meerdere programma's per lid (22 juli): koppelingen staan in blog_program_members
+    db.from("blog_program_members").select("athlete_id,blog_program_id").eq("company_id",ME.profile.company_id)
   ]);
   BLOG.list=rp.data||[];
   // Een coach ziet alleen blogs die aan hem zijn toegewezen (coach_ids leeg =
@@ -19,7 +20,7 @@ async function fillBlog(){
   // wisselmenu op het klant-scherm.
   if(myRole()==="coach")BLOG.list=BLOG.list.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id));
   kalBlogs=BLOG.list; // wisselmenu op het klant-scherm meteen bijwerken
-  BLOG.counts={};(rl.data||[]).forEach(p=>{if(p.blog_program_id)BLOG.counts[p.blog_program_id]=(BLOG.counts[p.blog_program_id]||0)+1;});
+  BLOG.counts={};(rm.data||[]).forEach(m=>{BLOG.counts[m.blog_program_id]=(BLOG.counts[m.blog_program_id]||0)+1;});
   ensureBlogModals();
   if(BLOG.cur){const v=BLOG.list.find(p=>p.id===BLOG.cur.id);if(v)BLOG.cur=v;else BLOG.cur=null;}
   // Vanuit het wisselmenu op het klant-scherm: direct door naar dit programma.
@@ -430,33 +431,50 @@ async function blogDeleteWorkout(id){
 }
 
 // ---------- Leden koppelen ----------
+// Sinds 22 juli: élk lid (1-op-1 én blog) kan één of meerdere blogprogramma's
+// volgen; de koppelingen staan in blog_program_members.
 async function blogLedenOpen(){
   ensureBlogModals();
   document.getElementById("blogled-lijst").innerHTML='<div class="cempty">Laden…</div>';
   document.getElementById("blogledmodal").classList.add("show");
-  // Alleen blog-leden: 1-op-1 klanten hebben hun eigen programma en volgen nooit een blogprogramma.
-  const{data}=await db.from("profiles").select("id,first_name,last_name,email,avatar_url,blog_program_id").eq("role","lid").eq("membership_type","free_blog").eq("archived",false).order("first_name");
-  BLOG.leden=data||[];
+  const[rl,rm]=await Promise.all([
+    db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("role","lid").eq("archived",false).order("first_name"),
+    db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id)
+  ]);
+  BLOG.leden=rl.data||[];
+  BLOG.mems=rm.data||[];
   blogLedenRender();
 }
 function blogLedenRender(){
   const host=document.getElementById("blogled-lijst");if(!host)return;
-  if(!BLOG.leden.length){host.innerHTML='<div class="cempty">Geen blog-leden gevonden. Alleen leden met lidmaatschap "blog" kunnen een blogprogramma volgen; 1-op-1 klanten hebben hun eigen programma.</div>';return;}
+  if(!BLOG.leden.length){host.innerHTML='<div class="cempty">Geen leden gevonden.</div>';return;}
   host.innerHTML=BLOG.leden.map(p=>{
-    const aan=p.blog_program_id===BLOG.cur.id;
-    const ander=p.blog_program_id&&!aan?(BLOG.list.find(x=>x.id===p.blog_program_id)||{}).name:null;
+    const volgt=(BLOG.mems||[]).filter(m=>m.athlete_id===p.id);
+    const aan=volgt.some(m=>m.blog_program_id===BLOG.cur.id);
+    const ander=volgt.filter(m=>m.blog_program_id!==BLOG.cur.id).map(m=>(BLOG.list.find(x=>x.id===m.blog_program_id)||{}).name).filter(Boolean);
+    const typePill=p.membership_type==="one_on_one"?'<span class="cpill gray" style="font-size:9.5px">1-op-1</span>':'<span class="cpill gray" style="font-size:9.5px">blog</span>';
     return '<div class="tagrow" style="cursor:pointer" onclick="blogLidToggle(\''+p.id+'\')">'+
       '<div class="cavc" style="width:28px;height:28px;font-size:10px;flex:none;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
-      '<div style="flex:1"><b style="font-size:12.5px">'+naamVan(p)+'</b>'+(ander?'<div class="sm muted" style="font-size:11px">volgt nu: '+esc(ander)+'</div>':'')+'</div>'+
+      '<div style="flex:1"><b style="font-size:12.5px">'+naamVan(p)+'</b> '+typePill+(ander.length?'<div class="sm muted" style="font-size:11px">volgt ook: '+esc(ander.join(", "))+'</div>':'')+'</div>'+
       '<span class="cpill '+(aan?"ok":"gray")+'">'+(aan?"gekoppeld":"koppel")+'</span></div>';
   }).join("");
 }
 async function blogLidToggle(pid){
   const p=BLOG.leden.find(x=>x.id===pid);if(!p)return;
-  const nieuw=p.blog_program_id===BLOG.cur.id?null:BLOG.cur.id;
-  const{error}=await db.from("profiles").update({blog_program_id:nieuw}).eq("id",pid);
-  if(error){toast(error.message||"Koppelen mislukt");return;}
-  p.blog_program_id=nieuw;
+  const bestaand=(BLOG.mems||[]).find(m=>m.athlete_id===pid&&m.blog_program_id===BLOG.cur.id);
+  if(bestaand){
+    const{error}=await db.from("blog_program_members").delete().eq("id",bestaand.id);
+    if(error){toast(error.message||"Ontkoppelen mislukt");return;}
+    BLOG.mems=BLOG.mems.filter(m=>m!==bestaand);
+  }else{
+    const{data,error}=await db.from("blog_program_members").insert({company_id:ME.profile.company_id,blog_program_id:BLOG.cur.id,athlete_id:pid}).select().single();
+    if(error){toast(error.message||"Koppelen mislukt");return;}
+    BLOG.mems.push(data);
+  }
+  // profiles.blog_program_id gelijkhouden met het eerste programma, zodat
+  // oudere app-builds (die nog één programma kennen) blijven werken.
+  const eerste=((BLOG.mems||[]).find(m=>m.athlete_id===pid)||{}).blog_program_id||null;
+  try{await db.from("profiles").update({blog_program_id:eerste}).eq("id",pid);}catch(e){}
   blogLedenRender(); // tellers verversen bij het sluiten (fillBlog)
 }
 async function blogLedenDicht(){

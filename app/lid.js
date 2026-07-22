@@ -2,7 +2,7 @@
 // met loggen per blok (score + voltooid/gemist), plus de weekworkout met score
 // loggen (Rx/Scaled, privé/openbaar) en het gedeelde leaderboard (hergebruikt
 // WW/wwBoardInner uit weekworkout.js).
-let LID={blog:null,eigen:null,rx:"rx",openbaar:true,dagWs:[],dagRes:{},progNaam:""};
+let LID={blog:null,eigen:null,rx:"rx",openbaar:true,dagWs:[],dagRes:{},progNamen:{}};
 
 async function renderLid(){
   document.body.classList.remove("coachmode");
@@ -11,23 +11,25 @@ async function renderLid(){
   // de rest voor de weekstrip bovenaan (puntje/vinkje/kruis per dag).
   const maandag=mondayOf(new Date()),zondag=addDays(maandag,6);
   const{data:eigenWk}=await db.from("workouts").select("*, blocks(*)").eq("client_id",ME.user.id).gte("workout_date",ymd(maandag)).lte("workout_date",ymd(zondag)).order("workout_date");
-  // Blogprogramma alleen voor blog-leden: 1-op-1 klanten hebben hun eigen
-  // programma en zien nooit een blogprogramma (afspraak Stefan, 16 juli).
-  let progWk=[];LID.progNaam="";
-  if(ME.profile.membership_type==="free_blog"&&ME.profile.blog_program_id){
-    try{
-      const[{data:pws},{data:prog}]=await Promise.all([
-        db.from("workouts").select("*, blocks(*)").eq("blog_program_id",ME.profile.blog_program_id).gte("workout_date",ymd(maandag)).lte("workout_date",ymd(zondag)).order("workout_date"),
-        db.from("blog_programs").select("name").eq("id",ME.profile.blog_program_id).single()
+  // Gevolgde blogprogramma's (sinds 22 juli meerdere mogelijk, en ook voor
+  // 1-op-1 klanten): koppelingen staan in blog_program_members.
+  let progWk=[];LID.progNamen={};
+  try{
+    const{data:mems}=await db.from("blog_program_members").select("blog_program_id").eq("athlete_id",ME.user.id);
+    const ids=[...new Set((mems||[]).map(m=>m.blog_program_id))];
+    if(ids.length){
+      const[{data:pws},{data:progs}]=await Promise.all([
+        db.from("workouts").select("*, blocks(*)").in("blog_program_id",ids).gte("workout_date",ymd(maandag)).lte("workout_date",ymd(zondag)).order("workout_date"),
+        db.from("blog_programs").select("id,name").in("id",ids)
       ]);
       progWk=pws||[];
-      LID.progNaam=(prog&&prog.name)||"";
-    }catch(e){progWk=[];}
-  }
+      (progs||[]).forEach(p=>{LID.progNamen[p.id]=p.name;});
+    }
+  }catch(e){progWk=[];}
   const weekWs=[...(eigenWk||[]),...progWk];
   const w=(eigenWk||[]).find(x=>x.workout_date===todayStr())||null;
-  const wProg=progWk.find(x=>x.workout_date===todayStr())||null;
-  LID.dagWs=[w,wProg].filter(Boolean);LID.dagRes={};
+  const wProgs=progWk.filter(x=>x.workout_date===todayStr());
+  LID.dagWs=[w,...wProgs].filter(Boolean);LID.dagRes={};
   const metBlokken=weekWs.filter(x=>(x.blocks||[]).length);
   if(metBlokken.length){
     // Eigen resultaten van deze week: weekstrip + voorvullen + status per blok
@@ -38,8 +40,8 @@ async function renderLid(){
   }
   let body=lidWeekstrip(weekWs);
   if(w)body+=lidWorkoutKaart(w,"vandaag");
-  if(wProg)body+=lidWorkoutKaart(wProg,LID.progNaam?"programma · "+esc(LID.progNaam):"programma");
-  if(!w&&!wProg)body+='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';
+  wProgs.forEach(pw=>{body+=lidWorkoutKaart(pw,"programma · "+esc(LID.progNamen[pw.blog_program_id]||""));});
+  if(!w&&!wProgs.length)body+='<div class="card" style="padding:20px"><div class="muted">Geen workout voor vandaag. Geniet van je rustdag! 💪</div></div>';
   // Weekworkout van het bedrijf (audience='blog'), voor 1-op-1 én blog-leden.
   let wwHtml="";LID.blog=null;
   // Weekworkout alleen tonen als de coach hem niet heeft verborgen voor dit lid.

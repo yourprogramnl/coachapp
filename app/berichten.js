@@ -18,16 +18,19 @@ async function fillBerichten(){
   const{data:ms}=await db.from("messages").select("*").order("created_at");
   BER.msgs=ms||[];
   // Groepschats: groepen + lidmaatschappen + berichten + blogprogramma's (voor de snelkeuzes)
-  const[gq,lq,gm,pq]=await Promise.all([
+  const[gq,lq,gm,pq,bm]=await Promise.all([
     db.from("chat_groups").select("*").order("created_at"),
     db.from("chat_group_members").select("*"),
     db.from("chat_group_messages").select("*").order("created_at"),
     db.from("blog_programs").select("id,name"),
+    db.from("blog_program_members").select("athlete_id,blog_program_id"),
   ]);
   BER.groups=(gq.data||[]).filter(g=>myRole()!=="coach"||g.created_by===ME.user.id||(lq.data||[]).some(m=>m.group_id===g.id&&m.profile_id===ME.user.id));
   BER.leden=lq.data||[];
   BER.gmsgs=gm.data||[];
   BER.programs=pq.data||[];
+  // Per lid alle gevolgde blogprogramma's (sinds 22 juli meerdere mogelijk)
+  BER.progVan={};(bm.data||[]).forEach(m=>{(BER.progVan[m.athlete_id]=BER.progVan[m.athlete_id]||[]).push(m.blog_program_id);});
   if(BER.cur&&!String(BER.cur).startsWith("g:")&&!BER.clients.some(c=>c.id===BER.cur))BER.cur=null;
   berRender();
   berRealtime();
@@ -275,7 +278,7 @@ function berGroepKiesHtml(zoek,aangevinkt){
     '<span class="sm muted" style="margin-left:auto">'+rol+'</span></label>';
   const kop=t=>'<div class="sm muted" style="padding:4px 8px;font-weight:600">'+t+'</div>';
   const stafHtml=sts.map(c=>rij(c,c.role==="coach"?"coach":c.role==="eigenaar"?"eigenaar":"admin",'data-rol="staf" ')).join("");
-  const klantHtml=cs.map(c=>rij(c,c.membership_type==="free_blog"?"blog":"1-op-1",'data-mt="'+esc(c.membership_type||"")+'" data-bp="'+esc(c.blog_program_id||"")+'" ')).join("");
+  const klantHtml=cs.map(c=>rij(c,c.membership_type==="free_blog"?"blog":"1-op-1",'data-mt="'+esc(c.membership_type||"")+'" data-bp="'+esc(((BER.progVan||{})[c.id]||[]).join(","))+'" ')).join("");
   return (stafHtml?kop("Coaches")+stafHtml:"")+(klantHtml?(stafHtml?kop("Klanten"):"")+klantHtml:"");
 }
 function berGroepZoekF(v){
@@ -289,7 +292,7 @@ function berGroepSnel(wat){
     else if(wat==="een"&&cb.dataset.mt==="one_on_one")cb.checked=true;
     else if(wat==="blog"&&cb.dataset.mt==="free_blog")cb.checked=true;
     else if(wat==="coaches"&&cb.dataset.rol==="staf")cb.checked=true;
-    else if(wat.indexOf("p:")===0&&cb.dataset.bp===wat.slice(2))cb.checked=true;
+    else if(wat.indexOf("p:")===0&&(cb.dataset.bp||"").split(",").includes(wat.slice(2)))cb.checked=true;
   });
 }
 async function berGroepOpslaan(){
