@@ -3,6 +3,14 @@
 // Zodra de FORGE-app publiek in de App Store staat: hier de link invullen; het
 // succes-scherm voor nieuwe leden toont dan een echte downloadknop.
 const APP_STORE_URL="";
+// Wachtwoord-eis, op één plek zodat de uitleg en de controle altijd gelijk lopen.
+const PW_EIS="Minimaal 8 tekens, met minstens één letter en één cijfer.";
+function pwProbleem(pw){
+  if(pw.length<8)return "Het wachtwoord moet minimaal 8 tekens lang zijn.";
+  if(!/[a-zA-Z]/.test(pw))return "Het wachtwoord moet minstens één letter bevatten.";
+  if(!/[0-9]/.test(pw))return "Het wachtwoord moet minstens één cijfer bevatten.";
+  return "";
+}
 let inviteRol="";
 let mode="in";
 function setMode(m){
@@ -11,6 +19,7 @@ function setMode(m){
   document.getElementById("tab-up").classList.toggle("on",m==="up");
   document.getElementById("go").textContent=m==="in"?"Inloggen":"Account aanmaken";
   const p2=document.getElementById("pw2-veld");if(p2)p2.style.display=m==="up"?"":"none";
+  const eis=document.getElementById("pw-eis");if(eis)eis.style.display=m==="up"?"":"none";
   setMsg("");
 }
 function setMsg(t,k){const e=document.getElementById("msg");e.textContent=t||"";e.className="msg "+(k||"");}
@@ -40,7 +49,8 @@ async function submitAuth(){
   if(!email||!pw){setMsg("Vul e-mail en wachtwoord in.","err");return;}
   if(mode==="up"){
     const pw2=(document.getElementById("pw2")||{}).value||"";
-    if(pw.length<8){setMsg("Kies een wachtwoord van minimaal 8 tekens.","err");return;}
+    const fout=pwProbleem(pw);
+    if(fout){setMsg(fout,"err");return;}
     if(pw!==pw2){setMsg("De wachtwoorden zijn niet gelijk.","err");return;}
   }
   document.getElementById("go").disabled=true;
@@ -148,7 +158,7 @@ function toonNieuwWachtwoord(){
   const kaart=document.querySelector("#login .card");if(!kaart)return;
   if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
   kaart.innerHTML='<h3 style="margin:0 0 6px">Nieuw wachtwoord instellen</h3>'+
-    '<div class="muted" style="font-size:13px;margin-bottom:14px">Kies een nieuw wachtwoord voor je account (minimaal 8 tekens).</div>'+
+    '<div class="muted" style="font-size:13px;margin-bottom:14px">Kies een nieuw wachtwoord voor je account. '+PW_EIS+'</div>'+
     '<div class="field"><label>Nieuw wachtwoord</label><input id="rc-pw1" type="password" placeholder="••••••••"></div>'+
     '<div class="field"><label>Herhaal nieuw wachtwoord</label><input id="rc-pw2" type="password" placeholder="••••••••"></div>'+
     '<button class="btn" id="rc-go" style="width:100%" onclick="nieuwWachtwoordOpslaan()">Opslaan en inloggen</button>'+
@@ -158,7 +168,8 @@ async function nieuwWachtwoordOpslaan(){
   const p1=document.getElementById("rc-pw1").value,p2=document.getElementById("rc-pw2").value;
   const m=document.getElementById("rc-msg");
   const zeg=(t,k)=>{m.textContent=t;m.className="msg "+(k||"");};
-  if(p1.length<8){zeg("Minimaal 8 tekens.","err");return;}
+  const fout=pwProbleem(p1);
+  if(fout){zeg(fout,"err");return;}
   if(p1!==p2){zeg("De wachtwoorden zijn niet gelijk.","err");return;}
   document.getElementById("rc-go").disabled=true;
   const{error}=await db.auth.updateUser({password:p1});
