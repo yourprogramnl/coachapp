@@ -40,7 +40,7 @@ function blogRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   if(BLOG.cur){blogDetailRender();return;}
   cp.innerHTML='<div class="progedit"><div class="hrow"><h1>Blog</h1><button class="btn" onclick="blogpModal(null)">+ Programma aanmaken</button></div>'+
-    '<div style="margin-bottom:14px"><input class="lid-in" id="blog-zoek" placeholder="Zoek een programma…" style="width:100%;max-width:340px" oninput="blogZoek(this.value)" value="'+esc(BLOG.zoek)+'"></div>'+
+    '<div style="margin:12px 0 14px"><input class="lid-in" id="blog-zoek" placeholder="Zoek een programma…" style="width:100%;max-width:340px" oninput="blogZoek(this.value)" value="'+esc(BLOG.zoek)+'"></div>'+
     '<div class="card">'+
       '<div class="thead"><div style="flex:2.6">Programma</div><div style="flex:.9">Type</div><div style="flex:.9">Prijs</div><div style="flex:.7">Klanten</div><div style="width:40px"></div></div>'+
       '<div id="blog-lijst">'+blogLijstHtml()+'</div>'+

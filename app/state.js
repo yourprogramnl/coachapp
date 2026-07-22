@@ -40,6 +40,15 @@ function composePresc(b){
   let s=segs.join(" ");if(b.rest)s+=(s?" · ":"")+"rust "+b.rest;return s;
 }
 
+// Merkkleur uit het bedrijfsthema ook in dit dashboard (Instellingen > Thema,
+// schakelaar "ook in dit dashboard"): zet de CSS-variabele --accent om.
+function pasDashKleur(theme){
+  if(theme&&theme.dash_aan&&/^#[0-9a-fA-F]{6}$/.test(theme.color||"")){
+    document.documentElement.style.setProperty("--accent",theme.color);
+  }else{
+    document.documentElement.style.removeProperty("--accent");
+  }
+}
 // Gedeelde render-helpers (gebruikt door alle schermen)
 function header(title,sub){return '<h2>'+esc(title)+'</h2>'+(sub?'<div class="muted">'+esc(sub)+'</div>':'');}
 const naamVan=p=>esc([p.first_name,p.last_name].filter(Boolean).join(" ")||p.email);

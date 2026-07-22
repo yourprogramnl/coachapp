@@ -30,7 +30,7 @@ function wwRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   cp.innerHTML='<div class="lbwrap">'+
     '<div class="hrow"><h1>Workout van de week</h1><button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div>'+
-    (WW.list.length?'<div style="margin-bottom:14px"><input class="lid-in" id="ww-zoek" placeholder="Zoek op naam of datum (bijv. 15 juli)…" style="width:100%;max-width:340px" oninput="wwZoek(this.value)" value="'+esc(WW.zoek)+'"></div>':'')+
+    (WW.list.length?'<div style="margin:12px 0 14px"><input class="lid-in" id="ww-zoek" placeholder="Zoek op naam of datum (bijv. 15 juli)…" style="width:100%;max-width:340px" oninput="wwZoek(this.value)" value="'+esc(WW.zoek)+'"></div>':'')+
     '<div id="ww-cards">'+wwCardsHtml()+'</div>'+
     (WW.list.length?'<div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Alleen scores die een lid op "openbaar" zet staan erop; privé-scores ziet alleen de eigen coach.</div>':'')+
   '</div>';

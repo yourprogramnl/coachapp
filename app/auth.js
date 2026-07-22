@@ -198,6 +198,13 @@ async function loadApp(){
     history.replaceState(null,"",location.pathname);
     localStorage.removeItem("invite_token");
   }
+  // Merkkleur van het bedrijf ook in het dashboard, als die schakelaar aanstaat
+  if(ME.profile.company_id){
+    try{
+      const{data:comp}=await db.from("companies").select("theme").eq("id",ME.profile.company_id).single();
+      pasDashKleur(comp&&comp.theme);
+    }catch(e){}
+  }
   const role=ME.profile.role||"lid";
   document.getElementById("roleLabel").textContent=ROLE_NL[role]||role;
   document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();

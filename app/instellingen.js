@@ -96,7 +96,8 @@ async function instPaneel(){
           '<span class="sm muted">of kies:</span>'+
           THEMA_PRESETS.map(k=>'<span class="th-preset" style="background:'+k+'" onclick="'+(mag?'thPreset(\''+k+'\')':'')+'"></span>').join("")+
         '</div></div>'+
-        '<label class="pf-toggle" style="margin:2px 0 14px"><input type="checkbox" id="th-grad"'+(instThema.gradient?" checked":"")+' onchange="thZet(\'gradient\',this.checked)"'+dis+'><span class="pf-sw"></span> Kleurverloop (metallic-effect, zoals ons goud)</label>'+
+        '<label class="pf-toggle" style="margin:2px 0 8px"><input type="checkbox" id="th-grad"'+(instThema.gradient?" checked":"")+' onchange="thZet(\'gradient\',this.checked)"'+dis+'><span class="pf-sw"></span> Kleurverloop (metallic-effect, zoals ons goud)</label>'+
+        '<label class="pf-toggle" style="margin:0 0 14px"><input type="checkbox" id="th-dash"'+(instThema.dash_aan?" checked":"")+' onchange="thZet(\'dash_aan\',this.checked)"'+dis+'><span class="pf-sw"></span> Gebruik de merkkleur ook in dit dashboard (knoppen en accenten)</label>'+
         '<div class="field"><label>Typografie (koppen in de app)</label><div style="display:flex;gap:8px">'+
           [["modern","Modern"],["vet","Vet"],["smal","Smal"]].map(f=>'<button class="btn '+(instThema.font===f[0]?"":"ghost ")+'sm" onclick="'+(mag?'thZet(\'font\',\''+f[0]+'\')':'')+'">'+f[1]+'</button>').join("")+
         '</div></div>'+
@@ -276,6 +277,7 @@ async function thOpslaan(){
   const{error}=await db.from("companies").update({theme:instThema}).eq("id",ME.profile.company_id);
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
   if(instCompany)instCompany.theme=instThema;
+  pasDashKleur(instThema); // dashboard kleurt direct mee (of terug naar blauw)
   toast("Thema opgeslagen. Sporters zien het bij de volgende keer openen van de app.");
   instPaneel();
 }
