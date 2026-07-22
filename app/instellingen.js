@@ -46,7 +46,8 @@ async function instPaneel(){
       '<div class="instbanner"><span class="instav-wrap"><span class="instav groot" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+
         '<input type="file" id="inst-foto" accept="image/*" style="display:none" onchange="instFotoUpload(this)">'+
         '<button class="instav-pen" id="inst-fotoknop" title="Foto wijzigen" onclick="document.getElementById(\'inst-foto\').click()"><svg class="i sm-i"><use href="#i-pen"/></svg></button></span>'+
-        '<b style="font-size:19px">'+esc(naamVan(p))+'</b></div>'+
+        '<span><b style="font-size:19px">'+esc(naamVan(p))+'</b>'+
+        (p.avatar_url?'<div class="instlink" style="margin-top:3px;font-size:12px" onclick="instFotoAanpassen()">Foto passend maken</div>':'')+'</span></div>'+
       '<div class="instgrid">'+
         '<div>'+
           '<div style="display:flex;gap:12px"><div class="field" style="flex:1"><label>Voornaam</label><input id="inst-vn" value="'+esc(p.first_name||"")+'"></div>'+
@@ -62,7 +63,7 @@ async function instPaneel(){
           '<div class="field"><label>Bedrijfsnaam</label><input id="inst-bedrijf" value="'+esc(bedrijf.name||"")+'"'+(magBedrijf?"":" disabled")+'></div>'+
           '<div class="field"><label>Bedrijfslogo</label><div style="display:flex;align-items:center;gap:12px">'+
             '<span class="instlogo"'+(bedrijf.logo_url?' style="background-image:url(\''+esc(bedrijf.logo_url)+'\');background-size:cover;background-position:center"':'')+'>'+(bedrijf.logo_url?'':'<svg class="i"><use href="#i-cam"/></svg>')+'</span>'+
-            (magBedrijf?'<input type="file" id="inst-logo" accept="image/*" style="display:none" onchange="instLogoUpload(this)"><button class="btn ghost sm" id="inst-logoknop" onclick="document.getElementById(\'inst-logo\').click()">Logo uploaden</button><span class="sm muted">Max 5 MB.</span>':'<span class="sm muted">Alleen de eigenaar kan het logo wijzigen.</span>')+
+            (magBedrijf?'<input type="file" id="inst-logo" accept="image/*" style="display:none" onchange="instLogoUpload(this)"><button class="btn ghost sm" id="inst-logoknop" onclick="document.getElementById(\'inst-logo\').click()">Logo uploaden</button>'+(bedrijf.logo_url?'<button class="btn ghost sm" onclick="instLogoAanpassen()">Passend maken</button>':'')+'<span class="sm muted">Max 5 MB.</span>':'<span class="sm muted">Alleen de eigenaar kan het logo wijzigen.</span>')+
           '</div></div>'+
         '</div>'+
       '</div>'+
@@ -320,11 +321,18 @@ async function instLogoUpload(input){
   if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
   // Eerst passend maken (vierkant kader voor het logo)
   const snede=await fotoCrop(file,{rond:false});
+  await instLogoZet(snede);
+}
+async function instLogoAanpassen(){
+  const url=instCompany&&instCompany.logo_url;if(!url)return;
+  const snede=await fotoCropVanUrl(url,{rond:false});
+  await instLogoZet(snede);
+}
+async function instLogoZet(snede){
   if(!snede)return;
   const knop=document.getElementById("inst-logoknop");
   if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-  const ext=snede.ext;
-  const path=ME.profile.company_id+"/logo/"+crypto.randomUUID()+"."+ext;
+  const path=ME.profile.company_id+"/logo/"+crypto.randomUUID()+"."+snede.ext;
   const{error:upErr}=await db.storage.from("avatars").upload(path,snede.blob,{contentType:snede.type,upsert:false});
   if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Logo uploaden";}return;}
   const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
@@ -348,20 +356,28 @@ async function instFotoUpload(input){
   if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
   // Eerst passend maken (zoomen/slepen) zodat de foto goed in het rondje valt
   const snede=await fotoCrop(file,{rond:true});
+  await instFotoZet(snede);
+}
+// De huidige foto bijstellen zonder opnieuw te uploaden
+async function instFotoAanpassen(){
+  if(!ME.profile.avatar_url)return;
+  const snede=await fotoCropVanUrl(ME.profile.avatar_url,{rond:true});
+  await instFotoZet(snede);
+}
+async function instFotoZet(snede){
   if(!snede)return;
   const knop=document.getElementById("inst-fotoknop");
-  if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-  const ext=snede.ext;
-  const path=(ME.profile.company_id||"x")+"/"+ME.user.id+"/"+crypto.randomUUID()+"."+ext;
+  if(knop)knop.disabled=true;
+  const path=(ME.profile.company_id||"x")+"/"+ME.user.id+"/"+crypto.randomUUID()+"."+snede.ext;
   const{error:upErr}=await db.storage.from("avatars").upload(path,snede.blob,{contentType:snede.type,upsert:false});
-  if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Foto wijzigen";}return;}
+  if(upErr){toast(upErr.message||"Upload mislukt");if(knop)knop.disabled=false;return;}
   const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
   const url=(pub&&pub.publicUrl)?pub.publicUrl:null;
   const oud=ME.profile.avatar_url;
   const{data,error}=await db.from("profiles").update({avatar_url:url}).eq("id",ME.user.id).select().single();
   if(error){
     await db.storage.from("avatars").remove([path]); // geen wees-bestand achterlaten
-    toast(error.message||"Opslaan mislukt");if(knop){knop.disabled=false;knop.textContent="Foto wijzigen";}return;
+    toast(error.message||"Opslaan mislukt");if(knop)knop.disabled=false;return;
   }
   Object.assign(ME.profile,data||{avatar_url:url});
   if(oud){const m=String(oud).split("/avatars/");if(m[1])db.storage.from("avatars").remove([decodeURIComponent(m[1])]);}

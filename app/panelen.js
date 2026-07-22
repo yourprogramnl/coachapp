@@ -1042,7 +1042,7 @@ function pfRenderProfiel(p){
   body.innerHTML='<div class="pfwrap">'+
     '<div class="pfav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
     '<input type="file" id="pf-fotofile" accept="image/*" style="display:none" onchange="avatarUpload(this)">'+
-    '<div style="text-align:center;margin-bottom:6px"><button class="btn ghost sm" id="pf-fotoknop" onclick="document.getElementById(\'pf-fotofile\').click()">Kies een afbeelding</button></div>'+
+    '<div style="text-align:center;margin-bottom:6px;display:flex;gap:6px;justify-content:center"><button class="btn ghost sm" id="pf-fotoknop" onclick="document.getElementById(\'pf-fotofile\').click()">Kies een afbeelding</button>'+(p.avatar_url?'<button class="btn ghost sm" onclick="klantFotoAanpassen()">Passend maken</button>':'')+'</div>'+
     '<div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:20px" id="pf-naam-label">'+esc(naam)+'</div>'+
     '<div class="pfgrid">'+
       '<div class="field"><label>Voornaam *</label><input id="pf-voornaam" value="'+esc(p.first_name||"")+'"></div>'+
@@ -1131,11 +1131,21 @@ async function avatarUpload(input){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return;
   // Eerst passend maken (zoomen/slepen) zodat de foto goed in het rondje valt
   const snede=await fotoCrop(file,{rond:true});
+  await klantFotoZet(snede);
+}
+// De huidige klant-foto bijstellen zonder opnieuw te uploaden
+async function klantFotoAanpassen(){
+  const p=coachClients.find(x=>x.id===calClient);
+  if(!p||!p.avatar_url)return;
+  const snede=await fotoCropVanUrl(p.avatar_url,{rond:true});
+  await klantFotoZet(snede);
+}
+async function klantFotoZet(snede){
   if(!snede)return;
+  const p=coachClients.find(x=>x.id===calClient);if(!p)return;
   const knop=document.getElementById("pf-fotoknop");
   if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-  const ext=snede.ext;
-  const path=ME.profile.company_id+"/"+calClient+"/"+crypto.randomUUID()+"."+ext;
+  const path=ME.profile.company_id+"/"+calClient+"/"+crypto.randomUUID()+"."+snede.ext;
   const{error:upErr}=await db.storage.from("avatars").upload(path,snede.blob,{contentType:snede.type,upsert:false});
   if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Kies een afbeelding";}return;}
   const{data:pub}=db.storage.from("avatars").getPublicUrl(path);

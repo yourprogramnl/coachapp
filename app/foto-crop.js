@@ -16,7 +16,7 @@ function fcEnsure() {
       '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin:14px 2px 4px">' +
         '<span class="sm muted" style="font-size:11px">−</span>' +
-        '<input type="range" id="fc-zoom" min="100" max="400" value="100" style="flex:1;accent-color:var(--accent);padding:0" oninput="fcZoom(this.value)">' +
+        '<input type="range" id="fc-zoom" min="40" max="400" value="100" style="flex:1;accent-color:var(--accent);padding:0" oninput="fcZoom(this.value)">' +
         '<span class="sm muted" style="font-size:14px">+</span>' +
       '</div>' +
       '<div class="sm muted" style="text-align:center;font-size:11.5px;margin-bottom:10px">Sleep om te verschuiven, schuif om in te zoomen.</div>' +
@@ -39,16 +39,24 @@ function fcEnsure() {
   vlak.addEventListener("pointercancel", los);
 }
 function fcSchaal() { return FC.s0 * FC.zoom; }
-// De afbeelding moet het hele vlak blijven bedekken
-function fcKlem() {
-  const s = fcSchaal(), w = FC.img.width * s, h = FC.img.height * s;
-  FC.ox = Math.min(0, Math.max(FC_VIEW - w, FC.ox));
-  FC.oy = Math.min(0, Math.max(FC_VIEW - h, FC.oy));
+// Groter dan het vlak: het vlak blijft bedekt. Kleiner (uitgezoomd): de
+// afbeelding blijft binnen het vlak, met rand eromheen.
+function fcKlemAs(pos, maat) {
+  if (maat >= FC_VIEW) return Math.min(0, Math.max(FC_VIEW - maat, pos));
+  return Math.max(0, Math.min(FC_VIEW - maat, pos));
 }
+function fcKlem() {
+  const s = fcSchaal();
+  FC.ox = fcKlemAs(FC.ox, FC.img.width * s);
+  FC.oy = fcKlemAs(FC.oy, FC.img.height * s);
+}
+function fcPng() { return FC.type === "image/png" || FC.type === "image/webp" || FC.type === "image/svg+xml"; }
 function fcTeken() {
   const c = document.getElementById("fc-canvas"); if (!c || !FC.img) return;
   const ctx = c.getContext("2d");
   ctx.clearRect(0, 0, FC_VIEW, FC_VIEW);
+  // Bij uitzoomen krijgt een foto (JPEG) een witte rand; PNG blijft doorzichtig
+  if (!fcPng()) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, FC_VIEW, FC_VIEW); }
   const s = fcSchaal();
   ctx.drawImage(FC.img, FC.ox, FC.oy, FC.img.width * s, FC.img.height * s);
 }
@@ -72,35 +80,54 @@ function fcKlaar(gebruik) {
   const uitC = document.createElement("canvas");
   uitC.width = FC_UIT; uitC.height = FC_UIT;
   const ctx = uitC.getContext("2d");
+  // PNG behoudt doorzichtigheid (logo's); foto's worden compacte JPEG met
+  // een witte rand als er is uitgezoomd
+  const png = fcPng();
+  if (!png) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, FC_UIT, FC_UIT); }
   const f = FC_UIT / FC_VIEW, s = fcSchaal() * f;
-  ctx.drawImage(FC.img, FC.ox * f, FC.oy * f, FC.img.width * s, FC.img.height * s);
-  // PNG behoudt doorzichtigheid (logo's); foto's worden compacte JPEG
-  const png = FC.type === "image/png" || FC.type === "image/webp" || FC.type === "image/svg+xml";
+  try {
+    ctx.drawImage(FC.img, FC.ox * f, FC.oy * f, FC.img.width * s, FC.img.height * s);
+  } catch (e) { done(null); return; }
   uitC.toBlob(blob => {
-    if (!blob) { done(null); return; }
+    if (!blob) { toast("Bijsnijden mislukt, probeer de foto opnieuw te uploaden"); done(null); return; }
     done({ blob, ext: png ? "png" : "jpg", type: png ? "image/png" : "image/jpeg" });
   }, png ? "image/png" : "image/jpeg", 0.9);
+}
+function fcOpen(img, type, opts, resolve) {
+  fcEnsure();
+  FC.img = img; FC.type = type || "image/jpeg"; FC.zoom = 1;
+  FC.s0 = Math.max(FC_VIEW / img.width, FC_VIEW / img.height);
+  FC.ox = (FC_VIEW - img.width * FC.s0) / 2;
+  FC.oy = (FC_VIEW - img.height * FC.s0) / 2;
+  FC.resolve = resolve;
+  document.getElementById("fc-zoom").value = 100;
+  document.getElementById("fc-mask").style.borderRadius = opts.rond === false ? "12px" : "50%";
+  document.getElementById("fc-mask").style.boxShadow = opts.rond === false ? "none" : "0 0 0 9999px rgba(17,18,20,.45)";
+  fcTeken();
+  document.getElementById("fcmodal").classList.add("show");
 }
 function fotoCrop(file, opts) {
   opts = opts || {};
   return new Promise(resolve => {
-    fcEnsure();
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      FC.img = img; FC.type = file.type || "image/jpeg"; FC.zoom = 1;
-      FC.s0 = Math.max(FC_VIEW / img.width, FC_VIEW / img.height);
-      FC.ox = (FC_VIEW - img.width * FC.s0) / 2;
-      FC.oy = (FC_VIEW - img.height * FC.s0) / 2;
-      FC.resolve = resolve;
-      document.getElementById("fc-zoom").value = 100;
-      document.getElementById("fc-mask").style.borderRadius = opts.rond === false ? "12px" : "50%";
-      document.getElementById("fc-mask").style.boxShadow = opts.rond === false ? "none" : "0 0 0 9999px rgba(17,18,20,.45)";
-      fcTeken();
-      document.getElementById("fcmodal").classList.add("show");
-    };
+    img.onload = () => { URL.revokeObjectURL(url); fcOpen(img, file.type, opts, resolve); };
     img.onerror = () => { URL.revokeObjectURL(url); toast("Kon de afbeelding niet openen"); resolve(null); };
+    img.src = url;
+  });
+}
+// Zelfde venster, maar met de huidige (al geüploade) foto als startpunt, zodat
+// je hem kunt bijstellen zonder opnieuw te uploaden.
+function fotoCropVanUrl(url, opts) {
+  opts = opts || {};
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = "anonymous"; // nodig om de canvas-uitsnede te mogen opslaan
+    img.onload = () => {
+      const type = /\.png(\?|$)/i.test(url) ? "image/png" : "image/jpeg";
+      fcOpen(img, type, opts, resolve);
+    };
+    img.onerror = () => { toast("Kon de huidige foto niet openen; upload hem opnieuw"); resolve(null); };
     img.src = url;
   });
 }
