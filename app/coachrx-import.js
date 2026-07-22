@@ -141,15 +141,40 @@ function crxMetingVoor(naam){
   if(!hit)hit=alle.find(m=>norm(m).startsWith(n)||n.startsWith(norm(m)));
   return hit||"";
 }
-// Eerste bruikbare kilogetal uit een resultaat (voorzetje; coach kan het aanpassen)
+// Beste kilogetal uit een resultaat (voorzetje; coach kan het aanpassen).
+// Sporters loggen sets als "83,86,88,91" (zonder spaties) — dat is een reeks
+// gewichten, geen decimaal getal. En "(failed)"-pogingen tellen niet mee.
 function crxKgUit(res){
-  let beste=null;
-  for(const m of String(res||"").replace(/\b\d+:\d+\b/g," ").matchAll(/(\d+(?:[.,]\d+)?)\s*(%?)/g)){
-    if(m[2]==="%")continue;
+  let t=String(res||"");
+  t=t.replace(/\b\d+:\d+(?::\d+)?(?:[.,]\d+)?\b/g," ");   // tijden (4:32) weg
+  // Mislukte pogingen weg: "77(failed)", "83 failed", "70 gemist"… Het getal
+  // mag hooguit een echte decimaal hebben (,5/,25/,75), anders zou in
+  // "82,83(failed)" ook de gelukte 82 sneuvelen.
+  t=t.replace(/(\d+(?:[.,](?:25|75|\d))?)\s*\(?\s*(failed|fail|gemist|mislukt|niet gelukt|no rep)\s*\)?/gi," ");
+  t=t.replace(/(\d+(?:[.,]\d+)?)\s*%/g," ");               // percentages weg
+  const kand=[];
+  // Getallen met "kg" erachter zijn het betrouwbaarst — die winnen.
+  for(const m of t.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)\b/gi)){
     const v=parseFloat(m[1].replace(",","."));
-    if(!isNaN(v)&&v>=20&&v<=400&&(beste==null||v>beste))beste=v;
+    if(v>=20&&v<=400)kand.push(v);
   }
-  return beste==null?"":String(beste).replace(".",",");
+  if(!kand.length){
+    t=t.replace(/\([^)]*\)/g," ");                          // commentaar tussen haakjes weg
+    // Reeksen als "55,65,70,72.5" splitsen; ",5" / ",25" / ",75" blijven decimalen.
+    for(const run of t.match(/\d+(?:[.,]\d+)*/g)||[]){
+      const delen=run.split(/[.,]/);
+      let huidig=delen[0];
+      for(let i=1;i<delen.length;i++){
+        const d=delen[i];
+        if(!huidig.includes(".")&&(d.length===1||d==="25"||d==="75"))huidig+="."+d;
+        else{kand.push(parseFloat(huidig));huidig=d;}
+      }
+      kand.push(parseFloat(huidig));
+    }
+  }
+  const ok=kand.filter(v=>!isNaN(v)&&v>=20&&v<=400);
+  if(!ok.length)return"";
+  return String(Math.max(...ok)).replace(".",",");
 }
 
 async function crxGekozen(inp){
