@@ -1129,11 +1129,14 @@ async function avatarUpload(input){
   if(!/^image\//.test(file.type||"")){toast("Kies een afbeelding");return;}
   if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
   const p=coachClients.find(x=>x.id===calClient);if(!p)return;
+  // Eerst passend maken (zoomen/slepen) zodat de foto goed in het rondje valt
+  const snede=await fotoCrop(file,{rond:true});
+  if(!snede)return;
   const knop=document.getElementById("pf-fotoknop");
   if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-  const ext=((file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,""))||"jpg";
+  const ext=snede.ext;
   const path=ME.profile.company_id+"/"+calClient+"/"+crypto.randomUUID()+"."+ext;
-  const{error:upErr}=await db.storage.from("avatars").upload(path,file,{contentType:file.type,upsert:false});
+  const{error:upErr}=await db.storage.from("avatars").upload(path,snede.blob,{contentType:snede.type,upsert:false});
   if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Kies een afbeelding";}return;}
   const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
   const url=(pub&&pub.publicUrl)?pub.publicUrl:null;

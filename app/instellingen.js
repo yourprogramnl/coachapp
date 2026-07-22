@@ -318,11 +318,14 @@ async function instLogoUpload(input){
   if(!file)return;
   if(!/^image\//.test(file.type||"")){toast("Kies een afbeelding");return;}
   if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
+  // Eerst passend maken (vierkant kader voor het logo)
+  const snede=await fotoCrop(file,{rond:false});
+  if(!snede)return;
   const knop=document.getElementById("inst-logoknop");
   if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-  const ext=((file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,""))||"png";
+  const ext=snede.ext;
   const path=ME.profile.company_id+"/logo/"+crypto.randomUUID()+"."+ext;
-  const{error:upErr}=await db.storage.from("avatars").upload(path,file,{contentType:file.type,upsert:false});
+  const{error:upErr}=await db.storage.from("avatars").upload(path,snede.blob,{contentType:snede.type,upsert:false});
   if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Logo uploaden";}return;}
   const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
   const url=(pub&&pub.publicUrl)?pub.publicUrl:null;
@@ -343,11 +346,14 @@ async function instFotoUpload(input){
   if(!file)return;
   if(!/^image\//.test(file.type||"")){toast("Kies een afbeelding");return;}
   if(file.size>5242880){toast("Afbeelding is te groot (max 5 MB)");return;}
+  // Eerst passend maken (zoomen/slepen) zodat de foto goed in het rondje valt
+  const snede=await fotoCrop(file,{rond:true});
+  if(!snede)return;
   const knop=document.getElementById("inst-fotoknop");
   if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-  const ext=((file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,""))||"jpg";
+  const ext=snede.ext;
   const path=(ME.profile.company_id||"x")+"/"+ME.user.id+"/"+crypto.randomUUID()+"."+ext;
-  const{error:upErr}=await db.storage.from("avatars").upload(path,file,{contentType:file.type,upsert:false});
+  const{error:upErr}=await db.storage.from("avatars").upload(path,snede.blob,{contentType:snede.type,upsert:false});
   if(upErr){toast(upErr.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Foto wijzigen";}return;}
   const{data:pub}=db.storage.from("avatars").getPublicUrl(path);
   const url=(pub&&pub.publicUrl)?pub.publicUrl:null;
