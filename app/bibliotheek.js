@@ -6,9 +6,9 @@ const TPLKLEUR={yellow:"#eab308",blue:"#3b82f6",purple:"#8b5cf6",red:"#ef4444",g
 const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
 const LIB_PER=50;
-let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
+let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",bmJaar:"",bmMove:"",bmFormat:"",bmDiv:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
 // Benchmark-categorieën (zelfde indeling als Strivee's Add Benchmark)
-const BM_CATS=[["girls","Girls"],["heroes","Heroes"],["open","Open"],["notable","Notable"],["custom","Custom"]];
+const BM_CATS=[["girls","Girls"],["heroes","Heroes"],["open","Open"],["quarterfinal","Quarterfinal"],["notable","Notable"],["custom","Custom"]];
 const BM_CATNAAM=Object.fromEntries(BM_CATS);
 // Programma-editor (week/dag-indeling met workouts); bouwer opent inline in de dag, net als bij een klant.
 let PROG=null,progWeek=1,progEditDay=null,progEditWid=null;
@@ -133,7 +133,7 @@ function libKop(){
   const t=document.getElementById("lib-titel");if(t)t.textContent=titels[LIB.mode];
   const subs={
     oef:"Jullie eigen videobibliotheek, live uit de database. Sporters zien de demo-video bij elke workout.",
-    benchmarks:"De bekende benchmark-workouts (Girls, Heroes, Open, Notable) plus je eigen Custom-benchmarks.",
+    benchmarks:"De bekende benchmark-workouts (Girls, Heroes, Open, Quarterfinal, Notable) plus je eigen Custom-benchmarks.",
     programs:"Gebruik de programma-index om veelgebruikte workout-sets aan je klanten toe te voegen."
   };
   const s=document.getElementById("lib-sub");if(s)s.textContent=subs[LIB.mode]||"Templates uit jullie Strivee, live uit de database. Klik op een template om naam, tekst of kleur aan te passen.";
@@ -143,8 +143,21 @@ function libKop(){
     if(LIB.mode==="oef"||LIB.mode==="programs"){leg.style.display="none";}
     else if(LIB.mode==="benchmarks"){
       leg.style.display="flex";
+      let extra="";
+      // Open en Quarterfinal zijn grote lijsten: extra filters op jaar, beweging,
+      // format en (bij Quarterfinal) divisie. De opties komen uit de data zelf.
+      if(LIB.bmCat==="open"||LIB.bmCat==="quarterfinal"){
+        const rows=LIB.bm.filter(b=>b.categorie===LIB.bmCat);
+        const jaren=[...new Set(rows.map(b=>b.jaar).filter(Boolean))].sort((a,b)=>b-a);
+        const moves=[...new Set(rows.flatMap(b=>b.tags||[]))].sort((a,b)=>a.localeCompare(b));
+        const formats=[...new Set(rows.map(b=>b.format).filter(Boolean))].sort();
+        const sel=(id,val,eerste,opts)=>'<select class="lid-in" style="width:auto;padding:6px 10px;font-size:12.5px" onchange="bmExtraFilter(\''+id+'\',this.value)"><option value="">'+eerste+'</option>'+
+          opts.map(o=>'<option value="'+esc(String(o))+'"'+(String(val)===String(o)?' selected':'')+'>'+esc(String(o))+'</option>').join("")+'</select>';
+        extra=sel("jaar",LIB.bmJaar,"Alle jaren",jaren)+sel("move",LIB.bmMove,"Alle bewegingen",moves)+sel("format",LIB.bmFormat,"Alle formats",formats);
+        if(LIB.bmCat==="quarterfinal")extra+=sel("div",LIB.bmDiv,"Individueel + age group",["Individual","Age Group"]);
+      }
       leg.innerHTML='<span class="legchip'+(LIB.bmCat===""?" aan":"")+'" onclick="bmCatFilter(\'\')">Alles</span>'+
-        BM_CATS.map(([k,n])=>'<span class="legchip'+(LIB.bmCat===k?" aan":"")+'" onclick="bmCatFilter(\''+k+'\')">'+n+'</span>').join("");
+        BM_CATS.map(([k,n])=>'<span class="legchip'+(LIB.bmCat===k?" aan":"")+'" onclick="bmCatFilter(\''+k+'\')">'+n+'</span>').join("")+extra;
     }
     else{
       leg.style.display="flex";
@@ -152,7 +165,8 @@ function libKop(){
     }
   }
 }
-function bmCatFilter(k){LIB.bmCat=LIB.bmCat===k?"":k;LIB.pag=0;libLijst();}
+function bmCatFilter(k){LIB.bmCat=LIB.bmCat===k?"":k;LIB.bmJaar="";LIB.bmMove="";LIB.bmFormat="";LIB.bmDiv="";LIB.pag=0;libLijst();}
+function bmExtraFilter(id,v){if(id==="jaar")LIB.bmJaar=v;else if(id==="move")LIB.bmMove=v;else if(id==="format")LIB.bmFormat=v;else if(id==="div")LIB.bmDiv=v;LIB.pag=0;libLijst();}
 function libLijst(){
   libKop();
   const host=document.getElementById("lib-lijst"),thead=document.getElementById("lib-thead"),pag=document.getElementById("lib-pag"),cnt=document.getElementById("lib-aantal");
@@ -211,15 +225,23 @@ function benchLijst(host,thead,pag,cnt){
   if(thead)thead.innerHTML='<div style="flex:1.6">Naam</div><div style="flex:2.8">Workout</div><div style="flex:1.2">Bewegingen</div>';
   const hits=LIB.bm.filter(b=>
     (!LIB.bmCat||b.categorie===LIB.bmCat)&&
-    (!LIB.zoek||(b.naam||"").toLowerCase().includes(LIB.zoek)||(b.tekst||"").toLowerCase().includes(LIB.zoek)||(b.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)));
+    (!LIB.bmJaar||String(b.jaar)===String(LIB.bmJaar))&&
+    (!LIB.bmMove||(b.tags||[]).includes(LIB.bmMove))&&
+    (!LIB.bmFormat||b.format===LIB.bmFormat)&&
+    (!LIB.bmDiv||b.divisie===LIB.bmDiv)&&
+    (!LIB.zoek||(b.naam||"").toLowerCase().includes(LIB.zoek)||(b.tekst||"").toLowerCase().includes(LIB.zoek)||(b.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)||String(b.jaar||"").includes(LIB.zoek)));
   if(cnt)cnt.textContent=hits.length+" benchmarks";
   host.innerHTML=hits.map(b=>{
     const eigen=b.categorie==="custom";
     const badge=b.badge?' <span class="cpill" style="background:#eef1f4;color:#5d6570;text-transform:lowercase">'+esc(b.badge)+'</span>':'';
     const cat=' <span class="cpill teal" style="text-transform:none">'+esc(BM_CATNAAM[b.categorie]||b.categorie)+'</span>';
+    const div=b.divisie?' <span class="cpill gray" style="text-transform:none">'+(b.divisie==="Age Group"?"Age group":"Individueel")+'</span>':'';
     const tg=(b.tags||[]).slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
+    // Wedstrijdregel onder de naam: format, tijdslimiet en Rx-gewichten (m/v).
+    const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;
+    const info=[b.format,b.time_cap?"cap "+b.time_cap:null,rx].filter(Boolean).join(" · ");
     return '<div class="trow" style="align-items:flex-start'+(eigen?';cursor:pointer':'')+'"'+(eigen?' onclick="bmBewerk(\''+b.id+'\')"':'')+'>'+
-      '<div style="flex:1.6"><b>'+esc(b.naam)+'</b>'+badge+cat+'</div>'+
+      '<div style="flex:1.6"><b>'+esc(b.naam)+'</b>'+badge+cat+div+(info?'<div class="sm muted" style="font-size:11px;margin-top:3px">'+esc(info)+'</div>':'')+'</div>'+
       '<div style="flex:2.8" class="sm muted">'+esc(b.tekst||"").replace(/\n/g,"<br>")+'</div>'+
       '<div style="flex:1.2">'+tg+'</div></div>';
   }).join("")||'<div class="cempty">Geen benchmarks gevonden'+(LIB.bmCat==="custom"?'. Voeg je eerste eigen benchmark toe met "+ Benchmark toevoegen".':'.')+'</div>';
