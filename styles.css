@@ -340,6 +340,8 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .kleuren{display:flex;gap:5px}
 .kc{width:16px;height:16px;border-radius:5px;cursor:pointer;border:2px solid transparent;box-sizing:border-box}
 .kc.on{border-color:#171719}
+/* Vrije kleurkiezer naast de vaste tag-kleuren */
+.kcvrij{width:22px;height:18px;padding:0;background:none;border-radius:5px}
 .tagrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f0f1f3}
 .tagrow:last-child{border-bottom:none}
 /* Programma-editor (week/dag-indeling) */
