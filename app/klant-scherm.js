@@ -35,11 +35,12 @@ function renderClient(panel){
   const c=document.getElementById("content");
   coachSection="clients"; // nav-balk blijft staan, Klanten actief
   c.innerHTML=coachShellHtml('<div class="client-layout'+(sideCollapsed?' collapsed':'')+'">'+
-    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avFotoStyle(p)+'" title="'+naamVan(p)+'">'+avFotoText(p)+'</div><div class="cnm" id="cs-cnm">'+naamVan(p)+'</div><div class="cinfo"><span id="cs-profielregel" style="display:'+(profielRegel(p)?"":"none")+'">'+esc(profielRegel(p))+'<br></span><span id="cs-email">'+esc(p.email||"")+'</span><br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
-    '<div id="cs-dagen" style="display:none;margin-top:8px"><span class="tag" style="background:#2a2e35;border-color:#33373d;color:#c9cdd4"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span></div></div>'+
+    '<div class="cside"><div class="cside-in"><div class="prof"><div class="bigav" style="'+avFotoStyle(p)+'" title="'+naamVan(p)+'">'+avFotoText(p)+'</div><div class="cnm" id="cs-cnm">'+naamVan(p)+'</div><div class="cinfo"><span id="cs-profielregel" onclick="renderClient(\'profiel\')" title="Aanpassen in het profiel" style="cursor:pointer">'+(profielRegel(p)?esc(profielRegel(p)):'gegevens invullen')+'</span><br>'+lidType+'<br><span id="cs-sessies">…</span> sessies afgerond</div>'+
+    '<div id="cs-dagen" style="display:none;margin-top:8px;position:relative"><span class="tag" style="cursor:pointer;background:#2a2e35;border-color:#33373d;color:#c9cdd4" title="Trainingsdagen aanpassen" onclick="csDagenPop(event)"><span style="width:9px;height:9px;border-radius:2px;background:#22c55e;display:inline-block;margin-right:6px;vertical-align:-1px"></span><b id="cs-dagen-txt"></b></span>'+
+    '<div id="cs-dagen-pop" onclick="event.stopPropagation()"></div></div></div>'+
     '<div class="mini-sess" id="cs-minisess" title="Sessies afgerond">…</div>'+
     '<div class="streak">Streak: <b id="cs-streak">…</b></div>'+
-    '<div class="streak" style="gap:6px;flex-wrap:wrap" id="cs-pills"><span class="cpill" style="background:#2a2e35;color:#8f959d;font-size:10px;padding:2px 8px">lifestyle: n.v.t.</span></div>'+
+    '<div class="streak" style="gap:6px;flex-wrap:wrap" id="cs-pills"></div>'+
     '<div class="cnav">'+side+'</div>'+
     '<button class="collapsebtn" title="Zijbalk in-/uitklappen" onclick="toggleSide()"><span id="cl-arrow">'+(sideCollapsed?"→":"←")+'</span></button></div></div>'+
     '<div class="cmain" id="cmain"><div class="spin">Laden…</div></div></div>');
@@ -52,9 +53,10 @@ function renderClient(panel){
 }
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
 async function vulKlantStats(p){
-  const[wq,rq]=await Promise.all([
+  const[wq,rq,ciq]=await Promise.all([
     db.from("workouts").select("id,workout_date,title").eq("client_id",p.id),
-    db.from("results").select("workout_id,status").eq("athlete_id",p.id)
+    db.from("results").select("workout_id,status").eq("athlete_id",p.id),
+    db.from("client_info").select("data").eq("athlete_id",p.id).limit(1)
   ]);
   const ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
   const doneIds=new Set((rq.data||[]).filter(r=>r.status==="completed").map(r=>r.workout_id));
@@ -76,16 +78,66 @@ async function vulKlantStats(p){
     const lbl=open[0].workout_date===td?"vandaag":DAGEN[(d.getDay()+6)%7].toLowerCase();
     el("cs-pills").insertAdjacentHTML("afterbegin",'<span class="cpill bad" style="font-size:10px;padding:2px 8px">workout te doen: '+esc(lbl)+'</span>');
   }
-  // vaste trainingsdagen (laatste 4 weken), zoals "woensdag · zaterdag" in het ontwerp
+  // vaste trainingsdagen: automatisch herkend uit de laatste 4 weken, maar de
+  // coach kan ze vastzetten (client_info.data.trainingsdagen; klik op het label)
   const von=ymd(addDays(new Date(),-27));
   const dagIdx=[...new Set(ws.filter(w=>w.workout_date>=von&&w.workout_date<=td).map(w=>{const d=new Date(w.workout_date+"T00:00:00");return (d.getDay()+6)%7;}))].sort((a,b)=>a-b);
-  if(dagIdx.length&&el("cs-dagen")){el("cs-dagen-txt").textContent=dagIdx.map(i=>DAGVOL[i]).join(" · ");el("cs-dagen").style.display="";}
+  const ci=(ciq.data&&ciq.data[0]&&ciq.data[0].data)||{};
+  csDagen.auto=dagIdx;
+  csDagen.vast=Array.isArray(ci.trainingsdagen)&&ci.trainingsdagen.length?ci.trainingsdagen:null;
+  csDagenToon();
   // naam van de coach in de kalender-kop (cache zodat renderMonth hem niet overschrijft)
   if(p.coach_id&&myRole()!=="coach"){
     const{data:cp}=await db.from("profiles").select("first_name").eq("id",p.coach_id).single();
     if(cp){coachChipNaam=cp.first_name||"";const cc=el("cs-coach");if(cc)cc.textContent="Coach "+coachChipNaam;}
   }
 }
+// Trainingsdagen-label: automatisch herkend (csDagen.auto) of vastgezet door de
+// coach (csDagen.vast, opgeslagen in client_info.data.trainingsdagen).
+let csDagen={auto:[],vast:null};
+function csDagenLijst(){return csDagen.vast&&csDagen.vast.length?csDagen.vast:csDagen.auto;}
+function csDagenToon(){
+  const txt=document.getElementById("cs-dagen-txt"),wrap=document.getElementById("cs-dagen");
+  if(!txt||!wrap)return;
+  const dagen=csDagenLijst();
+  txt.textContent=dagen.length?dagen.map(i=>DAGVOL[i]).join(" · "):"trainingsdagen instellen";
+  wrap.style.display="";
+}
+function csDagenPop(ev){
+  ev.stopPropagation();
+  const pop=document.getElementById("cs-dagen-pop");if(!pop)return;
+  if(pop.classList.contains("show")){pop.classList.remove("show");return;}
+  csDagenPopRender();pop.classList.add("show");
+}
+function csDagenPopRender(){
+  const pop=document.getElementById("cs-dagen-pop");if(!pop)return;
+  const dagen=csDagenLijst();
+  pop.innerHTML='<div style="font-size:10.5px;color:#8f959d;margin-bottom:7px">Trainingsdagen'+(csDagen.vast?'':' · automatisch herkend')+'</div>'+
+    '<div style="display:flex;gap:4px;flex-wrap:wrap">'+DAGVOL.map((d,i)=>'<button class="dagknop'+(dagen.includes(i)?' aan':'')+'" onclick="csDagenZet('+i+')">'+d.slice(0,2)+'</button>').join("")+'</div>'+
+    (csDagen.vast?'<button class="btn ghost sm" style="margin-top:9px;font-size:11px" onclick="csDagenAutoHerken()">Terug naar automatisch</button>':'');
+}
+async function csDagenZet(i){
+  let arr=[...csDagenLijst()];
+  arr=arr.includes(i)?arr.filter(x=>x!==i):[...arr,i].sort((a,b)=>a-b);
+  csDagen.vast=arr;
+  csDagenToon();csDagenPopRender();
+  await csDagenBewaar(arr);
+}
+async function csDagenAutoHerken(){
+  csDagen.vast=null;
+  csDagenToon();csDagenPopRender();
+  await csDagenBewaar(null);
+}
+// Bewaren zonder andere client_info-velden (doelen/schema/materiaal) te raken:
+// eerst de verse rij ophalen, dan alleen trainingsdagen aanpassen.
+async function csDagenBewaar(arr){
+  const{data:rows}=await db.from("client_info").select("data").eq("athlete_id",calClient).limit(1);
+  const data=(rows&&rows[0]&&rows[0].data)||{};
+  if(arr===null)delete data.trainingsdagen;else data.trainingsdagen=arr;
+  const{error}=await db.from("client_info").upsert({athlete_id:calClient,company_id:ME.profile.company_id,data,updated_by:ME.user.id},{onConflict:"athlete_id"});
+  if(error)toast(error.message||"Opslaan mislukt");
+}
+document.addEventListener("click",()=>{const pop=document.getElementById("cs-dagen-pop");if(pop)pop.classList.remove("show");});
 let calView="maand",hideScores=false;
 // Doorlopend scrollen zoals CoachRx: aantal weken groeit mee tijdens het scrollen
 let kalWeken=10,kalBusy=false,kalScrollBound=false,kalLabelMaand=null,kalScrollDoel=null,prevScrollY=null,kalAnim=0;

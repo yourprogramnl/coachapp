@@ -1120,8 +1120,7 @@ function profielHeaderVerversen(p){
   const av=document.querySelector(".cside .bigav");
   if(av){av.textContent=avFotoText(p);av.setAttribute("style",avFotoStyle(p));av.title=naam;}
   const pr=document.getElementById("cs-profielregel");
-  if(pr){const regel=profielRegel(p);pr.style.display=regel?"":"none";pr.innerHTML=regel?esc(regel)+"<br>":"";}
-  const em=document.getElementById("cs-email");if(em)em.textContent=p.email||"";
+  if(pr){const regel=profielRegel(p);pr.textContent=regel||"gegevens invullen";}
 }
 // Profielfoto uploaden naar de publieke 'avatars'-bucket; avatar_url op profiles wijst naar de publieke URL.
 async function avatarUpload(input){
