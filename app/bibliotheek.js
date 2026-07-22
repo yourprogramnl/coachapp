@@ -6,7 +6,10 @@ const TPLKLEUR={yellow:"#eab308",blue:"#3b82f6",purple:"#8b5cf6",red:"#ef4444",g
 const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
 const LIB_PER=50;
-let LIB={oef:[],tpl:[],programs:[],programAsgs:[],mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
+let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
+// Benchmark-categorieën (zelfde indeling als Strivee's Add Benchmark)
+const BM_CATS=[["girls","Girls"],["heroes","Heroes"],["open","Open"],["notable","Notable"],["custom","Custom"]];
+const BM_CATNAAM=Object.fromEntries(BM_CATS);
 // Programma-editor (week/dag-indeling met workouts); bouwer opent inline in de dag, net als bij een klant.
 let PROG=null,progWeek=1,progEditDay=null,progEditWid=null;
 const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);return m?m[1]:null;};
@@ -15,7 +18,7 @@ function libShellHtml(){
   const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["cooldown","Cooldowns"]]
     .map(m=>'<button class="'+(LIB.mode===m[0]?"on":"")+'" onclick="libZetMode(\''+m[0]+'\')">'+m[1]+'</button>').join("");
   return '<h1>Bibliotheek</h1><div class="libgrid">'+
-    '<div class="card libnav">'+nav+'<button class="'+(LIB.mode==="programs"?"on":"")+'" onclick="libZetMode(\'programs\')">Programma\'s</button></div>'+
+    '<div class="card libnav">'+nav+'<button class="'+(LIB.mode==="benchmarks"?"on":"")+'" onclick="libZetMode(\'benchmarks\')">Benchmarks</button><button class="'+(LIB.mode==="programs"?"on":"")+'" onclick="libZetMode(\'programs\')">Programma\'s</button></div>'+
     '<div>'+
       '<div class="card" style="padding:18px 18px 0;border-radius:10px 10px 0 0">'+
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">'+
@@ -53,6 +56,13 @@ function ensureLibModals(){
       '<div id="tpl-media"></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="tplmodal-msg"></div></div></div>'+
+    '<div class="lmodal" id="bmmodal"><div class="box"><h3 id="bmmodal-titel">Benchmark toevoegen (Custom)</h3>'+
+      '<div class="field"><label>Naam</label><input id="bm-naam" placeholder="bijv. CFC Challenge 2026"></div>'+
+      '<div class="field"><label>Type (optioneel)</label><select id="bm-badge"><option value="">geen</option><option value="bodyweight">bodyweight</option><option value="light">light</option><option value="heavy">heavy</option><option value="endurance">endurance</option><option value="skill">skill</option></select></div>'+
+      '<div class="field"><label>Workout</label><textarea id="bm-tekst" style="min-height:140px" placeholder="For time:&#10;21-15-9&#10;…"></textarea></div>'+
+      '<div class="field"><label>Bewegingen (tags, gescheiden door komma\'s)</label><input id="bm-tags" placeholder="bijv. Thruster, Pull-up"></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" onclick="bmOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="bmmodal-del" style="margin-left:auto"></span></div>'+
+      '<div class="msg" id="bmmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="progmodal"><div class="box"><h3 id="progmodal-titel">Programma toevoegen</h3>'+
       '<div class="field"><label>Naam</label><input id="prog-naam" placeholder="bijv. 6-weken hypertrofie"></div>'+
       '<div class="field"><label>Omschrijving</label><textarea id="prog-desc" style="min-height:80px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
@@ -105,6 +115,8 @@ function libLaad(){
       from+=1000;
     }
     const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media").order("naam");
+    const{data:bms}=await db.from("benchmarks").select("*").order("naam");
+    LIB.bm=bms||[];
     const{data:progs}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
     const{data:asgs}=await db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks");
     LIB.oef=alles;LIB.tpl=tpl||[];LIB.programs=progs||[];LIB.programAsgs=asgs||[];LIB.geladen=true;LIB.busy=false;
@@ -117,29 +129,37 @@ function libFilter(v){LIB.zoek=(v||"").toLowerCase();LIB.pag=0;libLijst();}
 function libGa(p){LIB.pag=p;libLijst();}
 function libKleurFilter(k){LIB.kleur=LIB.kleur===k?"":k;LIB.pag=0;libLijst();}
 function libKop(){
-  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",programs:"Programma's"};
+  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",benchmarks:"Benchmarks",programs:"Programma's"};
   const t=document.getElementById("lib-titel");if(t)t.textContent=titels[LIB.mode];
   const subs={
     oef:"Jullie eigen videobibliotheek, live uit de database. Sporters zien de demo-video bij elke workout.",
+    benchmarks:"De bekende benchmark-workouts (Girls, Heroes, Open, Notable) plus je eigen Custom-benchmarks.",
     programs:"Gebruik de programma-index om veelgebruikte workout-sets aan je klanten toe te voegen."
   };
   const s=document.getElementById("lib-sub");if(s)s.textContent=subs[LIB.mode]||"Templates uit jullie Strivee, live uit de database. Klik op een template om naam, tekst of kleur aan te passen.";
-  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":(LIB.mode==="programs"?"+ Programma toevoegen":"+ Template toevoegen");
+  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":(LIB.mode==="programs"?"+ Programma toevoegen":(LIB.mode==="benchmarks"?"+ Benchmark toevoegen":"+ Template toevoegen"));
   const leg=document.getElementById("lib-legenda");
   if(leg){
     if(LIB.mode==="oef"||LIB.mode==="programs"){leg.style.display="none";}
+    else if(LIB.mode==="benchmarks"){
+      leg.style.display="flex";
+      leg.innerHTML='<span class="legchip'+(LIB.bmCat===""?" aan":"")+'" onclick="bmCatFilter(\'\')">Alles</span>'+
+        BM_CATS.map(([k,n])=>'<span class="legchip'+(LIB.bmCat===k?" aan":"")+'" onclick="bmCatFilter(\''+k+'\')">'+n+'</span>').join("");
+    }
     else{
       leg.style.display="flex";
       leg.innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
     }
   }
 }
+function bmCatFilter(k){LIB.bmCat=LIB.bmCat===k?"":k;LIB.pag=0;libLijst();}
 function libLijst(){
   libKop();
   const host=document.getElementById("lib-lijst"),thead=document.getElementById("lib-thead"),pag=document.getElementById("lib-pag"),cnt=document.getElementById("lib-aantal");
   if(!host)return;
   if(!LIB.geladen){host.innerHTML='<div class="cempty">Bibliotheek laden…</div>';return;}
   if(LIB.mode==="programs"){programLijst(host,thead,pag,cnt);return;}
+  if(LIB.mode==="benchmarks"){benchLijst(host,thead,pag,cnt);return;}
   if(LIB.mode!=="oef"){
     if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div>';
     const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
@@ -183,8 +203,72 @@ function libLijst(){
   kn+='<button class="btn ghost sm" '+(LIB.pag===pages-1?"disabled":'onclick="libGa('+(LIB.pag+1)+')"')+'>›</button>';
   pag.innerHTML=kn;
 }
-function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");const pm=document.getElementById("progmodal");if(pm)pm.classList.remove("show");LIB.editOef=null;LIB.editTpl=null;LIB.editProgram=null;}
-function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else if(LIB.mode==="programs")programNieuw();else tplBewerk(null);}
+function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");const pm=document.getElementById("progmodal");if(pm)pm.classList.remove("show");const bm=document.getElementById("bmmodal");if(bm)bm.classList.remove("show");LIB.editOef=null;LIB.editTpl=null;LIB.editProgram=null;LIB.editBm=null;}
+function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else if(LIB.mode==="programs")programNieuw();else if(LIB.mode==="benchmarks")bmBewerk(null);else tplBewerk(null);}
+
+// ---------- Benchmarks (Girls/Heroes/Open/Notable + eigen Custom) ----------
+function benchLijst(host,thead,pag,cnt){
+  if(thead)thead.innerHTML='<div style="flex:1.6">Naam</div><div style="flex:2.8">Workout</div><div style="flex:1.2">Bewegingen</div>';
+  const hits=LIB.bm.filter(b=>
+    (!LIB.bmCat||b.categorie===LIB.bmCat)&&
+    (!LIB.zoek||(b.naam||"").toLowerCase().includes(LIB.zoek)||(b.tekst||"").toLowerCase().includes(LIB.zoek)||(b.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)));
+  if(cnt)cnt.textContent=hits.length+" benchmarks";
+  host.innerHTML=hits.map(b=>{
+    const eigen=b.categorie==="custom";
+    const badge=b.badge?' <span class="cpill" style="background:#eef1f4;color:#5d6570;text-transform:lowercase">'+esc(b.badge)+'</span>':'';
+    const cat=' <span class="cpill teal" style="text-transform:none">'+esc(BM_CATNAAM[b.categorie]||b.categorie)+'</span>';
+    const tg=(b.tags||[]).slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
+    return '<div class="trow" style="align-items:flex-start'+(eigen?';cursor:pointer':'')+'"'+(eigen?' onclick="bmBewerk(\''+b.id+'\')"':'')+'>'+
+      '<div style="flex:1.6"><b>'+esc(b.naam)+'</b>'+badge+cat+'</div>'+
+      '<div style="flex:2.8" class="sm muted">'+esc(b.tekst||"").replace(/\n/g,"<br>")+'</div>'+
+      '<div style="flex:1.2">'+tg+'</div></div>';
+  }).join("")||'<div class="cempty">Geen benchmarks gevonden'+(LIB.bmCat==="custom"?'. Voeg je eerste eigen benchmark toe met "+ Benchmark toevoegen".':'.')+'</div>';
+  if(pag)pag.innerHTML="";
+}
+function bmBewerk(id){
+  ensureLibModals();
+  LIB.editBm=id||null;
+  const b=id?LIB.bm.find(x=>String(x.id)===String(id)):null;
+  if(id&&!b)return;
+  document.getElementById("bmmodal-titel").textContent=id?"Benchmark bewerken":"Benchmark toevoegen (Custom)";
+  document.getElementById("bm-naam").value=b?(b.naam||""):"";
+  document.getElementById("bm-badge").value=b?(b.badge||""):"";
+  document.getElementById("bm-tekst").value=b?(b.tekst||""):"";
+  document.getElementById("bm-tags").value=b?(b.tags||[]).join(", "):"";
+  document.getElementById("bmmodal-del").innerHTML=id?'<button class="btn ghost" style="color:#e5484d" onclick="bmVerwijder()">Verwijderen</button>':'';
+  document.getElementById("bmmodal-msg").textContent="";
+  document.getElementById("bmmodal").classList.add("show");
+}
+async function bmOpslaan(){
+  const msg=document.getElementById("bmmodal-msg");
+  const naam=document.getElementById("bm-naam").value.trim();
+  const tekst=document.getElementById("bm-tekst").value.trim();
+  if(!naam||!tekst){msg.textContent="Vul minimaal een naam en de workout in.";msg.className="msg err";return;}
+  const rec={
+    naam,tekst,
+    badge:document.getElementById("bm-badge").value||null,
+    tags:document.getElementById("bm-tags").value.split(",").map(s=>s.trim()).filter(Boolean),
+  };
+  let fout;
+  if(LIB.editBm){const{error}=await db.from("benchmarks").update(rec).eq("id",LIB.editBm);fout=error;}
+  else{
+    Object.assign(rec,{company_id:ME.profile.company_id,categorie:"custom",created_by:ME.user.id});
+    const{error}=await db.from("benchmarks").insert(rec);fout=error;
+  }
+  if(fout){msg.textContent=fout.message||"Opslaan mislukt";msg.className="msg err";return;}
+  const{data:bms}=await db.from("benchmarks").select("*").order("naam");
+  LIB.bm=bms||LIB.bm;
+  libModalDicht();toast("Benchmark opgeslagen");libLijst();
+}
+async function bmVerwijder(){
+  if(!LIB.editBm)return;
+  const b=LIB.bm.find(x=>String(x.id)===String(LIB.editBm));
+  if(!confirm('Benchmark "'+(b?b.naam:"")+'" verwijderen?'))return;
+  const{error}=await db.from("benchmarks").delete().eq("id",LIB.editBm);
+  if(error){toast(error.message||"Verwijderen mislukt");return;}
+  LIB.bm=LIB.bm.filter(x=>String(x.id)!==String(LIB.editBm));
+  libModalDicht();toast("Benchmark verwijderd");libLijst();
+}
 
 // ---------- Programma's (herbruikbare programma-templates) ----------
 function programLijst(host,thead,pag,cnt){
