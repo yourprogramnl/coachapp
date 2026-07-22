@@ -20,6 +20,10 @@ async function wwLoadBoardFor(id){
   WW.boards[id]=data||[];
 }
 function wwMainBlock(w){return ((w&&w.blocks)||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0))[0]||null;}
+// Huisnaam van de weekworkout: nieuwe workouts heten standaard "YP Showdown <datum>"
+// (aanpasbaar in het naamveld; later evt. per bedrijf instelbaar).
+const WW_NAAM_PREFIX="YP Showdown";
+function wwStandaardNaam(){const d=new Date();return WW_NAAM_PREFIX+" "+d.getDate()+" "+MAANDVOL[d.getMonth()];}
 const WW_SCORES=[["time","tijd (For Time)"],["rounds_reps","rondes + reps (AMRAP)"],["reps","reps"],["load","gewicht (kg)"],["text","vrije tekst"]];
 
 function wwRender(){
@@ -201,8 +205,7 @@ function wwBewerk(id){
   const w=id?WW.list.find(x=>x.id===id):null;
   const blk=w?wwMainBlock(w):null;
   document.getElementById("wwmodal-titel").textContent=id?"Weekworkout bewerken":"Nieuwe weekworkout";
-  document.getElementById("ww-naam").value=w?(w.title||""):"";
-  document.getElementById("ww-datum").value=w?w.workout_date:todayStr();
+  document.getElementById("ww-naam").value=w?(w.title||""):wwStandaardNaam();
   document.getElementById("ww-score").value=(blk&&blk.score_type)||"time";
   document.getElementById("ww-tekst").value=blk?(blk.kind==="conditioning"?(blk.notes||""):(blk.prescription||"")):"";
   document.getElementById("wwmodal-msg").textContent="";
@@ -213,16 +216,14 @@ async function wwOpslaan(){
   // Zonder bedrijf zou de workout onvindbaar zijn (alle lijsten filteren op bedrijf).
   if(!ME.profile.company_id){toast("Dit account is niet aan een bedrijf gekoppeld; de weekworkout zou onvindbaar worden. Log in met een account van het bedrijf.");return;}
   const naam=document.getElementById("ww-naam").value.trim();
-  const datum=document.getElementById("ww-datum").value;
   const score=document.getElementById("ww-score").value;
   const tekst=document.getElementById("ww-tekst").value.trim();
   const msg=document.getElementById("wwmodal-msg");
-  if(!naam){msg.textContent="Geef de weekworkout een naam (bijv. Week 29 · \"Grace\").";msg.className="msg err";return;}
-  if(!datum){msg.textContent="Kies een publicatiedatum.";msg.className="msg err";return;}
+  if(!naam){msg.textContent="Geef de weekworkout een naam (bijv. "+wwStandaardNaam()+").";msg.className="msg err";return;}
   if(!tekst){msg.textContent="Vul de workout-tekst in (met Rx/Scaled-gewichten).";msg.className="msg err";return;}
   if(WW_EDIT){
     const w=WW.list.find(x=>x.id===WW_EDIT),blk=w?wwMainBlock(w):null;
-    const{error}=await db.from("workouts").update({title:naam,workout_date:datum}).eq("id",WW_EDIT);
+    const{error}=await db.from("workouts").update({title:naam}).eq("id",WW_EDIT);
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
     if(blk){
       const{error:be}=await db.from("blocks").update({exercise:naam,notes:tekst,score_type:score}).eq("id",blk.id);
@@ -233,7 +234,8 @@ async function wwOpslaan(){
     }
     wwModalDicht();toast("Weekworkout bijgewerkt");
   }else{
-    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:datum,title:naam,audience:"blog"}).select("id").single();
+    // Publicatiedatum = vandaag: de weekworkout staat direct live (de datum zit al in de naam).
+    const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:todayStr(),title:naam,audience:"blog"}).select("id").single();
     if(error){msg.textContent=error.message||"Aanmaken mislukt";msg.className="msg err";return;}
     const{error:be}=await db.from("blocks").insert({workout_id:nw.id,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,color:"yellow"});
     if(be){msg.textContent=be.message||"Aanmaken mislukt";msg.className="msg err";return;}
@@ -256,10 +258,10 @@ function ensureWwModals(){
   if(document.getElementById("wwmodals"))return;
   const d=document.createElement("div");d.id="wwmodals";
   d.innerHTML='<div class="lmodal" id="wwmodal"><div class="box"><h3 id="wwmodal-titel">Nieuwe weekworkout</h3>'+
-      '<div class="field"><label>Naam</label><input id="ww-naam" placeholder="bijv. Week 29 · &quot;Grace&quot;"></div>'+
+      '<div class="field"><label>Naam</label><input id="ww-naam" placeholder="bijv. YP Showdown 25 juli"></div>'+
       '<div class="field"><label>Workout-tekst (met Rx/Scaled)</label><textarea id="ww-tekst" style="min-height:120px" placeholder="30 clean & jerks voor tijd&#10;Rx: 60/42,5 kg · Scaled: 42,5/30 kg"></textarea></div>'+
       '<div class="field"><label>Score</label><select id="ww-score">'+WW_SCORES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join("")+'</select></div>'+
-      '<div class="field"><label>Publicatiedatum</label><input type="date" id="ww-datum"></div>'+
+      '<div class="sm muted" style="margin-bottom:12px">De weekworkout staat na het opslaan direct live voor 1-op-1 klanten én blog-leden.</div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="wwOpslaan()">Opslaan</button><button class="btn ghost" onclick="wwModalDicht()">Annuleren</button></div>'+
       '<div class="msg" id="wwmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="wwcommodal" style="z-index:398"><div class="box" style="width:480px;max-width:94vw">'+
