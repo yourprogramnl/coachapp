@@ -236,9 +236,11 @@ function ensureCrxPrModal(){
   w.innerHTML='<div class="lmodal" id="crxprmodal" style="z-index:450"><div class="box" style="width:880px;max-width:96vw">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0" id="crxpr-titel">PR-kandidaten</h3><span onclick="closeCrxPr()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
     '<div class="sm muted" style="margin-bottom:12px;line-height:1.5">Testblokken met een 1RM/RM en een gelogd resultaat. Vink aan wat er als meting bij Metingen & PR\'s moet komen; meting en gewicht kun je per regel aanpassen. Regels zonder herkende meting laat je leeg of vul je zelf in.</div>'+
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">'+
       '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:700"><input type="checkbox" id="crxpr-alles" onchange="crxPrAlles(this.checked)"> Alles aanvinken</label>'+
-      '<span class="sm muted" id="crxpr-teller"></span></div>'+
+      '<span class="sm muted" id="crxpr-teller"></span>'+
+      '<button class="btn ghost sm" id="crxpr-ai" onclick="crxAiVul()" style="margin-left:auto">🤖 Vul gewichten in met AI</button></div>'+
+    '<div class="sm muted" id="crxpr-ai-status" style="margin-bottom:8px;display:none"></div>'+
     '<div class="crxpr-kop"><span></span><span>Testblok · resultaat</span><span>Meting</span><span>Gewicht</span></div>'+
     '<div style="max-height:54vh;overflow:auto;border:1px solid var(--line);border-radius:0 0 10px 10px;border-top:none"><div id="crxpr-lijst"></div></div>'+
     '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:14px;margin-top:16px">'+
@@ -272,6 +274,39 @@ function openCrxPr(){
   document.getElementById("crxprmodal").classList.add("show");
 }
 function closeCrxPr(){const m=document.getElementById("crxprmodal");if(m)m.classList.remove("show");}
+// AI-invulhulp: laat Claude per regel het beste gelukte gewicht bepalen
+// (Edge Function pr-gewichten). Vult alleen de velden; boeken blijft handwerk.
+async function crxAiVul(){
+  const prs=(crxData&&crxData.prs)||[];
+  if(!prs.length)return;
+  const knop=document.getElementById("crxpr-ai"),stat=document.getElementById("crxpr-ai-status");
+  knop.disabled=true;stat.style.display="";stat.textContent="AI leest de logteksten… (een paar seconden)";
+  const rijen=prs.map((p,i)=>({i,naam:p.naam,resultaat:p.resultaat}));
+  const{data,error}=await db.functions.invoke("pr-gewichten",{body:{rijen}});
+  knop.disabled=false;
+  if(error||(data&&data.error)){
+    let t=(data&&data.error)||"";
+    if(!t&&error&&error.context&&error.context.json){try{t=((await error.context.json())||{}).error||"";}catch(e){}}
+    stat.textContent=t||(error&&error.message)||"AI-controle mislukt, probeer het nog een keer.";
+    return;
+  }
+  let gevuld=0,open=0;
+  (data.rijen||[]).forEach(r=>{
+    const kEl=document.querySelector('.crx-pr-kg[data-i="'+r.i+'"]');if(!kEl)return;
+    const rij=kEl.closest(".crxpr-rij");
+    const oude=rij&&rij.querySelector(".airden");if(oude)oude.remove();
+    if(r.kg!=null){
+      kEl.value=String(r.kg).replace(".",",");
+      kEl.style.borderColor="#27b376";kEl.title="Door AI ingevuld";gevuld++;
+    }else{
+      kEl.value="";kEl.style.borderColor="#e5a13d";kEl.title="AI: "+(r.reden||"geen bruikbaar gewicht");
+      const sub=rij&&rij.querySelector(".sm.muted");
+      if(sub){const s=document.createElement("span");s.className="airden";s.style.color="#b57614";s.textContent=" · AI: "+(r.reden||"onduidelijk");sub.appendChild(s);}
+      open++;
+    }
+  });
+  stat.textContent="AI-controle klaar: "+gevuld+" gewicht"+(gevuld===1?"":"en")+" ingevuld"+(open?", "+open+" open gelaten (oranje rand, even zelf bekijken)":"")+(data.kosten&&data.kosten.usd?" · kosten ≈ $"+data.kosten.usd:"");
+}
 function crxPrAlles(aan){document.querySelectorAll(".crx-pr").forEach(c=>{c.checked=aan;});crxPrTel();}
 function crxPrTel(){
   const n=document.querySelectorAll(".crx-pr:checked").length;
