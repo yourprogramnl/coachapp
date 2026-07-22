@@ -15,6 +15,9 @@ async function fillDashboard(){
     // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
     consults=(await db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40)).data||[];
   }
+  // Tags voor het feed-filter (zelfde tags als op de Klanten-pagina)
+  const dtags=(await db.from("tags").select("id,name,color").order("name")).data||[];
+  const ptags=(await db.from("profile_tags").select("tag_id,profile_id")).data||[];
   const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
   const snoozeRows=(await db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id)).data||[];
   const snoozeMap={};snoozeRows.forEach(s=>snoozeMap[s.athlete_id]=s.snoozed_until);
@@ -22,11 +25,20 @@ async function fillDashboard(){
     blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
-  DASH={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults};
+  DASH={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
   dashRender();
 }
 function dashSetFilter(f){dashFilter=f;dashRender();}
 function dashSetFeedTab(t){dashFeedTab=t;dashFeedLimit=6;dashRender();}
+// Feed-filter: alle klanten (null), één klant, of alle klanten met een tag ("tag:<id>")
+function dashFeedSet(){
+  if(dashFeedClient==="all")return null;
+  if(String(dashFeedClient).indexOf("tag:")===0){
+    const tid=String(dashFeedClient).slice(4);
+    return new Set(((DASH&&DASH.ptags)||[]).filter(t=>String(t.tag_id)===tid).map(t=>t.profile_id));
+  }
+  return new Set([dashFeedClient]);
+}
 function dashSetPeriode(n){dashPeriode=n;dashRender();}
 function dashSetTaken(t){dashTaken=t;dashRender();}
 function dashSetFeedClient(v){dashFeedClient=v;dashFeedLimit=6;dashRender();}
@@ -121,7 +133,8 @@ function dashRender(){
     '<div style="display:flex;gap:26px;flex-wrap:wrap">'+actieveKlanten().map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
   let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
-  if(dashFeedClient!=="all")metAll=metAll.filter(w=>w.client_id===dashFeedClient);
+  const feedSet=dashFeedSet();
+  if(feedSet)metAll=metAll.filter(w=>feedSet.has(w.client_id));
   const met=metAll.slice(0,dashFeedLimit);
   const meerLink=metAll.length>dashFeedLimit?'<div style="text-align:center;margin-top:12px"><button class="btn ghost sm" onclick="dashMeer()">Meer laden ('+(metAll.length-dashFeedLimit)+')</button></div>':'';
   const feedHtml=met.length?met.map(w=>{
@@ -189,7 +202,9 @@ function dashRender(){
       '<div class="ctabs"><button class="on">Aandacht nodig</button></div>'+
       chips+attnHtml+cmHtml+
       '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px;flex-wrap:wrap"><h2 style="margin:0">Activiteit</h2>'+
-        '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+actieveKlanten().slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>'+
+        '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+
+          ((DASH.dtags||[]).length?'<optgroup label="Tags">'+(DASH.dtags||[]).map(t=>'<option value="tag:'+esc(String(t.id))+'"'+(dashFeedClient==="tag:"+t.id?" selected":"")+'>● '+esc(t.name)+'</option>').join("")+'</optgroup>':"")+
+          '<optgroup label="Klanten">'+actieveKlanten().slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(dashFeedClient===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</optgroup></select>'+
         '<div class="ctabs" style="margin:0"><button class="'+(dashFeedTab==="workouts"?"on":"")+'" onclick="dashSetFeedTab(\'workouts\')">Workouts</button><button class="'+(dashFeedTab==="checkins"?"on":"")+'" onclick="dashSetFeedTab(\'checkins\')">Check-ins</button></div></div>'+
       (dashFeedTab==="workouts"?feedHtml+meerLink:dashConsultHtml(byId))+
     '</div>'+
@@ -205,7 +220,8 @@ function dashRender(){
 // nieuwste eerst, met het klantfilter van de feed.
 function dashConsultHtml(byId){
   let rows=(DASH&&DASH.consults)||[];
-  if(dashFeedClient!=="all")rows=rows.filter(x=>x.athlete_id===dashFeedClient);
+  const feedSet=dashFeedSet();
+  if(feedSet)rows=rows.filter(x=>feedSet.has(x.athlete_id));
   if(!rows.length)return '<div class="feedcard"><div class="cempty">Nog geen check-ins.<br>Leg een consult vast via het klant-scherm → Check-ins &amp; consults; die verschijnen dan hier.</div></div>';
   const meer=rows.length>dashFeedLimit?'<div style="text-align:center;margin-top:12px"><button class="btn ghost sm" onclick="dashMeer()">Meer laden ('+(rows.length-dashFeedLimit)+')</button></div>':'';
   return rows.slice(0,dashFeedLimit).map(cn=>{
