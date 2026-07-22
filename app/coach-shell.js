@@ -75,6 +75,8 @@ function cnavItems(){
   const n=[["dash","Dashboard"],["clients","Klanten"],["library","Bibliotheek"]];
   if(role!=="coach")n.push(["coaches","Coaches"]);
   n.push(["blog","Blog"],["week","Weekworkout"],["msgs","Berichten"],["data","Data"]);
+  // AI-coach-testpaneel: alleen platform_admin, coaches zien hem bewust nog niet.
+  if(role==="platform_admin")n.push(["ai","AI-coach"]);
   // "Bedrijven" (platform_admin) bewust verborgen zolang er één gym is (Stefan,
   // 17 juli); komt terug bij meerdere bedrijven. Code (fillCompanies) blijft staan.
   return n;
@@ -182,6 +184,7 @@ function coachRenderSection(){
   if(coachSection==="blog"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillBlog();return;}
   if(coachSection==="msgs"){c.innerHTML=coachShellHtml('<h1>Berichten</h1><div class="spin">Laden…</div>');fillBerichten();return;}
   if(coachSection==="data"){c.innerHTML=coachShellHtml('<h1>Data</h1><div class="spin">Laden…</div>');fillData();return;}
+  if(coachSection==="ai"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillAiCoach();return;}
   if(coachSection==="settings"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillInstellingen();return;}
   c.innerHTML=coachShellHtml('<div class="csoon">Deze sectie bestaat niet (meer).</div>');
 }
