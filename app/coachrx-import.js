@@ -154,17 +154,18 @@ function crxKgUit(res){
 
 async function crxGekozen(inp){
   const file=inp.files&&inp.files[0];if(!file)return;
+  inp.value=""; // zodat opnieuw kiezen (ook hetzelfde bestand) altijd werkt
   const host=document.getElementById("crx-uit");
   host.innerHTML='<div class="sm" style="color:#8b919b">PDF lezen…</div>';
   try{
     const tekst=await crxTekstUitPdf(file);
     crxData=crxParse(tekst);
   }catch(e){
-    host.innerHTML='<div class="sp-dark" style="display:block">PDF lezen mislukt: '+esc(e.message||e)+'</div>';
+    host.innerHTML='<div class="sp-dark" style="display:block">PDF lezen mislukt: '+esc(e.message||e)+'</div>'+crxAnderePdfKnop();
     return;
   }
   const d=crxData.dagen;
-  if(!d.length){host.innerHTML='<div class="sp-dark" style="display:block">Geen trainingsdagen gevonden. Is dit wel een CoachRx-kalenderexport?</div>';return;}
+  if(!d.length){host.innerHTML='<div class="sp-dark" style="display:block">Geen trainingsdagen gevonden. Is dit wel een CoachRx-kalenderexport?</div>'+crxAnderePdfKnop();return;}
   const blokken=d.reduce((n,x)=>n+x.blokken.length,0);
   const metRes=d.reduce((n,x)=>n+x.blokken.filter(b=>b.resultaat).length,0);
   const wdFout=d.filter(x=>!x.wdKlopt).length;
@@ -179,8 +180,13 @@ async function crxGekozen(inp){
     '<div class="sp-list">'+proef.blokken.slice(0,3).map(b=>'<b>'+esc(b.label)+') '+esc(b.naam)+'</b>'+(b.resultaat?'<br><span style="color:#27b376">'+esc(b.resultaat.split("\n")[0])+'</span>':'')).join("<br>")+'</div>'+
     '<button class="sp-btn" style="margin-top:12px" id="crx-go" onclick="crxImporteer()">Geschiedenis importeren ('+d.length+' dagen)</button>'+
     '<div id="crx-voortgang" class="sm" style="color:#8b919b;margin-top:8px"></div>'+
-    crxPrHtml();
+    crxPrHtml()+
+    crxAnderePdfKnop();
   crxBestaandeVooraan();
+}
+// Verkeerde PDF gekozen? Hiermee kies je gewoon een andere (vervangt het overzicht).
+function crxAnderePdfKnop(){
+  return '<button class="sp-btn ghost" style="margin-top:10px" onclick="document.getElementById(\'crx-file\').click()">Andere PDF kiezen…</button>';
 }
 // Waarschuwing over een eerdere import bovenaan het resultaat houden
 async function crxBestaandeVooraan(){
@@ -190,40 +196,91 @@ async function crxBestaandeVooraan(){
     '<div class="sp-dark" style="display:block;line-height:1.5">⚠️ Er staan al <b>'+count+'</b> geïmporteerde workouts bij deze klant. <button class="sp-btn ghost" style="width:auto;padding:6px 12px;margin-top:6px" onclick="crxEerdereWeg()">Eerdere import verwijderen</button></div>');
 }
 
+// In het zijpaneel alleen een knop; de lijst zelf opent in een groot venster
+// (het paneel is te smal voor tientallen regels — bevinding Stefan 22 juli).
 function crxPrHtml(){
   const prs=crxData.prs||[];
   if(!prs.length)return"";
-  return '<div class="sp-head" style="margin-top:18px"><h3>PR-kandidaten ('+prs.length+')</h3></div>'+
-    '<div class="sm" style="color:#8b919b;line-height:1.5;margin-bottom:8px">Testblokken met een 1RM/RM en een resultaat. Vink aan wat er als meting bij Metingen & PR\'s moet komen; controleer meting en gewicht per regel.</div>'+
-    prs.map((p,i)=>{
-      const meting=crxMetingVoor(p.naam);
-      return '<div class="sp-dark" style="display:block;line-height:1.5">'+
-        '<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="checkbox" class="crx-pr" data-i="'+i+'" style="margin-top:3px">'+
-        '<span style="flex:1"><b>'+esc(p.datum)+' · '+esc(p.naam)+'</b><br><span class="sm" style="color:#8b919b">'+esc(p.resultaat.split("\n").slice(0,2).join(" · ")).slice(0,140)+'</span></span></label>'+
-        '<div style="display:flex;gap:8px;margin-top:6px;align-items:center">'+
-        '<input class="crx-pr-m" data-i="'+i+'" list="crx-metingen" value="'+esc(meting)+'" placeholder="meting…" style="flex:1">'+
-        '<input class="crx-pr-kg" data-i="'+i+'" value="'+esc(crxKgUit(p.resultaat))+'" placeholder="kg" style="width:70px;text-align:center"></div></div>';
-    }).join("")+
-    '<datalist id="crx-metingen">'+Object.values(METRICS_DEF).flat().map(m=>'<option value="'+esc(m)+'">').join("")+'</datalist>'+
-    '<button class="sp-btn" style="margin-top:10px" onclick="crxPrsBoeken()">Aangevinkte PR\'s opslaan als metingen</button>';
+  return '<button class="sp-btn" style="margin-top:10px" onclick="openCrxPr()">PR-kandidaten bekijken ('+prs.length+')</button>';
+}
+
+// ---------- PR-kandidaten: groot venster met nette rijen ----------
+function ensureCrxPrModal(){
+  if(document.getElementById("crxprmodal"))return;
+  const w=document.createElement("div");
+  w.innerHTML='<div class="lmodal" id="crxprmodal" style="z-index:450"><div class="box" style="width:880px;max-width:96vw">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0" id="crxpr-titel">PR-kandidaten</h3><span onclick="closeCrxPr()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div class="sm muted" style="margin-bottom:12px;line-height:1.5">Testblokken met een 1RM/RM en een gelogd resultaat. Vink aan wat er als meting bij Metingen & PR\'s moet komen; meting en gewicht kun je per regel aanpassen. Regels zonder herkende meting laat je leeg of vul je zelf in.</div>'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:700"><input type="checkbox" id="crxpr-alles" onchange="crxPrAlles(this.checked)"> Alles aanvinken</label>'+
+      '<span class="sm muted" id="crxpr-teller"></span></div>'+
+    '<div class="crxpr-kop"><span></span><span>Testblok · resultaat</span><span>Meting</span><span>Gewicht</span></div>'+
+    '<div style="max-height:54vh;overflow:auto;border:1px solid var(--line);border-radius:0 0 10px 10px;border-top:none"><div id="crxpr-lijst"></div></div>'+
+    '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:14px;margin-top:16px">'+
+      '<button class="btn ghost" onclick="closeCrxPr()">Sluiten</button>'+
+      '<button class="btn" onclick="crxPrsBoeken()">Aangevinkte PR\'s opslaan als metingen</button></div>'+
+    '</div></div>';
+  document.body.appendChild(w.firstChild);
+  document.getElementById("crxprmodal").addEventListener("click",e=>{if(e.target.id==="crxprmodal")closeCrxPr();});
+}
+function openCrxPr(){
+  ensureCrxPrModal();
+  const prs=(crxData&&crxData.prs)||[];
+  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+prs.length+")";
+  document.getElementById("crxpr-lijst").innerHTML=prs.map((p,i)=>{
+    const meting=crxMetingVoor(p.naam);
+    return '<div class="crxpr-rij">'+
+      '<input type="checkbox" class="crx-pr" data-i="'+i+'" onchange="crxPrTel()">'+
+      '<div style="min-width:0"><div style="font-weight:700;font-size:13px">'+esc(p.naam)+'</div>'+
+        '<div class="sm muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(datumNL(p.datum))+(p.resultaat?' · '+esc(p.resultaat.split("\n").slice(0,2).join(" · ")).slice(0,110):'')+'</div></div>'+
+      '<input class="crx-pr-m" data-i="'+i+'" list="crx-metingen" value="'+esc(meting)+'" placeholder="meting…">'+
+      '<div style="display:flex;align-items:center;gap:5px"><input class="crx-pr-kg" data-i="'+i+'" value="'+esc(crxKgUit(p.resultaat))+'" placeholder="–" style="width:64px;text-align:center"><span class="sm muted">kg</span></div>'+
+      '</div>';
+  }).join("")||'<div style="padding:14px" class="sm muted">Geen PR-kandidaten in deze PDF.</div>';
+  if(!document.getElementById("crx-metingen")){
+    const dl=document.createElement("datalist");dl.id="crx-metingen";
+    dl.innerHTML=Object.values(METRICS_DEF).flat().map(m=>'<option value="'+esc(m)+'">').join("");
+    document.body.appendChild(dl);
+  }
+  const alles=document.getElementById("crxpr-alles");if(alles)alles.checked=false;
+  crxPrTel();
+  document.getElementById("crxprmodal").classList.add("show");
+}
+function closeCrxPr(){const m=document.getElementById("crxprmodal");if(m)m.classList.remove("show");}
+function crxPrAlles(aan){document.querySelectorAll(".crx-pr").forEach(c=>{c.checked=aan;});crxPrTel();}
+function crxPrTel(){
+  const n=document.querySelectorAll(".crx-pr:checked").length;
+  const tot=(crxData&&crxData.prs)?crxData.prs.length:0;
+  const t=document.getElementById("crxpr-teller");if(t)t.textContent=n+" van "+tot+" aangevinkt";
 }
 
 async function crxPrsBoeken(){
   const vinken=[...document.querySelectorAll(".crx-pr:checked")];
   if(!vinken.length){toast("Vink eerst één of meer PR's aan");return;}
-  const rows=[];
+  // Geldige regels boeken; onvolledige (geen meting of gewicht) blijven
+  // aangevinkt staan met een rood randje, zodat "alles aanvinken" niet
+  // strandt op een paar lege regels.
+  const rows=[],geboekt=[],onvolledig=[];
   for(const v of vinken){
     const i=v.dataset.i;
-    const meting=(document.querySelector('.crx-pr-m[data-i="'+i+'"]').value||"").trim();
-    const kg=parseFloat((document.querySelector('.crx-pr-kg[data-i="'+i+'"]').value||"").replace(",","."));
-    if(!meting||isNaN(kg)||kg<=0){toast("Regel "+(+i+1)+": vul een meting én een geldig gewicht in");return;}
+    const mEl=document.querySelector('.crx-pr-m[data-i="'+i+'"]'),kEl=document.querySelector('.crx-pr-kg[data-i="'+i+'"]');
+    const meting=(mEl.value||"").trim();
+    const kg=parseFloat((kEl.value||"").replace(",","."));
+    const ok=meting&&!isNaN(kg)&&kg>0;
+    mEl.style.borderColor=ok||meting?"":"#e5484d";
+    kEl.style.borderColor=ok||(!isNaN(kg)&&kg>0)?"":"#e5484d";
+    if(!ok){onvolledig.push(v);continue;}
     const p=crxData.prs[i];
     rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK});
+    geboekt.push(v);
   }
+  if(!rows.length){toast("Vul bij de aangevinkte regels een meting en een gewicht in (rood gemarkeerd)");return;}
   const{error}=await db.from("metrics").insert(rows);
   if(error){toast(error.message||"Opslaan mislukt");return;}
-  toast(rows.length+" meting"+(rows.length===1?"":"en")+" opgeslagen bij Metingen & PR's");
-  vinken.forEach(v=>{v.checked=false;});
+  toast(rows.length+" meting"+(rows.length===1?"":"en")+" opgeslagen"+(onvolledig.length?" · "+onvolledig.length+" regel"+(onvolledig.length===1?"":"s")+" overgeslagen (meting/gewicht ontbreekt, rood gemarkeerd)":""));
+  geboekt.forEach(v=>{v.checked=false;v.closest(".crxpr-rij").style.opacity=".45";});
+  const alles=document.getElementById("crxpr-alles");if(alles)alles.checked=false;
+  crxPrTel();
 }
 
 async function crxImporteer(){
