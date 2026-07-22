@@ -235,8 +235,14 @@ function mxGroepen(){
 function mxWaarde(naam){
   const h=mxHist(naam);
   if(!h.length)return null;
-  const cur=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
-  return{cur,vorig,unit:cur.unit||""};
+  const laatste=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
+  // Voor kg-liften is "Huidig" je beste ooit (PR), niet je laatste meting:
+  // tussenliggende lagere metingen zijn prima, maar halen je PR niet omlaag.
+  let cur=laatste;
+  if(mxType(naam)==="kg"){
+    cur=h.reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),h[0]);
+  }
+  return{cur,vorig,laatste,unit:cur.unit||""};
 }
 // Invoertype per metric bij het toevoegen van een resultaat.
 // Standaard: Resistance = kg (getal); overige blokken/eigen metrics = vrije eenheid.
@@ -304,9 +310,10 @@ function mxRender(){
         }else{
           const w=mxWaarde(naam),t=mxType(naam);
           if(w){curTxt=esc(mxFmtRij(w.cur,naam));
-            // +/- alleen voor getalswaarden (kg/vrij), niet voor pass/fail of tijd
-            if((t==="kg"||t==="vrij")&&w.vorig&&w.cur.value!=null&&w.vorig.value!=null&&w.cur.value!==w.vorig.value){
-              const d=Math.round((w.cur.value-w.vorig.value)*10)/10;
+            // +/- alleen voor getalswaarden (kg/vrij), niet voor pass/fail of tijd.
+            // Vergelijkt de láátste meting met die ervoor (voortgang), los van de PR.
+            if((t==="kg"||t==="vrij")&&w.vorig&&w.laatste.value!=null&&w.vorig.value!=null&&w.laatste.value!==w.vorig.value){
+              const d=Math.round((w.laatste.value-w.vorig.value)*10)/10;
               pm=(d>0?"▲ +":"▼ ")+d;pmKl=d>0?"#27b376":"#e5484d";
             }
           }
@@ -376,7 +383,7 @@ function mxDetailRender(){
   }else{
     const hist=mxHist(naam),w=mxWaarde(naam),t=mxType(naam);
     if(w)curTxt=esc(mxFmtRij(w.cur,naam));
-    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
+    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
     if(mxDetailForm){
       // Invoerveld afhankelijk van het type: kg (getal), tijd (mm:ss) of pass/fail
       let invoer;

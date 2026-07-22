@@ -296,7 +296,10 @@ async function crxPrsBoeken(){
     kEl.style.borderColor=ok||(!isNaN(kg)&&kg>0)?"":"#e5484d";
     if(!ok){onvolledig.push(v);continue;}
     const p=crxData.prs[i];
-    rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK});
+    // Notitie mét het blok en de gelogde tekst, zodat je later kunt terugzien
+    // waar het getal vandaan komt (verzoek Stefan 22 juli).
+    const log=String(p.resultaat||"").split("\n").slice(0,2).join(" · ").slice(0,120);
+    rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK+" · "+p.naam+(log?": "+log:"")});
     geboekt.push(v);
   }
   if(!rows.length){toast("Vul bij de aangevinkte regels een meting en een gewicht in (rood gemarkeerd)");return;}
