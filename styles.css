@@ -394,9 +394,13 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .coachmenu button{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 11px;font-size:12.5px;color:var(--txt);border-radius:7px;cursor:pointer;font-family:inherit}
 .coachmenu button:hover{background:#f4f8fb}
 .coachmenu button.danger{color:#e5484d}
-.rowicons{display:flex;gap:10px;color:#b3b9c2;align-items:center}
+.rowicons{display:flex;gap:12px;color:#b3b9c2;align-items:center}
 .rowicons .i{cursor:pointer}
 .rowicons .i:hover{color:#5d6570}
+/* Actie met klein tekstje erbij (verzoek Stefan: icoontjes alleen zijn onduidelijk) */
+.rowact{display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#8a919c;font-size:10.5px;font-weight:600;white-space:nowrap}
+.rowact:hover{color:var(--accent)}
+.rowact .i{width:13px;height:13px}
 .wchip{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px}
 .wchip.ok{background:#def4e6;color:#1d9a63}
 .wchip.laat{background:#fbe0e0;color:#e5484d}

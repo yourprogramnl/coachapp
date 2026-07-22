@@ -96,10 +96,10 @@ function dashRender(){
   const attnRij=a=>{
     const s=dashIsSnoozed(a.p.id);
     return '<div class="attn-row'+(s?' snoozed':'')+'"><div class="cavc click" onclick="openClient(\''+a.p.id+'\')" style="'+avFotoStyle(a.p)+'">'+avFotoText(a.p)+'</div><div class="nm click" style="cursor:pointer" onclick="openClient(\''+a.p.id+'\')">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div>'+
-      '<div class="rowicons"><svg class="i sm-i" title="Bericht" onclick="event.stopPropagation();dashBericht(\''+a.p.id+'\')"><use href="#i-chat"/></svg>'+
-      '<svg class="i sm-i" title="'+(s?"Weer tonen":"Verberg tot volgende week")+'" onclick="event.stopPropagation();'+(s?"dashUnsnooze(\'"+a.p.id+"\')":"dashSnooze(\'"+a.p.id+"\',\'week\')")+'"><use href="#i-eye"/></svg>'+
-      '<svg class="i sm-i" title="Open programma" onclick="event.stopPropagation();openClient(\''+a.p.id+'\')"><use href="#i-cal"/></svg>'+
-      '<span class="attn-kebab" onclick="dashKebab(event,\''+a.p.id+'\')" style="cursor:pointer;font-weight:800;color:#8a919c;padding:0 4px">⋮</span></div></div>';
+      '<div class="rowicons"><span class="rowact" title="Stuur een bericht" onclick="event.stopPropagation();dashBericht(\''+a.p.id+'\')"><svg class="i sm-i"><use href="#i-chat"/></svg>Bericht</span>'+
+      '<span class="rowact" title="'+(s?"Weer tonen in deze lijst":"Verberg tot volgende week")+'" onclick="event.stopPropagation();'+(s?"dashUnsnooze(\'"+a.p.id+"\')":"dashSnooze(\'"+a.p.id+"\',\'week\')")+'"><svg class="i sm-i"><use href="#i-eye"/></svg>'+(s?"Toon":"Verberg")+'</span>'+
+      '<span class="rowact" title="Open het programma" onclick="event.stopPropagation();openClient(\''+a.p.id+'\')"><svg class="i sm-i"><use href="#i-cal"/></svg>Programma</span>'+
+      '<span class="attn-kebab" onclick="dashKebab(event,\''+a.p.id+'\')" style="cursor:pointer;font-weight:800;color:#8a919c;padding:0 4px" title="Meer opties">⋮</span></div></div>';
   };
   const verborgenLink=nVerborgen?'<div class="sm muted" style="padding:9px 14px;text-align:right;border-top:1px solid var(--line2)"><a style="color:var(--accent);cursor:pointer;font-weight:700" onclick="dashToggleHidden()">'+(dashShowHidden?"Verborgen klanten weer verbergen":nVerborgen+" verborgen · toon")+'</a></div>':'';
   const attnHtml='<div class="attn-card">'+(attnZicht.length?attnZicht.map(attnRij).join(""):'<div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist, nog moet doen of laag scoort, zie je het hier.</div>')+verborgenLink+'</div>';
