@@ -235,9 +235,11 @@ function exZoek(inp){
   }
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
-  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("exDropWeg")+'</div>'+hits.slice(0,8).map(o=>{
+  // Alle resultaten tonen (de lijst scrollt); alleen bij extreem brede
+  // zoekopdrachten afkappen zodat de dropdown vlot blijft.
+  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("exDropWeg")+'</div>'+hits.slice(0,100).map(o=>{
     return '<div class="exopt" onclick="event.stopPropagation();kiesEx(this,'+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
-  }).join("");
+  }).join("")+(hits.length>100?'<div class="hd" style="text-transform:none;letter-spacing:0">… nog '+(hits.length-100)+' resultaten, typ verder om te verfijnen</div>':'');
   drop.classList.add("show");
 }
 // Kruisje in de kop van de zoek-dropdown: wegklikken en weg blijven zolang je
@@ -326,9 +328,9 @@ function cwZoek(inp,kind){
   }
   const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
   if(!hits.length){drop.classList.remove("show");return;}
-  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("cwDropWeg")+'</div>'+hits.slice(0,8).map(o=>{
+  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("cwDropWeg")+'</div>'+hits.slice(0,100).map(o=>{
     return '<div class="exopt" onclick="event.stopPropagation();cwKies(\''+kind+'\','+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
-  }).join("");
+  }).join("")+(hits.length>100?'<div class="hd" style="text-transform:none;letter-spacing:0">… nog '+(hits.length-100)+' resultaten, typ verder om te verfijnen</div>':'');
   drop.classList.add("show");
 }
 function cwKies(kind,oefId){
