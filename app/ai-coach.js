@@ -26,9 +26,41 @@ function aiNieuw(){
   aiRender();
   const inp=document.getElementById("ai-in");if(inp){inp.value="";inp.focus();}
 }
-// Simpele nette weergave: veilig escapen, **vet** en regeleindes.
+// Nette weergave van het AI-antwoord: veilig escapen en daarna de opmaak die
+// Claude vaak gebruikt omzetten: **vet**, ## kopjes, |tabellen| en lijstjes.
 function aiTekstHtml(t){
-  return esc(t).replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>");
+  const vet=s=>s.replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
+  const lines=esc(t).split("\n");
+  let html="",i=0;
+  while(i<lines.length){
+    const l=lines[i];
+    // Tabelblok: opeenvolgende |cel|cel|-regels; de ---scheidingsregel valt weg.
+    if(/^\s*\|.*\|\s*$/.test(l)){
+      const blok=[];
+      while(i<lines.length&&/^\s*\|.*\|\s*$/.test(lines[i])){blok.push(lines[i]);i++;}
+      const rijen=blok.map(r=>r.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim()))
+        .filter(cells=>!cells.every(c=>c===""||/^:?-{2,}:?$/.test(c)));
+      html+='<table class="ai-tab">'+rijen.map((cells,ri)=>'<tr>'+cells.map(c=>(ri===0?'<th>':'<td>')+vet(c)+(ri===0?'</th>':'</td>')).join("")+'</tr>').join("")+'</table>';
+      continue;
+    }
+    const kop=l.match(/^(#{1,4})\s+(.*)$/);
+    if(kop){html+='<div style="font-weight:800;font-size:'+(kop[1].length<=2?'14.5':'13.5')+'px;margin:10px 0 4px">'+vet(kop[2])+'</div>';i++;continue;}
+    if(/^\s*[-*]\s+/.test(l)){
+      const items=[];
+      while(i<lines.length&&/^\s*[-*]\s+/.test(lines[i])){items.push(lines[i].replace(/^\s*[-*]\s+/,""));i++;}
+      html+='<ul style="margin:4px 0 8px 18px;padding:0">'+items.map(x=>'<li style="margin:2px 0">'+vet(x)+'</li>').join("")+'</ul>';
+      continue;
+    }
+    if(/^\s*\d+[.)]\s+/.test(l)){
+      const items=[];
+      while(i<lines.length&&/^\s*\d+[.)]\s+/.test(lines[i])){items.push(lines[i].replace(/^\s*\d+[.)]\s+/,""));i++;}
+      html+='<ol style="margin:4px 0 8px 18px;padding:0">'+items.map(x=>'<li style="margin:2px 0">'+vet(x)+'</li>').join("")+'</ol>';
+      continue;
+    }
+    html+=l.trim()===""?'<div style="height:8px"></div>':'<div>'+vet(l)+'</div>';
+    i++;
+  }
+  return html;
 }
 function aiRender(){
   const host=document.getElementById("ai-gesprek");if(!host)return;
