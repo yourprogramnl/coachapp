@@ -156,11 +156,20 @@ function libKop(){
         extra=sel("jaar",LIB.bmJaar,"Alle jaren",jaren)+sel("move",LIB.bmMove,"Alle bewegingen",moves)+sel("format",LIB.bmFormat,"Alle formats",formats);
         if(LIB.bmCat==="quarterfinal")extra+=sel("div",LIB.bmDiv,"Individueel + age group",["Individual","Age Group"]);
       }
-      leg.innerHTML='<span class="legchip'+(LIB.bmCat===""?" aan":"")+'" onclick="bmCatFilter(\'\')">Alles</span>'+
-        BM_CATS.map(([k,n])=>'<span class="legchip'+(LIB.bmCat===k?" aan":"")+'" onclick="bmCatFilter(\''+k+'\')">'+n+'</span>').join("")+extra;
+      const chips='<span class="legchip'+(LIB.bmCat===""?" aan":"")+'" onclick="bmCatFilter(\'\')">Alles</span>'+
+        BM_CATS.map(([k,n])=>'<span class="legchip'+(LIB.bmCat===k?" aan":"")+'" onclick="bmCatFilter(\''+k+'\')">'+n+'</span>').join("");
+      // Extra filters (jaar/beweging/format/divisie) op een eigen regel onder de chips.
+      if(extra){
+        leg.style.flexDirection="column";leg.style.alignItems="stretch";
+        leg.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+chips+'</div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+extra+'</div>';
+      }else{
+        leg.style.flexDirection="row";leg.style.alignItems="center";
+        leg.innerHTML=chips;
+      }
     }
     else{
-      leg.style.display="flex";
+      leg.style.display="flex";leg.style.flexDirection="row";leg.style.alignItems="center";
       leg.innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
     }
   }
@@ -236,14 +245,15 @@ function benchLijst(host,thead,pag,cnt){
     const badge=b.badge?' <span class="cpill" style="background:#eef1f4;color:#5d6570;text-transform:lowercase">'+esc(b.badge)+'</span>':'';
     const cat=' <span class="cpill teal" style="text-transform:none">'+esc(BM_CATNAAM[b.categorie]||b.categorie)+'</span>';
     const div=b.divisie?' <span class="cpill gray" style="text-transform:none">'+(b.divisie==="Age Group"?"Age group":"Individueel")+'</span>':'';
-    const tg=(b.tags||[]).slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
+    // Alle bewegingen tonen, als nette chips die niet midden in een woord afbreken.
+    const tg=(b.tags||[]).map(t=>'<span class="tag" style="white-space:nowrap">'+esc(t)+'</span>').join("");
     // Wedstrijdregel onder de naam: format, tijdslimiet en Rx-gewichten (m/v).
     const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;
     const info=[b.format,b.time_cap?"cap "+b.time_cap:null,rx].filter(Boolean).join(" · ");
     return '<div class="trow" style="align-items:flex-start'+(eigen?';cursor:pointer':'')+'"'+(eigen?' onclick="bmBewerk(\''+b.id+'\')"':'')+'>'+
       '<div style="flex:1.6"><b>'+esc(b.naam)+'</b>'+badge+cat+div+(info?'<div class="sm muted" style="font-size:11px;margin-top:3px">'+esc(info)+'</div>':'')+'</div>'+
       '<div style="flex:2.8" class="sm muted">'+esc(b.tekst||"").replace(/\n/g,"<br>")+'</div>'+
-      '<div style="flex:1.2">'+tg+'</div></div>';
+      '<div style="flex:1.2;display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start">'+tg+'</div></div>';
   }).join("")||'<div class="cempty">Geen benchmarks gevonden'+(LIB.bmCat==="custom"?'. Voeg je eerste eigen benchmark toe met "+ Benchmark toevoegen".':'.')+'</div>';
   if(pag)pag.innerHTML="";
 }
