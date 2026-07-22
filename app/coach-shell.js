@@ -154,7 +154,7 @@ function coachShellHtml(inner){
   const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</button>').join("");
   // Avatar rechtsboven = uitklapmenu (naar CoachRx-voorbeeld, 17 juli): naam +
   // rol bovenin, Instellingen (komt nog) en Uitloggen (losse knop is weg).
-  return '<div class="cwrap"><div class="cbar"><span class="logo">COACH<b>APP</b></span><div class="cnav2">'+btns+'</div>'+
+  return '<div class="cwrap"><div class="cbar"><span class="logo"><img class="ypmark" src="img/logo-yp-mark.png" alt="">Your<b>Program</b></span><div class="cnav2">'+btns+'</div>'+
     '<div class="cbar-right"><span style="font-size:10px;color:#8f959d;font-weight:700;text-transform:uppercase;letter-spacing:.6px">'+esc(ROLE_NL[myRole()]||"")+'</span>'+
     '<div class="avwrap"><button class="cav" style="'+avFotoStyle(ME.profile)+'" title="Menu" onclick="avMenuToggle(event)">'+avFotoText(ME.profile)+'</button>'+
     '<div class="avmenu" id="avmenu">'+

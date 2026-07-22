@@ -2,7 +2,11 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:var(--bg);color:var(--txt);min-height:100vh}
 .wrap{max-width:100%;margin:0 auto;padding:20px 26px 70px}
-.logo{font-weight:800;font-size:22px;letter-spacing:1px}.logo b{color:var(--accent)}
+/* YourProgram-woordmerk: "Your" in de tekstkleur (wit op de donkere balk),
+   "Program" in het goudverloop van yourprogram.nl, met het gouden YP-beeldmerk. */
+.logo{font-weight:800;font-size:22px;letter-spacing:.5px;white-space:nowrap}
+.logo b{background:linear-gradient(to bottom,#f1d87b 23%,#CA9B25 57%,#E4C05D 63%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#CA9B25}
+.ypmark{height:1.05em;width:auto;vertical-align:-.14em;margin-right:.38em}
 .muted{color:var(--muted)} .hidden{display:none!important}
 /* Kleine helper-/lege-statustekst. Ontbrak, waardoor class="sm"-teksten op de standaardgrootte vielen. */
 .sm{font-size:11.5px}
@@ -593,7 +597,6 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .chatpop .send{margin-left:auto;background:#3eb3e0;color:#fff;font-weight:700;font-size:12px;padding:6px 14px;border-radius:7px;border:none;cursor:pointer;font-family:inherit}
 .chatpop .send:hover{background:#2a9fce}
 .cbar .logo{font-weight:900;font-size:17px;letter-spacing:.5px;margin-right:20px;color:#fff}
-.cbar .logo b{color:var(--accent)}
 .cnav2{display:flex;gap:2px;flex:1;flex-wrap:wrap}
 .cnav2 button{color:#c9cdd4;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;padding:7px 12px;border-radius:6px;background:none;border:none;cursor:pointer;font-family:inherit}
 .cnav2 button:hover{color:#fff}
