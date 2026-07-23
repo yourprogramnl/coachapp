@@ -1013,23 +1013,21 @@ function osLijst(){
     const bm=osBm(part)||{};
     const rx=OSD.geslacht==="men"?bm.rx_men:bm.rx_women;
     const rows=OSD.scores.filter(s=>s.year===OSD.jaar&&s.part===part&&s.division===OSD.geslacht);
-    const tid="os-t-"+part.replace(/[^A-Za-z0-9]/g,"_");
+    const meta=[
+      bm.format?esc(bm.format):null,
+      bm.time_cap?'Time cap '+esc(bm.time_cap):null,
+      rx?'Rx '+esc(rx):null,
+    ].filter(Boolean).map(m=>'<span class="sm muted">'+m+'</span>').join('<span class="sm muted"> · </span>');
     return '<div class="panel" style="padding:16px 18px;margin-bottom:14px">'+
-      '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px">'+
-        '<b style="font-size:15px">Open '+esc(part)+'</b>'+
-        (bm.format?'<span class="sm muted">'+esc(bm.format)+(bm.time_cap?' · cap '+esc(bm.time_cap):'')+'</span>':'')+
-        (rx?'<span class="sm muted">Rx '+esc(rx)+'</span>':'')+
-        (bm.tekst?'<a class="sm" style="margin-left:auto;color:var(--accent);cursor:pointer" onclick="osTekst(this,\''+tid+'\')">Workout bekijken</a>':'')+
+      '<div style="background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">'+
+        '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:15px">Open '+esc(part)+'</b>'+meta+'</div>'+
+        (bm.tekst
+          ?'<pre style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);margin:8px 0 0">'+esc(bm.tekst)+'</pre>'
+          :'<div class="sm muted" style="margin-top:6px">Geen omschrijving in de benchmarks-catalogus.</div>')+
       '</div>'+
-      (bm.tekst?'<pre id="'+tid+'" style="display:none;white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 10px">'+esc(bm.tekst)+'</pre>':'')+
       '<div class="os-thead"><span>#</span><span>Atleet</span><span>Box</span><span style="text-align:right">Score</span></div>'+
-      rows.map(r=>'<div class="os-row"><span class="muted">'+r.rank+'</span><span><b>'+esc(r.athlete)+'</b></span><span class="muted">'+esc(r.affiliate||"")+'</span><span style="text-align:right"><b>'+esc(r.score_display||"")+'</b></span></div>').join("")+
+      (rows.map(r=>'<div class="os-row"><span class="muted">'+r.rank+'</span><span><b>'+esc(r.athlete)+'</b></span><span class="muted">'+esc(r.affiliate||"")+'</span><span style="text-align:right"><b>'+esc(r.score_display||"")+'</b></span></div>').join("")
+        ||'<div class="cempty" style="padding:14px 4px">Geen scores voor deze selectie.</div>')+
       '</div>';
   }).join("")||'<div class="cempty">Geen workouts voor dit jaar.</div>';
-}
-function osTekst(link,tid){
-  const el=document.getElementById(tid);if(!el)return;
-  const dicht=el.style.display==="none";
-  el.style.display=dicht?"":"none";
-  link.textContent=dicht?"Workout verbergen":"Workout bekijken";
 }
