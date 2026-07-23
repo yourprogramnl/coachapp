@@ -232,15 +232,23 @@ function mxGroepen(){
   if(eigen.length)uit["Eigen metrics"]=eigen;
   return uit;
 }
+// Geschatte 1RM's (uit een zware set of de CoachRx-import) zijn herkenbaar aan
+// "geschat" in de notitie; ze tellen anders mee dan echte metingen (zie mxWaarde).
+const mxGeschat=(m)=>/\bgeschat/i.test(m.note||"");
 function mxWaarde(naam){
   const h=mxHist(naam);
   if(!h.length)return null;
   const laatste=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
-  // Voor kg-liften is "Huidig" je beste ooit (PR), niet je laatste meting:
-  // tussenliggende lagere metingen zijn prima, maar halen je PR niet omlaag.
+  // Voor kg-liften is "Huidig" je beste ooit (PR), niet je laatste meting.
+  // Een GESCHATTE 1RM telt alleen mee zolang er geen nieuwere échte meting is:
+  // test iemand daarna een echte 1RM, dan is die leidend, ook als hij lager is.
   let cur=laatste;
   if(mxType(naam)==="kg"){
-    cur=h.reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),h[0]);
+    const echt=h.filter(m=>!mxGeschat(m));
+    const grens=echt.length?echt[echt.length-1].measured_at:null;
+    const geldig=h.filter(m=>!mxGeschat(m)||grens==null||(m.measured_at||"")>grens);
+    const pool=geldig.length?geldig:h;
+    cur=pool.reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),pool[0]);
   }
   return{cur,vorig,laatste,unit:cur.unit||""};
 }
@@ -309,7 +317,7 @@ function mxRender(){
           if(pts&&pts.length)curTxt=esc(String(pts[pts.length-1].v));
         }else{
           const w=mxWaarde(naam),t=mxType(naam);
-          if(w){curTxt=esc(mxFmtRij(w.cur,naam));
+          if(w){curTxt=esc(mxFmtRij(w.cur,naam))+(t==="kg"&&mxGeschat(w.cur)?' <span style="color:#8b919b;font-size:10px">(geschat)</span>':"");
             // +/- alleen voor getalswaarden (kg/vrij), niet voor pass/fail of tijd.
             // Vergelijkt de láátste meting met die ervoor (voortgang), los van de PR.
             if((t==="kg"||t==="vrij")&&w.vorig&&w.laatste.value!=null&&w.vorig.value!=null&&w.laatste.value!==w.vorig.value){
@@ -382,8 +390,8 @@ function mxDetailRender(){
     actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment ('+blok+'), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="mxAanpassenInAss()">Aanpassen in Assessment</button>';
   }else{
     const hist=mxHist(naam),w=mxWaarde(naam),t=mxType(naam);
-    if(w)curTxt=esc(mxFmtRij(w.cur,naam));
-    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
+    if(w)curTxt=esc(mxFmtRij(w.cur,naam))+(t==="kg"&&mxGeschat(w.cur)?' <span style="color:#8b919b;font-size:13px;font-weight:600">(geschat)</span>':"");
+    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&mxGeschat(mm)?' <span class="sm muted">(geschat)</span>':'')+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
     if(mxDetailForm){
       // Invoerveld afhankelijk van het type: kg (getal), tijd (mm:ss) of pass/fail
       let invoer;
