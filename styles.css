@@ -355,6 +355,8 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .crxpr-kop,.crxpr-rij{display:grid;grid-template-columns:26px minmax(0,1fr) 230px 110px;gap:12px;align-items:center;padding:9px 14px}
 .crxpr-kop{background:#f6f7f9;border:1px solid var(--line);border-radius:10px 10px 0 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#8a919c;padding:8px 14px}
 .crxpr-rij{border-bottom:1px solid var(--line)}
+.crxpr-overig{display:none;background:#fafbfc}
+.crxpr-scheiding{padding:10px 14px;border-bottom:1px solid var(--line);background:#f6f7f9}
 .crxpr-rij:last-child{border-bottom:none}
 .crxpr-rij input[type=checkbox]{width:16px;height:16px;cursor:pointer}
 .crxpr-rij input:not([type=checkbox]){border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px;width:100%;box-sizing:border-box}

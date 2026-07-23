@@ -274,17 +274,29 @@ function ensureCrxPrModal(){
 function openCrxPr(){
   ensureCrxPrModal();
   const prs=(crxData&&crxData.prs)||[];
-  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+prs.length+")";
-  document.getElementById("crxpr-lijst").innerHTML=prs.map((p,i)=>{
+  // Splitsing: liften die aan de metingen-catalogus te koppelen zijn staan
+  // vooraan; de rest (banded/bamboo/accessorewerk met een RM-schema) is meestal
+  // geen echte test en staat verborgen achter een knopje (verzoek Stefan 23 juli).
+  const rij=(p,i,extraKlasse)=>{
     const meting=crxMetingVoor(p.naam);
-    return '<div class="crxpr-rij">'+
+    return '<div class="crxpr-rij'+(extraKlasse||"")+'">'+
       '<input type="checkbox" class="crx-pr" data-i="'+i+'" onchange="crxPrTel()">'+
       '<div style="min-width:0"><div style="font-weight:700;font-size:13px">'+esc(p.naam)+'</div>'+
         '<div class="sm muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(datumNL(p.datum))+(p.resultaat?' · '+esc(p.resultaat.split("\n").slice(0,2).join(" · ")).slice(0,110):'')+'</div></div>'+
       '<input class="crx-pr-m" data-i="'+i+'" list="crx-metingen" value="'+esc(meting)+'" placeholder="meting…">'+
       '<div style="display:flex;align-items:center;gap:5px"><input class="crx-pr-kg" data-i="'+i+'" value="'+esc(crxKgUit(p.resultaat))+'" placeholder="–" style="width:64px;text-align:center"><span class="sm muted">kg</span></div>'+
       '</div>';
-  }).join("")||'<div style="padding:14px" class="sm muted">Geen PR-kandidaten in deze PDF.</div>';
+  };
+  const herkend=[],overig=[];
+  prs.forEach((p,i)=>(crxMetingVoor(p.naam)?herkend:overig).push([p,i]));
+  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+herkend.length+(overig.length?" + "+overig.length+" overig":"")+")";
+  document.getElementById("crxpr-lijst").innerHTML=(
+    herkend.map(([p,i])=>rij(p,i,"")).join("")+
+    (overig.length
+      ?'<div class="crxpr-scheiding"><button class="btn ghost sm" onclick="crxPrOverigToggle(this)">Toon '+overig.length+' overige testblokken (geen herkende lift)</button></div>'+
+       overig.map(([p,i])=>rij(p,i," crxpr-overig")).join("")
+      :"")
+  )||'<div style="padding:14px" class="sm muted">Geen PR-kandidaten in deze PDF.</div>';
   if(!document.getElementById("crx-metingen")){
     const dl=document.createElement("datalist");dl.id="crx-metingen";
     dl.innerHTML=Object.values(METRICS_DEF).flat().map(m=>'<option value="'+esc(m)+'">').join("");
@@ -295,6 +307,15 @@ function openCrxPr(){
   document.getElementById("crxprmodal").classList.add("show");
 }
 function closeCrxPr(){const m=document.getElementById("crxprmodal");if(m)m.classList.remove("show");}
+// Overige testblokken (geen herkende lift) tonen/verbergen
+function crxPrOverigToggle(knop){
+  const aan=knop.dataset.aan==="1";
+  document.querySelectorAll(".crxpr-overig").forEach(r=>{r.style.display=aan?"none":"grid";});
+  knop.dataset.aan=aan?"0":"1";
+  const n=document.querySelectorAll(".crxpr-overig").length;
+  knop.textContent=(aan?"Toon ":"Verberg ")+n+" overige testblokken"+(aan?" (geen herkende lift)":"");
+  crxPrTel();
+}
 // AI-invulhulp: laat Claude per regel het beste gelukte gewicht bepalen
 // (Edge Function pr-gewichten). Vult alleen de velden; boeken blijft handwerk.
 async function crxAiVul(){
@@ -328,7 +349,14 @@ async function crxAiVul(){
   });
   stat.textContent="AI-controle klaar: "+gevuld+" gewicht"+(gevuld===1?"":"en")+" ingevuld"+(open?", "+open+" open gelaten (oranje rand, even zelf bekijken)":"")+(data.kosten&&data.kosten.usd?" · kosten ≈ $"+data.kosten.usd:"");
 }
-function crxPrAlles(aan){document.querySelectorAll(".crx-pr").forEach(c=>{c.checked=aan;});crxPrTel();}
+// Alles aanvinken pakt alleen zichtbare regels (verborgen "overige" niet mee)
+function crxPrAlles(aan){
+  document.querySelectorAll(".crx-pr").forEach(c=>{
+    const rij=c.closest(".crxpr-rij");
+    if(rij&&rij.offsetParent!==null)c.checked=aan;
+  });
+  crxPrTel();
+}
 function crxPrTel(){
   const n=document.querySelectorAll(".crx-pr:checked").length;
   const tot=(crxData&&crxData.prs)?crxData.prs.length:0;
