@@ -969,10 +969,10 @@ async function wdImport(){
 // ---------- CrossFit Open: wereldtop-10 per workout (tabel open_scores) ----------
 // Scores komen uit de publieke CrossFit-API (eenmalige import); de workout-tekst
 // en Rx-gewichten komen uit de benchmarks-catalogus in de Bibliotheek.
-let OSD={geladen:false,scores:[],bm:{},jaar:null,geslacht:"men"};
+let OSD={geladen:false,scores:[],bm:{},bmAlle:[],jaar:null,geslacht:"men",view:"wods",dicht:{}};
 async function osLaad(){
   if(OSD.geladen)return;
-  const bq=await db.from("benchmarks").select("naam,tekst,format,time_cap,rx_men,rx_women").eq("categorie","open");
+  const bq=await db.from("benchmarks").select("naam,tekst,format,time_cap,rx_men,rx_women,jaar,tags").eq("categorie","open");
   // De tabel heeft 1.500+ rijen en de API geeft er maximaal 1000 per keer;
   // daarom in porties van 1000 doorhalen tot alles binnen is.
   let alle=[],vanaf=0;
@@ -985,7 +985,8 @@ async function osLaad(){
     vanaf+=1000;
   }
   OSD.scores=alle;
-  (bq.data||[]).forEach(b=>{OSD.bm[b.naam]=b;});
+  OSD.bmAlle=bq.data||[];
+  OSD.bmAlle.forEach(b=>{OSD.bm[b.naam]=b;});
   if(OSD.scores.length)OSD.jaar=Math.max.apply(null,OSD.scores.map(s=>s.year));
   OSD.geladen=true;
 }
@@ -1000,12 +1001,19 @@ async function osRender(h){
   const jaren=[...new Set(OSD.scores.map(s=>s.year))].sort((a,b)=>b-a);
   const gesl=[["men","Mannen"],["women","Vrouwen"]]
     .map(g=>'<button class="'+(OSD.geslacht===g[0]?"on":"")+'" onclick="osZet(null,\''+g[0]+'\')">'+g[1]+'</button>').join("");
+  const views=[["wods","Workouts"],["analyse","Analyse"]]
+    .map(v=>'<button class="'+(OSD.view===v[0]?"on":"")+'" onclick="osView(\''+v[0]+'\')">'+v[1]+'</button>').join("");
   h.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
-    '<div class="dt-subnav" style="flex-wrap:wrap">'+jaren.map(j=>'<button class="'+(OSD.jaar===j?"on":"")+'" onclick="osZet('+j+',null)">'+j+'</button>').join("")+'</div>'+
-    '<div class="dt-subnav" style="margin-left:auto">'+gesl+'</div></div>'+
+    '<div class="dt-subnav">'+views+'</div>'+
+    (OSD.view==="wods"
+      ?'<div class="dt-subnav" style="flex-wrap:wrap">'+jaren.map(j=>'<button class="'+(OSD.jaar===j?"on":"")+'" onclick="osZet('+j+',null)">'+j+'</button>').join("")+'</div>'+
+       '<div class="dt-subnav" style="margin-left:auto">'+gesl+'</div>'
+      :'<span class="sm muted">Alle Open-workouts '+Math.min.apply(null,jaren)+'-'+Math.max.apply(null,jaren)+'</span>')+
+    '</div>'+
     '<div id="os-lijst"></div>';
-  osLijst();
+  if(OSD.view==="analyse")osAnalyse();else osLijst();
 }
+function osView(v){OSD.view=v;const h=document.getElementById("data-inhoud");if(h)osRender(h);}
 function osZet(jaar,gesl){
   if(jaar)OSD.jaar=jaar;
   if(gesl)OSD.geslacht=gesl;
@@ -1025,26 +1033,117 @@ function osLijst(){
       bm.time_cap?'Time cap '+esc(bm.time_cap):null,
       rx?'Rx '+esc(rx):null,
     ].filter(Boolean).map(m=>'<span class="sm muted">'+m+'</span>').join('<span class="sm muted"> · </span>');
-    const tid="os-t-"+part.replace(/[^A-Za-z0-9]/g,"_");
+    const pid=part.replace(/[^A-Za-z0-9]/g,"_");
+    const dicht=!!OSD.dicht[part];
     return '<div class="panel" style="padding:16px 18px;margin-bottom:14px">'+
-      '<div style="background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">'+
-        '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:15px">Open '+esc(part)+'</b>'+meta+
-          (bm.tekst?'<a class="sm" style="margin-left:auto;color:var(--accent);cursor:pointer" onclick="osTekst(this,\''+tid+'\')">Workout verbergen</a>':'')+
-        '</div>'+
-        (bm.tekst
-          ?'<pre id="'+tid+'" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);margin:8px 0 0">'+esc(bm.tekst)+'</pre>'
-          :'<div class="sm muted" style="margin-top:6px">Geen omschrijving in de benchmarks-catalogus.</div>')+
+      // Kopregel: klik = heel blok (workout + scores) in-/uitklappen
+      '<div onclick="osKlap(\''+esc(part)+'\')" style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;cursor:pointer;user-select:none">'+
+        '<span id="os-pijl-'+pid+'" class="muted" style="font-size:11px">'+(dicht?"►":"▼")+'</span>'+
+        '<b style="font-size:15px">Open '+esc(part)+'</b>'+meta+
+        '<a class="sm" style="margin-left:auto;color:var(--accent)">'+(dicht?"Workout tonen":"Workout verbergen")+'</a>'+
       '</div>'+
-      '<div class="os-thead"><span>#</span><span>Atleet</span><span>Box</span><span style="text-align:right">Score</span></div>'+
-      (rows.map(r=>'<div class="os-row"><span class="muted">'+r.rank+'</span><span><b>'+esc(r.athlete)+'</b></span><span class="muted">'+esc(r.affiliate||"")+'</span><span style="text-align:right"><b>'+esc(r.score_display||"")+'</b></span></div>').join("")
-        ||'<div class="cempty" style="padding:14px 4px">Geen scores voor deze selectie.</div>')+
+      '<div id="os-body-'+pid+'" style="'+(dicht?"display:none;":"")+'margin-top:10px">'+
+        '<div style="background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">'+
+          (bm.tekst
+            ?'<pre style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);margin:0">'+esc(bm.tekst)+'</pre>'
+            :'<div class="sm muted">Geen omschrijving in de benchmarks-catalogus.</div>')+
+        '</div>'+
+        '<div class="os-thead"><span>#</span><span>Atleet</span><span>Box</span><span style="text-align:right">Score</span></div>'+
+        (rows.map(r=>'<div class="os-row"><span class="muted">'+r.rank+'</span><span><b>'+esc(r.athlete)+'</b></span><span class="muted">'+esc(r.affiliate||"")+'</span><span style="text-align:right"><b>'+esc(r.score_display||"")+'</b></span></div>').join("")
+          ||'<div class="cempty" style="padding:14px 4px">Geen scores voor deze selectie.</div>')+
+      '</div>'+
       '</div>';
   }).join("")||'<div class="cempty">Geen workouts voor dit jaar.</div>';
 }
-// De workout-tekst staat standaard uitgeklapt (verzoek Stefan); dit linkje klapt hem in/uit.
-function osTekst(link,tid){
-  const el=document.getElementById(tid);if(!el)return;
-  const dicht=el.style.display==="none";
-  el.style.display=dicht?"":"none";
-  link.textContent=dicht?"Workout verbergen":"Workout tonen";
+// Blok in-/uitklappen; standaard staat alles open, de keuze wordt per sessie onthouden.
+function osKlap(part){
+  const dicht=!OSD.dicht[part];
+  OSD.dicht[part]=dicht;
+  const pid=part.replace(/[^A-Za-z0-9]/g,"_");
+  const body=document.getElementById("os-body-"+pid),pijl=document.getElementById("os-pijl-"+pid);
+  if(body)body.style.display=dicht?"none":"";
+  if(pijl){pijl.textContent=dicht?"►":"▼";const a=pijl.parentElement.querySelector("a");if(a)a.textContent=dicht?"Workout tonen":"Workout verbergen";}
+}
+// ---------- Analyse over alle Open-jaren (bron: benchmarks-catalogus) ----------
+// Beweging-tags beginnen met een hoofdletter; kleine letters zijn modaliteiten.
+function osAnalyse(){
+  const el=document.getElementById("os-lijst");if(!el)return;
+  const wods=OSD.bmAlle.filter(b=>b.jaar);
+  const jaren=[...new Set(wods.map(b=>b.jaar))].sort();
+  // Per beweging: workouts, jaren, laatste jaar
+  const bew={};
+  wods.forEach(b=>(b.tags||[]).forEach(t=>{
+    if(!t||t[0]!==t[0].toUpperCase())return;
+    (bew[t]=bew[t]||{workouts:[],jaren:new Set()}).workouts.push(b);
+    bew[t].jaren.add(b.jaar);
+  }));
+  const bewLijst=Object.keys(bew).map(n=>({naam:n,n:bew[n].workouts.length,jaren:bew[n].jaren.size,laatst:Math.max.apply(null,[...bew[n].jaren]),ws:bew[n].workouts}))
+    .sort((a,b)=>b.n-a.n||b.jaren-a.jaren||a.naam.localeCompare(b.naam));
+  // Modaliteiten
+  const mod={};
+  wods.forEach(b=>(b.tags||[]).forEach(t=>{
+    if(!t||t[0]!==t[0].toLowerCase())return;
+    (mod[t]=mod[t]||{n:0,jaren:new Set()});mod[t].n++;mod[t].jaren.add(b.jaar);
+  }));
+  const MOD_NL={gymnastics:"Gymnastics",barbell:"Barbell",dumbbell:"Dumbbell",monostructural:"Monostructural (roeien/touwtje)"};
+  // Formats samengevat
+  const fam=f=>/^AMRAP|^EMOM/.test(f||"")?"AMRAP / intervalklok":(/^For time/.test(f||"")?"For time":"Max-gewicht (1RM / complex)");
+  const fmt={};wods.forEach(b=>{const k=fam(b.format);fmt[k]=(fmt[k]||0)+1;});
+  // Tijdsdomein uit time_cap ("N min")
+  const dom={"t/m 9 min":0,"10-14 min":0,"15-20 min":0,"langer / oplopend / geen cap":0};
+  wods.forEach(b=>{
+    const m=/^(\d+) min$/.exec(b.time_cap||"");
+    if(!m){dom["langer / oplopend / geen cap"]++;return;}
+    const min=parseInt(m[1]);
+    if(min<=9)dom["t/m 9 min"]++;else if(min<=14)dom["10-14 min"]++;else if(min<=20)dom["15-20 min"]++;else dom["langer / oplopend / geen cap"]++;
+  });
+  // Aantal bewegingen per workout (couplet/triplet)
+  const per={};
+  wods.forEach(b=>{
+    const n=(b.tags||[]).filter(t=>t&&t[0]===t[0].toUpperCase()).length;
+    const k=n<=1?"1 beweging":(n===2?"Couplet (2)":(n===3?"Triplet (3)":"4 of meer (chipper)"));
+    per[k]=(per[k]||0)+1;
+  });
+  const coupletTriplet=Math.round(100*(((per["Couplet (2)"]||0)+(per["Triplet (3)"]||0))/wods.length));
+  // Exacte herhalingen (zelfde workout-tekst)
+  const perTekst={};
+  wods.forEach(b=>{if(b.tekst&&b.tekst.length>60)(perTekst[b.tekst]=perTekst[b.tekst]||[]).push(b.naam);});
+  const herhaald=Object.values(perTekst).filter(g=>g.length>1).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}));
+  // Opvallende dingen, allemaal uit de data berekend
+  const sindsMod=t=>mod[t]?Math.min.apply(null,[...mod[t].jaren]):null;
+  const totJaar=jaren[jaren.length-1];
+  const vasteKlanten=bewLijst.filter(b=>b.jaren>=jaren.length-4).map(b=>b.naam);
+  const finale=wods.filter(b=>{const t=b.tags||[];return t.includes("Thruster")&&(t.includes("Chest-to-Bar Pull-Up")||t.includes("Pull-Up"));}).length;
+  const blok=(titel,inhoud)=>'<div class="panel" style="padding:16px 18px;margin-bottom:14px"><b style="font-size:15px">'+titel+'</b>'+inhoud+'</div>';
+  const staaf=(label,n,max,extra)=>'<div style="display:grid;grid-template-columns:minmax(0,1.3fr) 1fr;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid #f0f2f5;font-size:13px">'+
+    '<span>'+esc(label)+(extra?' <span class="sm muted">'+extra+'</span>':'')+'</span>'+
+    '<span style="display:flex;gap:8px;align-items:center"><span style="height:8px;border-radius:4px;background:var(--accent);opacity:.75;width:'+Math.max(3,Math.round(100*n/max))+'%"></span><b style="font-size:12px">'+n+'</b></span></div>';
+  const topN=15,maxBew=bewLijst.length?bewLijst[0].n:1;
+  el.innerHTML=
+    blok("Wat valt op",
+      '<ul class="sm" style="margin:10px 0 0;padding-left:18px;line-height:1.9">'+
+      '<li>Vaste klanten die in bijna elk jaar terugkomen: <b>'+esc(vasteKlanten.join(", ")||"-")+'</b>.</li>'+
+      '<li><b>'+coupletTriplet+'%</b> van alle Open-workouts is een couplet of triplet (2 of 3 bewegingen). Snelle wissels tussen oefeningen zijn dus minstens zo belangrijk als de oefeningen zelf.</li>'+
+      '<li>De dumbbell zit er sinds <b>'+(sindsMod("dumbbell")||"-")+'</b> in en is sindsdien niet meer weggeweest; de wall walk sinds <b>'+(bew["Wall Walk"]?Math.min.apply(null,[...new Set(bew["Wall Walk"].ws.map(w=>w.jaar))]):"-")+'</b>.</li>'+
+      '<li>De combinatie thrusters + pull-up-variant (de klassieke afsluiter) kwam <b>'+finale+'</b> keer voorbij.</li>'+
+      '<li>Hoge-skill gymnastics (muscle-ups, handstand push-ups, handstand walk) zit vrijwel elk jaar in minstens één workout, meestal laat in de workout zodat iedereen eerst kan scoren.</li>'+
+      '</ul><div class="sm muted" style="margin-top:8px">Alles hieronder is berekend uit de benchmarks-catalogus (bron: games.crossfit.com, '+jaren[0]+'-'+totJaar+', '+wods.length+' workouts).</div>')+
+    blok("Bewegingen die het vaakst terugkomen",
+      '<div class="sm muted" style="margin:6px 0 8px">Aantal workouts waarin de beweging zat; erachter in hoeveel jaren en wanneer voor het laatst.</div>'+
+      bewLijst.slice(0,topN).map(b=>staaf(b.naam,b.n,maxBew,b.jaren+" van "+jaren.length+" jaren · laatst "+b.laatst)).join("")+
+      (bewLijst.length>topN?'<details style="margin-top:8px"><summary class="sm" style="color:var(--accent);cursor:pointer">Toon alle '+bewLijst.length+' bewegingen</summary>'+
+        bewLijst.slice(topN).map(b=>staaf(b.naam,b.n,maxBew,b.jaren+" van "+jaren.length+" jaren · laatst "+b.laatst)).join("")+'</details>':''))+
+    blok("Modaliteiten",
+      '<div style="margin-top:8px">'+Object.keys(MOD_NL).filter(k=>mod[k]).map(k=>staaf(MOD_NL[k],mod[k].n,wods.length,"sinds "+Math.min.apply(null,[...mod[k].jaren]))).join("")+'</div>')+
+    blok("Formats en tijdsdomein",
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:8px">'+
+      '<div><div class="sm muted" style="margin-bottom:6px">Format</div>'+Object.keys(fmt).map(k=>staaf(k,fmt[k],wods.length)).join("")+'</div>'+
+      '<div><div class="sm muted" style="margin-bottom:6px">Tijdsdomein (time cap)</div>'+Object.keys(dom).map(k=>staaf(k,dom[k],wods.length)).join("")+'</div>'+
+      '<div><div class="sm muted" style="margin-bottom:6px">Aantal bewegingen per workout</div>'+["1 beweging","Couplet (2)","Triplet (3)","4 of meer (chipper)"].filter(k=>per[k]).map(k=>staaf(k,per[k],wods.length)).join("")+'</div>'+
+      '</div>')+
+    blok("Herhaalde workouts (identieke tekst)",
+      herhaald.length
+        ?'<div class="sm muted" style="margin:6px 0 8px">De Open herhaalt regelmatig een eerdere workout, handig om te weten welke je kunt verwachten.</div>'+
+          herhaald.map(g=>'<div style="padding:5px 0;border-bottom:1px solid #f0f2f5;font-size:13px"><b>'+g.map(esc).join("</b> = <b>")+'</b></div>').join("")
+        :'<div class="sm muted" style="margin-top:8px">Geen exacte herhalingen gevonden.</div>');
 }
