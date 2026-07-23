@@ -698,8 +698,12 @@ function wdSelectie(p){
 }
 function wdFilterHtml(p){
   const evs=wdUniq((WD.wods||[]).map(w=>w.event)).sort();
-  const yrs=wdUniq((WD.wods||[]).map(w=>w.jaar)).sort((a,b)=>b-a);
-  const divs=wdUniq((WD.wods||[]).map(w=>w.divisie||"Alle divisies")).sort().filter(d=>d!=="Alle divisies");
+  // Jaren en divisies volgen het gekozen event (elke wedstrijd heeft eigen divisies)
+  const e=WD[p+"Event"];
+  const basis=(WD.wods||[]).filter(w=>!e||w.event===e);
+  const yrs=wdUniq(basis.map(w=>w.jaar)).sort((a,b)=>b-a);
+  const j=WD[p+"Jaar"];
+  const divs=wdUniq(basis.filter(w=>!j||String(w.jaar)===j).map(w=>w.divisie||"Alle divisies")).sort().filter(d=>d!=="Alle divisies");
   const sel=(id,cur,opts,leeg)=>'<select class="lid-in" style="width:auto" onchange="wdFilter(\''+p+'\',\''+id+'\',this.value)">'+
     '<option value="">'+leeg+'</option>'+opts.map(o=>'<option'+(String(o)===String(cur)?" selected":"")+'>'+esc(String(o))+'</option>').join("")+'</select>';
   return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
@@ -713,7 +717,19 @@ function wdFilterHtml(p){
     sel("Struct",WD[p+"Struct"],WD_STRUCTS,"Alle structuren")+
   '</div>';
 }
-function wdFilter(p,veld,v){WD[p+veld]=v;wdRenderView();}
+function wdFilter(p,veld,v){
+  WD[p+veld]=v;
+  // Bij event- of jaarwissel: keuzes wissen die binnen de nieuwe selectie niet bestaan
+  if(veld==="Event"||veld==="Jaar"){
+    const e=WD[p+"Event"];
+    const basis=(WD.wods||[]).filter(w=>!e||w.event===e);
+    if(WD[p+"Jaar"]&&!basis.some(w=>String(w.jaar)===WD[p+"Jaar"]))WD[p+"Jaar"]="";
+    const j=WD[p+"Jaar"];
+    const divs=basis.filter(w=>!j||String(w.jaar)===j).map(w=>w.divisie||"Alle divisies");
+    if(WD[p+"Div"]&&!divs.includes(WD[p+"Div"]))WD[p+"Div"]="";
+  }
+  wdRenderView();
+}
 function wdRenderView(){
   const h=document.getElementById("wd-view");if(!h)return;
   if(WD.view==="overzicht")wdOverzicht(h);
