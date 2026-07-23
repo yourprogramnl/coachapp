@@ -145,8 +145,21 @@ function crxParse(ruw){
     return{datum,wdKlopt:new Date(datum+"T12:00:00Z").getUTCDay()===CRX_WD[d.wd],titel:d.titel,warmup:warmup.join("\n").trim(),blokken:nette};
   });
   const prs=[];
+  // Naast echte RM-tests ook zware sets op herkende liften (5x5, heavy 3…):
+  // die leveren een GESCHATTE 1RM op met dezelfde rekenregel als de app
+  // (gewicht x (1 + reps/30)). Verzoek Stefan 23 juli.
+  const SCHEMA_RE=/(\d+)\s*[x×]\s*(\d+)|heavy\s+(single|double|triple|\d+)/i;
   uit.forEach(d=>d.blokken.forEach(b=>{
-    if(/\b\d?\s?RM\b|1RM/i.test(b.voorschrift+" "+b.naam)&&b.resultaat)prs.push({datum:d.datum,naam:b.naam,resultaat:b.resultaat});
+    if(!b.resultaat)return;
+    const tekst=b.voorschrift+" "+b.naam;
+    if(/\b\d?\s?RM\b|1RM/i.test(tekst)){prs.push({datum:d.datum,naam:b.naam,resultaat:b.resultaat});return;}
+    const m=tekst.match(SCHEMA_RE);
+    if(m&&crxMetingVoor(b.naam)){
+      let reps=null;
+      if(m[2])reps=parseInt(m[2],10); // "5 x 5" = sets x reps, de reps tellen
+      else if(m[3])reps={single:1,double:2,triple:3}[m[3].toLowerCase()]||parseInt(m[3],10);
+      if(reps&&reps>=1&&reps<=10)prs.push({datum:d.datum,naam:b.naam,resultaat:b.resultaat,reps});
+    }
   }));
   return{dagen:uit,prs};
 }
@@ -279,22 +292,32 @@ function openCrxPr(){
   // geen echte test en staat verborgen achter een knopje (verzoek Stefan 23 juli).
   const rij=(p,i,extraKlasse)=>{
     const meting=crxMetingVoor(p.naam);
+    // Bij een repsschema (5x5, heavy 3) vullen we de geschatte 1RM alvast in.
+    const kgVoorstel=p.reps?crxGeschat1Rm(crxKgUit(p.resultaat),p.reps):crxKgUit(p.resultaat);
     return '<div class="crxpr-rij'+(extraKlasse||"")+'">'+
       '<input type="checkbox" class="crx-pr" data-i="'+i+'" onchange="crxPrTel()">'+
-      '<div style="min-width:0"><div style="font-weight:700;font-size:13px">'+esc(p.naam)+'</div>'+
+      '<div style="min-width:0"><div style="font-weight:700;font-size:13px">'+esc(p.naam)+(p.reps?' <span class="sm" style="color:#9a7b1f;font-weight:700">≈ 1RM uit '+p.reps+' reps</span>':'')+'</div>'+
         '<div class="sm muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(datumNL(p.datum))+(p.resultaat?' · '+esc(p.resultaat.split("\n").slice(0,2).join(" · ")).slice(0,110):'')+'</div></div>'+
       '<input class="crx-pr-m" data-i="'+i+'" list="crx-metingen" value="'+esc(meting)+'" placeholder="meting…">'+
-      '<div style="display:flex;align-items:center;gap:5px"><input class="crx-pr-kg" data-i="'+i+'" value="'+esc(crxKgUit(p.resultaat))+'" placeholder="–" style="width:64px;text-align:center"><span class="sm muted">kg</span></div>'+
+      '<div style="display:flex;align-items:center;gap:5px"><input class="crx-pr-kg" data-i="'+i+'" value="'+esc(kgVoorstel)+'" placeholder="–" style="width:64px;text-align:center"><span class="sm muted">kg</span></div>'+
       '</div>';
   };
-  const herkend=[],overig=[];
-  prs.forEach((p,i)=>(crxMetingVoor(p.naam)?herkend:overig).push([p,i]));
-  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+herkend.length+(overig.length?" + "+overig.length+" overig":"")+")";
+  const herkend=[],schatting=[],overig=[];
+  prs.forEach((p,i)=>{
+    if(p.reps)schatting.push([p,i]);
+    else (crxMetingVoor(p.naam)?herkend:overig).push([p,i]);
+  });
+  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+herkend.length+
+    (schatting.length?" + "+schatting.length+" geschat":"")+(overig.length?" + "+overig.length+" overig":"")+")";
   document.getElementById("crxpr-lijst").innerHTML=(
     herkend.map(([p,i])=>rij(p,i,"")).join("")+
+    (schatting.length
+      ?'<div class="crxpr-scheiding"><button class="btn ghost sm" onclick="crxPrOverigToggle(this,\'crxpr-schat\')">Toon '+schatting.length+' geschatte 1RM-kandidaten (5x5, heavy 3…)</button></div>'+
+       schatting.map(([p,i])=>rij(p,i," crxpr-overig crxpr-schat")).join("")
+      :"")+
     (overig.length
-      ?'<div class="crxpr-scheiding"><button class="btn ghost sm" onclick="crxPrOverigToggle(this)">Toon '+overig.length+' overige testblokken (geen herkende lift)</button></div>'+
-       overig.map(([p,i])=>rij(p,i," crxpr-overig")).join("")
+      ?'<div class="crxpr-scheiding"><button class="btn ghost sm" onclick="crxPrOverigToggle(this,\'crxpr-los\')">Toon '+overig.length+' overige testblokken (geen herkende lift)</button></div>'+
+       overig.map(([p,i])=>rij(p,i," crxpr-overig crxpr-los")).join("")
       :"")
   )||'<div style="padding:14px" class="sm muted">Geen PR-kandidaten in deze PDF.</div>';
   if(!document.getElementById("crx-metingen")){
@@ -307,13 +330,20 @@ function openCrxPr(){
   document.getElementById("crxprmodal").classList.add("show");
 }
 function closeCrxPr(){const m=document.getElementById("crxprmodal");if(m)m.classList.remove("show");}
-// Overige testblokken (geen herkende lift) tonen/verbergen
-function crxPrOverigToggle(knop){
+// Geschatte 1RM uit een zware set: gewicht x (1 + reps/30), afgerond op 0,5 kg
+// (zelfde rekenregel als het PR-voorstel in de sporter-app).
+function crxGeschat1Rm(kgTekst,reps){
+  const kg=parseFloat(String(kgTekst||"").replace(",","."));
+  if(isNaN(kg)||kg<=0)return"";
+  if(reps<=1)return String(kg).replace(".",",");
+  return String(Math.round(kg*(1+reps/30)*2)/2).replace(".",",");
+}
+// Verborgen groep (geschatte 1RM's of overige testblokken) tonen/verbergen
+function crxPrOverigToggle(knop,klasse){
   const aan=knop.dataset.aan==="1";
-  document.querySelectorAll(".crxpr-overig").forEach(r=>{r.style.display=aan?"none":"grid";});
+  document.querySelectorAll("."+klasse).forEach(r=>{r.style.display=aan?"none":"grid";});
   knop.dataset.aan=aan?"0":"1";
-  const n=document.querySelectorAll(".crxpr-overig").length;
-  knop.textContent=(aan?"Toon ":"Verberg ")+n+" overige testblokken"+(aan?" (geen herkende lift)":"");
+  knop.textContent=(aan?"Toon":"Verberg")+knop.textContent.replace(/^(Toon|Verberg)/,"");
   crxPrTel();
 }
 // AI-invulhulp: laat Claude per regel het beste gelukte gewicht bepalen
@@ -338,8 +368,16 @@ async function crxAiVul(){
     const rij=kEl.closest(".crxpr-rij");
     const oude=rij&&rij.querySelector(".airden");if(oude)oude.remove();
     if(r.kg!=null){
-      kEl.value=String(r.kg).replace(".",",");
-      kEl.style.borderColor="#27b376";kEl.title="Door AI ingevuld";gevuld++;
+      const p=crxData.prs[r.i];
+      if(p&&p.reps){
+        // Repsschema: de AI leest de beste set, wij rekenen de geschatte 1RM.
+        kEl.value=crxGeschat1Rm(String(r.kg),p.reps);
+        kEl.title="AI las beste set "+r.kg+" kg · geschat 1RM uit "+p.reps+" reps";
+      }else{
+        kEl.value=String(r.kg).replace(".",",");
+        kEl.title="Door AI ingevuld";
+      }
+      kEl.style.borderColor="#27b376";gevuld++;
     }else{
       kEl.value="";kEl.style.borderColor="#e5a13d";kEl.title="AI: "+(r.reden||"geen bruikbaar gewicht");
       const sub=rij&&rij.querySelector(".sm.muted");
@@ -383,7 +421,8 @@ async function crxPrsBoeken(){
     // Notitie mét het blok en de gelogde tekst, zodat je later kunt terugzien
     // waar het getal vandaan komt (verzoek Stefan 22 juli).
     const log=String(p.resultaat||"").split("\n").slice(0,2).join(" · ").slice(0,120);
-    rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK+" · "+p.naam+(log?": "+log:"")});
+    const schatting=p.reps?" · geschat 1RM uit "+p.reps+" reps":"";
+    rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK+schatting+" · "+p.naam+(log?": "+log:"")});
     geboekt.push(v);
   }
   if(!rows.length){toast("Vul bij de aangevinkte regels een meting en een gewicht in (rood gemarkeerd)");return;}
