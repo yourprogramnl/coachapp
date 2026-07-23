@@ -349,6 +349,15 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .trow.crow:hover{background:#fafbfc}
 .trow.click{cursor:pointer;position:relative}
 .trow.click:hover{background:#fafbfc}
+/* Data > Atleten: klant-suggesties onder het naamveld van + Atleet */
+.dt-sug{position:absolute;top:calc(100% + 4px);left:0;z-index:60;min-width:240px;max-height:230px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(16,24,40,.14)}
+.dt-sug button{display:block;width:100%;text-align:left;padding:9px 13px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:13px;color:var(--txt)}
+.dt-sug button:hover{background:#f4f6f9}
+/* Data > CrossFit Open: wereldtop-10 tabel */
+.os-thead,.os-row{display:grid;grid-template-columns:34px minmax(0,1.1fr) minmax(0,1.1fr) 120px;gap:10px;align-items:center;padding:7px 4px}
+.os-thead{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#8a919c;border-bottom:1px solid var(--line)}
+.os-row{border-bottom:1px solid #f0f2f5;font-size:13px}
+.os-row:last-child{border-bottom:none}
 /* PR-merkje in de metric-geschiedenis (hoogste kg-meting ooit) */
 .prbadge{display:inline-block;font-size:10px;font-weight:800;color:#9a7b1f;background:rgba(217,180,74,.18);border:1px solid rgba(217,180,74,.5);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
 /* CoachRx-import: PR-kandidaten in een groot venster met nette rijen */

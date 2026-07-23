@@ -172,6 +172,7 @@ async function fillData(){
     '<div class="ctabs" style="margin-bottom:14px">'+
       '<button class="'+(dataTab==="atleten"?"on":"")+'" onclick="dataZetTab(\'atleten\')">Atleten</button>'+
       '<button class="'+(dataTab==="wedstrijden"?"on":"")+'" onclick="dataZetTab(\'wedstrijden\')">Wedstrijden</button>'+
+      '<button class="'+(dataTab==="open"?"on":"")+'" onclick="dataZetTab(\'open\')">CrossFit Open</button>'+
     '</div>'+
     '<div id="data-inhoud"></div>';
   dataRender();
@@ -179,13 +180,15 @@ async function fillData(){
 async function dataZetTab(t){
   dataTab=t;
   if(t==="atleten"&&!DT.geladen)await dtLaad();
+  const lbl={atleten:"atleten",wedstrijden:"wedstrijden",open:"crossfit"};
   const tabs=document.querySelectorAll("#cpage .ctabs button");
-  tabs.forEach(b=>b.classList.toggle("on",(b.textContent||"").toLowerCase().indexOf(t==="atleten"?"atleten":"wedstrijden")===0));
+  tabs.forEach(b=>b.classList.toggle("on",(b.textContent||"").toLowerCase().indexOf(lbl[t]||t)===0));
   dataRender();
 }
 function dataRender(){
   const h=document.getElementById("data-inhoud");if(!h)return;
   if(dataTab==="wedstrijden"){wdRender(h);return;}
+  if(dataTab==="open"){osRender(h);return;}
   const sub=[["team","Team"],["atleet","Atleet"],["vergelijk","Vergelijk"],["ranking","Ranking"]]
     .map(v=>'<button class="'+(DT.view===v[0]?"on":"")+'" onclick="dtGo(\''+v[0]+'\')">'+v[1]+'</button>').join("");
   const gesl=[["man","Mannen"],["vrouw","Vrouwen"]]
@@ -276,15 +279,42 @@ function dtOpenAtleet(a){DT.sel=a;DT.view="atleet";dataRender();}
 function dtNieuwFormHtml(){
   if(!DT.nieuwOpen)return "";
   return '<div class="panel" style="padding:14px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
-    '<input class="lid-in" id="dt-nw-naam" style="width:220px" placeholder="Naam atleet">'+
+    '<div style="position:relative"><input class="lid-in" id="dt-nw-naam" style="width:220px" placeholder="Naam atleet" autocomplete="off" oninput="dtNieuwTyp(this.value)">'+
+      '<div class="dt-sug" id="dt-nw-sug" style="display:none"></div></div>'+
     '<input class="lid-in" id="dt-nw-bw" style="width:140px" placeholder="Gewicht kg (mag leeg)" inputmode="decimal">'+
     '<select class="lid-in" id="dt-nw-gesl" style="width:auto">'+
       '<option value="man"'+(DT.geslacht==="man"?" selected":"")+'>Man</option>'+
       '<option value="vrouw"'+(DT.geslacht==="vrouw"?" selected":"")+'>Vrouw</option></select>'+
     '<button class="btn sm2" onclick="dtNieuwOpslaan()">Opslaan</button>'+
-    '<button class="btn ghost sm" onclick="dtNieuwToggle()">Annuleren</button></div>';
+    '<button class="btn ghost sm" onclick="dtNieuwToggle()">Annuleren</button>'+
+    '<span class="sm muted" id="dt-nw-koppel" style="flex-basis:100%"></span></div>';
 }
-function dtNieuwToggle(){DT.nieuwOpen=!DT.nieuwOpen;dtRenderView();if(DT.nieuwOpen){const i=document.getElementById("dt-nw-naam");if(i)i.focus();}}
+// Tijdens het typen bestaande klanten voorstellen: kies je er één, dan wordt
+// de atleet meteen aan die klant gekoppeld (verzoek Stefan 23 juli).
+async function dtNieuwTyp(v){
+  DT.nieuwKoppelId=null;
+  const lbl=document.getElementById("dt-nw-koppel");if(lbl)lbl.textContent="";
+  const box=document.getElementById("dt-nw-sug");if(!box)return;
+  const zoek=(v||"").trim().toLowerCase();
+  if(zoek.length<2){box.style.display="none";return;}
+  const ks=await dtLaadKlanten();
+  const hits=ks.filter(k=>k.naam.toLowerCase().includes(zoek)).slice(0,8);
+  if(!hits.length){box.style.display="none";return;}
+  box.innerHTML=hits.map(k=>'<button onclick="dtNieuwKies(\''+esc(k.id)+'\')">'+esc(k.naam)+'</button>').join("");
+  box.style.display="";
+}
+async function dtNieuwKies(pid){
+  const ks=await dtLaadKlanten();
+  const k=ks.find(x=>x.id===pid);if(!k)return;
+  const inp=document.getElementById("dt-nw-naam");if(inp)inp.value=k.naam;
+  const bw=document.getElementById("dt-nw-bw");if(bw&&!bw.value&&k.weight_kg!=null)bw.value=String(k.weight_kg).replace(".",",");
+  const g=document.getElementById("dt-nw-gesl");if(g&&k.gender)g.value=k.gender==="vrouw"?"vrouw":"man";
+  DT.nieuwKoppelId=pid;
+  const lbl=document.getElementById("dt-nw-koppel");
+  if(lbl)lbl.textContent="🔗 Wordt gekoppeld aan deze klant; bestaande metingen stromen automatisch binnen.";
+  const box=document.getElementById("dt-nw-sug");if(box)box.style.display="none";
+}
+function dtNieuwToggle(){DT.nieuwOpen=!DT.nieuwOpen;DT.nieuwKoppelId=null;dtRenderView();if(DT.nieuwOpen){const i=document.getElementById("dt-nw-naam");if(i)i.focus();}}
 async function dtNieuwOpslaan(){
   const naam=(document.getElementById("dt-nw-naam").value||"").trim();
   const bwS=(document.getElementById("dt-nw-bw").value||"").trim().replace(",",".");
@@ -295,7 +325,13 @@ async function dtNieuwOpslaan(){
   const gender=(document.getElementById("dt-nw-gesl")||{}).value==="vrouw"?"vrouw":"man";
   const{data,error}=await db.from("data_athletes").insert({company_id:ME.profile.company_id,name:naam,bw,gender}).select().single();
   if(error){toast(error.message||"Opslaan mislukt");return;}
-  DT.athletes[naam]={id:data.id,bw,gender,scores:{}};
+  DT.athletes[naam]={id:data.id,bw,gender,profile_id:null,scores:{}};
+  const koppelId=DT.nieuwKoppelId;DT.nieuwKoppelId=null;
+  if(koppelId){
+    const{error:ke}=await db.rpc("data_koppel_atleet",{p_athlete:data.id,p_profile:koppelId});
+    if(ke)toast("Atleet aangemaakt, maar koppelen mislukte: "+(ke.message||"onbekende fout"));
+    else{toast("Atleet gekoppeld aan de klant; metingen stromen automatisch binnen");await dtLaad();}
+  }
   DT.nieuwOpen=false;DT.geslacht=gender;DT.sel=naam;DT.view="atleet";dataRender();
 }
 async function dtVerwijderAtleet(){
@@ -313,8 +349,8 @@ async function dtVerwijderAtleet(){
 let dtKlanten=null;
 async function dtLaadKlanten(){
   if(dtKlanten)return dtKlanten;
-  const{data}=await db.from("profiles").select("id,first_name,last_name").eq("role","lid").order("first_name");
-  dtKlanten=(data||[]).map(p=>({id:p.id,naam:[p.first_name,p.last_name].filter(Boolean).join(" ")||"Naamloos"}));
+  const{data}=await db.from("profiles").select("id,first_name,last_name,weight_kg,gender").eq("role","lid").order("first_name");
+  dtKlanten=(data||[]).map(p=>({id:p.id,naam:[p.first_name,p.last_name].filter(Boolean).join(" ")||"Naamloos",weight_kg:p.weight_kg,gender:p.gender}));
   return dtKlanten;
 }
 async function dtVulKoppelNaam(){
@@ -928,4 +964,72 @@ async function wdImport(){
   if(error){msg.textContent=error.message||"Import mislukt.";msg.style.color="var(--bad)";return;}
   await wdLaad();
   msg.textContent=recs.length+" workouts geïmporteerd.";msg.style.color="var(--ok)";
+}
+
+// ---------- CrossFit Open: wereldtop-10 per workout (tabel open_scores) ----------
+// Scores komen uit de publieke CrossFit-API (eenmalige import); de workout-tekst
+// en Rx-gewichten komen uit de benchmarks-catalogus in de Bibliotheek.
+let OSD={geladen:false,scores:[],bm:{},jaar:null,geslacht:"men"};
+async function osLaad(){
+  if(OSD.geladen)return;
+  const[sq,bq]=await Promise.all([
+    db.from("open_scores").select("part,year,division,rank,athlete,affiliate,score_display").order("year").order("part").order("rank"),
+    db.from("benchmarks").select("naam,tekst,format,time_cap,rx_men,rx_women").eq("categorie","open"),
+  ]);
+  if(sq.error){toast(sq.error.message||"Open-scores laden mislukt");return;}
+  OSD.scores=sq.data||[];
+  (bq.data||[]).forEach(b=>{OSD.bm[b.naam]=b;});
+  if(OSD.scores.length)OSD.jaar=Math.max.apply(null,OSD.scores.map(s=>s.year));
+  OSD.geladen=true;
+}
+// Benchmark-gegevens bij een onderdeel (18.2 en 18.2a delen een catalogusrij)
+function osBm(part){
+  return OSD.bm["Open "+part]||((part==="18.2"||part==="18.2a")?OSD.bm["Open 18.2 / 18.2a"]:null);
+}
+async function osRender(h){
+  h.innerHTML='<div class="cempty">Laden…</div>';
+  await osLaad();
+  if(!OSD.geladen||!OSD.scores.length){h.innerHTML='<div class="cempty">Geen Open-scores gevonden.</div>';return;}
+  const jaren=[...new Set(OSD.scores.map(s=>s.year))].sort((a,b)=>b-a);
+  const gesl=[["men","Mannen"],["women","Vrouwen"]]
+    .map(g=>'<button class="'+(OSD.geslacht===g[0]?"on":"")+'" onclick="osZet(null,\''+g[0]+'\')">'+g[1]+'</button>').join("");
+  h.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
+    '<div class="dt-subnav" style="flex-wrap:wrap">'+jaren.map(j=>'<button class="'+(OSD.jaar===j?"on":"")+'" onclick="osZet('+j+',null)">'+j+'</button>').join("")+'</div>'+
+    '<div class="dt-subnav" style="margin-left:auto">'+gesl+'</div></div>'+
+    '<div id="os-lijst"></div>';
+  osLijst();
+}
+function osZet(jaar,gesl){
+  if(jaar)OSD.jaar=jaar;
+  if(gesl)OSD.geslacht=gesl;
+  const h=document.getElementById("data-inhoud");
+  if(h)osRender(h);
+}
+function osLijst(){
+  const el=document.getElementById("os-lijst");if(!el)return;
+  const parts=[...new Set(OSD.scores.filter(s=>s.year===OSD.jaar).map(s=>s.part))]
+    .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  el.innerHTML=parts.map(part=>{
+    const bm=osBm(part)||{};
+    const rx=OSD.geslacht==="men"?bm.rx_men:bm.rx_women;
+    const rows=OSD.scores.filter(s=>s.year===OSD.jaar&&s.part===part&&s.division===OSD.geslacht);
+    const tid="os-t-"+part.replace(/[^A-Za-z0-9]/g,"_");
+    return '<div class="panel" style="padding:16px 18px;margin-bottom:14px">'+
+      '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px">'+
+        '<b style="font-size:15px">Open '+esc(part)+'</b>'+
+        (bm.format?'<span class="sm muted">'+esc(bm.format)+(bm.time_cap?' · cap '+esc(bm.time_cap):'')+'</span>':'')+
+        (rx?'<span class="sm muted">Rx '+esc(rx)+'</span>':'')+
+        (bm.tekst?'<a class="sm" style="margin-left:auto;color:var(--accent);cursor:pointer" onclick="osTekst(this,\''+tid+'\')">Workout bekijken</a>':'')+
+      '</div>'+
+      (bm.tekst?'<pre id="'+tid+'" style="display:none;white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 10px">'+esc(bm.tekst)+'</pre>':'')+
+      '<div class="os-thead"><span>#</span><span>Atleet</span><span>Box</span><span style="text-align:right">Score</span></div>'+
+      rows.map(r=>'<div class="os-row"><span class="muted">'+r.rank+'</span><span><b>'+esc(r.athlete)+'</b></span><span class="muted">'+esc(r.affiliate||"")+'</span><span style="text-align:right"><b>'+esc(r.score_display||"")+'</b></span></div>').join("")+
+      '</div>';
+  }).join("")||'<div class="cempty">Geen workouts voor dit jaar.</div>';
+}
+function osTekst(link,tid){
+  const el=document.getElementById(tid);if(!el)return;
+  const dicht=el.style.display==="none";
+  el.style.display=dicht?"":"none";
+  link.textContent=dicht?"Workout verbergen":"Workout bekijken";
 }
