@@ -972,12 +972,19 @@ async function wdImport(){
 let OSD={geladen:false,scores:[],bm:{},jaar:null,geslacht:"men"};
 async function osLaad(){
   if(OSD.geladen)return;
-  const[sq,bq]=await Promise.all([
-    db.from("open_scores").select("part,year,division,rank,athlete,affiliate,score_display").order("year").order("part").order("rank"),
-    db.from("benchmarks").select("naam,tekst,format,time_cap,rx_men,rx_women").eq("categorie","open"),
-  ]);
-  if(sq.error){toast(sq.error.message||"Open-scores laden mislukt");return;}
-  OSD.scores=sq.data||[];
+  const bq=await db.from("benchmarks").select("naam,tekst,format,time_cap,rx_men,rx_women").eq("categorie","open");
+  // De tabel heeft 1.500+ rijen en de API geeft er maximaal 1000 per keer;
+  // daarom in porties van 1000 doorhalen tot alles binnen is.
+  let alle=[],vanaf=0;
+  for(;;){
+    const sq=await db.from("open_scores").select("part,year,division,rank,athlete,affiliate,score_display")
+      .order("year").order("part").order("rank").range(vanaf,vanaf+999);
+    if(sq.error){toast(sq.error.message||"Open-scores laden mislukt");return;}
+    alle=alle.concat(sq.data||[]);
+    if(!sq.data||sq.data.length<1000)break;
+    vanaf+=1000;
+  }
+  OSD.scores=alle;
   (bq.data||[]).forEach(b=>{OSD.bm[b.naam]=b;});
   if(OSD.scores.length)OSD.jaar=Math.max.apply(null,OSD.scores.map(s=>s.year));
   OSD.geladen=true;
