@@ -6,14 +6,18 @@
 <meta name="robots" content="noindex">
 <title>Videospeler</title>
 <style>
-  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+  html,body{margin:0;height:100%;background:#141416;overflow:hidden;font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif}
   #vak,#vak iframe,#vak video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
   #fout{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#d6d6d6;text-align:center;padding:28px;font-size:15px;line-height:1.55}
+  #status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8a8a90;font-size:14px;pointer-events:none}
+  #versie{position:absolute;right:6px;bottom:4px;color:#3a3a40;font-size:10px;pointer-events:none}
 </style>
 </head>
 <body>
+<div id="status">Video laden…</div>
 <div id="vak"></div>
 <div id="fout"></div>
+<div id="versie">speler v2</div>
 <script>
 // Dit is de videospeler van de FORGE-app: VideoSheet in de app laadt deze
 // pagina in een webvenster. NIET verwijderen of hernoemen; ook oudere
@@ -25,8 +29,10 @@
 // signed upload-links nooit in serverlogs terechtkomen. De querystring wordt
 // als reserve ook gelezen.
 (function(){
-  var vak=document.getElementById("vak"),foutEl=document.getElementById("fout");
-  function toonFout(t){foutEl.textContent=t;foutEl.style.display="flex";}
+  var vak=document.getElementById("vak"),foutEl=document.getElementById("fout"),statusEl=document.getElementById("status");
+  function status(t){statusEl.textContent=t;statusEl.style.display=t?"flex":"none";}
+  function toonFout(t){status("");foutEl.textContent=t;foutEl.style.display="flex";}
+  window.addEventListener("error",function(e){status("Scriptfout: "+(e.message||"onbekend"));});
   function lees(bron){
     var p={};String(bron||"").replace(/^[#?]/,"").split("&").forEach(function(s){
       var i=s.indexOf("=");if(i>0)p[s.slice(0,i)]=decodeURIComponent(s.slice(i+1));
@@ -39,6 +45,7 @@
     // Eigen upload of los videobestand: gewone videospeler.
     var v=document.createElement("video");
     v.src=p.u;v.controls=true;v.autoplay=true;v.playsInline=true;v.setAttribute("playsinline","");
+    v.onloadeddata=function(){status("");};
     v.onerror=function(){toonFout("Deze video kan niet worden afgespeeld. Gebruik de link onder de speler.");};
     vak.appendChild(v);
     return;
@@ -48,12 +55,15 @@
   // YouTube via de officiële IFrame API, zodat we fouten netjes kunnen tonen
   // (bijv. embedden uitgezet door de eigenaar of video verwijderd).
   var klaar=false;
+  status("Video laden…");
   function bouwSpeler(){
     if(klaar)return;klaar=true;
+    status("Speler starten…");
     new YT.Player(vak,{
       videoId:p.v,
       playerVars:{playsinline:1,rel:0,modestbranding:1},
       events:{
+        onReady:function(){status("");},
         onError:function(e){
           var code=e&&e.data;
           toonFout(code===101||code===150
@@ -65,16 +75,24 @@
   }
   window.onYouTubeIframeAPIReady=bouwSpeler;
   var s=document.createElement("script");s.src="https://www.youtube.com/iframe_api";
+  s.onerror=function(){status("YouTube-script laadt niet (netwerk geblokkeerd?)");};
   document.head.appendChild(s);
   // Reserve: laadt de API niet binnen 5 seconden, zet dan een kale embed neer.
   setTimeout(function(){
     if(klaar)return;klaar=true;
+    status("Reserve-speler laden…");
     var f=document.createElement("iframe");
     f.src="https://www.youtube-nocookie.com/embed/"+p.v+"?playsinline=1&rel=0&modestbranding=1";
     f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen";
     f.allowFullscreen=true;
+    f.onload=function(){status("");};
     vak.appendChild(f);
   },5000);
+  // Blijft de statusregel na 10 s staan, dan weten we dat de speler niet opkomt.
+  setTimeout(function(){
+    if(statusEl.style.display!=="none"&&statusEl.textContent==="Speler starten…")
+      status("Speler start niet; tik op de reservelink onder de video.");
+  },10000);
 })();
 </script>
 </body>
