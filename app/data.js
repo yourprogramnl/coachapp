@@ -1068,6 +1068,10 @@ function osKlap(part){
 // Beweging-tags beginnen met een hoofdletter; kleine letters zijn modaliteiten.
 function osAnalyse(){
   const el=document.getElementById("os-lijst");if(!el)return;
+  try{osAnalyseInner(el);}
+  catch(e){el.innerHTML='<div class="cempty">De analyse kon niet worden opgebouwd ('+esc(e.message||e)+').</div>';}
+}
+function osAnalyseInner(el){
   const wods=OSD.bmAlle.filter(b=>b.jaar);
   const jaren=[...new Set(wods.map(b=>b.jaar))].sort();
   // Per beweging: workouts, jaren, laatste jaar
@@ -1124,7 +1128,7 @@ function osAnalyse(){
       '<ul class="sm" style="margin:10px 0 0;padding-left:18px;line-height:1.9">'+
       '<li>Vaste klanten die in bijna elk jaar terugkomen: <b>'+esc(vasteKlanten.join(", ")||"-")+'</b>.</li>'+
       '<li><b>'+coupletTriplet+'%</b> van alle Open-workouts is een couplet of triplet (2 of 3 bewegingen). Snelle wissels tussen oefeningen zijn dus minstens zo belangrijk als de oefeningen zelf.</li>'+
-      '<li>De dumbbell zit er sinds <b>'+(sindsMod("dumbbell")||"-")+'</b> in en is sindsdien niet meer weggeweest; de wall walk sinds <b>'+(bew["Wall Walk"]?Math.min.apply(null,[...new Set(bew["Wall Walk"].ws.map(w=>w.jaar))]):"-")+'</b>.</li>'+
+      '<li>De dumbbell zit er sinds <b>'+(sindsMod("dumbbell")||"-")+'</b> in en is sindsdien niet meer weggeweest; de wall walk sinds <b>'+(bew["Wall Walk"]?Math.min.apply(null,[...bew["Wall Walk"].jaren]):"-")+'</b>.</li>'+
       '<li>De combinatie thrusters + pull-up-variant (de klassieke afsluiter) kwam <b>'+finale+'</b> keer voorbij.</li>'+
       '<li>Hoge-skill gymnastics (muscle-ups, handstand push-ups, handstand walk) zit vrijwel elk jaar in minstens één workout, meestal laat in de workout zodat iedereen eerst kan scoren.</li>'+
       '</ul><div class="sm muted" style="margin-top:8px">Alles hieronder is berekend uit de benchmarks-catalogus (bron: games.crossfit.com, '+jaren[0]+'-'+totJaar+', '+wods.length+' workouts).</div>')+
