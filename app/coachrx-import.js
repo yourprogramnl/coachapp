@@ -57,21 +57,33 @@ function crxPdfJs(){
 }
 
 // PDF -> tekstregels: items per pagina groeperen op regelhoogte (y), binnen
-// een regel op x sorteren; zelfde aanpak als de eerdere losse import-scripts.
+// een regel op x sorteren. In de CoachRx-export springen GELOGDE resultaten
+// een paar punten in t.o.v. het voorschrift (ontdekt 23 juli, Bianca's export:
+// voorschrift op x23, resultaat op x26). Die regels krijgen een onzichtbare markering (CRX_RES_MARK)
+// zodat de parser voorschrift en resultaat betrouwbaar kan scheiden, ook als
+// de coach geen "*"-instructieregels gebruikt.
+const CRX_RES_MARK="\u0001";
 async function crxTekstUitPdf(file){
   await crxPdfJs();
   const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
-  const regels=[];
+  const rijen=[]; // {x, tekst}
   for(let p=1;p<=doc.numPages;p++){
     const tc=await (await doc.getPage(p)).getTextContent();
-    const rijen={};
-    tc.items.forEach(it=>{const y=Math.round(it.transform[5]);(rijen[y]=rijen[y]||[]).push(it);});
-    Object.keys(rijen).map(Number).sort((a,b)=>b-a)
-      .forEach(y=>regels.push(rijen[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join("")));
+    const perY={};
+    tc.items.forEach(it=>{const y=Math.round(it.transform[5]);(perY[y]=perY[y]||[]).push(it);});
+    Object.keys(perY).map(Number).sort((a,b)=>b-a).forEach(y=>{
+      const items=perY[y].sort((a,b)=>a.transform[4]-b.transform[4]);
+      rijen.push({x:Math.round(items[0].transform[4]),tekst:items.map(i=>i.str).join("")});
+    });
     const el=document.getElementById("crx-uit");
     if(el&&p%25===0)el.innerHTML='<div class="sm" style="color:#8b919b">PDF lezen… pagina '+p+"/"+doc.numPages+"</div>";
   }
-  return regels.join("\n");
+  // Meest voorkomende beginpositie = het voorschrift-niveau; regels die daar
+  // 2-6 punten rechts van beginnen zijn gelogde resultaten.
+  const telling={};
+  rijen.forEach(r=>{if(r.tekst.trim())telling[r.x]=(telling[r.x]||0)+1;});
+  const basisX=Number((Object.entries(telling).sort((a,b)=>b[1]-a[1])[0]||[0])[0]);
+  return rijen.map(r=>((r.x>=basisX+2&&r.x<=basisX+6)?CRX_RES_MARK:"")+r.tekst).join("\n");
 }
 
 // ---------- Parser (zelfde logica als coachrx-import/parse-coachrx.js) ----------
@@ -107,16 +119,25 @@ function crxParse(ruw){
     for(const regel of d.regels){
       const bm=regel.match(BLOK_RE);
       if(bm){blok={label:bm[1],naam:bm[2].trim(),regels:[]};blokken.push(blok);continue;}
-      if(!blok){warmup.push(regel.replace(/^WARMUP:\s*/i,""));continue;}
+      if(!blok){warmup.push(regel.replace(CRX_RES_MARK,"").replace(/^WARMUP:\s*/i,""));continue;}
       blok.regels.push(regel);
     }
     const nette=blokken.map(b=>{
-      let ster=-1;b.regels.forEach((r,i)=>{if(r.startsWith("*"))ster=i;});
       let voorschrift,resultaat;
-      if(ster>=0){voorschrift=b.regels.slice(0,ster+1);resultaat=b.regels.slice(ster+1);}
-      else{
-        voorschrift=[...b.regels];resultaat=[];
-        while(voorschrift.length&&STERK.test(voorschrift[voorschrift.length-1]))resultaat.unshift(voorschrift.pop());
+      if(b.regels.some(r=>r.startsWith(CRX_RES_MARK))){
+        // Betrouwbaarste route: de PDF markeert gelogde resultaten met een
+        // inspringing (zie crxTekstUitPdf), ongeacht de stijl van de coach.
+        voorschrift=b.regels.filter(r=>!r.startsWith(CRX_RES_MARK));
+        resultaat=b.regels.filter(r=>r.startsWith(CRX_RES_MARK)).map(r=>r.slice(CRX_RES_MARK.length));
+      }else{
+        // Terugval (PDF zonder bruikbare inspringing): splits op de laatste
+        // "*"-instructieregel, anders simpele score-regels van achteren afpellen.
+        let ster=-1;b.regels.forEach((r,i)=>{if(r.startsWith("*"))ster=i;});
+        if(ster>=0){voorschrift=b.regels.slice(0,ster+1);resultaat=b.regels.slice(ster+1);}
+        else{
+          voorschrift=[...b.regels];resultaat=[];
+          while(voorschrift.length&&STERK.test(voorschrift[voorschrift.length-1]))resultaat.unshift(voorschrift.pop());
+        }
       }
       return{label:b.label,naam:b.naam,voorschrift:voorschrift.join("\n").trim(),resultaat:resultaat.join("\n").trim()};
     });
