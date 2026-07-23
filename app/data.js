@@ -1018,11 +1018,14 @@ function osLijst(){
       bm.time_cap?'Time cap '+esc(bm.time_cap):null,
       rx?'Rx '+esc(rx):null,
     ].filter(Boolean).map(m=>'<span class="sm muted">'+m+'</span>').join('<span class="sm muted"> · </span>');
+    const tid="os-t-"+part.replace(/[^A-Za-z0-9]/g,"_");
     return '<div class="panel" style="padding:16px 18px;margin-bottom:14px">'+
       '<div style="background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">'+
-        '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:15px">Open '+esc(part)+'</b>'+meta+'</div>'+
+        '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:15px">Open '+esc(part)+'</b>'+meta+
+          (bm.tekst?'<a class="sm" style="margin-left:auto;color:var(--accent);cursor:pointer" onclick="osTekst(this,\''+tid+'\')">Workout verbergen</a>':'')+
+        '</div>'+
         (bm.tekst
-          ?'<pre style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);margin:8px 0 0">'+esc(bm.tekst)+'</pre>'
+          ?'<pre id="'+tid+'" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.55;color:var(--txt);margin:8px 0 0">'+esc(bm.tekst)+'</pre>'
           :'<div class="sm muted" style="margin-top:6px">Geen omschrijving in de benchmarks-catalogus.</div>')+
       '</div>'+
       '<div class="os-thead"><span>#</span><span>Atleet</span><span>Box</span><span style="text-align:right">Score</span></div>'+
@@ -1030,4 +1033,11 @@ function osLijst(){
         ||'<div class="cempty" style="padding:14px 4px">Geen scores voor deze selectie.</div>')+
       '</div>';
   }).join("")||'<div class="cempty">Geen workouts voor dit jaar.</div>';
+}
+// De workout-tekst staat standaard uitgeklapt (verzoek Stefan); dit linkje klapt hem in/uit.
+function osTekst(link,tid){
+  const el=document.getElementById(tid);if(!el)return;
+  const dicht=el.style.display==="none";
+  el.style.display=dicht?"":"none";
+  link.textContent=dicht?"Workout verbergen":"Workout tonen";
 }
