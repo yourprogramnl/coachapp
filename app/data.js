@@ -865,7 +865,9 @@ function wdWorkouts(h){
           '<span class="wd-tag meta">'+esc(w.format)+'</span>'+
           (st.n?'<span class="wd-tag meta">'+st.label+(st.mix?' · '+esc(st.mix):'')+'</span>':'')+
           (st.maxSkill===3?'<span class="wd-tag skill">elite-skill</span>':'')+'</div>'+
-        '<div style="margin-top:10px"><button class="btn ghost sm" style="color:var(--bad)" onclick="wdVerwijder(\''+w.id+'\')">Verwijderen</button></div>'+
+        '<div style="margin-top:10px;display:flex;gap:14px;align-items:center">'+
+          (w.bron_url?'<a class="sm" href="'+esc(w.bron_url)+'" target="_blank" rel="noopener" style="color:var(--accent)">Bron / rulebook ↗</a>':'')+
+          '<button class="btn ghost sm" style="color:var(--bad);margin-left:auto" onclick="wdVerwijder(\''+w.id+'\')">Verwijderen</button></div>'+
       '</div>';}).join(""):'<div class="cempty">Geen workouts in deze selectie.</div>');
 }
 async function wdVerwijder(id){
