@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="robots" content="noindex">
+<title>Videospeler</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+  #vak,#vak iframe,#vak video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+  #fout{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#d6d6d6;text-align:center;padding:28px;font-size:15px;line-height:1.55}
+</style>
+</head>
+<body>
+<div id="vak"></div>
+<div id="fout"></div>
+<script>
+// Dit is de videospeler van de FORGE-app: VideoSheet in de app laadt deze
+// pagina in een webvenster. NIET verwijderen of hernoemen; ook oudere
+// app-versies blijven naar dit adres wijzen.
+//
+// Aanroep:  speler.html#v=<youtube-id>
+//    of:    speler.html#u=<encodeURIComponent(video-url)>   (eigen uploads/mp4)
+// De waarden staan in de hash (niet in de querystring) zodat tijdelijke
+// signed upload-links nooit in serverlogs terechtkomen. De querystring wordt
+// als reserve ook gelezen.
+(function(){
+  var vak=document.getElementById("vak"),foutEl=document.getElementById("fout");
+  function toonFout(t){foutEl.textContent=t;foutEl.style.display="flex";}
+  function lees(bron){
+    var p={};String(bron||"").replace(/^[#?]/,"").split("&").forEach(function(s){
+      var i=s.indexOf("=");if(i>0)p[s.slice(0,i)]=decodeURIComponent(s.slice(i+1));
+    });return p;
+  }
+  var p=lees(location.hash);if(!p.v&&!p.u)p=lees(location.search);
+  var geldigId=/^[A-Za-z0-9_-]{6,20}$/;
+
+  if(p.u){
+    // Eigen upload of los videobestand: gewone videospeler.
+    var v=document.createElement("video");
+    v.src=p.u;v.controls=true;v.autoplay=true;v.playsInline=true;v.setAttribute("playsinline","");
+    v.onerror=function(){toonFout("Deze video kan niet worden afgespeeld. Gebruik de link onder de speler.");};
+    vak.appendChild(v);
+    return;
+  }
+  if(!p.v||!geldigId.test(p.v)){toonFout("Geen video opgegeven.");return;}
+
+  // YouTube via de officiële IFrame API, zodat we fouten netjes kunnen tonen
+  // (bijv. embedden uitgezet door de eigenaar of video verwijderd).
+  var klaar=false;
+  function bouwSpeler(){
+    if(klaar)return;klaar=true;
+    new YT.Player(vak,{
+      videoId:p.v,
+      playerVars:{playsinline:1,rel:0,modestbranding:1},
+      events:{
+        onError:function(e){
+          var code=e&&e.data;
+          toonFout(code===101||code===150
+            ?"De eigenaar van deze video staat afspelen buiten YouTube niet toe. Gebruik de link onder de speler."
+            :"Deze video kan niet worden afgespeeld (mogelijk verwijderd of privé). Gebruik de link onder de speler.");
+        }
+      }
+    });
+  }
+  window.onYouTubeIframeAPIReady=bouwSpeler;
+  var s=document.createElement("script");s.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(s);
+  // Reserve: laadt de API niet binnen 5 seconden, zet dan een kale embed neer.
+  setTimeout(function(){
+    if(klaar)return;klaar=true;
+    var f=document.createElement("iframe");
+    f.src="https://www.youtube-nocookie.com/embed/"+p.v+"?playsinline=1&rel=0&modestbranding=1";
+    f.allow="autoplay; encrypted-media; picture-in-picture; fullscreen";
+    f.allowFullscreen=true;
+    vak.appendChild(f);
+  },5000);
+})();
+</script>
+</body>
+</html>
