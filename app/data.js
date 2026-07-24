@@ -687,7 +687,16 @@ async function wdRender(h){
   h.innerHTML='<div class="dt-subnav">'+sub+'</div><div id="wd-view"></div>';
   wdRenderView();
 }
-function wdGo(v){WD.view=v;const h=document.getElementById("data-inhoud");if(h)wdRender(h);}
+function wdGo(v){
+  // Filters overnemen bij het schakelen tussen Overzicht en Workouts, zodat je
+  // niet opnieuw hoeft te selecteren (verzoek Stefan).
+  const from=WD.view;
+  if(from!==v && (from==="overzicht"||from==="workouts") && (v==="overzicht"||v==="workouts")){
+    const src=from==="overzicht"?"f":"w", dst=v==="overzicht"?"f":"w";
+    ["Event","Jaar","Fase","Div","Struct"].forEach(k=>{ WD[dst+k]=WD[src+k]; });
+  }
+  WD.view=v;const h=document.getElementById("data-inhoud");if(h)wdRender(h);
+}
 const wdUniq=a=>[...new Set(a)];
 // Filterselectie: 'Alle divisies' telt bij elke divisie-keuze mee (referentie-gedrag).
 function wdSelectie(p){
