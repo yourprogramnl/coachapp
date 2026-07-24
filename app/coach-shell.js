@@ -85,7 +85,8 @@ function cnavItems(){
 function sectionFromHash(){
   let h=(location.hash||"").replace(/^#/,"");
   if(h.indexOf("settings")===0)h="settings"; // #settings/<pagina> telt als settings
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs"]); // settings/notifs zitten niet in de topnav
+  if(h.indexOf("help")===0)h="help"; // #help/<hoofdstuk> telt als help
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help"]); // settings/notifs/help zitten niet in de topnav
   return geldig.includes(h)?h:"dash";
 }
 // De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
@@ -97,7 +98,12 @@ function parseHash(){
     if(p[1]&&typeof INST_TABS!=="undefined"&&INST_TABS.some(t=>t[0]===p[1]))instTab=p[1];
     return{type:"section",section:"settings"};
   }
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs"]);
+  if(p[0]==="help"){
+    // Hoofdstuk in de link (#help/klanten) -> dat hoofdstuk openen
+    if(p[1]&&typeof HELP_HOOFDSTUKKEN!=="undefined"&&HELP_HOOFDSTUKKEN.some(h=>h.id===p[1]))helpTab=p[1];
+    return{type:"section",section:"help"};
+  }
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
 // Zet de link zonder de router opnieuw te laten vuren (eigen wijziging).
@@ -157,7 +163,7 @@ function coachShellHtml(inner){
   // Avatar rechtsboven = uitklapmenu (naar CoachRx-voorbeeld, 17 juli): naam +
   // rol bovenin, Instellingen (komt nog) en Uitloggen (losse knop is weg).
   return '<div class="cwrap"><div class="cbar"><img class="cbar-logo" src="img/logo-yp-2021.png" alt="YourProgram"><div class="cnav2">'+btns+'</div>'+
-    '<div class="cbar-right">'+(typeof belHtml==="function"?belHtml():"")+
+    '<div class="cbar-right">'+(typeof helpKnopHtml==="function"?helpKnopHtml():"")+(typeof belHtml==="function"?belHtml():"")+
     '<div class="avwrap"><button class="cavbtn" title="Menu" onclick="avMenuToggle(event)"><span class="cav" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><svg class="i cav-caret"><use href="#i-chev"/></svg></button>'+
     '<div class="avmenu" id="avmenu">'+
       '<div class="avm-kop"><span class="avm-av" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><span><b>'+esc(naamVan(ME.profile))+'</b><span class="avm-rol">'+esc(ROLE_NL[myRole()]||"")+'</span></span></div>'+
@@ -190,5 +196,6 @@ function coachRenderSection(){
   if(coachSection==="ai"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillAiCoach();return;}
   if(coachSection==="notifs"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillNotifCentrum();return;}
   if(coachSection==="settings"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillInstellingen();return;}
+  if(coachSection==="help"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillHelp();return;}
   c.innerHTML=coachShellHtml('<div class="csoon">Deze sectie bestaat niet (meer).</div>');
 }

@@ -164,7 +164,7 @@ function dashRender(){
     });
     return '<div class="feedcard"><div class="fh" style="cursor:pointer" title="Open het programma van '+esc(naamVan(p))+'" onclick="openClient(\''+esc(w.client_id)+'\')"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div></div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
-      '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px">'+wcKnopHtml(w)+'<input placeholder="Note" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Send</button></div></div>';
+      '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px">'+wcKnopHtml(w)+'<input placeholder="Bericht aan je klant…" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Versturen</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';
   // Mijn cijfers als carrousel (compliance + contactmomenten + aandacht), 7/30/90 dagen voor compliance
   const fromP=ymd(addDays(new Date(),-(dashPeriode-1)));
@@ -194,7 +194,7 @@ function dashRender(){
   const deelnemers=new Set(blogRes.map(r=>r.athlete_id)).size;
   const vandaagN=blogRes.filter(r=>(r.created_at||"").slice(0,10)===td).length;
   const blogB=((blog||{}).blocks||[]).slice().sort((a,b)=>a.sort-b.sort)[0]||null;
-  const blogSub=(blogB?(blogB.prescription||blogB.exercise||"").split("\n")[0]+" · ":"")+deelnemers+" deelnemers · "+vandaagN+" scores vandaag";
+  const blogSub=(blogB?(blogB.prescription||blogB.exercise||"").split("\n")[0]+" · ":"")+deelnemers+(deelnemers===1?" deelnemer · ":" deelnemers · ")+vandaagN+(vandaagN===1?" score vandaag":" scores vandaag");
   const weekHtml=blog?'<div class="statecard" style="display:block"><div style="font-weight:800;font-size:14px">"'+esc(blog.title||"Weekworkout")+'"</div><div class="sm muted" style="margin:4px 0 12px">'+esc(blogSub)+'</div><button class="btn sm" onclick="coachGo(\'week\')">Bekijk leaderboard</button></div>'
     :'<div class="statecard" style="display:block"><div class="cempty" style="padding:8px 4px">Nog geen weekworkout ingepland.</div></div>';
   cp.innerHTML='<h1>Dashboard</h1><div class="dashgrid">'+

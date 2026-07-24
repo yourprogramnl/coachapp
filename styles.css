@@ -896,3 +896,42 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .wd-mrow .mbar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;min-width:2px}
 .wd-mrow .mc{width:34px;text-align:right;font-weight:800;font-size:13px}
 @media(max-width:640px){.wd-mrow .mn{width:120px;font-size:12px}}
+
+/* ---------- Help / handleiding (app/help.js) ---------- */
+.belbtn.on{color:#fff}
+.helpkop{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.helpkop>div:first-child{flex:1;min-width:260px}
+.helpzoek{position:relative;display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 10px;width:320px;max-width:100%}
+.helpzoek .i{width:15px;height:15px;color:var(--muted);flex:none}
+.helpzoek input{border:none;outline:none;background:none;padding:10px 8px;font-size:13.5px;font-family:inherit;width:100%;color:var(--txt)}
+.helpzoek-x{background:none;border:none;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:0 2px}
+.helpwrap{display:flex;gap:18px;align-items:flex-start}
+.helpnav{width:250px;flex:none;padding:8px;position:sticky;top:70px}
+.helpnav button{display:flex;gap:9px;align-items:center;width:100%;text-align:left;background:none;border:none;padding:10px 12px;border-radius:9px;font-size:13px;color:#2a2e35;cursor:pointer;font-family:inherit}
+.helpnav button:hover{background:#f2f4f6}
+.helpnav button.on{background:#eef2f6;font-weight:700}
+.helpnav button .i{color:var(--muted);flex:none}
+.helpnav button span:not(.helpnav-n){flex:1;min-width:0}
+.helpnav-n{font-size:11px;font-weight:700;color:var(--muted);background:#e8ebef;border-radius:20px;padding:1px 7px;flex:none}
+.helpnav-n.soon{color:var(--muted2)}
+.helppaneel{flex:1;min-width:0;background:#fff}
+.helpintro{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:6px}
+.helpstap{padding:20px 0;border-bottom:1px solid var(--line2)}
+.helpstap:last-child{border-bottom:none;padding-bottom:4px}
+.helpstap-kop{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.helpstap-kop h2{margin:0;font-size:15.5px}
+.helpnr{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex:none}
+.helpbron{font-size:11.5px;font-weight:700;color:var(--muted);background:#f0f2f4;border-radius:20px;padding:2px 9px}
+.helpstap p{margin:8px 0 0;font-size:13.5px;line-height:1.65;color:#3a4048;max-width:72ch}
+.helpshot{margin:14px 0 0;cursor:zoom-in}
+.helpshot img{width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:#f7f8fa}
+.helpshot figcaption{font-size:11.5px;color:var(--muted2);margin-top:6px}
+.helpshot.ontbreekt{cursor:default}
+.helpshot.ontbreekt img{display:none}
+.helpshot.ontbreekt figcaption{font-size:0}
+.helpshot.ontbreekt figcaption::before{content:"Schermafbeelding volgt.";font-size:12.5px;color:var(--muted)}
+#helpzoom{position:fixed;inset:0;background:rgba(10,12,15,.86);display:none;align-items:center;justify-content:center;z-index:900;cursor:zoom-out}
+#helpzoom.show{display:flex}
+#helpzoom img{max-width:94vw;max-height:92vh;border-radius:10px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#helpzoom .vx{position:absolute;top:16px;right:26px;color:#fff;font-size:34px;line-height:1;opacity:.85}
+@media(max-width:900px){.helpwrap{flex-direction:column}.helpnav{width:100%;position:static;display:flex;flex-wrap:wrap}.helpnav button{width:auto}}
