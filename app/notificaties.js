@@ -137,6 +137,36 @@ function startNotifs(){
     const r=p.new;if(!r||r.created_by!==r.athlete_id)return; // alleen uploads door het lid zelf
     notifToon("foto","📷 "+notifKlantNaam(r.athlete_id)+" heeft voortgangsfoto's geüpload","f"+r.athlete_id+":"+(r.taken_on||""));
   });
+  // Live meeverversen: scores en workout-aanpassingen (bijv. uit de sporter-app)
+  // verschijnen vanzelf op het dashboard en de open klantkalender.
+  const liveCb=p=>{const r=(p.new||p.old||{});liveVervers(r.athlete_id||r.client_id||null);};
+  ["INSERT","UPDATE","DELETE"].forEach(ev=>{
+    kan("lv-res-"+ev,"results",ev,liveCb);
+    kan("lv-wo-"+ev,"workouts",ev,liveCb);
+    kan("lv-bl-"+ev,"blocks",ev,liveCb);
+  });
+}
+// Het scherm zachtjes verversen na een live wijziging. Bewust voorzichtig:
+// nooit terwijl de coach ergens in typt of de bouwer open heeft, en gebundeld
+// (één keer per stootje wijzigingen, niet per blok).
+let liveTimer=null;
+function liveVervers(athleteId){
+  clearTimeout(liveTimer);
+  liveTimer=setTimeout(()=>{
+    try{
+      const a=document.activeElement;
+      if(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.isContentEditable))return;
+      if(document.querySelector(".coachmenu")||document.querySelector('[id$="modal"].show'))return; // menu of venster open
+      const klantOpen=typeof calClient!=="undefined"&&calClient&&document.querySelector(".client-layout");
+      if(klantOpen){
+        if(typeof editDay!=="undefined"&&editDay)return; // bouwer open: niet onder je handen verversen
+        if(athleteId&&athleteId!==calClient)return;      // wijziging van een andere klant
+        if(typeof renderMonth==="function")renderMonth();
+        return;
+      }
+      if(typeof coachSection!=="undefined"&&coachSection==="dash"&&typeof coachRenderSection==="function")coachRenderSection();
+    }catch(e){}
+  },900);
 }
 function stopNotifs(){
   notifGestart=false;
