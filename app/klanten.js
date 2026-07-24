@@ -381,7 +381,9 @@ async function klantTransfer(id,coachId){
 }
 
 async function fillCoaches(){
-  let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
+  // Ook platform_admins in de lijst: Stefan & Michel coachen zelf en moeten
+  // zichzelf via ⋮ > "Traint mee bij…" als atleet kunnen koppelen.
+  let q=db.from("profiles").select("*").in("role",["coach","eigenaar","platform_admin"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
   const{data:coaches}=await q;
   // Prestaties per coach: compliance (30 dagen) en contactmomenten (deze week) van zijn klanten
@@ -409,16 +411,16 @@ async function fillCoaches(){
     const wp=compVan(kl);
     const cm=kl.length?Math.round(kl.filter(p=>gesprokenIds.has(p.id)).length/kl.length*100):null;
     const cr=crVan(kl);
-    const rol=c.role==="eigenaar"?'<span class="cpill purple">Eigenaar</span>':'<span class="cpill teal">Coach</span>';
-    const zelf=c.id===ME.user.id; // jezelf kun je niet beheren (geen ⋮)
+    const rol=c.role==="platform_admin"?'<span class="cpill purple">Beheerder</span>':c.role==="eigenaar"?'<span class="cpill purple">Eigenaar</span>':'<span class="cpill teal">Coach</span>';
     const menuCall="openCoachMenu(event,'"+c.id+"','"+c.role+"',"+kl.length+")";
-    // Klik op de rij = de klanten van deze coach bekijken; het ⋮ opent het beheer-menu.
+    // Klik op de rij = de klanten van deze coach bekijken; het ⋮ opent het
+    // beheer-menu (op je eigen rij en bij beheerders alleen "Traint mee bij…").
     return '<div class="trow crow" data-cid="'+esc(c.id)+'" data-cnaam="'+esc(naamVan(c))+'" onclick="coachKlantenRow(this)"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
       '<div style="flex:1">'+(cr==null?'<span class="muted">–</span>':'<b style="color:'+(cr>=70?'#1d9a63':'#8a919c')+'">'+cr+'%</b>')+'</div>'+
       '<div style="flex:1.2">'+(cm==null?'<span class="muted">0%</span>':'<b style="color:'+(cm>=70?'#1d9a63':'#8a919c')+'">'+cm+'%</b>')+'</div>'+
       '<div style="flex:1">'+rol+'</div>'+
-      (zelf?'<span style="width:30px;flex:none"></span>':'<button class="kebab" onclick="event.stopPropagation();'+menuCall+'">⋮</button>')+'</div>';
+      '<button class="kebab" onclick="event.stopPropagation();'+menuCall+'">⋮</button></div>';
   }).join("");
   const cp=document.getElementById("cpage");
   if(!cp)return;
@@ -446,11 +448,16 @@ function openCoachMenu(ev,id,rol,klanten){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   if(bestond)return; // open menu = dichtklappen
   const m=document.createElement("div");m.className="coachmenu";
-  m.innerHTML=(rol==="eigenaar"
-      ? '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'coach\')">Zet terug naar coach</button>'
-      : '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'eigenaar\')">Maak eigenaar</button>')+
+  // Rol wisselen en verwijderen kan niet op jezelf en niet op een beheerder;
+  // "Traint mee bij…" kan altijd (ook op je eigen rij: jezelf als atleet).
+  const beheer=id!==ME.user.id&&rol!=="platform_admin";
+  m.innerHTML=(beheer
+      ? (rol==="eigenaar"
+        ? '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'coach\')">Zet terug naar coach</button>'
+        : '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'eigenaar\')">Maak eigenaar</button>')
+      : '')+
     '<button onclick="event.stopPropagation();coachTraintMee(event,\''+id+'\')">Traint mee bij…</button>'+
-    '<button class="danger" onclick="event.stopPropagation();coachVerwijder(\''+id+'\','+klanten+')">Verwijderen</button>';
+    (beheer?'<button class="danger" onclick="event.stopPropagation();coachVerwijder(\''+id+'\','+klanten+')">Verwijderen</button>':'');
   row.appendChild(m);
 }
 // "Traint mee bij…": een coach kan zelf ook atleet zijn. Kies wie hem coacht
