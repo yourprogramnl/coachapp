@@ -244,9 +244,21 @@ async function loadApp(){
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="";
   if(role==="lid"){
     if(ME.profile.archived){renderGearchiveerd();return;}
-    renderLid();
+    // Keuze Stefan (24 juli): sporters werken alleen in de app; het web-lid-scherm
+    // is uit (de code in app/lid.js blijft staan als testmiddel voor later).
+    renderAppOnly();
   }
   else{const b=document.getElementById("lidchat-btn");if(b)b.remove();routeHash();}
+}
+
+// Sporters horen in de app, niet in de browser: nette verwijzing + uitloggen.
+function renderAppOnly(){
+  const c=document.getElementById("content");
+  c.innerHTML='<div class="cwrap" style="max-width:520px;margin:60px auto;text-align:center">'+
+    '<div style="font-size:34px;margin-bottom:10px">📱</div>'+
+    '<h2 style="margin:0 0 8px">Jouw omgeving zit in de app</h2>'+
+    '<div class="muted" style="line-height:1.6;margin-bottom:18px">Als sporter gebruik je de app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is alleen voor coaches.<br><br>Heb je de app nog niet? Vraag je coach om de installatielink.</div>'+
+    '<button class="btn" onclick="signOut()">Uitloggen</button></div>';
 }
 
 // Gearchiveerd lid: alle data blijft bewaard, maar de app is op slot tot de
