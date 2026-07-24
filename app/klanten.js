@@ -449,8 +449,30 @@ function openCoachMenu(ev,id,rol,klanten){
   m.innerHTML=(rol==="eigenaar"
       ? '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'coach\')">Zet terug naar coach</button>'
       : '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'eigenaar\')">Maak eigenaar</button>')+
+    '<button onclick="event.stopPropagation();coachTraintMee(event,\''+id+'\')">Traint mee bij…</button>'+
     '<button class="danger" onclick="event.stopPropagation();coachVerwijder(\''+id+'\','+klanten+')">Verwijderen</button>';
   row.appendChild(m);
+}
+// "Traint mee bij…": een coach kan zelf ook atleet zijn. Kies wie hem coacht
+// (zichzelf mag ook); daarmee verschijnt hij als klant in de klantenlijst,
+// de kalender-dropdown en de app, en kan er voor hem geprogrammeerd worden.
+async function coachTraintMee(ev,id){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow"),menu=row&&row.querySelector(".coachmenu");if(!menu)return;
+  const{data:zelf}=await db.from("profiles").select("coach_id").eq("id",id).single();
+  const huidig=(zelf&&zelf.coach_id)||null;
+  const{data:cs}=await db.from("profiles").select("id,first_name,last_name").in("role",["coach","eigenaar","platform_admin"]).eq("company_id",ME.profile.company_id);
+  const opts=(cs||[]).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
+  menu.innerHTML='<div style="padding:6px 10px;font-size:10px;font-weight:800;letter-spacing:.5px;color:#8a919c;text-transform:uppercase">Traint mee bij</div>'+
+    opts.map(c=>'<button onclick="event.stopPropagation();coachZetEigenCoach(\''+id+'\',\''+c.id+'\')">'+(c.id===id?"Zichzelf":esc(naamVan(c)))+(c.id===huidig?" ✓":"")+'</button>').join("")+
+    (huidig?'<button class="danger" onclick="event.stopPropagation();coachZetEigenCoach(\''+id+'\',null)">Traint niet meer mee</button>':'');
+}
+async function coachZetEigenCoach(id,coachId){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  const{error}=await db.from("profiles").update({coach_id:coachId}).eq("id",id);
+  if(error){toast(error.message||"Wijzigen mislukt");return;}
+  toast(coachId?"Ingesteld: deze coach traint mee als atleet":"Deze coach traint niet meer mee");
+  renderCoach(coachSection); // klantenlijst opnieuw laden (coach-atleet erbij of eraf)
 }
 async function coachSetRole(id,rol){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());

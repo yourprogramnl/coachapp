@@ -6,9 +6,10 @@ let BER={clients:[],coaches:[],msgs:[],cur:null,coachF:"",zoek:"",kanaal:null,
   groups:[],leden:[],gmsgs:[],programs:[]};
 
 async function fillBerichten(){
-  let q=db.from("profiles").select("id,first_name,last_name,email,avatar_url,coach_id,membership_type,blog_program_id").eq("role","lid").eq("archived",false);
+  // Ook staf die meetraint als atleet (eigen coach ingesteld) heeft een gesprek.
+  let q=db.from("profiles").select("id,first_name,last_name,email,avatar_url,coach_id,membership_type,blog_program_id").eq("archived",false);
   if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);
-  else if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  else{if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);q=q.or("role.eq.lid,coach_id.not.is.null");}
   const{data:cs}=await q.order("first_name");
   BER.clients=cs||[];
   // Stafnamen via de veilige RPC (een coach mag collega-profielen niet direct

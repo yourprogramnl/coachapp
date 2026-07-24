@@ -438,7 +438,7 @@ async function blogLedenOpen(){
   document.getElementById("blogled-lijst").innerHTML='<div class="cempty">Laden…</div>';
   document.getElementById("blogledmodal").classList.add("show");
   const[rl,rm]=await Promise.all([
-    db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("role","lid").eq("archived",false).order("first_name"),
+    db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("archived",false).or("role.eq.lid,coach_id.not.is.null").order("first_name"),
     db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id)
   ]);
   BLOG.leden=rl.data||[];

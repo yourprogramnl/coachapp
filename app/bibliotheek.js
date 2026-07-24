@@ -395,7 +395,7 @@ function progAankomend(){const t=todayStr();return (PROG.assignments||[]).filter
 let ASSIGN_CLIENTS=[];
 async function openAssign(){
   ensureLibModals();
-  const{data:cs}=await db.from("profiles").select("id,first_name,last_name,coach_id,company_id").eq("role","lid").eq("archived",false).eq("company_id",ME.profile.company_id).order("first_name");
+  const{data:cs}=await db.from("profiles").select("id,first_name,last_name,coach_id,company_id").eq("archived",false).eq("company_id",ME.profile.company_id).or("role.eq.lid,coach_id.not.is.null").order("first_name");
   ASSIGN_CLIENTS=cs||[];
   const sel=document.getElementById("assign-client");
   sel.innerHTML=ASSIGN_CLIENTS.length?ASSIGN_CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(naamVan(c))+'</option>').join(""):'<option value="">Geen klanten</option>';

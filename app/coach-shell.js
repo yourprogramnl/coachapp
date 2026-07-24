@@ -17,7 +17,7 @@ let msgBadgeAantal=0,msgBadgeKanaal=null,msgBadgeGestart=false;
 async function telMsgBadge(){
   if(!ME||!ME.profile||myRole()==="lid")return;
   const[kl,lidm]=await Promise.all([
-    db.from("profiles").select("id").eq("role","lid").eq("coach_id",ME.user.id),
+    db.from("profiles").select("id").eq("coach_id",ME.user.id),
     db.from("chat_group_members").select("group_id,last_read_at").eq("profile_id",ME.user.id),
   ]);
   let n=0;
@@ -106,9 +106,10 @@ function setHash(h){h=String(h);if((location.hash||"").replace(/^#/,"")===h)retu
 // Zorg dat de klantenlijst geladen is (nodig om een klant uit de link te openen).
 async function ensureClients(){
   if(coachClients&&coachClients.length)return;
-  let q=db.from("profiles").select("*").eq("role","lid");
+  // Klanten = leden + staf die meetraint als atleet (eigen coach ingesteld via Coaches > ⋮).
+  let q=db.from("profiles").select("*");
   if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);
-  else if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  else{if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);q=q.or("role.eq.lid,coach_id.not.is.null");}
   const{data}=await q;coachClients=data||[];
 }
 // Toon wat er in de link staat: een sectie of een geopende klant (evt. met metric-detail).
@@ -131,9 +132,10 @@ async function renderCoach(section){
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="none";
   const c=document.getElementById("content");c.innerHTML='<div class="cwrap"><div class="spin">Laden…</div></div>';
   // Coach: eigen klanten. Eigenaar/admin: alle leden van het bedrijf.
-  let q=db.from("profiles").select("*").eq("role","lid");
+  // Staf die meetraint als atleet (eigen coach ingesteld) telt ook mee als klant.
+  let q=db.from("profiles").select("*");
   if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);
-  else if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  else{if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);q=q.or("role.eq.lid,coach_id.not.is.null");}
   const{data:clients}=await q;
   coachClients=clients||[];
   const{data:exs}=await db.from("exercises").select("name").order("name");
