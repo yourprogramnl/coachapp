@@ -181,6 +181,38 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     return "fout";
   }
 
+  // Melding van een coach over de app zelf (bug, idee of vraag). Gaat naar een
+  // vast adres, dus geen profiel, geen vinkjes en geen werkuren.
+  if (event === "melding") {
+    const naar = rij.recipient_email as string;
+    if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
+    const { data: m } = await db.from("app_meldingen").select("*").eq("id", payload.melding_id as string).maybeSingle();
+    if (!m) { await klaar({ status: "skipped", last_error: "melding niet meer gevonden" }); return "skipped"; }
+    const [{ data: melder }, { data: bedrijfM }] = await Promise.all([
+      db.from("profiles").select("first_name,last_name,email,role").eq("id", m.profile_id).maybeSingle(),
+      db.from("companies").select("name").eq("id", m.company_id).maybeSingle(),
+    ]);
+    const soortLabel: Record<string, string> = { bug: "Er gaat iets mis", idee: "Idee of verbetering", vraag: "Vraag" };
+    const ctx = (m.context || {}) as Record<string, unknown>;
+    const html = simpelHtml({
+      titel: m.onderwerp as string,
+      intro: `${soortLabel[m.soort as string] || "Melding"} van ${naamVan(melder)}${bedrijfM?.name ? " (" + bedrijfM.name + ")" : ""}.`,
+      regels: [
+        esc(m.bericht),
+        esc(`Scherm: ${m.pagina || "onbekend"}\nRol: ${melder?.role || "onbekend"}\nE-mail: ${melder?.email || "onbekend"}` +
+          (ctx.browser ? `\nBrowser: ${ctx.browser}` : "") + (ctx.scherm ? `\nSchermbreedte: ${ctx.scherm}` : "")),
+      ],
+      voet: "Je vindt deze melding ook in het dashboard onder het vraagteken > Meldingen, waar je hem op afgehandeld kunt zetten.",
+      accent: "#D9B44A",
+    });
+    const rM = await verstuur(naar, "FORGE meldingen", `[${m.soort}] ${m.onderwerp}`, html);
+    if (rM.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
+    const foutM = await rM.text().catch(() => String(rM.status));
+    const pogingenM = ((rij.attempts as number) || 0) + 1;
+    await klaar({ attempts: pogingenM, last_error: foutM.slice(0, 500), status: pogingenM >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+    return "fout";
+  }
+
   const { data: ontvanger } = await db.from("profiles").select("id,first_name,last_name,email,role,notify_prefs,company_id").eq("id", rij.recipient_id).single();
   if (!ontvanger || !ontvanger.email) { await klaar({ status: "skipped", last_error: "geen ontvanger/e-mail" }); return "skipped"; }
 

@@ -86,7 +86,7 @@ function sectionFromHash(){
   let h=(location.hash||"").replace(/^#/,"");
   if(h.indexOf("settings")===0)h="settings"; // #settings/<pagina> telt als settings
   if(h.indexOf("help")===0)h="help"; // #help/<hoofdstuk> telt als help
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help"]); // settings/notifs/help zitten niet in de topnav
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]); // settings/notifs/help zitten niet in de topnav
   return geldig.includes(h)?h:"dash";
 }
 // De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
@@ -103,7 +103,7 @@ function parseHash(){
     if(p[1]&&typeof HELP_HOOFDSTUKKEN!=="undefined"&&HELP_HOOFDSTUKKEN.some(h=>h.id===p[1]))helpTab=p[1];
     return{type:"section",section:"help"};
   }
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help"]);
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
 // Zet de link zonder de router opnieuw te laten vuren (eigen wijziging).
@@ -197,5 +197,6 @@ function coachRenderSection(){
   if(coachSection==="notifs"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillNotifCentrum();return;}
   if(coachSection==="settings"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillInstellingen();return;}
   if(coachSection==="help"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillHelp();return;}
+  if(coachSection==="meldingen"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillMeldingen();return;}
   c.innerHTML=coachShellHtml('<div class="csoon">Deze sectie bestaat niet (meer).</div>');
 }

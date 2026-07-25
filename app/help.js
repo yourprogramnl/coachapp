@@ -184,11 +184,29 @@ const HELP_HOOFDSTUKKEN=[
   },
 ];
 
-// Het vraagteken in de balk rechtsboven (naast het belletje).
+// Het vraagteken in de balk rechtsboven (naast het belletje). Klikken opent een
+// klein menu: de handleiding, iets melden, en voor beheerders de binnengekomen
+// meldingen (zie app/meldingen.js).
 function helpKnopHtml(){
-  return '<button class="belbtn'+(coachSection==="help"?" on":"")+'" title="Help en handleiding" onclick="helpOpen()"><svg class="i"><use href="#i-help"/></svg></button>';
+  const aan=coachSection==="help"||coachSection==="meldingen";
+  const admin=typeof myRole==="function"&&myRole()==="platform_admin";
+  return '<div class="avwrap">'+
+    '<button class="belbtn'+(aan?" on":"")+'" title="Help en meldingen" onclick="helpMenuToggle(event)"><svg class="i"><use href="#i-help"/></svg></button>'+
+    '<div class="avmenu" id="helpmenu">'+
+      '<button onclick="helpOpen()"><svg class="i sm-i"><use href="#i-help"/></svg> Handleiding</button>'+
+      '<button onclick="meldOpen()"><svg class="i sm-i"><use href="#i-chat"/></svg> Iets melden</button>'+
+      (admin?'<button onclick="coachGo(\'meldingen\')"><svg class="i sm-i"><use href="#i-doc"/></svg> Binnengekomen meldingen</button>':'')+
+    '</div></div>';
 }
+function helpMenuToggle(ev){
+  ev.stopPropagation();
+  const m=document.getElementById("helpmenu");if(m)m.classList.toggle("show");
+}
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".avwrap")){const m=document.getElementById("helpmenu");if(m)m.classList.remove("show");}
+});
 function helpOpen(hoofdstuk){
+  const hm=document.getElementById("helpmenu");if(hm)hm.classList.remove("show");
   if(hoofdstuk)helpTab=hoofdstuk;
   coachSection="help";setHash("help"+(hoofdstuk?"/"+hoofdstuk:""));coachRenderSection();
 }
