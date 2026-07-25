@@ -160,14 +160,26 @@ const HELP_HOOFDSTUKKEN=[
   },
   {
     id:"app",icoon:"i-walk",titel:"De sporter-app",
-    intro:"Je klant werkt niet in dit dashboard maar in de FORGE-app op zijn telefoon. Goed om te weten wat hij daar ziet.",
+    intro:"Je klant werkt niet in dit dashboard maar in de FORGE-app op zijn telefoon. Onderin die app zitten vier tabbladen: Home, Weekworkout, Chat en Profiel. Alles wat hij daar logt, komt meteen bij jou binnen. Goed om te weten wat hij ziet, dan kun je hem er ook doorheen praten.",
     stappen:[
-      {titel:"Wat je klant ziet",
-       tekst:"De app heeft drie tabbladen: Home, Chat en Profiel. Op Home staat de workout van vandaag, met bovenaan een weekstrip: een puntje op een dag met een programma, een vinkje op een afgeronde dag, een kruis op een gemiste dag en een ring om vandaag. De workouts staan onder elkaar met de volledige tekst, en onder elk onderdeel staat het invoerveld meteen open. Je klant vult zijn score in en slaat op; daarna verschijnt Voltooid. Gemist staat eronder als tweede optie."},
-      {titel:"Wat er bij jou terechtkomt",
-       tekst:"Alles wat je klant logt komt direct in de activiteit-feed op je dashboard en in zijn kalender. Chat is hetzelfde gesprek als bij Berichten. Bij een weekworkout kiest je klant zelf Rx of scaled en of zijn score openbaar mag; alleen dan staat hij op het leaderboard."},
+      {titel:"Home: de dag van je klant",
+       img:"img/help/app-01-home.png",telefoon:true,
+       tekst:"1 de weekstrip: een puntje op een dag waarop een programma staat, een vinkje op een afgeronde dag, een kruis op een gemiste dag en een ring om vandaag. Je klant tikt op een dag om terug of vooruit te kijken. 2 met Start workout gaat hij loggen. 3 elk onderdeel staat als kaart met de volledige tekst die jij programmeerde; heb je een demo-video gekoppeld, dan zit die er meteen bij. Jouw notitie bij de workout staat bovenaan in het grijze briefje. Scrolt hij helemaal naar beneden, dan vindt hij daar Reacties: het gesprek over déze workout, los van de gewone chat."},
+      {titel:"Zo logt je klant zijn score",
+       img:"img/help/app-02-loggen.png",telefoon:true,
+       tekst:"Na Start workout gaat hij per onderdeel door de dag heen, met bovenin de teller (hier 2 van 5). 1 het invoerveld staat al goed: hier vraagt de app om een gewicht, bij een metcon om rondes of een tijd. 2 met + Notitie schrijft hij erbij hoe het ging. 3 Opslaan zet het onderdeel op voltooid. 4 niet gedaan? Dan Gemist, zodat jij het ziet in plaats van dat de dag leeg blijft. Boven het veld zitten nog Demo-video, Historie (wat deed ik vorige keer) en % voor een percentage van zijn 1RM."},
+      {titel:"De weekworkout en het leaderboard",
+       img:"img/help/app-03-weekworkout.png",telefoon:true,
+       tekst:"Alleen bij de weekworkout is er een leaderboard; gewone workouts blijven privé tussen jou en je klant. 1 hier logt hij zijn score, kiest hij Rx of scaled, en zet hij zelf of de score openbaar mag. Privé betekent: alleen jij en hij zien hem. 2 iedereen kan filteren op Rx of scaled. 3 per score zie je de naam, of iemand 1-op-1 klant of blog-volger is, de notitie, en de duimpjes en reacties van anderen."},
+      {titel:"Chat met jou",
+       img:"img/help/app-04-chat.png",telefoon:true,
+       tekst:"1 dit is precies dezelfde chat als bij Berichten in je dashboard: wat jij daar typt, komt hier binnen. Boven het gesprek staat jouw naam en je profielfoto, dus zet die in Instellingen goed. Je klant ziet direct wie hem antwoordt."},
+      {titel:"Profiel en zijn eigen gegevens",
+       img:"img/help/app-05-profiel.png",telefoon:true,
+       tekst:"1 zijn tellers: afgeronde workouts en de streak in weken. 2 bij Metingen en PR's ziet hij dezelfde cijfers als jij in het zijpaneel van het klant-scherm; hij mag zelf een meting toevoegen. Daaronder staan Timers, Voortgangsfoto's, het intakeformulier, materiaal, trainingsschema en doelen: allemaal dezelfde gegevens die jij ook ziet. Nog verder naar beneden zet hij aan dat hij zijn workout elke ochtend per mail krijgt, en maakt hij de letters in de hele app groter, handig voor wie het scherm klein vindt."},
       {titel:"Zelf meekijken op je telefoon",
-       tekst:"Ben je coach, dan kun je in de app onder Profiel wisselen naar de coach-weergave. Je ziet je klantenlijst met per atleet wat er vandaag nog te doen is, en je kunt scores invoeren en kleine dingen aanpassen. Het echte programmeerwerk doe je op de computer, in dit dashboard."},
+       img:"img/help/app-06-coachweergave.png",telefoon:true,
+       tekst:"Ben je zelf coach, dan staat onder Profiel de knop Wissel naar coach. 1 je ziet je atleten met per persoon wat er vandaag nog open staat; groen betekent dat alles gelogd is. Tik op een atleet en je komt in zijn week, waar je scores kunt invullen (handig bij personal training) en kleine dingen kunt aanpassen. 2 met Naar atleet ga je terug naar je eigen programma. Het echte programmeerwerk doe je op de computer, in dit dashboard."},
     ],
   },
 ];
@@ -227,7 +239,7 @@ function helpStapHtml(s,nr,hoofdstukTitel){
     '<div class="helpstap-kop"><span class="helpnr">'+nr+'</span><h2>'+esc(s.titel)+'</h2>'+
     (hoofdstukTitel?'<span class="helpbron">'+esc(hoofdstukTitel)+'</span>':'')+'</div>'+
     '<p>'+esc(s.tekst)+'</p>'+
-    (s.img?'<figure class="helpshot" onclick="helpZoom(\''+esc(s.img)+'\')" title="Klik om te vergroten">'+
+    (s.img?'<figure class="helpshot'+(s.telefoon?" telefoon":"")+'" onclick="helpZoom(\''+esc(s.img)+'\')" title="Klik om te vergroten">'+
       '<img src="'+esc(s.img)+'" alt="'+esc(s.titel)+'" loading="lazy" onerror="this.parentNode.classList.add(\'ontbreekt\')">'+
       '<figcaption>Klik op de afbeelding om te vergroten</figcaption></figure>':'')+
     '</div>';
