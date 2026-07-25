@@ -544,15 +544,31 @@ async function coachVerwijder(id,klanten){
 }
 document.addEventListener("click",e=>{if(!e.target.closest(".coachmenu")&&!e.target.closest(".crow")&&!e.target.closest(".kebab"))document.querySelectorAll(".coachmenu").forEach(x=>x.remove());});
 
-// ---------- Uitnodigen (klant of coach) via de invites-tabel ----------
-let invRol="lid";
+// ---------- Uitnodigen (klant, blogklant of coach) via de invites-tabel ----------
+// Drie soorten, elk vanaf zijn eigen plek (verzoek Stefan 25 juli):
+//   "lid"   = Klanten > + Klant toevoegen  -> altijd een 1-op-1 klant
+//   "blog"  = Blog > + Klant uitnodigen    -> altijd een gratis blog-lid, en als
+//             er een programma open staat wordt hij daar direct aan gekoppeld
+//   "coach" = Coaches > + Coach toevoegen
+let invRol="lid",invBlog=false,invBlogProgram=null,invBlogProgramNaam="";
 async function openInvModal(rol){
-  ensureLibModals();invRol=rol;
+  ensureLibModals();
+  invBlog=rol==="blog";
+  invRol=rol==="coach"?"coach":"lid";
+  // Vanuit de Blog-sectie: koppel de nieuwe blogklant meteen aan het geopende programma.
+  invBlogProgram=null;invBlogProgramNaam="";
+  if(invBlog&&typeof BLOG!=="undefined"&&BLOG&&BLOG.cur){invBlogProgram=BLOG.cur.id;invBlogProgramNaam=BLOG.cur.name||"";}
   // Vanuit een coach-klantenlijst wordt de nieuwe klant automatisch aan die coach gekoppeld (geen keuze nodig).
-  const bijCoach=rol!=="coach"&&!!klantCoachFilter;
-  document.getElementById("inv-titel").textContent=rol==="coach"?"Coach toevoegen":(bijCoach?"Klant toevoegen bij "+klantCoachNaam:"Klant toevoegen");
+  const bijCoach=invRol==="lid"&&!invBlog&&!!klantCoachFilter;
+  document.getElementById("inv-titel").textContent=rol==="coach"?"Coach toevoegen"
+    :(invBlog?"Klant uitnodigen voor de blog":(bijCoach?"Klant toevoegen bij "+klantCoachNaam:"Klant toevoegen"));
   document.getElementById("inv-coach-veld").style.display=(rol==="coach"||bijCoach)?"none":"";
-  document.getElementById("inv-lid-veld").style.display=rol==="coach"?"none":"";
+  const uitleg=document.getElementById("inv-uitleg");
+  if(uitleg)uitleg.textContent=rol==="coach"?""
+    :(invBlog
+      ? (invBlogProgramNaam?"Wordt een gratis blog-lid en volgt direct "+invBlogProgramNaam+"."
+                           :"Wordt een gratis blog-lid. Koppel hem daarna via Leden koppelen aan een programma.")
+      : "Wordt een 1-op-1 klant met zijn eigen programma.");
   ["inv-vn","inv-an","inv-email"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("inv-result").style.display="none";
   document.getElementById("inv-maak").style.display="";
@@ -574,8 +590,8 @@ async function invAanmaken(){
   const knop=document.getElementById("inv-maak");if(knop)knop.disabled=true;
   const body={actie:"aanmaken",rol:invRol,email:em,first_name:vn||null,last_name:an||null};
   if(invRol!=="coach"){
-    body.coach_id=klantCoachFilter||document.getElementById("inv-coach").value||null;
-    body.membership_type=document.getElementById("inv-type").value;
+    body.coach_id=(!invBlog&&klantCoachFilter)||document.getElementById("inv-coach").value||null;
+    body.membership_type=invBlog?"free_blog":"one_on_one";
   }
   const{data,error}=await db.functions.invoke("invite-account",{body});
   if(knop)knop.disabled=false;
@@ -587,12 +603,25 @@ async function invAanmaken(){
   document.getElementById("inv-link").value=location.origin+location.pathname+"?invite="+data.token;
   document.getElementById("inv-result").style.display="";
   document.getElementById("inv-maak").style.display="none";
-  msg.className="msg ok";
-  msg.textContent=invRol==="coach"?"De coach staat klaar; de uitnodigingsmail is onderweg.":"De klant staat nu al in je klantenlijst en je kunt direct programmeren.";
+  // Blogklant meteen aan het geopende programma koppelen.
+  let koppelFout="";
+  if(invBlog&&invBlogProgram&&data.profile_id){
+    const{error:ke}=await db.from("blog_program_members").insert({
+      company_id:ME.profile.company_id,blog_program_id:invBlogProgram,athlete_id:data.profile_id,
+    });
+    if(ke)koppelFout=" Koppelen aan het programma lukte niet ("+(ke.message||"onbekende fout")+"); doe het via Leden koppelen.";
+  }
+  msg.className=koppelFout?"msg err":"msg ok";
+  msg.textContent=invRol==="coach"
+    ? "De coach staat klaar; de uitnodigingsmail is onderweg."
+    : (invBlog
+      ? ((invBlogProgramNaam?"De blogklant volgt nu "+invBlogProgramNaam+"; ":"De blogklant staat klaar; ")+"de uitnodigingsmail is onderweg."+koppelFout)
+      : "De klant staat nu al in je klantenlijst en je kunt direct programmeren.");
   // Lijst meteen verversen zodat de nieuwe klant/coach er direct tussen staat.
   try{
     coachClients=[];await ensureClients();
     if(invRol==="coach"){if(typeof fillCoaches==="function")await fillCoaches();}
+    else if(invBlog){if(typeof fillBlog==="function")await fillBlog();}
     else if(typeof fillKlanten==="function")await fillKlanten();
   }catch(e){}
 }

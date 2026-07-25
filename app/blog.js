@@ -39,7 +39,9 @@ function blogGaNaar(id){
 function blogRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   if(BLOG.cur){blogDetailRender();return;}
-  cp.innerHTML='<div class="progedit"><div class="hrow"><h1>Blog</h1><button class="btn" onclick="blogpModal(null)">+ Programma aanmaken</button></div>'+
+  cp.innerHTML='<div class="progedit"><div class="hrow"><h1>Blog</h1>'+
+    '<div style="display:flex;gap:8px"><button class="btn" onclick="blogpModal(null)">+ Programma aanmaken</button>'+
+    '<button class="btn ghost" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button></div></div>'+
     '<div style="margin:12px 0 14px"><input class="lid-in" id="blog-zoek" placeholder="Zoek een programma…" style="width:100%;max-width:340px" oninput="blogZoek(this.value)" value="'+esc(BLOG.zoek)+'"></div>'+
     '<div class="card">'+
       '<div class="thead"><div style="flex:2.6">Programma</div><div style="flex:.9">Type</div><div style="flex:.9">Prijs</div><div style="flex:.7">Klanten</div><div style="width:40px"></div></div>'+
@@ -227,7 +229,7 @@ function blogDetailRender(){
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="blogTerug()">‹ Terug</button>'+
       '<div class="pe-badges"><span class="cpill">'+esc(blogTypeNL(p.type))+'</span><span class="cpill">'+(p.price_text?esc(p.price_text):"Gratis")+'</span><span class="cpill teal">'+n+" klant"+(n===1?"":"en")+'</span></div>'+
-      '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
+      '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn ghost sm" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
     '<div class="pe-weeks" style="margin-top:10px;align-items:center">'+
       '<h1 style="margin:0;font-size:20px">'+esc(maandNaam)+'</h1><span class="muted" style="font-weight:700;font-size:13px;margin-left:4px">Week '+isoWeek(midden)+'</span>'+
       '<button class="btn ghost sm" style="margin-left:14px" onclick="blogWeekGa(0)">Vandaag</button>'+

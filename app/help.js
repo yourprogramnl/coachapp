@@ -44,7 +44,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"1 vier cijfers over je hele klantenbestand: hoeveel actieve klanten je hebt, de gemiddelde compliance (met een keuzelijst voor de periode), de consult-rate over 30 dagen en hoeveel klanten je deze week gesproken hebt. 2 het zoekveld gaat over de naam. 3 met Kies tag filter je de lijst op een of meer tags. 4 hier nodig je een nieuwe klant uit. 5 schakel tussen je actieve klanten en je archief. In de tabel staat per klant zijn eerstvolgende of gemiste workout, zijn compliance en zijn tags; klik op een rij om hem te openen."},
       {titel:"Een klant uitnodigen",
        img:"img/help/klanten-02-toevoegen.png",
-       tekst:"Klik op + Klant toevoegen en vul naam en e-mailadres in. Kies de coach en of het een betalende 1-op-1 klant is of een gratis blog-lid. Als je op Uitnodiging aanmaken klikt, wordt het account meteen aangemaakt en krijgt je klant een mail waarin hij alleen nog een wachtwoord kiest. Hij staat direct in je lijst met het label Uitnodiging open, dus je kunt al voor hem programmeren."},
+       tekst:"Klik op + Klant toevoegen, vul naam en e-mailadres in en kies de coach. Iedereen die je hier uitnodigt wordt een 1-op-1 klant met zijn eigen programma; een gratis blog-lid nodig je uit bij Blog. Als je op Uitnodiging aanmaken klikt, wordt het account meteen aangemaakt en krijgt je klant een mail met drie stappen: wachtwoord kiezen, app installeren, inloggen. Hij staat direct in je lijst met het label Uitnodiging open, dus je kunt al voor hem programmeren."},
       {titel:"Werken met tags",
        img:"img/help/klanten-03-tags.png",
        tekst:"Tags zijn labels die je zelf maakt, bijvoorbeeld Wedstrijd, Blessure of Maandag. Klik op de + achter een klant en vink een tag aan of uit. Onderin het venstertje maak je een nieuwe tag met een eigen kleur; die staat daarna meteen in de tag-kiezer bovenaan. Filteren doe je met Kies tag naast het zoekveld: elke tag die je aanvinkt komt eronder als chip te staan en die haal je met het kruisje weer weg. Kies je twee tags, dan blijven alleen de klanten over die ze beide hebben, dus je filter wordt smaller in plaats van breder. Zolang er een tag aanstaat, krijgt elke rij een rondje om af te strepen terwijl je programmeert. Met Tags beheren hernoem je tags, geef je ze een andere kleur of gooi je ze weg."},
@@ -107,7 +107,7 @@ const HELP_HOOFDSTUKKEN=[
     stappen:[
       {titel:"Je blogprogramma's",
        img:"img/help/blog-01-programmas.png",
-       tekst:"Elk programma heeft een naam, een korte omschrijving, een type en een prijs die je alleen laat zien (betalen loopt nog buiten de app om). De kolom Klanten telt hoeveel leden het volgen. Klik op een programma om de week te vullen."},
+       tekst:"Elk programma heeft een naam, een korte omschrijving, een type en een prijs die je alleen laat zien (betalen loopt nog buiten de app om). De kolom Klanten telt hoeveel leden het volgen. Klik op een programma om de week te vullen. Met + Klant uitnodigen zet je hier een gratis blog-lid klaar; staat er een programma open, dan volgt hij dat programma direct."},
       {titel:"De week vullen",
        img:"img/help/blog-02-week.png",
        tekst:"Je ziet één week van maandag tot zondag, met brede kolommen zodat de hele workout leesbaar is. Blader met de pijltjes of spring terug met Vandaag. Klik op + Toevoegen in een dag en je krijgt hetzelfde dag-menu als bij een klant. Met Leden koppelen kies je wie dit programma volgt; een lid volgt er één tegelijk."},
