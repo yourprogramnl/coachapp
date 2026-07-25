@@ -208,8 +208,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
 
   // Uitnodigingsmail: de ontvanger heeft nog geen profiel, dus geen vinkjes of
   // werkuren; gaat rechtstreeks naar het e-mailadres uit de uitnodiging.
-  // Een lid krijgt er stap 2 bij: download de FORGE-app (verzoek Stefan, 21 juli);
-  // een coach-uitnodiging houdt de webtekst.
+  // De opbouw (drie stappen) staat in inviteHtml hierboven.
   if (event === "invite") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
