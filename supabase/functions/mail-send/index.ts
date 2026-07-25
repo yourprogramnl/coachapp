@@ -11,9 +11,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
 const AFZENDER_ADRES = "coach@mail.yourprogram.nl";
-// Zodra de FORGE-app publiek in de App Store staat: hier de link invullen
-// (zelfde plek als APP_STORE_URL in app/auth.js van het dashboard).
-const APP_STORE_URL = "";
+// Downloadlink voor de app in de uitnodigingsmail. Zolang de app in test is:
+// zet de publieke TestFlight-link in de Supabase-secret TESTFLIGHT_URL, dan
+// staat hij meteen in de mail. Staat de app straks in de App Store, dan
+// APP_STORE_URL vullen (zelfde naam als in app/auth.js van het dashboard).
+const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "";
+const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "";
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -134,6 +137,61 @@ function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
 }
 
+// ---- inviteHtml begin (het voorbeeld-script leest deze functie uit het bestand) ----
+// Uitnodigingsmail. De drempel zit niet in de app maar ervóór: wachtwoord
+// kiezen, app installeren, inloggen. Daarom drie genummerde stappen en onderaan
+// de vragen die mensen echt stellen (mail niet gezien, knop doet niks,
+// wachtwoord kwijt).
+function inviteHtml(o: { bedrijfsNaam: string; voornaam: string; naar: string; link: string; accent: string; isLid: boolean; logoUrl?: string | null }): string {
+  const a = o.accent;
+  // Kopregel: het bedrijfslogo als het in Instellingen > Thema staat, anders de
+  // bedrijfsnaam. Zo werkt het ook voor een ander bedrijf dan YourProgram, en
+  // blijft de mail leesbaar als de ontvanger afbeeldingen blokkeert.
+  const kop = o.logoUrl
+    ? `<img src="${o.logoUrl}" alt="${esc(o.bedrijfsNaam)}" height="26" style="height:26px;display:block;margin-bottom:16px">`
+    : `<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#8a919c;margin-bottom:14px">${esc(o.bedrijfsNaam)}</div>`;
+  const stap = (n: number, kop: string, tekst: string) =>
+    `<div style="margin:10px 0;padding:13px 15px;background:#141417;border:1px solid #26262b;border-radius:12px">` +
+    `<div style="font-size:14px;font-weight:700;color:#f4f4f5">` +
+    `<span style="display:inline-block;width:21px;height:21px;border-radius:50%;background:${a};color:#0E0E10;text-align:center;line-height:21px;font-size:12px;font-weight:800;margin-right:9px">${n}</span>${esc(kop)}</div>` +
+    `<div style="font-size:13px;line-height:1.6;color:#c9c9ce;margin:7px 0 0 30px">${tekst}</div></div>`;
+  const appTekst = APP_STORE_URL
+    ? `Zoek <b style="color:#e6e6ea">FORGE</b> in de App Store, of gebruik <a href="${APP_STORE_URL}" style="color:${a}">deze link</a>.`
+    : (TESTFLIGHT_URL
+      ? `De app is nog in test en loopt via TestFlight van Apple. Installeer eerst <b style="color:#e6e6ea">TestFlight</b> uit de App Store en open daarna <a href="${TESTFLIGHT_URL}" style="color:${a}">deze link</a> op je telefoon.`
+      : `De app staat nog niet in de App Store. Je coach stuurt je de downloadlink, dat gaat via TestFlight van Apple.`);
+  const stappen = o.isLid
+    ? stap(1, "Kies je wachtwoord", `Klik op de knop hieronder en kies een wachtwoord. Gebruik het e-mailadres waarop je deze mail kreeg: <b style="color:#e6e6ea">${esc(o.naar)}</b>.`) +
+      stap(2, "Zet de app op je telefoon", appTekst) +
+      stap(3, "Log in en je bent binnen", "Inloggen doe je met hetzelfde e-mailadres en je nieuwe wachtwoord. Je programma staat dan al voor je klaar.")
+    : stap(1, "Kies je wachtwoord", `Klik op de knop hieronder en kies een wachtwoord. Gebruik het e-mailadres waarop je deze mail kreeg: <b style="color:#e6e6ea">${esc(o.naar)}</b>.`) +
+      stap(2, "Log in op het dashboard", `Je werkt op de computer, op <a href="https://coachapp-steel.vercel.app" style="color:${a}">coachapp-steel.vercel.app</a>. Daar staan je klanten, je programmering en je berichten.`) +
+      stap(3, "Lees je even in", "Rechtsboven zit een vraagteken met de handleiding: per onderdeel een schermafbeelding met uitleg. Begin bij Dashboard en Klant-scherm.");
+  const watKanJe = o.isLid
+    ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#c9c9ce">In de app zie je elke dag je training, vul je je scores in en chat je met je coach.</p>`
+    : "";
+  const vraag = (v: string, antw: string) =>
+    `<div style="margin:7px 0"><span style="color:#e6e6ea;font-weight:600">${esc(v)}</span> <span style="color:#8a919c">${antw}</span></div>`;
+  return KADER_OPEN + kop +
+    `<h2 style="color:${a};margin:0 0 8px;font-size:20px">Welkom${o.voornaam ? " " + esc(o.voornaam) : ""}!</h2>` +
+    `<p style="margin:0 0 14px;line-height:1.6;color:#c9c9ce">${esc(o.bedrijfsNaam)} heeft een account voor je klaargezet. In drie stappen ben je binnen.</p>` +
+    stappen +
+    `<div style="margin:18px 0 0"><a href="${o.link}" style="display:inline-block;background:${a};color:#0E0E10;font-weight:700;padding:13px 24px;border-radius:10px;text-decoration:none">Wachtwoord kiezen</a></div>` +
+    watKanJe +
+    `<div style="margin:20px 0 0;padding-top:14px;border-top:1px solid #26262b;font-size:12.5px;line-height:1.55">` +
+    `<div style="color:#e6e6ea;font-weight:700;margin-bottom:6px">Loopt het ergens vast?</div>` +
+    vraag("Knop doet niks?", `Kopieer deze link naar je browser:<br><span style="color:#6f747c">${esc(o.link)}</span>`) +
+    vraag("Wachtwoord kwijt?", "Kies bij het inloggen \"Wachtwoord vergeten\", dan krijg je een nieuwe link.") +
+    vraag("Verkeerd e-mailadres?", o.isLid
+      ? "Laat het je coach weten, dan krijg je een nieuwe uitnodiging."
+      : "Laat het weten aan wie je uitnodigde, dan krijg je een nieuwe uitnodiging.") +
+    vraag("Nog vragen?", o.isLid
+      ? "Stuur je coach een berichtje, dan komt het goed."
+      : "Stel ze aan wie je uitnodigde, of stuur een bericht via het dashboard.") +
+    `<div style="margin:12px 0 0;color:#6f747c">Deze uitnodiging is 14 dagen geldig.</div></div></div>`;
+}
+// ---- inviteHtml einde ----
+
 async function verstuur(naar: string, afzenderNaam: string, onderwerp: string, html: string): Promise<Response> {
   return await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -155,25 +213,15 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   if (event === "invite") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
-    const { data: bedrijfI } = await db.from("companies").select("name,theme").eq("id", rij.company_id).maybeSingle();
+    const { data: bedrijfI } = await db.from("companies").select("name,theme,logo_url").eq("id", rij.company_id).maybeSingle();
     const accent = accentVan(bedrijfI?.theme);
     const bedrijfsNaam = bedrijfI?.name || "je coach";
     const link = `https://coachapp-steel.vercel.app/?invite=${payload.token}`;
     const voornaam = (payload.first_name as string) || "";
     const { data: invRij } = await db.from("invites").select("role").eq("token", payload.token as string).maybeSingle();
     const isLidInvite = !invRij || invRij.role === "lid";
-    const appStap = APP_STORE_URL
-      ? `download daarna de <a href="${APP_STORE_URL}" style="color:${accent}">FORGE-app</a> op je telefoon en log daar in met je e-mailadres en wachtwoord.`
-      : `download daarna de FORGE-app op je telefoon en log daar in met je e-mailadres en wachtwoord. (Staat de app nog niet in de App Store, dan stuurt je coach je de downloadlink.)`;
-    const introInvite = isLidInvite
-      ? `${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je inlog aan via de knop hieronder en ${appStap}`
-      : `${esc(bedrijfsNaam)} heeft een account voor je klaargezet. Maak je eigen inlog aan via de knop hieronder, daarna staat je programma voor je klaar.`;
-    const html = KADER_OPEN +
-      `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">Welkom${voornaam ? " " + esc(voornaam) : ""}!</h2>` +
-      `<p style="margin:0 0 14px;line-height:1.6;color:#c9c9ce">${introInvite}</p>` +
-      `<a href="${link}" style="display:inline-block;background:${accent};color:#0E0E10;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none">Account aanmaken</a>` +
-      `<p style="margin:16px 0 0;color:#8a919c;font-size:12px;line-height:1.5">Werkt de knop niet? Kopieer dan deze link naar je browser:<br>${esc(link)}<br><br>De uitnodiging is 14 dagen geldig. Gebruik bij het aanmelden dit e-mailadres (${esc(naar)}).</p></div>`;
-    const r = await verstuur(naar, bedrijfsNaam, `Je uitnodiging van ${bedrijfsNaam}`, html);
+    const html = inviteHtml({ bedrijfsNaam, voornaam, naar, link, accent, isLid: isLidInvite, logoUrl: bedrijfI?.logo_url || null });
+    const r = await verstuur(naar, bedrijfsNaam, isLidInvite ? `Je account bij ${bedrijfsNaam} staat klaar` : `Je coach-account bij ${bedrijfsNaam} staat klaar`, html);
     if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
     const foutI = await r.text().catch(() => String(r.status));
     const pogingenI = ((rij.attempts as number) || 0) + 1;
