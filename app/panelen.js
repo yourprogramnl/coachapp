@@ -1082,7 +1082,7 @@ function pfRenderProfiel(p){
       '<label class="pf-toggle"><input type="checkbox" id="pf-uploads"'+(p.disable_uploads?" checked":"")+'><span class="pf-sw"></span> Uploads door het lid uitschakelen</label>'+
       '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px"><span style="font-size:12.5px">Workouts zichtbaar tot</span><input type="number" id="pf-daysahead" min="0" value="'+esc(p.workouts_days_ahead!=null?p.workouts_days_ahead:"")+'" style="width:80px"><span class="sm muted">dagen vooruit (0 = geen limiet)</span></div>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-weekonly"'+(p.future_workouts_week_only?" checked":"")+'><span class="pf-sw"></span> Alleen toekomstige workouts tonen als ze in de huidige week vallen</label>'+
-      '<label class="pf-toggle"><input type="checkbox" id="pf-hideww"'+(p.hide_weekworkout?" checked":"")+'><span class="pf-sw"></span> Weekworkout verbergen (lid ziet de openbare weekworkout en het leaderboard niet)</label>'+
+      '<label class="pf-toggle"><input type="checkbox" id="pf-hideww"'+(p.hide_weekworkout?" checked":"")+'><span class="pf-sw"></span> '+esc(SHOWDOWN)+' verbergen (lid ziet de gedeelde workout en het leaderboard niet)</label>'+
     '</div>'+
     '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px">'+
       '<button class="btn ghost" onclick="renderClient(\'kalender\')">Annuleren</button>'+

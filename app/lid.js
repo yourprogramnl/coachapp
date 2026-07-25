@@ -244,7 +244,7 @@ function lidWeekHtml(){
   const w=LID.blog,blk=wwMainBlock(w);
   const tekst=blk?esc(composePresc(blk)||"").replace(/\n/g,"<br>"):"";
   const deelnemers=new Set((WW.boards[w.id]||[]).map(r=>r.athlete_id)).size;
-  return '<div class="lbhead" style="margin-top:24px"><h2 style="font-size:18px">Workout van de week · '+esc(w.title||"")+'</h2>'+
+  return '<div class="lbhead" style="margin-top:24px"><h2 style="font-size:18px">'+esc(SHOWDOWN)+' · '+esc(w.title||"")+'</h2>'+
     (tekst?'<div class="muted" style="margin-top:6px;font-size:13px;line-height:1.55">'+tekst+'</div>':'')+
     '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
       '<span class="cpill ok">'+deelnemers+" deelnemer"+(deelnemers===1?"":"s")+'</span>'+

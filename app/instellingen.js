@@ -261,7 +261,7 @@ function thPreviewRender(){
   host.innerHTML='<div class="th-phone"><div class="th-screen2">'+
     '<div class="th-status"><span>13:37</span><span class="th-island"></span><span class="th-ico">'+statIco+'</span></div>'+
     '<div class="th-scherm">'+scherm+'</div>'+
-    (instPrevTab==="mail"?"":'<div class="th-tabbar">'+["Home","Weekworkout","Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>')+
+    (instPrevTab==="mail"?"":'<div class="th-tabbar">'+["Home",SHOWDOWN,"Chat","Profiel"].map((t,i)=>'<span style="flex:1;text-align:center;font-size:8.5px;font-weight:700;color:'+((instPrevTab==="msg"?i===2:i===0)?k:"#9A9A9E")+'">'+t+'</span>').join("")+'</div>')+
     '<div class="th-homebar"></div></div></div>';
 }
 function thWorkoutKaartHtml(k){

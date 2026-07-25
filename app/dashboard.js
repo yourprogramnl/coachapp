@@ -211,7 +211,7 @@ function dashRender(){
     '<div>'+
       '<div class="sideblock"><div class="shead"><h2>Mijn cijfers</h2>'+perSel+'</div>'+ringHtml+'</div>'+
       '<div class="sideblock"><div class="shead"><h2>Mijn taken</h2><button class="btn sm" onclick="taakInvoer()">+ Taak</button></div>'+takenHtml+'</div>'+
-      '<div class="sideblock"><div class="shead"><h2>Workout van de week</h2>'+(blog?'<span class="cpill ok">live</span>':'')+'</div>'+weekHtml+'</div>'+
+      '<div class="sideblock"><div class="shead"><h2>'+esc(SHOWDOWN)+'</h2>'+(blog?'<span class="cpill ok">live</span>':'')+'</div>'+weekHtml+'</div>'+
     '</div>'+
   '</div>';
   dashVidSrcs();

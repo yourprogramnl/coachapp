@@ -29,7 +29,7 @@ const WW_SCORES=[["time","tijd (For Time)"],["rounds_reps","rondes + reps (AMRAP
 function wwRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   cp.innerHTML='<div class="lbwrap">'+
-    '<div class="hrow"><h1>Workout van de week</h1><button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div>'+
+    '<div class="hrow"><h1>'+esc(SHOWDOWN)+'</h1><button class="btn" onclick="wwBewerk(null)">+ Nieuwe '+esc(SHOWDOWN)+'</button></div>'+
     (WW.list.length?'<div style="margin:12px 0 14px"><input class="lid-in" id="ww-zoek" placeholder="Zoek op naam of datum (bijv. 15 juli)…" style="width:100%;max-width:340px" oninput="wwZoek(this.value)" value="'+esc(WW.zoek)+'"></div>':'')+
     '<div id="ww-cards">'+wwCardsHtml()+'</div>'+
     (WW.list.length?'<div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Alleen scores die een lid op "openbaar" zet staan erop; privé-scores ziet alleen de eigen coach.</div>':'')+
@@ -37,7 +37,7 @@ function wwRender(){
 }
 function wwZoek(v){WW.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("ww-cards");if(h)h.innerHTML=wwCardsHtml();}
 function wwCardsHtml(){
-  if(!WW.list.length)return '<div class="card" style="padding:26px;text-align:center"><div class="muted" style="margin-bottom:12px">Nog geen weekworkout. Maak de eerste aan; 1-op-1 klanten én blog-leden loggen hun score en komen samen op één leaderboard.</div><button class="btn" onclick="wwBewerk(null)">+ Nieuwe weekworkout</button></div>';
+  if(!WW.list.length)return '<div class="card" style="padding:26px;text-align:center"><div class="muted" style="margin-bottom:12px">Nog geen '+esc(SHOWDOWN)+'. Maak de eerste aan; 1-op-1 klanten én blog-leden loggen hun score en komen samen op één leaderboard.</div><button class="btn" onclick="wwBewerk(null)">+ Nieuwe '+esc(SHOWDOWN)+'</button></div>';
   const hits=WW.list.filter(w=>{
     if(!WW.zoek)return true;
     return (w.title||"").toLowerCase().includes(WW.zoek)||(w.workout_date||"").includes(WW.zoek)||datumNL(w.workout_date).toLowerCase().includes(WW.zoek);

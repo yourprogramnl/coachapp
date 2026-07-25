@@ -13,6 +13,9 @@ try{
 }catch(e){
   document.body.innerHTML='<div style="max-width:460px;margin:14vh auto;font-family:sans-serif;color:#1b2330;text-align:center;padding:24px"><h2 style="color:#4f8bff">Open in een gewone browser</h2><p style="color:#8a94a6;line-height:1.6">Deze app werkt niet in een klein voorbeeldvenster. Open de link in Chrome of Edge.</p></div>';
 }
+// Naam van de gedeelde weekworkout (het merk van YourProgram). Staat hier op
+// één plek, zodat we hem later per bedrijf uit het thema kunnen halen.
+const SHOWDOWN="YP Showdown";
 const ROLE_NL={platform_admin:"Platform-admin",eigenaar:"Eigenaar",coach:"Coach",lid:"Lid"};
 const DAGEN=["MA","DI","WO","DO","VR","ZA","ZO"];
 const MAANDVOL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
