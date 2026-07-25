@@ -2,11 +2,21 @@
 // Klanten, Coaches en Bedrijven, plus de uitnodigingsflow (invites).
 // ---------- KLANTEN-pagina (naar het ontwerp) ----------
 let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="",klantArchief=false;
-// Tag-filter op de lijst (klik op een tag) + afstreep-lijstje voor het
-// programmeren (verzoek Stefan 22 juli): vink klanten af terwijl je ze
-// programmeert; geldt zolang de pagina open staat.
-let klantTagSel=null,klantAf=new Set();
-function klantTagFilterKies(id){klantTagSel=id||null;if(!id)klantAf.clear();klantenRender();}
+// Tag-filter op de lijst + afstreep-lijstje voor het programmeren (verzoek
+// Stefan 22 juli): vink klanten af terwijl je ze programmeert; geldt zolang de
+// pagina open staat. Sinds 25 juli kun je op meerdere tags tegelijk filteren
+// (verzoek Stefan): kiezen doe je met de tag-kiezer naast het zoekveld, de
+// gekozen tags staan als chips daaronder. Een klant hoort erbij als hij één
+// van de gekozen tags heeft.
+let klantTags=new Set(),klantAf=new Set();
+const klantTagAan=()=>klantTags.size>0;
+function klantTagFilterKies(id){
+  if(!id){klantTags.clear();klantAf.clear();klantenRender();return;}
+  if(klantTags.has(id))klantTags.delete(id);else klantTags.add(id);
+  if(!klantTags.size)klantAf.clear();
+  klantTagDropWeg();klantenRender();
+}
+function klantTagFilterWeg(id){klantTags.delete(id);if(!klantTags.size)klantAf.clear();klantenRender();}
 // Tagkleur: een van de zes vaste kleurnamen óf een vrije hexkleur (#..)
 function tagKleur(c){return /^#/.test(c||"")?c:(TPLKLEUR[c]||TPLKLEUR.blue);}
 function klantAfToggle(pid){if(klantAf.has(pid))klantAf.delete(pid);else klantAf.add(pid);klantenRender();}
@@ -59,19 +69,19 @@ function klantComp(list){
 }
 function klantRijen(){
   const zoek=klantZoek.toLowerCase();
+  // Het zoekveld gaat over de naam (en het mailadres); op tags filter je met de
+  // tag-kiezer ernaast.
   let lijst=klantLijst().filter(p=>{
     if(!zoek)return true;
-    if(naamVan(p).toLowerCase().includes(zoek)||(p.email||"").toLowerCase().includes(zoek))return true;
-    // Ook zoeken op tagnaam (de placeholder belooft het al)
-    return (KDATA.tagsByClient[p.id]||[]).map(id=>tagById(id)).filter(Boolean).some(t=>(t.name||"").toLowerCase().includes(zoek));
+    return naamVan(p).toLowerCase().includes(zoek)||(p.email||"").toLowerCase().includes(zoek);
   }).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
-  if(klantTagSel)lijst=lijst.filter(p=>(KDATA.tagsByClient[p.id]||[]).includes(klantTagSel));
+  if(klantTagAan())lijst=lijst.filter(p=>(KDATA.tagsByClient[p.id]||[]).some(id=>klantTags.has(id)));
   // Afgestreepte klanten zakken naar onderen tijdens het programmeren
-  if(klantTagSel)lijst=lijst.slice().sort((a,b)=>(klantAf.has(a.id)?1:0)-(klantAf.has(b.id)?1:0)||naamVan(a).localeCompare(naamVan(b)));
+  if(klantTagAan())lijst=lijst.slice().sort((a,b)=>(klantAf.has(a.id)?1:0)-(klantAf.has(b.id)?1:0)||naamVan(a).localeCompare(naamVan(b)));
   return lijst.map(p=>{
     const wp=klantComp([p]);
-    const af=klantTagSel&&klantAf.has(p.id);
-    const afBtn=klantTagSel?'<button class="afvink'+(af?" aan":"")+'" title="'+(af?"Terugzetten in het lijstje":"Afstrepen: klaar met programmeren")+'" onclick="event.stopPropagation();klantAfToggle(\''+p.id+'\')">'+(af?"✓":"")+'</button>':'';
+    const af=klantTagAan()&&klantAf.has(p.id);
+    const afBtn=klantTagAan()?'<button class="afvink'+(af?" aan":"")+'" title="'+(af?"Terugzetten in het lijstje":"Afstrepen: klaar met programmeren")+'" onclick="event.stopPropagation();klantAfToggle(\''+p.id+'\')">'+(af?"✓":"")+'</button>':'';
     // Label voor klanten die hun uitnodiging nog niet hebben geaccepteerd
     // (account bestaat al, programmeren kan gewoon).
     let pend="";
@@ -107,10 +117,11 @@ function klantenRender(){
     '<div><div class="n acc">'+(crTot==null?'–':crTot+'%')+'</div><div class="l">Consult-rate · 30 dagen</div></div>'+
     '<div><div class="n acc">'+(cmTot==null?'–':cmTot+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'+
-      '<div class="search2"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek op naam of tag…" value="'+esc(klantZoek)+'" oninput="klantZoekF(this.value)"></div>'+
+      '<div class="search2" style="max-width:360px"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek op naam…" value="'+esc(klantZoek)+'" oninput="klantZoekF(this.value)"></div>'+
+      klantTagKiezerHtml()+
       '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="openTagBeheer()">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
-    '<div class="ctabs"><button class="'+(klantArchief?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button></div>'+
     klantTagBanner()+
+    '<div class="ctabs"><button class="'+(klantArchief?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button></div>'+
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
     '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>';
 }
@@ -213,21 +224,53 @@ async function doExport(){
 function tagById(id){return (KDATA.alleTags||[]).find(t=>t.id===id);}
 // Actieve tag-filter als balkje boven de lijst: tag met kruisje (uitzetten)
 // en de afstreep-teller voor het programmeren.
+// De tag-kiezer naast het zoekveld: uitklaplijst met de tags die er zijn.
+// Nieuwe tags (via de + bij een klant of via Tags beheren) staan er meteen
+// tussen, want de lijst komt elke keer uit KDATA.alleTags.
+function klantTagKiezerHtml(){
+  const n=klantTags.size;
+  return '<div class="tagkies">'+
+    '<button class="tagkiesbtn'+(n?" aan":"")+'" onclick="klantTagDropToggle(event)">'+
+      '<svg class="i sm-i"><use href="#i-target"/></svg> '+(n?n+(n===1?" tag":" tags"):"Kies tag")+
+      '<svg class="i sm-i"><use href="#i-chev"/></svg></button></div>';
+}
+function klantTagDropWeg(){document.querySelectorAll(".tagkies .tagdrop").forEach(x=>x.remove());}
+function klantTagDropToggle(ev){
+  ev.stopPropagation();
+  const wrap=ev.target.closest(".tagkies");if(!wrap)return;
+  const bestond=wrap.querySelector(".tagdrop");
+  document.querySelectorAll(".tagdrop").forEach(x=>x.remove());
+  if(bestond)return;
+  const d=document.createElement("div");d.className="tagdrop";
+  d.innerHTML='<div class="hd">Filter op tag</div>'+
+    ((KDATA.alleTags||[]).map(t=>'<button class="tagopt" onclick="event.stopPropagation();klantTagFilterKies(\''+t.id+'\')">'+
+      '<span class="kdot" style="background:'+(tagKleur(t.color))+'"></span><span style="flex:1">'+esc(t.name)+'</span>'+
+      (klantTags.has(t.id)?'<span class="vk">✓</span>':'')+'</button>').join("")
+      ||'<div class="leeg">Nog geen tags. Maak er een via de + achter een klant of via Tags beheren.</div>')+
+    (klantTags.size?'<button class="tagopt" style="color:#e5484d" onclick="event.stopPropagation();klantTagFilterKies(null)">Filter wissen</button>':'');
+  wrap.appendChild(d);
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".tagkies"))klantTagDropWeg();});
+
+// De gekozen tags als chips onder de zoekbalk, met een kruisje per tag,
+// plus de afstreep-teller voor het programmeren.
 function klantTagBanner(){
-  if(!klantTagSel)return "";
-  const t=tagById(klantTagSel);
-  if(!t){klantTagSel=null;return "";}
-  const inFilter=klantLijst().filter(p=>(KDATA.tagsByClient[p.id]||[]).includes(klantTagSel));
+  // Tags die intussen verwijderd zijn stil laten vallen
+  [...klantTags].forEach(id=>{if(!tagById(id))klantTags.delete(id);});
+  if(!klantTags.size)return "";
+  const gekozen=[...klantTags].map(id=>tagById(id)).filter(Boolean);
+  const inFilter=klantLijst().filter(p=>(KDATA.tagsByClient[p.id]||[]).some(id=>klantTags.has(id)));
   const afN=inFilter.filter(p=>klantAf.has(p.id)).length;
-  return '<div style="display:flex;align-items:center;gap:12px;margin:0 0 10px;flex-wrap:wrap">'+
-    '<span class="ktag" style="font-size:12px;padding:5px 12px"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+' <span class="x" title="Filter uitzetten" onclick="klantTagFilterKies(null)">✕</span></span>'+
-    '<span class="sm muted">'+inFilter.length+(inFilter.length===1?" klant":" klanten")+' · '+afN+' afgestreept</span>'+
+  const chips=gekozen.map(t=>'<span class="ktag" style="font-size:12px;padding:5px 12px"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+' <span class="x" title="Deze tag uit het filter halen" onclick="klantTagFilterWeg(\''+t.id+'\')">✕</span></span>').join("");
+  return '<div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap">'+chips+
+    '<span class="sm muted">'+inFilter.length+(inFilter.length===1?" klant":" klanten")+(gekozen.length>1?" met een van deze tags":"")+' · '+afN+' afgestreept</span>'+
     (afN?'<a style="color:var(--accent);cursor:pointer;font-weight:700;font-size:12px" onclick="klantAfReset()">Afstrepen wissen</a>':'')+
+    (gekozen.length>1?'<a style="color:#8a919c;cursor:pointer;font-weight:700;font-size:12px" onclick="klantTagFilterKies(null)">Alles wissen</a>':'')+
   '</div>';
 }
 function klantTagCel(p){
   const chips=(KDATA.tagsByClient[p.id]||[]).map(id=>tagById(id)).filter(Boolean)
-    .map(t=>'<span class="ktag'+(klantTagSel===t.id?" aan":"")+'"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Filter de lijst op deze tag" onclick="event.stopPropagation();klantTagFilterKies(\''+t.id+'\')"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+'</span> <span class="x" title="Tag weghalen bij deze klant" onclick="event.stopPropagation();tagToggleKlant(\''+p.id+'\',\''+t.id+'\')">✕</span></span>').join("");
+    .map(t=>'<span class="ktag'+(klantTags.has(t.id)?" aan":"")+'"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Filter de lijst op deze tag" onclick="event.stopPropagation();klantTagFilterKies(\''+t.id+'\')"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+'</span> <span class="x" title="Tag weghalen bij deze klant" onclick="event.stopPropagation();tagToggleKlant(\''+p.id+'\',\''+t.id+'\')">✕</span></span>').join("");
   return '<div class="ktagcel">'+chips+'<button class="plusbtn" title="Tag toevoegen" onclick="event.stopPropagation();openTagPicker(event,\''+p.id+'\')">+</button></div>';
 }
 function openTagPicker(ev,clientId){

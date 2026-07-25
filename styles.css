@@ -377,6 +377,13 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .ktag .x{color:#b3b9c2;cursor:pointer;font-size:9px}
 .ktag .x:hover{color:#e5484d}
 .kdot{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+/* Tag-kiezer naast het zoekveld op de Klanten-pagina */
+.tagkies{position:relative}
+.tagkiesbtn{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #e7e9ec;border-radius:8px;padding:9px 13px;font-size:13px;font-weight:600;color:#3a4048;cursor:pointer;font-family:inherit;white-space:nowrap}
+.tagkiesbtn:hover{border-color:#cfd4da}
+.tagkiesbtn .i{color:#8a919c;width:14px;height:14px}
+.tagkiesbtn.aan{border-color:var(--accent);color:var(--accent)}
+.tagkiesbtn.aan .i{color:var(--accent)}
 .tagdrop{position:absolute;top:100%;left:0;z-index:70;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 44px rgba(15,18,22,.16);width:224px;padding:6px;margin-top:5px}
 .tagdrop .hd{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a919c;padding:4px 8px}
 .tagdrop .tagopt{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;padding:7px 8px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--txt)}
