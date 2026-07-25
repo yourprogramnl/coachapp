@@ -6,10 +6,12 @@ let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam
 // Stefan 22 juli): vink klanten af terwijl je ze programmeert; geldt zolang de
 // pagina open staat. Sinds 25 juli kun je op meerdere tags tegelijk filteren
 // (verzoek Stefan): kiezen doe je met de tag-kiezer naast het zoekveld, de
-// gekozen tags staan als chips daaronder. Een klant hoort erbij als hij één
-// van de gekozen tags heeft.
+// gekozen tags staan als chips daaronder. Kies je meerdere tags, dan blijven
+// alleen de klanten over die ÁLLE gekozen tags hebben (verzoek Stefan 25 juli).
 let klantTags=new Set(),klantAf=new Set();
 const klantTagAan=()=>klantTags.size>0;
+// Heeft deze klant alle gekozen tags? (leeg filter = iedereen)
+const klantHeeftAlleTags=p=>{const eigen=KDATA.tagsByClient[p.id]||[];return [...klantTags].every(id=>eigen.includes(id));};
 function klantTagFilterKies(id){
   if(!id){klantTags.clear();klantAf.clear();klantenRender();return;}
   if(klantTags.has(id))klantTags.delete(id);else klantTags.add(id);
@@ -75,7 +77,7 @@ function klantRijen(){
     if(!zoek)return true;
     return naamVan(p).toLowerCase().includes(zoek)||(p.email||"").toLowerCase().includes(zoek);
   }).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
-  if(klantTagAan())lijst=lijst.filter(p=>(KDATA.tagsByClient[p.id]||[]).some(id=>klantTags.has(id)));
+  if(klantTagAan())lijst=lijst.filter(p=>klantHeeftAlleTags(p));
   // Afgestreepte klanten zakken naar onderen tijdens het programmeren
   if(klantTagAan())lijst=lijst.slice().sort((a,b)=>(klantAf.has(a.id)?1:0)-(klantAf.has(b.id)?1:0)||naamVan(a).localeCompare(naamVan(b)));
   return lijst.map(p=>{
@@ -259,11 +261,11 @@ function klantTagBanner(){
   [...klantTags].forEach(id=>{if(!tagById(id))klantTags.delete(id);});
   if(!klantTags.size)return "";
   const gekozen=[...klantTags].map(id=>tagById(id)).filter(Boolean);
-  const inFilter=klantLijst().filter(p=>(KDATA.tagsByClient[p.id]||[]).some(id=>klantTags.has(id)));
+  const inFilter=klantLijst().filter(p=>klantHeeftAlleTags(p));
   const afN=inFilter.filter(p=>klantAf.has(p.id)).length;
   const chips=gekozen.map(t=>'<span class="ktag" style="font-size:12px;padding:5px 12px"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+' <span class="x" title="Deze tag uit het filter halen" onclick="klantTagFilterWeg(\''+t.id+'\')">✕</span></span>').join("");
   return '<div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap">'+chips+
-    '<span class="sm muted">'+inFilter.length+(inFilter.length===1?" klant":" klanten")+(gekozen.length>1?" met een van deze tags":"")+' · '+afN+' afgestreept</span>'+
+    '<span class="sm muted">'+inFilter.length+(inFilter.length===1?" klant":" klanten")+(gekozen.length===2?" met beide tags":(gekozen.length>2?" met alle "+gekozen.length+" tags":""))+' · '+afN+' afgestreept</span>'+
     (afN?'<a style="color:var(--accent);cursor:pointer;font-weight:700;font-size:12px" onclick="klantAfReset()">Afstrepen wissen</a>':'')+
     (gekozen.length>1?'<a style="color:#8a919c;cursor:pointer;font-weight:700;font-size:12px" onclick="klantTagFilterKies(null)">Alles wissen</a>':'')+
   '</div>';
