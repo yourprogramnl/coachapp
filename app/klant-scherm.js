@@ -452,7 +452,7 @@ function inlineBuilderHtml(w){
   return '<div class="sec">'+
       '<div class="corner"><span title="Zichtbaar voor de sporter"><svg class="i sm-i"><use href="#i-eye"/></svg></span><span title="Video toevoegen"><svg class="i sm-i"><use href="#i-cam"/></svg></span></div>'+
       '<input id="w_title" class="row-title" placeholder="Titel" value="'+esc(w.title||"")+'">'+
-      '<textarea id="w_notes" rows="1" placeholder="Coach&#39;s notes">'+esc(w.coach_notes||"")+'</textarea>'+
+      '<textarea id="w_notes" rows="1" placeholder="Notities van de coach">'+esc(w.coach_notes||"")+'</textarea>'+
       '<div style="border-top:1px solid #e7e9ec;margin:6px 0 4px"></div>'+
       '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
       cwMediaHtml("warmup",w.warmup_oefening_id,w.warmup_media)+
@@ -480,8 +480,8 @@ function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
     return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
-      '<div class="msc"><span style="color:#27b376">Rest Day</span></div>'+
-      '<div class="cblk"><div class="pr" style="color:#8a919c">No instructions</div></div>'+
+      '<div class="msc"><span style="color:#27b376">Rustdag</span></div>'+
+      '<div class="cblk"><div class="pr" style="color:#8a919c">Geen instructies</div></div>'+
       cardComBtn(w)+'</div>';
   }
   let done=0,total=0,inner="";
@@ -748,7 +748,7 @@ async function renderMonth(opts){
         inner+=dayWos.filter(w=>w.id!==editWid).map(mcardHtml).join("");
         inner+='<div class="ib2" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else if(dayWos.length){
-        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Add New</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
+        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Toevoegen</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
         inner+=dayWos.map(mcardHtml).join("");
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu

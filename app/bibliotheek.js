@@ -611,7 +611,7 @@ async function progRustdag(week,day){
 function progCard(w){
   const blocks=(w.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   const isRest=!blocks.length&&/^rest ?day$/i.test((w.title||"").trim());
-  if(isRest)return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span style="color:#27b376">Rest Day</span></div></div>';
+  if(isRest)return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span style="color:#27b376">Rustdag</span></div></div>';
   let inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
