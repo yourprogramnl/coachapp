@@ -151,12 +151,37 @@ async function signOut(){if(typeof msgBadgeStop==="function")msgBadgeStop();if(t
 // De herstel-mail van Supabase komt terug op deze pagina met tokens in de
 // #hash (type=recovery). detectSessionInUrl staat uit, dus we verwerken de
 // hash zelf: sessie zetten en een formulier tonen voor een nieuw wachtwoord.
-async function wachtwoordVergeten(){
-  const email=(document.getElementById("email").value||"").trim();
-  if(!email){setMsg("Vul eerst je e-mailadres in, dan sturen we je een herstel-link.","err");return;}
+// "Wachtwoord vergeten?" krijgt zijn eigen scherm met alléén een e-mailveld
+// (verzoek Stefan, 26 juli): op het inlogscherm ernaast leek het alsof je ook
+// nog een wachtwoord moest invullen. Zelfde kaart-wissel als het
+// herstelformulier hieronder, zodat we geen tweede pagina nodig hebben.
+function toonVergeten(){
+  const kaart=document.querySelector("#login .card");if(!kaart)return;
+  if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  const vooraf=esc(((document.getElementById("email")||{}).value||"").trim());
+  kaart.innerHTML='<h3 style="margin:0 0 6px">Wachtwoord vergeten</h3>'+
+    '<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Vul je e-mailadres in, dan sturen we je een link waarmee je een nieuw wachtwoord kiest.</div>'+
+    '<div class="field"><label>E-mailadres</label><input id="vg-email" type="email" placeholder="naam@voorbeeld.nl" value="'+vooraf+'"></div>'+
+    '<button class="btn" id="vg-go" style="width:100%" onclick="vergetenVerstuur()">Stuur me een herstel-link</button>'+
+    '<div style="text-align:center;margin-top:12px"><button class="lnk" onclick="vergetenTerug()">Terug naar inloggen</button></div>'+
+    '<div class="msg" id="vg-msg"></div>';
+  const v=document.getElementById("vg-email");if(v)v.focus();
+}
+async function vergetenVerstuur(){
+  const m=document.getElementById("vg-msg");
+  const zeg=(t,k)=>{m.textContent=t;m.className="msg "+(k||"");};
+  const email=((document.getElementById("vg-email")||{}).value||"").trim();
+  if(!email){zeg("Vul je e-mailadres in.","err");return;}
+  const go=document.getElementById("vg-go");go.disabled=true;
   const{error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error){setMsg(error.message||"Versturen mislukt. Probeer het later opnieuw.","err");return;}
-  setMsg("Als dit adres bij ons bekend is, staat er zo een e-mail met een herstel-link in je inbox.","ok");
+  go.disabled=false;
+  if(error){zeg(error.message||"Versturen mislukt. Probeer het later opnieuw.","err");return;}
+  zeg("Als dit adres bij ons bekend is, staat er zo een e-mail met een herstel-link in je inbox. Kijk ook even in je spam.","ok");
+}
+function vergetenTerug(){
+  const kaart=document.querySelector("#login .card");
+  if(kaart&&kaart.dataset.orig){kaart.innerHTML=kaart.dataset.orig;delete kaart.dataset.orig;}
+  setMode("in");
 }
 async function checkRecovery(){
   const h=new URLSearchParams((location.hash||"").replace(/^#/,""));
