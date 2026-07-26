@@ -160,7 +160,7 @@ const HELP_HOOFDSTUKKEN=[
   },
   {
     id:"app",icoon:"i-walk",titel:"De sporter-app",
-    intro:"Je klant werkt niet in dit dashboard maar in de FORGE-app op zijn telefoon. Onderin die app zitten vier tabbladen: Home, YP Showdown, Chat en Profiel. Alles wat hij daar logt, komt meteen bij jou binnen. Goed om te weten wat hij ziet, dan kun je hem er ook doorheen praten.",
+    intro:"Je klant werkt niet in dit dashboard maar in de YourProgram-app op zijn telefoon. Onderin die app zitten vier tabbladen: Home, YP Showdown, Chat en Profiel. Alles wat hij daar logt, komt meteen bij jou binnen. Goed om te weten wat hij ziet, dan kun je hem er ook doorheen praten.",
     stappen:[
       {titel:"Home: de dag van je klant",
        img:"img/help/app-01-home.png",telefoon:true,

@@ -159,7 +159,7 @@ function inviteHtml(o: { bedrijfsNaam: string; voornaam: string; naar: string; l
     `<span style="display:inline-block;width:21px;height:21px;border-radius:50%;background:${a};color:#0E0E10;text-align:center;line-height:21px;font-size:12px;font-weight:800;margin-right:9px">${n}</span>${esc(kop)}</div>` +
     `<div style="font-size:13px;line-height:1.6;color:#c9c9ce;margin:7px 0 0 30px">${tekst}</div></div>`;
   const appTekst = APP_STORE_URL
-    ? `Zoek <b style="color:#e6e6ea">FORGE</b> in de App Store, of gebruik <a href="${APP_STORE_URL}" style="color:${a}">deze link</a>.`
+    ? `Zoek <b style="color:#e6e6ea">YourProgram</b> in de App Store, of gebruik <a href="${APP_STORE_URL}" style="color:${a}">deze link</a>.`
     : (TESTFLIGHT_URL
       ? `De app is nog in test en loopt via TestFlight van Apple. Installeer eerst <b style="color:#e6e6ea">TestFlight</b> uit de App Store en open daarna <a href="${TESTFLIGHT_URL}" style="color:${a}">deze link</a> op je telefoon.`
       : `De app staat nog niet in de App Store. Je coach stuurt je de downloadlink, dat gaat via TestFlight van Apple.`);
@@ -255,7 +255,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       voet: "Je vindt deze melding ook in het dashboard onder het vraagteken > Meldingen, waar je hem op afgehandeld kunt zetten.",
       accent: "#D9B44A",
     });
-    const rM = await verstuur(naar, "FORGE meldingen", `[${m.soort}] ${m.onderwerp}`, html);
+    const rM = await verstuur(naar, "YourProgram meldingen", `[${m.soort}] ${m.onderwerp}`, html);
     if (rM.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
     const foutM = await rM.text().catch(() => String(rM.status));
     const pogingenM = ((rij.attempts as number) || 0) + 1;

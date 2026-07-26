@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Programma's — FORGE</title>
+<title>Programma's — YourProgram</title>
 <style>
-  /* Winkelpagina voor blogprogramma's: donkere FORGE-stijl, publiek. */
+  /* Winkelpagina voor blogprogramma's: donkere huisstijl, publiek. */
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#0E0E10;color:#F5F4F2;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
   .kop{padding:34px 22px 10px;text-align:center}
-  .logo{font-size:30px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
-  .logo b{color:#D9B44A}
+  /* Echte huisstijl: het YourProgram-logo in de kop i.p.v. een woordmerk. */
+  .logo{width:min(260px,68vw);height:auto;display:block;margin:0 auto}
   .sub{color:#9A9A9E;margin-top:6px;font-size:14.5px}
   main{flex:1;width:100%;max-width:680px;margin:0 auto;padding:22px}
   .melding{border:1px solid rgba(70,200,138,.45);background:rgba(70,200,138,.08);color:#46C88A;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:14.5px;line-height:1.5}
@@ -31,8 +31,8 @@
 </head>
 <body>
   <div class="kop">
-    <div class="logo">FOR<b>GE</b></div>
-    <div class="sub">Online trainingsprogramma's · volg je programma in de FORGE-app</div>
+    <img class="logo" src="img/logo-yp-2021.png" alt="YourProgram">
+    <div class="sub">Online trainingsprogramma's · volg je programma in de YourProgram-app</div>
   </div>
   <main>
     <div id="melding"></div>
@@ -49,7 +49,7 @@ const eur = c => "€" + (c/100).toFixed(2).replace(".", ",").replace(",00","");
 const q = new URLSearchParams(location.search);
 if (q.get("besteld")) {
   document.getElementById("melding").innerHTML =
-    '<div class="melding">✅ Gelukt! Je betaling is ontvangen. Binnen een paar minuten krijg je een e-mail met de link om je account aan te maken; daarna staat je programma voor je klaar in de FORGE-app.</div>';
+    '<div class="melding">✅ Gelukt! Je betaling is ontvangen. Binnen een paar minuten krijg je een e-mail met de link om je account aan te maken; daarna staat je programma voor je klaar in de YourProgram-app.</div>';
 } else if (q.get("geannuleerd")) {
   document.getElementById("melding").innerHTML =
     '<div class="melding grijs">De betaling is afgebroken. Je kunt het hieronder gewoon opnieuw proberen.</div>';

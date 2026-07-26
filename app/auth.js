@@ -112,9 +112,9 @@ function toonAccountKlaar(ingelogd){
     '<div style="font-size:40px;line-height:1;margin-bottom:10px">✅</div>'+
     '<h3 style="margin:0 0 8px">Account aangemaakt!</h3>'+
     (lidNaarApp
-      ?'<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Je account is klaar. Nog één stap: download de <b>FORGE-app</b> op je telefoon en log daar in met dit e-mailadres en je wachtwoord.</div>'+
+      ?'<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Je account is klaar. Nog één stap: download de <b>YourProgram-app</b> op je telefoon en log daar in met dit e-mailadres en je wachtwoord.</div>'+
        (APP_STORE_URL
-         ?'<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+APP_STORE_URL+'">Download de FORGE-app</a>'
+         ?'<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+APP_STORE_URL+'">Download de YourProgram-app</a>'
          :'<div class="muted" style="font-size:12.5px;line-height:1.5">De app staat binnenkort in de App Store; je coach stuurt je de downloadlink zodra hij klaarstaat.</div>')+
        '<button class="lnk" style="margin-top:12px" onclick="accountDoorgaan()">Of bekijk je programma alvast in de browser</button>'
       :ingelogd
@@ -304,9 +304,9 @@ function renderAppOnly(){
   toonLoginKaart(
     '<div style="font-size:34px;line-height:1;margin-bottom:12px">📱</div>'+
     '<h3 style="margin:0 0 10px;font-size:19px">Jouw omgeving zit in de app</h3>'+
-    '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Als sporter gebruik je de FORGE-app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is voor coaches.</div>'+
+    '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Als sporter gebruik je de YourProgram-app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is voor coaches.</div>'+
     (APP_STORE_URL
-      ?'<a class="btn" style="width:100%;display:block;box-sizing:border-box;text-decoration:none;margin-bottom:10px" href="'+APP_STORE_URL+'">Download de FORGE-app</a>'
+      ?'<a class="btn" style="width:100%;display:block;box-sizing:border-box;text-decoration:none;margin-bottom:10px" href="'+APP_STORE_URL+'">Download de YourProgram-app</a>'
       :'')+
     '<button class="btn" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>'+
     (APP_STORE_URL?'':'<div class="muted" style="font-size:12.5px;margin-top:14px;line-height:1.55">Heb je de app nog niet? Vraag je coach om de installatielink.</div>'));
