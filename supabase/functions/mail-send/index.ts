@@ -16,7 +16,10 @@ const AFZENDER_ADRES = "coach@mail.yourprogram.nl";
 // staat hij meteen in de mail. Staat de app straks in de App Store, dan
 // APP_STORE_URL vullen (zelfde naam als in app/auth.js van het dashboard).
 const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "";
-const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "";
+// Publieke TestFlight-link van de groep "Pilot" (26 juli 2026). Deze link is
+// bedoeld om te delen, dus hij mag hier staan. Vervangen door de App Store-link
+// zodra de app publiek is: dan APP_STORE_URL vullen, die gaat voor.
+const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "https://testflight.apple.com/join/JqqZHVDp";
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
