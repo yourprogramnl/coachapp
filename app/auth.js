@@ -263,36 +263,61 @@ async function loadApp(){
     }catch(e){}
   }
   const role=ME.profile.role||"lid";
+  // Keuze Stefan (24 juli): sporters werken alleen in de app. Ze zien het
+  // coach-scherm dus nooit, ook niet even: we tonen meteen de donkere kaart in
+  // het inlogscherm (verzoek Stefan, 26 juli).
+  if(role==="lid"){
+    if(ME.profile.archived)renderGearchiveerd();
+    else renderAppOnly();
+    return;
+  }
   document.getElementById("roleLabel").textContent=ROLE_NL[role]||role;
   document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();
   show("app");
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="";
-  if(role==="lid"){
-    if(ME.profile.archived){renderGearchiveerd();return;}
-    // Keuze Stefan (24 juli): sporters werken alleen in de app; het web-lid-scherm
-    // is uit (de code in app/lid.js blijft staan als testmiddel voor later).
-    renderAppOnly();
-  }
-  else{const b=document.getElementById("lidchat-btn");if(b)b.remove();routeHash();}
+  const b=document.getElementById("lidchat-btn");if(b)b.remove();
+  routeHash();
+}
+
+// Boodschap aan een lid in dezelfde jas als het inlogscherm: we hergebruiken de
+// inlogkaart, dus logo, kleuren en knopstijl kloppen automatisch mee.
+function toonLoginKaart(html){
+  show("login");
+  const kaart=document.querySelector("#login .card");if(!kaart)return;
+  if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  kaart.innerHTML='<div style="text-align:center">'+html+'</div>';
+}
+function loginKaartTerug(){
+  const kaart=document.querySelector("#login .card");
+  if(kaart&&kaart.dataset.orig){kaart.innerHTML=kaart.dataset.orig;delete kaart.dataset.orig;}
+}
+// Eerst het inlogformulier terugzetten, dan uitloggen (signOut leegt het
+// wachtwoordveld, dat moet er dus weer staan).
+async function lidUitloggen(){
+  loginKaartTerug();
+  setMode("in");
+  await signOut();
 }
 
 // Sporters horen in de app, niet in de browser: nette verwijzing + uitloggen.
 function renderAppOnly(){
-  const c=document.getElementById("content");
-  c.innerHTML='<div class="cwrap" style="max-width:520px;margin:60px auto;text-align:center">'+
-    '<div style="font-size:34px;margin-bottom:10px">📱</div>'+
-    '<h2 style="margin:0 0 8px">Jouw omgeving zit in de app</h2>'+
-    '<div class="muted" style="line-height:1.6;margin-bottom:18px">Als sporter gebruik je de app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is alleen voor coaches.<br><br>Heb je de app nog niet? Vraag je coach om de installatielink.</div>'+
-    '<button class="btn" onclick="signOut()">Uitloggen</button></div>';
+  toonLoginKaart(
+    '<div style="font-size:34px;line-height:1;margin-bottom:12px">📱</div>'+
+    '<h3 style="margin:0 0 10px;font-size:19px">Jouw omgeving zit in de app</h3>'+
+    '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Als sporter gebruik je de FORGE-app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is voor coaches.</div>'+
+    (APP_STORE_URL
+      ?'<a class="btn" style="width:100%;display:block;box-sizing:border-box;text-decoration:none;margin-bottom:10px" href="'+APP_STORE_URL+'">Download de FORGE-app</a>'
+      :'')+
+    '<button class="btn" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>'+
+    (APP_STORE_URL?'':'<div class="muted" style="font-size:12.5px;margin-top:14px;line-height:1.55">Heb je de app nog niet? Vraag je coach om de installatielink.</div>'));
 }
 
 // Gearchiveerd lid: alle data blijft bewaard, maar de app is op slot tot de
 // coach het account weer activeert (Klanten > Archief > Terughalen).
 function renderGearchiveerd(){
-  const c=document.getElementById("content");
-  c.innerHTML='<div class="cwrap" style="max-width:520px;margin:60px auto;text-align:center">'+
-    '<div style="font-size:34px;margin-bottom:10px">📦</div>'+
-    '<h2 style="margin:0 0 8px">Je account is niet actief</h2>'+
-    '<div class="muted" style="line-height:1.6;margin-bottom:18px">Je account staat in het archief. Al je gegevens en resultaten blijven gewoon bewaard. Wil je weer starten? Neem dan contact op met je coach, die zet je account direct weer aan.</div>'+
-    '<button class="btn" onclick="signOut()">Uitloggen</button></div>';
+  toonLoginKaart(
+    '<div style="font-size:34px;line-height:1;margin-bottom:12px">📦</div>'+
+    '<h3 style="margin:0 0 10px;font-size:19px">Je account is niet actief</h3>'+
+    '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Je account staat in het archief. Al je gegevens en resultaten blijven gewoon bewaard. Wil je weer starten? Neem dan contact op met je coach, die zet je account direct weer aan.</div>'+
+    '<button class="btn" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>');
 }
