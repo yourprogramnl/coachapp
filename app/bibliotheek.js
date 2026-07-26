@@ -305,6 +305,18 @@ async function bmVerwijder(){
 }
 
 // ---------- Programma's (herbruikbare programma-templates) ----------
+// Rechten (26 juli 2026): kijken mag iedereen van het bedrijf, aanpassen alleen
+// wie op het programma is aangevinkt (tabel program_editors) plus de beheerders
+// (eigenaar en platform_admin). De database dwingt dit ook echt af; hieronder
+// zorgen we ervoor dat de knoppen niet iets beloven wat toch niet lukt.
+const benBeheerder=()=>["platform_admin","eigenaar"].includes((ME.profile||{}).role);
+const progMagIk=pid=>benBeheerder()||(((LIB.progRechten||{})[pid])||[]).includes((ME.user||{}).id);
+// Guard voor elke wijzigende actie in de editor; geeft false als het niet mag.
+function progMagOfMeld(pid){
+  if(progMagIk(pid||(PROG&&PROG.id)))return true;
+  toast("Alleen kijken: je hebt geen rechten op dit programma. Vraag een beheerder.");
+  return false;
+}
 function programLijst(host,thead,pag,cnt){
   if(thead)thead.innerHTML='<div style="flex:2.4">Programma</div><div style="flex:1">Niveau</div><div style="flex:1">Actief</div><div style="flex:.9">Type</div><div style="flex:.7">Van</div><div style="width:150px"></div>';
   const hits=(LIB.programs||[]).filter(p=>!LIB.zoek||(p.name||"").toLowerCase().includes(LIB.zoek)||(p.description||"").toLowerCase().includes(LIB.zoek));
@@ -313,21 +325,28 @@ function programLijst(host,thead,pag,cnt){
   host.innerHTML=hits.map(p=>{
     const c=p.creator;
     const av=c?'<div class="cavc" style="width:28px;height:28px;font-size:10px;'+avFotoStyle(c)+'" title="'+esc(naamVan(c))+'">'+avFotoText(c)+'</div>':'<div class="cavc" style="width:28px;height:28px;font-size:10px;background:#c9cdd4">·</div>';
+    // Slotje bij een programma waar je alleen mag kijken.
+    const mag=progMagIk(p.id);
+    const slot=mag?"":'<span title="Alleen kijken: je hebt hier geen rechten" style="margin-left:6px;opacity:.55">🔒</span>';
     return '<div class="trow" style="cursor:pointer;align-items:flex-start;position:relative" onclick="programBewerk(\''+p.id+'\')">'+
-      '<div style="flex:2.4"><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div>'+
+      '<div style="flex:2.4"><b>'+esc(p.name)+'</b>'+slot+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div>'+
       '<div style="flex:1" class="sm muted">'+esc(p.training_age||"–")+'</div>'+
       '<div style="flex:1" class="sm muted">'+progActiefVoor(p.id)+' klant'+(progActiefVoor(p.id)===1?"":"en")+'</div>'+
       '<div style="flex:.9" class="sm muted">'+esc(p.type==="standard"?"standaard":(p.type||"standaard"))+'</div>'+
       '<div style="flex:.7">'+av+'</div>'+
-      '<div style="width:150px;display:flex;gap:6px;justify-content:flex-end;align-items:center" onclick="event.stopPropagation()"><button class="btn ghost sm" onclick="programBewerk(\''+p.id+'\')">Bewerk</button><button class="kebab" onclick="event.stopPropagation();openProgramMenu(event,\''+p.id+'\')">⋮</button></div></div>';
+      '<div style="width:150px;display:flex;gap:6px;justify-content:flex-end;align-items:center" onclick="event.stopPropagation()"><button class="btn ghost sm" onclick="programBewerk(\''+p.id+'\')">'+(mag?"Bewerk":"Bekijk")+'</button><button class="kebab" onclick="event.stopPropagation();openProgramMenu(event,\''+p.id+'\')">⋮</button></div></div>';
   }).join("")||'<div class="cempty">Nog geen programma\'s. Klik op "+ Programma toevoegen" om te beginnen.</div>';
 }
 async function programLaad(){
-  const[rp,ra]=await Promise.all([
+  const[rp,ra,re]=await Promise.all([
     db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name"),
-    db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks")
+    db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks"),
+    db.from("program_editors").select("program_id,profile_id")
   ]);
   LIB.programs=rp.data||[];LIB.programAsgs=ra.data||[];
+  // Wie mag wat: per programma de lijst met coaches die het mogen aanpassen.
+  LIB.progRechten={};
+  (re.data||[]).forEach(r=>{(LIB.progRechten[r.program_id]=LIB.progRechten[r.program_id]||[]).push(r.profile_id);});
   if(LIB.mode==="programs")libLijst();
 }
 // Aantal klanten met een lopende toewijzing van dit programma (uniek per klant).
@@ -358,6 +377,7 @@ async function programOpslaan(){
   if(!naam){msg.textContent="Geef het programma een naam.";msg.className="msg err";return;}
   const rec={name:naam,description:document.getElementById("prog-desc").value.trim()||null,training_age:document.getElementById("prog-age").value.trim()||null,type:document.getElementById("prog-type").value||"standard"};
   const eid=LIB.editProgram;
+  if(eid&&!progMagIk(eid)){msg.textContent="Je hebt geen rechten op dit programma. Vraag een beheerder.";msg.className="msg err";return;}
   if(eid){
     const{error}=await db.from("program_templates").update(rec).eq("id",eid);
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
@@ -376,6 +396,10 @@ async function programOpslaan(){
 async function openProgramEditor(id){
   const{data:prog}=await db.from("program_templates").select("*").eq("id",id).single();
   if(!prog){toast("Programma niet gevonden");return;}
+  // Rechten altijd zelf ophalen: de editor kan ook geopend worden zonder dat de
+  // programma-lijst eerst is geladen (bijv. na het aanmaken).
+  const{data:eds}=await db.from("program_editors").select("profile_id").eq("program_id",id);
+  LIB.progRechten=LIB.progRechten||{};LIB.progRechten[id]=(eds||[]).map(e=>e.profile_id);
   const{data:pws}=await db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",id).order("week").order("day").order("sort");
   const{data:asgs}=await db.from("program_assignments").select("*").eq("program_id",id);
   PROG=Object.assign({},prog,{workouts:pws||[],assignments:asgs||[]});progWeek=1;progEditDay=null;progEditWid=null;
@@ -515,6 +539,7 @@ function progWeekTab(w){
   const el=document.getElementById("pe-week-"+w);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
 }
 async function progAddWeek(){
+  if(!progMagOfMeld())return;
   const weeks=(PROG.weeks||1)+1;
   const{error}=await db.from("program_templates").update({weeks}).eq("id",PROG.id);
   if(error){toast(error.message||"Mislukt");return;}
@@ -524,6 +549,8 @@ async function progAddWeek(){
 }
 function progRender(){
   const cp=document.getElementById("cpage");if(!cp||!PROG)return;
+  const mag=progMagIk(PROG.id);
+  const slotBalk=mag?"":'<div class="msg" style="background:#fff6e5;border:1px solid #f0d9a8;color:#7a5a12;border-radius:10px;padding:10px 13px;margin:10px 0;font-size:13px;line-height:1.5">🔒 <b>Alleen kijken.</b> Dit programma is niet aan jou toegewezen, dus je kunt het niet aanpassen. Een beheerder kan je rechten geven via Coaches › ⋮ › Rechten.</div>';
   const weeks=Math.max(1,PROG.weeks||1);if(progWeek>weeks)progWeek=weeks;
   const weekTabs=Array.from({length:weeks},(_,i)=>i+1).map(w=>'<button class="wtab'+(w===progWeek?" on":"")+'" onclick="progWeekTab('+w+')">'+w+'</button>').join("");
   // Alle weken onder elkaar in één doorlopend raster, zoals de klant-kalender.
@@ -531,13 +558,13 @@ function progRender(){
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="progBack()">‹ Terug</button>'+
       '<div class="pe-badges"><span class="cpill">'+esc(PROG.type==="standard"?"Standaard":(PROG.type||"Standaard"))+'</span><span class="cpill">'+(weeks===1?"1 week":weeks+" weken")+'</span></div>'+
-      '<div style="margin-left:auto"><button class="btn ghost sm" onclick="programDetails(\''+PROG.id+'\')">Details bewerken</button></div></div>'+
-    '<h1 style="margin:8px 0 2px">'+esc(PROG.name)+'</h1>'+(PROG.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(PROG.description)+'</div>':'')+
+      (mag?'<div style="margin-left:auto"><button class="btn ghost sm" onclick="programDetails(\''+PROG.id+'\')">Details bewerken</button></div>':'')+'</div>'+
+    '<h1 style="margin:8px 0 2px">'+esc(PROG.name)+'</h1>'+(PROG.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(PROG.description)+'</div>':'')+slotBalk+
     '<div class="pe-bar"><button class="btn sm" onclick="openAssign()">Programma toewijzen</button><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progActief()+' actieve toewijzingen</span><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progAankomend()+' aankomend</span><button class="btn ghost sm" style="margin-left:auto" onclick="openAsgList()">Beheer toewijzingen</button></div>'+
     '<h2 style="margin:16px 0 8px">Workouts</h2>'+
     '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" id="pe-viewing" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag '+((progWeek-1)*7+1)+'-'+(progWeek*7)+'</span></div>'+
     '<div class="pe-cal">'+wkHtml+'</div>'+
-    '<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>'+
+    (mag?'<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>':'')+
   '</div>';
   if(progEditDay){relabel();groei();}
 }
@@ -556,6 +583,7 @@ function progWeekBlok(week){
 }
 // Week verwijderen: workouts van die week gaan mee weg, latere weken schuiven een week naar voren.
 async function progDeleteWeek(week){
+  if(!progMagOfMeld())return;
   const weeks=Math.max(1,PROG.weeks||1);
   if(weeks<=1){toast("Een programma heeft minimaal 1 week");return;}
   const wos=(PROG.workouts||[]).filter(w=>w.week===week);
@@ -604,6 +632,7 @@ function progDayMenu(ev,week,day){
   cell.prepend(d);
 }
 async function progRustdag(week,day){
+  if(!progMagOfMeld())return;
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
   const{error}=await db.from("program_workouts").insert({program_id:PROG.id,company_id:ME.profile.company_id,week,day,title:"Rest Day"});
   if(error){toast(error.message||"Mislukt");return;}
@@ -620,7 +649,7 @@ function progCard(w){
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
-function progOpenBuilder(week,day,wid){document.querySelectorAll(".daymenu").forEach(x=>x.remove());progEditDay={week,day};progEditWid=wid||null;progRender();}
+function progOpenBuilder(week,day,wid){if(!progMagOfMeld())return;document.querySelectorAll(".daymenu").forEach(x=>x.remove());progEditDay={week,day};progEditWid=wid||null;progRender();}
 function progCloseBuilder(){progEditDay=null;progEditWid=null;progRender();}
 function progBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
@@ -636,6 +665,7 @@ async function progReloadWorkouts(){
   PROG.workouts=pws||[];progEditDay=null;progEditWid=null;progRender();
 }
 async function progSaveWorkout(){
+  if(!progMagOfMeld())return;
   const g=id=>document.getElementById(id);
   const title=(g("w_title").value||"").trim();
   const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
@@ -654,12 +684,14 @@ async function progSaveWorkout(){
   }catch(e){toast(e.message||"Opslaan mislukt");}
 }
 async function progDeleteWorkout(id){
+  if(!progMagOfMeld())return;
   if(!confirm("Deze workout uit het programma verwijderen?"))return;
   const{error}=await db.from("program_workouts").delete().eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
   toast("Workout verwijderd");await progReloadWorkouts();
 }
 async function programVerwijder(id){
+  if(!progMagOfMeld(id))return;
   if(!confirm("Dit programma verwijderen?"))return;
   const{error}=await db.from("program_templates").delete().eq("id",id);
   if(error){toast(error.message||"Verwijderen mislukt");return;}
@@ -672,7 +704,9 @@ function openProgramMenu(ev,id){
   const bestond=row.querySelector(".coachmenu");document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   if(bestond)return;
   const m=document.createElement("div");m.className="coachmenu";
-  m.innerHTML='<button onclick="event.stopPropagation();programBewerk(\''+id+'\')">Bewerken</button><button class="danger" onclick="event.stopPropagation();programVerwijder(\''+id+'\')">Verwijderen</button>';
+  const mag=progMagIk(id);
+  m.innerHTML='<button onclick="event.stopPropagation();programBewerk(\''+id+'\')">'+(mag?"Bewerken":"Bekijken")+'</button>'+
+    (mag?'<button class="danger" onclick="event.stopPropagation();programVerwijder(\''+id+'\')">Verwijderen</button>':'');
   row.appendChild(m);
 }
 document.addEventListener("click",e=>{if(!e.target.closest(".coachmenu")&&!e.target.closest(".kebab"))document.querySelectorAll(".coachmenu").forEach(x=>x.remove());});

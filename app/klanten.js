@@ -496,11 +496,15 @@ function openCoachMenu(ev,id,rol,klanten){
   // Rol wisselen en verwijderen kan niet op jezelf en niet op een beheerder;
   // "Traint mee bij…" kan altijd (ook op je eigen rij: jezelf als atleet).
   const beheer=id!==ME.user.id&&rol!=="platform_admin";
+  // Rechten uitdelen mag alleen een beheerder (eigenaar of platform_admin), en
+  // niet op je eigen rij: je kunt jezelf niet degraderen of rechten afpakken.
+  const magRechten=["platform_admin","eigenaar"].includes(ME.profile.role)&&id!==ME.user.id;
   m.innerHTML=(beheer
       ? (rol==="eigenaar"
         ? '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'coach\')">Zet terug naar coach</button>'
         : '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'eigenaar\')">Maak eigenaar</button>')
       : '')+
+    (magRechten?'<button onclick="event.stopPropagation();rechtenOpen(\''+id+'\')">Rechten…</button>':'')+
     '<button onclick="event.stopPropagation();coachTraintMee(event,\''+id+'\')">Traint mee bij…</button>'+
     (beheer?'<button class="danger" onclick="event.stopPropagation();coachVerwijder(\''+id+'\','+klanten+')">Verwijderen</button>':'');
   row.appendChild(m);

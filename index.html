@@ -97,6 +97,7 @@
 <script src="app/notificaties.js"></script>
 <script src="app/help.js"></script>
 <script src="app/meldingen.js"></script>
+<script src="app/rechten.js"></script>
 <script>
 
 (async()=>{if(await checkRecovery())return;const{data:{session}}=await db.auth.getSession();if(session)await loadApp();else{show("login");initInvite(new URLSearchParams(location.search).get("invite"));}})();
