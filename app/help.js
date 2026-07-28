@@ -98,7 +98,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"De officiële omschrijvingen van de bekende workouts: alle CrossFit Open-onderdelen vanaf 2011, de Quarterfinals, de Girls en de Hero-workouts. Filter op categorie, jaar, format of divisie. Handig als je een benchmark wilt herhalen en de tekst exact goed wilt hebben."},
       {titel:"Programma's van meerdere weken",
        img:"img/help/bibliotheek-04-programmas.png",
-       tekst:"Een programma is een blok van meerdere weken dat je een keer bouwt en daarna aan klanten toewijst. Klik op een programma om de weken te vullen; elke week heeft zeven dagen en per dag bouw je de workout zoals bij een klant. Met Programma toewijzen kies je een klant en een startdatum, en dan worden de workouts op zijn kalender gezet. Via Beheer toewijzingen zie je wie het programma volgt en kun je het vanaf vandaag terugdraaien."},
+       tekst:"Een programma is een blok van meerdere weken dat je een keer bouwt en daarna aan klanten toewijst. Klik op een programma om de weken te vullen; elke week heeft zeven dagen en per dag bouw je de workout zoals bij een klant. Met Programma toewijzen kies je een klant en een startdatum, en dan worden de workouts op zijn kalender gezet. Via Beheer toewijzingen zie je wie het programma volgt en kun je het vanaf vandaag terugdraaien. Staat er een slotje bij een programma, dan mag je het wel bekijken maar niet aanpassen: dat programma is van een collega. Een beheerder kan je er rechten op geven."},
     ],
   },
   {
@@ -164,7 +164,7 @@ const HELP_HOOFDSTUKKEN=[
     stappen:[
       {titel:"Home: de dag van je klant",
        img:"img/help/app-01-home.png",telefoon:true,
-       tekst:"1 de weekstrip: een puntje op een dag waarop een programma staat, een vinkje op een afgeronde dag, een kruis op een gemiste dag en een ring om vandaag. Je klant tikt op een dag om terug of vooruit te kijken. 2 met Start workout gaat hij loggen. 3 elk onderdeel staat als kaart met de volledige tekst die jij programmeerde; heb je een demo-video gekoppeld, dan zit die er meteen bij. Jouw notitie bij de workout staat bovenaan in het grijze briefje. Scrolt hij helemaal naar beneden, dan vindt hij daar Reacties: het gesprek over déze workout, los van de gewone chat."},
+       tekst:"1 de weekstrip: een puntje op een dag waarop een programma staat, een vinkje op een afgeronde dag, een kruis op een gemiste dag en een ring om vandaag. Je klant tikt op een dag om terug of vooruit te kijken, en veegt over de strip om een week terug of vooruit te bladeren. 2 met Start workout gaat hij loggen. 3 elk onderdeel staat als kaart met de volledige tekst die jij programmeerde; heb je een demo-video gekoppeld, dan zit die er meteen bij. Jouw notitie bij de workout staat bovenaan in het grijze briefje. Scrolt hij helemaal naar beneden, dan vindt hij daar Reacties: het gesprek over déze workout, los van de gewone chat."},
       {titel:"Zo logt je klant zijn score",
        img:"img/help/app-02-loggen.png",telefoon:true,
        tekst:"Na Start workout gaat hij per onderdeel door de dag heen, met bovenin de teller (hier 2 van 5). 1 het invoerveld staat al goed: hier vraagt de app om een gewicht, bij een metcon om rondes of een tijd. 2 met + Notitie schrijft hij erbij hoe het ging. 3 Opslaan zet het onderdeel op voltooid. 4 niet gedaan? Dan Gemist, zodat jij het ziet in plaats van dat de dag leeg blijft. Boven het veld zitten nog Demo-video, Historie (wat deed ik vorige keer) en % voor een percentage van zijn 1RM."},
