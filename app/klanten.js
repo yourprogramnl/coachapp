@@ -460,7 +460,7 @@ async function fillCoaches(){
     const menuCall="openCoachMenu(event,'"+c.id+"','"+c.role+"',"+kl.length+")";
     // Klik op de rij = de klanten van deze coach bekijken; het ⋮ opent het
     // beheer-menu (op je eigen rij en bij beheerders alleen "Traint mee bij…").
-    return '<div class="trow crow" data-cid="'+esc(c.id)+'" data-cnaam="'+esc(naamVan(c))+'" onclick="coachKlantenRow(this)"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+'</div></div></div>'+
+    return '<div class="trow crow" data-cid="'+esc(c.id)+'" data-cnaam="'+esc(naamVan(c))+'" onclick="coachKlantenRow(this)"><div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div><div style="font-weight:700;font-size:13px">'+naamVan(c)+'</div><div class="sm muted">'+kl.length+' '+(kl.length===1?'klant':'klanten')+(c.email?' · '+esc(c.email):'')+'</div></div></div>'+
       '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
       '<div style="flex:1">'+(cr==null?'<span class="muted">–</span>':'<b style="color:'+(cr>=70?'#1d9a63':'#8a919c')+'">'+cr+'%</b>')+'</div>'+
       '<div style="flex:1.2">'+(cm==null?'<span class="muted">0%</span>':'<b style="color:'+(cm>=70?'#1d9a63':'#8a919c')+'">'+cm+'%</b>')+'</div>'+
