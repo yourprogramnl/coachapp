@@ -412,8 +412,8 @@ async function klantOverzetten(ev,id){
   ev.stopPropagation();
   const row=ev.target.closest(".trow"),menu=row&&row.querySelector(".coachmenu");if(!menu)return;
   const p=coachClients.find(x=>x.id===id)||{};
-  const{data:cs}=await db.from("profiles").select("id,first_name,last_name").in("role",["coach","eigenaar"]).eq("company_id",ME.profile.company_id);
-  const opts=(cs||[]).filter(c=>c.id!==p.coach_id);
+  const{data:cs}=await db.from("profiles").select("id,first_name,last_name,archived").in("role",["coach","eigenaar"]).eq("company_id",ME.profile.company_id);
+  const opts=(cs||[]).filter(c=>c.id!==p.coach_id&&!c.archived);
   menu.innerHTML='<div style="padding:6px 10px;font-size:10px;font-weight:800;letter-spacing:.5px;color:#8a919c;text-transform:uppercase">Overzetten naar</div>'+
     (opts.map(c=>'<button onclick="event.stopPropagation();klantTransfer(\''+id+'\',\''+c.id+'\')">'+esc(naamVan(c))+'</button>').join("")||'<div style="padding:8px 10px;font-size:12px;color:#8a919c">Geen andere coach beschikbaar</div>');
 }
@@ -430,7 +430,11 @@ async function fillCoaches(){
   // zichzelf via ⋮ > "Traint mee bij…" als atleet kunnen koppelen.
   let q=db.from("profiles").select("*").in("role",["coach","eigenaar","platform_admin"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
-  const{data:coaches}=await q;
+  const{data:alleCoaches}=await q;
+  // Gearchiveerde coaches horen niet in de tabel; ze komen eronder te staan
+  // met een terughaal-knop.
+  const coaches=(alleCoaches||[]).filter(c=>!c.archived);
+  const coachArchief=(alleCoaches||[]).filter(c=>c.archived);
   // Prestaties per coach: compliance (30 dagen) en contactmomenten (deze week) van zijn klanten
   const ids=coachClients.map(p=>p.id);
   const td=todayStr(),from30=ymd(addDays(new Date(),-29));
@@ -476,7 +480,9 @@ async function fillCoaches(){
     '<div><div class="n acc">'+(totaalCm==null?'–':totaalCm+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h1 style="margin:0">Coaches</h1><button class="btn" onclick="openInvModal(\'coach\')">+ Coach toevoegen</button></div>'+
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1">Workout %</div><div style="flex:1">Consult-rate</div><div style="flex:1.2">Contactmomenten</div><div style="flex:1">Rol</div><div style="width:30px"></div></div>'+
-    (rows||'<div class="trow"><span class="muted">Nog geen coaches.</span></div>')+'</div>';
+    (rows||'<div class="trow"><span class="muted">Nog geen coaches.</span></div>')+'</div>'+
+    (coachArchief.length?'<div class="sm muted" style="margin-top:12px">Archief: '+
+      coachArchief.map(c=>esc(naamVan(c))+' <button class="lnk" onclick="coachTerughaal(\''+c.id+'\')">terughalen</button>').join(" · ")+'</div>':'');
 }
 // Doorklikken vanaf een coach-rij naar de Klanten-lijst, gefilterd op die coach.
 function coachKlantenRow(el){coachKlanten(el.dataset.cid,el.dataset.cnaam||"");}
@@ -506,7 +512,7 @@ function openCoachMenu(ev,id,rol,klanten){
       : '')+
     (magRechten?'<button onclick="event.stopPropagation();rechtenOpen(\''+id+'\')">Rechten…</button>':'')+
     '<button onclick="event.stopPropagation();coachTraintMee(event,\''+id+'\')">Traint mee bij…</button>'+
-    (beheer?'<button class="danger" onclick="event.stopPropagation();coachVerwijder(\''+id+'\','+klanten+')">Verwijderen</button>':'');
+    (beheer?'<button class="danger" onclick="event.stopPropagation();coachWegOpen(\''+id+'\')">Archiveren of verwijderen…</button>':'');
   row.appendChild(m);
 }
 // "Traint mee bij…": een coach kan zelf ook atleet zijn. Kies wie hem coacht
@@ -537,13 +543,118 @@ async function coachSetRole(id,rol){
   toast(rol==="eigenaar"?"Gemaakt tot eigenaar":"Teruggezet naar coach");
   fillCoaches();
 }
-async function coachVerwijder(id,klanten){
+// ---------- Coach archiveren of verwijderen (met dubbele check) ----------
+// Afspraken (Stefan, 28 juli): een coach mag niet verdwijnen met actieve
+// klanten; die gaan bij het bevestigen automatisch naar de gekozen coach
+// (standaard de eigenaar). Er komt altijd een duidelijke waarschuwing, en je
+// moet het woord "archiveren" of "verwijderen" zelf typen voordat de knop werkt.
+let COACHWEG=null;
+function ensureCoachWegModal(){
+  if(document.getElementById("coachwegmodal"))return;
+  const d=document.createElement("div");
+  d.innerHTML='<div class="lmodal" id="coachwegmodal"><div class="box">'+
+    '<h3 id="cw-titel">Coach archiveren of verwijderen</h3>'+
+    '<div id="cw-body"></div>'+
+    '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="cw-go" disabled onclick="coachWegDoe()">Bevestigen</button>'+
+    '<button class="btn ghost" onclick="coachWegSluit()">Annuleren</button></div>'+
+    '<div class="msg" id="cw-msg"></div></div></div>';
+  document.body.appendChild(d.firstChild);
+}
+function coachWegSluit(){const m=document.getElementById("coachwegmodal");if(m)m.classList.remove("show");COACHWEG=null;}
+
+async function coachWegOpen(id){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
-  if(klanten>0){toast("Deze coach heeft nog "+klanten+" klant"+(klanten===1?"":"en")+". Verplaats die eerst naar een andere coach.");return;}
-  if(!confirm("Deze coach definitief verwijderen? Dit kan niet ongedaan worden gemaakt."))return;
-  const{error}=await db.from("profiles").delete().eq("id",id);
-  if(error){toast(error.message||"Verwijderen mislukt");return;}
-  toast("Coach verwijderd");
+  ensureCoachWegModal();
+  const[{data:coach},{data:staf}]=await Promise.all([
+    db.from("profiles").select("id,first_name,last_name,email,role,archived").eq("id",id).single(),
+    db.from("profiles").select("id,first_name,last_name,role,archived").in("role",["coach","eigenaar","platform_admin"]).eq("company_id",ME.profile.company_id),
+  ]);
+  if(!coach){toast("Coach niet gevonden");return;}
+  // Alle klanten van deze coach (ook gearchiveerde) verhuizen mee, zodat er
+  // niets zonder coach achterblijft; in de tekst noemen we de actieve apart.
+  const klanten=coachClients.filter(k=>k.coach_id===id);
+  const actief=klanten.filter(k=>!k.archived);
+  const doelen=(staf||[]).filter(c=>c.id!==id&&!c.archived)
+    .sort((a,b)=>(a.role==="eigenaar"?0:1)-(b.role==="eigenaar"?0:1)||naamVan(a).localeCompare(naamVan(b)));
+  if(!doelen.length&&klanten.length){toast("Er is geen andere coach om de klanten aan te geven.");return;}
+  COACHWEG={id,naam:naamVan(coach),keuze:"archiveren",klanten,actief,doelen};
+  document.getElementById("cw-titel").textContent=COACHWEG.naam+" archiveren of verwijderen";
+  document.getElementById("cw-msg").textContent="";
+  coachWegRender();
+  document.getElementById("coachwegmodal").classList.add("show");
+}
+
+function coachWegRender(){
+  const b=document.getElementById("cw-body");if(!b||!COACHWEG)return;
+  const k=COACHWEG.keuze;
+  const knop=(w,label)=>'<button type="button" class="btn '+(k===w?"":"ghost ")+'sm" onclick="coachWegKeuze(\''+w+'\')">'+label+'</button>';
+  const uitleg=k==="archiveren"
+    ?"Let op: als je deze coach archiveert kan hij niet meer bij het dashboard en telt hij nergens meer mee. Al zijn gegevens, workouts en gesprekken blijven bewaard, en je kunt hem later met één klik terughalen."
+    :"Let op: als je deze coach verwijdert is dat definitief en niet terug te draaien. Zijn account en rechten verdwijnen. De workouts die hij voor klanten programmeerde blijven bij die klanten staan.";
+  const verhuis=COACHWEG.klanten.length
+    ?'<div class="field" style="margin-top:12px"><label>'+
+      (COACHWEG.actief.length?'Deze coach heeft nog <b>'+COACHWEG.actief.length+' actieve klant'+(COACHWEG.actief.length===1?"":"en")+'</b>':'De klanten van deze coach')+
+      (COACHWEG.klanten.length>COACHWEG.actief.length?' (en '+(COACHWEG.klanten.length-COACHWEG.actief.length)+' in het archief)':'')+
+      '. Ze gaan naar:</label><select id="cw-doel">'+
+      COACHWEG.doelen.map(c=>'<option value="'+c.id+'">'+esc(naamVan(c))+(c.role==="eigenaar"?" (eigenaar)":"")+'</option>').join("")+
+      '</select></div>'
+    :'<div class="sm muted" style="margin-top:12px">Deze coach heeft geen klanten.</div>';
+  b.innerHTML='<div style="display:flex;gap:8px;margin-bottom:12px">'+knop("archiveren","Archiveren (aanrader)")+knop("verwijderen","Definitief verwijderen")+'</div>'+
+    '<div class="sm" style="line-height:1.6;background:#fff6e5;border:1px solid #f0d9a8;color:#7a5a12;border-radius:10px;padding:10px 13px">'+uitleg+'</div>'+
+    verhuis+
+    '<div class="field" style="margin-top:12px"><label>Typ ter bevestiging het woord <b>'+k+'</b></label>'+
+    '<input id="cw-typ" autocomplete="off" placeholder="'+k+'" oninput="coachWegCheck()"></div>';
+  coachWegCheck();
+}
+function coachWegKeuze(w){if(COACHWEG){COACHWEG.keuze=w;coachWegRender();}}
+function coachWegCheck(){
+  const inp=document.getElementById("cw-typ"),go=document.getElementById("cw-go");
+  if(!inp||!go||!COACHWEG)return;
+  go.disabled=inp.value.trim().toLowerCase()!==COACHWEG.keuze;
+}
+
+async function coachWegDoe(){
+  if(!COACHWEG)return;
+  const msg=document.getElementById("cw-msg");
+  const zeg=(t,kl)=>{msg.textContent=t;msg.className="msg "+(kl||"");};
+  const go=document.getElementById("cw-go");go.disabled=true;
+  try{
+    // 1. Klanten (actief én archief) naar de gekozen coach.
+    if(COACHWEG.klanten.length){
+      const doel=(document.getElementById("cw-doel")||{}).value;
+      if(!doel)throw new Error("Kies eerst naar wie de klanten gaan.");
+      const{error}=await db.from("profiles").update({coach_id:doel}).eq("coach_id",COACHWEG.id);
+      if(error)throw error;
+      // 2. Ook zijn geprogrammeerde workouts op naam van de nieuwe coach,
+      //    anders blokkeren die het verwijderen (en wijzen ze naar niemand).
+      const{error:we}=await db.from("workouts").update({coach_id:doel}).eq("coach_id",COACHWEG.id);
+      if(we)throw we;
+    }
+    if(COACHWEG.keuze==="archiveren"){
+      const{error}=await db.from("profiles").update({archived:true}).eq("id",COACHWEG.id);
+      if(error)throw error;
+      toast("Coach gearchiveerd");
+    }else{
+      const{error}=await db.from("profiles").delete().eq("id",COACHWEG.id);
+      if(error){
+        // Meestal: er hangen nog gesprekken of andere gegevens aan dit account.
+        zeg("Verwijderen lukt niet omdat er nog gegevens aan dit account vastzitten (bijvoorbeeld gesprekken). Kies Archiveren, dan blijft alles netjes bewaard.","err");
+        go.disabled=false;return;
+      }
+      toast("Coach definitief verwijderd");
+    }
+    coachWegSluit();
+    renderCoach(coachSection); // lijsten verversen (coaches én klanten)
+  }catch(e){
+    zeg((e&&e.message)||"Er ging iets mis.","err");go.disabled=false;
+  }
+}
+
+// Terughalen uit het archief (link onder de Coaches-tabel).
+async function coachTerughaal(id){
+  const{error}=await db.from("profiles").update({archived:false}).eq("id",id);
+  if(error){toast(error.message||"Terughalen mislukt");return;}
+  toast("Coach teruggehaald");
   fillCoaches();
 }
 document.addEventListener("click",e=>{if(!e.target.closest(".coachmenu")&&!e.target.closest(".crow")&&!e.target.closest(".kebab"))document.querySelectorAll(".coachmenu").forEach(x=>x.remove());});

@@ -271,6 +271,8 @@ async function loadApp(){
     else renderAppOnly();
     return;
   }
+  // Ook een gearchiveerde coach staat op slot tot een beheerder hem terughaalt.
+  if(ME.profile.archived){renderGearchiveerd();return;}
   document.getElementById("roleLabel").textContent=ROLE_NL[role]||role;
   document.getElementById("avatar").textContent=(user.email||"?").slice(0,1).toUpperCase();
   show("app");
@@ -318,6 +320,6 @@ function renderGearchiveerd(){
   toonLoginKaart(
     '<div style="font-size:34px;line-height:1;margin-bottom:12px">📦</div>'+
     '<h3 style="margin:0 0 10px;font-size:19px">Je account is niet actief</h3>'+
-    '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Je account staat in het archief. Al je gegevens en resultaten blijven gewoon bewaard. Wil je weer starten? Neem dan contact op met je coach, die zet je account direct weer aan.</div>'+
+    '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Je account staat in het archief. Al je gegevens blijven gewoon bewaard. Wil je weer starten? Neem dan contact op met je coach of de beheerder, die zet je account direct weer aan.</div>'+
     '<button class="btn" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>');
 }

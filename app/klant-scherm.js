@@ -836,7 +836,7 @@ async function laadCoaches(){
   if(coachList.length)return;
   let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
-  const{data}=await q;coachList=data||[];
+  const{data}=await q;coachList=(data||[]).filter(c=>!c.archived);
 }
 function vulCoachDrop(){
   const host=document.getElementById("cd-lijst");if(!host)return;
