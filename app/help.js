@@ -102,6 +102,21 @@ const HELP_HOOFDSTUKKEN=[
     ],
   },
   {
+    id:"coaches",icoon:"i-user",titel:"Coaches",
+    intro:"Je team beheren: wie is er coach, wat mag hij aanpassen, en hoe neem je netjes afscheid van een coach die stopt. Deze pagina zie je alleen als eigenaar of beheerder.",
+    stappen:[
+      {titel:"De coachlijst",
+       img:"img/help/coaches-01-lijst.png",
+       tekst:"Elke coach staat er met zijn mailadres en aantal klanten 1 , en de cijfers over zijn klanten: workout-percentage, consult-rate en contactmomenten. Klik op een rij en je ziet de klanten van die coach. Met + Coach toevoegen 2 nodig je een nieuwe coach uit; die krijgt een mail om een wachtwoord te kiezen en werkt daarna in dit dashboard. Achter de drie puntjes 3 zit het beheer: rol wisselen, rechten, en archiveren of verwijderen."},
+      {titel:"Rechten: wie mag welk programma aanpassen",
+       img:"img/help/coaches-02-rechten.png",
+       tekst:"Kijken mag iedereen, aanpassen alleen wat hier is aangevinkt. Het vinkje Beheerder 1 geeft iemand alle rechten: in elk programma werken, rechten uitdelen en iemand anders beheerder maken. Daaronder vink je per programma aan wat deze coach mag aanpassen 2 . Wie een programma zelf maakt, krijgt daar automatisch rechten op. Een programma waar een coach niet bij mag, krijgt in de bibliotheek een slotje: wel bekijken, niet wijzigen. De database dwingt dit echt af, dus ook slimme omwegen werken niet."},
+      {titel:"Een coach archiveren of verwijderen",
+       img:"img/help/coaches-03-archiveren.png",
+       tekst:"Stopt een coach, kies dan achter de drie puntjes voor Archiveren of verwijderen. Heeft hij nog klanten, dan kies je eerst naar welke coach die gaan 1 ; zijn geprogrammeerde workouts verhuizen mee, dus er blijft niets zwevend achter. Ter bevestiging typ je zelf het woord archiveren of verwijderen 2 , zodat het nooit per ongeluk gebeurt. Archiveren is de aanrader: alles blijft bewaard, de coach kan alleen niet meer inloggen, en via het archiefblok onderaan haal je hem met één klik terug. Verwijderen is definitief."},
+    ],
+  },
+  {
     id:"blog",icoon:"i-clip",titel:"Blog",
     intro:"Blogprogramma's zijn doorlopende programma's voor je online leden. Ze volgen er één en zien elke dag de workout in hun app.",
     stappen:[
@@ -179,7 +194,10 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"1 zijn tellers: afgeronde workouts en de streak in weken. 2 bij Metingen en PR's ziet hij dezelfde cijfers als jij in het zijpaneel van het klant-scherm; hij mag zelf een meting toevoegen. Daaronder staan Timers, Voortgangsfoto's, het intakeformulier, materiaal, trainingsschema en doelen: allemaal dezelfde gegevens die jij ook ziet. Nog verder naar beneden zet hij aan dat hij zijn workout elke ochtend per mail krijgt, en maakt hij de letters in de hele app groter, handig voor wie het scherm klein vindt."},
       {titel:"Zelf meekijken op je telefoon",
        img:"img/help/app-06-coachweergave.png",telefoon:true,
-       tekst:"Ben je zelf coach, dan staat onder Profiel de knop Wissel naar coach. 1 je ziet je atleten met per persoon wat er vandaag nog open staat; groen betekent dat alles gelogd is. Tik op een atleet en je komt in zijn week, waar je scores kunt invullen (handig bij personal training) en kleine dingen kunt aanpassen. 2 met Naar atleet ga je terug naar je eigen programma. Het echte programmeerwerk doe je op de computer, in dit dashboard."},
+       tekst:"Ben je zelf coach, dan staat onder Profiel de knop Wissel naar coach. 1 je ziet je atleten met per persoon wat er vandaag nog open staat; groen betekent dat alles gelogd is. Wie aandacht nodig heeft staat bovenaan, en boven de zes atleten verschijnt een zoekveld. Tik op een atleet en je komt in zijn week, waar je scores kunt invullen (handig bij personal training) en workouts kunt aanpassen. 2 met Naar atleet ga je terug naar je eigen programma."},
+      {titel:"Een workout toevoegen in de app",
+       img:"img/help/app-07-toevoegen.png",telefoon:true,
+       tekst:"Op een lege dag van je atleet staat 1 de knop Workout toevoegen: titel, warming-up, onderdelen en cooldown, klaar terwijl je naast hem staat. Typ je een oefening die met precies die naam in de videobibliotheek staat (bijvoorbeeld Back Squat), dan koppelt de app de demo-video er automatisch aan. Het invoerveld voor je atleet is bij deze onderdelen een vrij tekstveld; wil je een echt scoretype (tijd, kilo's, rondes), supersets of percentages, dan bouw je de workout in het dashboard op de computer."},
     ],
   },
 ];

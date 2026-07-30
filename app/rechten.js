@@ -46,13 +46,13 @@ function rechtenRender(){
   const isBeheerder=RECHTEN.rol==="eigenaar"||RECHTEN.rol==="platform_admin";
   const rijen=(RECHTEN.programs||[]).map(p=>
     '<label class="rrij" style="display:flex;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer">'+
-      '<input type="checkbox" class="rchk" data-pid="'+esc(p.id)+'"'+
+      '<input type="checkbox" class="rchk" style="width:auto;margin:0" data-pid="'+esc(p.id)+'"'+
         (isBeheerder||RECHTEN.huidig.has(p.id)?" checked":"")+(isBeheerder?" disabled":"")+'>'+
       '<span style="font-size:13px;font-weight:600">'+esc(p.name)+'</span>'+
     '</label>').join("")||'<div class="sm muted">Er zijn nog geen programma\'s.</div>';
   body.innerHTML=
     '<label style="display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid var(--line);border-radius:11px;cursor:pointer;margin-bottom:14px">'+
-      '<input type="checkbox" id="recht-beheerder"'+(isBeheerder?" checked":"")+
+      '<input type="checkbox" id="recht-beheerder" style="width:auto;margin:2px 0 0"'+(isBeheerder?" checked":"")+
       (RECHTEN.rol==="platform_admin"?" disabled":"")+' onchange="rechtenBeheerderWissel(this.checked)">'+
       '<span><b style="font-size:13.5px">Beheerder</b>'+
       '<div class="sm muted" style="margin-top:2px">Mag alles: in elk programma werken, rechten uitdelen en iemand anders beheerder maken.'+
