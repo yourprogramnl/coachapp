@@ -635,6 +635,15 @@ async function coachWegDoe(){
       if(error)throw error;
       toast("Coach gearchiveerd");
     }else{
+      // Oude uitnodigingen van deze coach houden anders het verwijderen tegen
+      // (bevinding 30 juli): verhuis ze mee naar de gekozen coach, of gooi ze
+      // weg als er geen overdracht is (dan zijn het altijd al gebruikte restjes).
+      const doelInv=(document.getElementById("cw-doel")||{}).value;
+      if(doelInv){
+        await db.from("invites").update({coach_id:doelInv}).eq("coach_id",COACHWEG.id);
+      }else{
+        await db.from("invites").delete().eq("coach_id",COACHWEG.id);
+      }
       const{error}=await db.from("profiles").delete().eq("id",COACHWEG.id);
       if(error){
         // Meestal: er hangen nog gesprekken of andere gegevens aan dit account.
