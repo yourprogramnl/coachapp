@@ -602,7 +602,7 @@ function mcardHtml(w){
     const pr=composePresc(b);
     const sc=resultScoreTxt(r);
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
-    const vids=(monthMedia[b.id]||[]).map(v=>'<span class="vidtile" title="Video van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\')">▶</span>').join("");
+    const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
     inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+

@@ -146,7 +146,9 @@ function dashRender(){
       // Video-uploads van het lid bij dit blok (result_media): inline in de feed
       // zoals CoachRx; klik = direct afspelen, geen apart scherm. De src (signed
       // URL) wordt na het renderen in één keer gezet door dashVidSrcs().
-      const vidHtml=(vids&&vids.length)?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+vids.map(v=>'<video class="dashvid" controls preload="metadata" playsinline data-vp="'+esc(v.storage_path)+'"></video>').join("")+'</div>':'';
+      const vidHtml=(vids&&vids.length)?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+vids.map(v=>isFotoUpload(v.storage_path)
+        ?'<img class="dashvid" style="cursor:zoom-in;object-fit:cover" title="Foto van het lid, klik voor groot" data-vp="'+esc(v.storage_path)+'" onclick="vidSpeel(\''+esc(v.storage_path)+'\')">'
+        :'<video class="dashvid" controls preload="metadata" playsinline data-vp="'+esc(v.storage_path)+'"></video>').join("")+'</div>':'';
       // Vinkje/kruisje: klikbaar om tussen voltooid en gemist te wisselen (coach corrigeert de status)
       const statusBtn=r?'<span class="okc2'+(r.status==="missed"?" miss":"")+'" style="cursor:pointer" title="'+(r.status==="missed"?"Gemist — klik om op voltooid te zetten":"Voltooid — klik om op gemist te zetten")+'" onclick="dashToggleStatus(\''+r.id+'\',\''+r.status+'\')"><svg class="i sm-i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'';
       // Geschiedenis-knop: opent de geschiedenis-zoeker voor deze klant + oefening (niet bij de warming-up)
@@ -232,7 +234,7 @@ function dashConsultHtml(byId){
 }
 // Signed URL's voor alle inline feed-video's in één keer ophalen en zetten.
 async function dashVidSrcs(){
-  const els=[...document.querySelectorAll("video.dashvid[data-vp]:not([src])")];
+  const els=[...document.querySelectorAll("video.dashvid[data-vp]:not([src]),img.dashvid[data-vp]:not([src])")];
   if(!els.length)return;
   try{
     const paden=[...new Set(els.map(e=>e.dataset.vp))];
@@ -342,17 +344,20 @@ async function wcStuur(){
   wcRender();
   wcVerversUI(); // teller op de kaart bijwerken
 }
-// Video van een lid afspelen: groot in het midden van het scherm (signed URL uit de private media-bucket).
+// Video of foto van een lid groot in het midden van het scherm (signed URL uit
+// de private media-bucket); foto's krijgen een <img> in plaats van een speler.
 async function vidSpeel(pad){
   const{data,error}=await db.storage.from("media").createSignedUrl(pad,3600);
-  if(error||!data||!data.signedUrl){toast("Video openen mislukt");return;}
+  if(error||!data||!data.signedUrl){toast("Openen mislukt");return;}
   let ov=document.getElementById("vidoverlay");
   if(!ov){
     ov=document.createElement("div");ov.id="vidoverlay";
     ov.addEventListener("click",e=>{if(e.target.id==="vidoverlay"||e.target.classList.contains("vx"))vidSluit();});
     document.body.appendChild(ov);
   }
-  ov.innerHTML='<span class="vx" title="Sluiten">×</span><video src="'+esc(data.signedUrl)+'" controls autoplay playsinline></video>';
+  ov.innerHTML='<span class="vx" title="Sluiten">×</span>'+(isFotoUpload(pad)
+    ?'<img src="'+esc(data.signedUrl)+'" style="max-width:92vw;max-height:88vh;border-radius:12px" alt="Foto van het lid">'
+    :'<video src="'+esc(data.signedUrl)+'" controls autoplay playsinline></video>');
   ov.style.display="flex";
 }
 function vidSluit(){const ov=document.getElementById("vidoverlay");if(ov){ov.style.display="none";ov.innerHTML="";}}
