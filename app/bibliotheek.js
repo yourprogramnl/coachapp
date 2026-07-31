@@ -451,7 +451,7 @@ async function assignDoen(){
       const datum=ymdPlus(start,(pw.week-1)*7+(pw.day-1));
       const{data:nw,error:we}=await db.from("workouts").insert({company_id:client.company_id||ME.profile.company_id,coach_id:client.coach_id||ME.user.id,client_id:cid,workout_date:datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,audience:"client",assignment_id:asg.id}).select("id").single();
       if(we)throw we;
-      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",oefening_id:b.oefening_id}));
+      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",oefening_id:b.oefening_id,media:b.media||null}));
     }
     if(blocksAll.length){const{error:be}=await db.from("blocks").insert(blocksAll);if(be)throw be;}
     closeAssign();toast("Programma toegewezen aan "+naamVan(client)+", staat nu op zijn kalender");
@@ -670,7 +670,7 @@ async function progSaveWorkout(){
   const title=(g("w_title").value||"").trim();
   const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
   const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progEditDay.week,day:progEditDay.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
-  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null}));
+  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,media:b.media||null}));
   try{
     if(progEditWid){
       const{error:ue}=await db.from("program_workouts").update(wf).eq("id",progEditWid);if(ue)throw ue;
