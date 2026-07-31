@@ -246,7 +246,7 @@ function kiesBlokKleur(el,k){
 }
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok kopiëren" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok kopiëren" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
 // Demo-video's op een blok in de bouwer: kleine klikbare tegels (thumbnail +
 // play) mét verwijder-kruisje; komen uit templates of uit Genereer media.
 // Het lid krijgt dezelfde video's in de app. gmTegel/gmRowTegelWeg staan in
@@ -308,7 +308,7 @@ function ytSpeel(yt){
   ov.innerHTML='<span class="vx" title="Sluiten">×</span><div class="ytvak"><iframe src="https://www.youtube.com/embed/'+esc(yt)+'?autoplay=1" title="Video" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
   ov.style.display="flex";
 }
-function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok kopiëren" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok kopiëren" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div></div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;let media=null;try{media=r.dataset.media?JSON.parse(r.dataset.media):null;}catch(e){}if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,media,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,media,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
@@ -506,6 +506,19 @@ function relabel(){
   });
 }
 function delRow(btn){btn.closest(".exrow").remove();relabel();bouwerDirty=true;}
+// Blok omhoog/omlaag in de bouwer (pijltjes in de blok-kop). Tussen de rijen
+// staan superset-koppeltekens (.sslink), dus stap door tot de echte buur-rij;
+// relabel() bouwt die koppeltekens daarna zelf opnieuw op.
+function schuifRow(btn,richting){
+  const r=btn.closest(".exrow");if(!r)return;
+  let buur=richting<0?r.previousElementSibling:r.nextElementSibling;
+  while(buur&&!buur.classList.contains("exrow"))buur=richting<0?buur.previousElementSibling:buur.nextElementSibling;
+  if(!buur)return;
+  if(richting<0)buur.insertAdjacentElement("beforebegin",r);
+  else buur.insertAdjacentElement("afterend",r);
+  relabel();bouwerDirty=true;
+  r.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
 function addExBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRow({}));relabel();bouwerDirty=true;}
 function addCondBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRow({}));relabel();bouwerDirty=true;}
 function dupLast(){const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length){addExBtn();return;}const o=rowToObj(rows[rows.length-1]);o.id=null;document.getElementById("exrows").insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();bouwerDirty=true;dupInBeeld();}
@@ -607,8 +620,15 @@ function cardTools(w){
   // Op vandaag of een dag die al is geweest laat het potloodje de coach scores invoeren voor de klant
   // (bijv. bij PT of als het lid het loggen vergeet). Voor toekomstige dagen bewerkt het de workout.
   const scoreDag=(w.blocks||[]).length>0&&w.workout_date<=todayStr();
+  // Pijltjes alleen als er meerdere workouts op deze dag staan (volgorde wisselen).
+  const dagLijst=monthByDate[w.workout_date]||[];
+  const pos=dagLijst.findIndex(x=>x.id===w.id);
+  const pijlen=dagLijst.length>1
+    ?(pos>0?'<button title="Omhoog op deze dag" onclick="event.stopPropagation();dagSchuif(\''+w.id+'\',-1)"><svg class="i sm-i"><use href="#i-up"/></svg></button>':'')+
+     (pos<dagLijst.length-1?'<button title="Omlaag op deze dag" onclick="event.stopPropagation();dagSchuif(\''+w.id+'\',1)"><svg class="i sm-i"><use href="#i-down"/></svg></button>':'')
+    :'';
   return '<input type="checkbox" class="cardsel"'+(selWids.has(w.id)?' checked':'')+' title="Selecteren" onclick="event.stopPropagation();toggleSelect(this,\''+w.id+'\')">'+
-    '<span class="cardtools" onclick="event.stopPropagation()">'+
+    '<span class="cardtools" onclick="event.stopPropagation()">'+pijlen+
     '<button title="'+(scoreDag?'Scores invoeren':'Bewerken')+'" onclick="event.stopPropagation();'+(scoreDag?'openResults(\''+w.id+'\')':'editWorkout(\''+w.id+'\',0)')+'"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
     '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
@@ -644,6 +664,22 @@ function selBarUpdate(){
   bar.innerHTML='<span class="n">'+selWids.size+'</span><span>geselecteerd</span><button class="lnk" onclick="selClear()">Selectie wissen</button>'+
     '<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button class="ic" title="Verwijderen" onclick="selVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
+}
+// Volgorde van workouts binnen één dag wisselen (pijltjes op de kaart).
+// Schrijft day_sort 1..n voor de hele dag, zodat de volgorde ook vastligt
+// voor workouts die nog geen day_sort hadden. De app sorteert er ook op.
+async function dagSchuif(wid,richting){
+  if(!(await autoSaveBouwer()))return; // open bouwer eerst netjes opslaan
+  const w=monthWorkouts[wid];if(!w)return;
+  const lijst=(monthByDate[w.workout_date]||[]).slice();
+  const i=lijst.findIndex(x=>x.id===wid),j=i+richting;
+  if(i<0||j<0||j>=lijst.length)return;
+  const t=lijst[i];lijst[i]=lijst[j];lijst[j]=t;
+  for(let k=0;k<lijst.length;k++){
+    const{error}=await db.from("workouts").update({day_sort:k+1}).eq("id",lijst[k].id);
+    if(error){toast(error.message||"Volgorde opslaan mislukt");return;}
+  }
+  renderMonth();
 }
 // Slepen van een workout naar een andere dag (via de move-greep in het zweefmenu).
 function dragStart(ev,wid){
@@ -772,7 +808,7 @@ async function renderMonth(opts){
   if(skipFetch){
     byDate=monthByDate; // hergebruik de al geladen workouts/results, geen database-oproep
   }else{
-    const{data:workouts,error:werr}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date");
+    const{data:workouts,error:werr}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
     // Een mislukte opvraag mag nooit stil een lege kalender opleveren.
     if(werr)toast("Kalender kon niet laden: "+(werr.message||"onbekende fout")+" — ververs de pagina of probeer opnieuw.");
     monthWorkouts={};monthByDate={};byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
