@@ -738,9 +738,12 @@ async function renderMonth(opts){
       const d=addDays(gridStart,wk*cols+i),ds=ymd(d),isToday=ds===todayStr(),dim=calView==="maand"&&d.getMonth()!==ref.getMonth(),editing=ds===editDay;
       const dayWos=byDate[ds]||[];
       const dnum=(d.getDate()===1?MAANDKORT[d.getMonth()]+" ":"")+d.getDate();
-      // Elke dag: documentje (dag-notitie; oranje als er een notitie staat) + rust-chip + dagnummer
+      // Elke dag: documentje (dag-notitie; oranje als er een notitie staat) + dagnummer.
+      // Het "rust"-chipje uit het ontwerp is weggehaald (feedback pilot-coach,
+      // 30 juli): het deed niets en wekte verwarring; een rustdag plan je via
+      // het dag-menu (knop Rustdag, sneltoets R).
       const dagNoot=monthNotes[ds];
-      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();openDayNote(\''+ds+'\')" style="cursor:pointer'+(dagNoot?';color:#e7a44a':'')+'"><use href="#i-doc"/></svg><span class="restchip">rust</span><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>'+
+      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();openDayNote(\''+ds+'\')" style="cursor:pointer'+(dagNoot?';color:#e7a44a':'')+'"><use href="#i-doc"/></svg><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>'+
         (dagNoot?'<div class="daynoot" onclick="event.stopPropagation();openDayNote(\''+ds+'\')">'+esc(dagNoot.body)+'</div>':'');
       let selectable=false;
       if(editing){
