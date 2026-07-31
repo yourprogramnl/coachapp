@@ -7,7 +7,8 @@ let coachList=[],coachFilterId=null;
 // Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
 let resWid=null;
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
-function openClient(id){
+async function openClient(id){
+  if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return;
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
   // Staff (eigenaar/admin): standaard programmeer je de coach van deze klant.
   const p0=coachClients.find(x=>x.id===id);
@@ -142,7 +143,7 @@ let calView="maand",hideScores=false;
 // Doorlopend scrollen zoals CoachRx: aantal weken groeit mee tijdens het scrollen
 let kalWeken=10,kalBusy=false,kalScrollBound=false,kalLabelMaand=null,kalScrollDoel=null,prevScrollY=null,kalAnim=0;
 const DAGVOL=["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"];
-function kalSetView(v){calView=v;editDay=null;editWid=null;if(v==="maand")kalScrollDoel="top";renderMonth();}
+async function kalSetView(v){if(!(await autoSaveBouwer()))return;calView=v;editDay=null;editWid=null;if(v==="maand")kalScrollDoel="top";renderMonth();}
 function kalLabelUpdate(){
   // het label = de maand-sectie waarin de bovenste zichtbare rij valt
   const kop=document.querySelector("#calwrap .mhead7");
@@ -205,7 +206,8 @@ function kalScrollNaar(doel,direct){
 function toggleScores(btn){hideScores=!hideScores;btn.classList.toggle("on",hideScores);const w=document.getElementById("calwrap");if(w)w.classList.toggle("noscores",hideScores);}
 function prevMonth(){navStep(-1);}
 function nextMonth(){navStep(1);}
-function navStep(dir){
+async function navStep(dir){
+  if(!(await autoSaveBouwer()))return;
   editDay=null;editWid=null;
   if(calView==="maand"){
     const cur=kalLabelMaand||new Date(calRef.getFullYear(),calRef.getMonth(),1);
@@ -215,7 +217,8 @@ function navStep(dir){
   calRef=addDays(calRef,dir*(calView==="week"?7:1));
   renderMonth();
 }
-function thisMonth(){
+async function thisMonth(){
+  if(!(await autoSaveBouwer()))return;
   editDay=null;editWid=null;
   if(calView==="maand"){
     const nu=new Date(),eerste=new Date(nu.getFullYear(),nu.getMonth(),1);
@@ -441,10 +444,10 @@ function relabel(){
     r.parentNode.insertBefore(d,rows[i+1]);
   });
 }
-function delRow(btn){btn.closest(".exrow").remove();relabel();}
-function addExBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRow({}));relabel();}
-function addCondBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRow({}));relabel();}
-function dupLast(){const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length){addExBtn();return;}const o=rowToObj(rows[rows.length-1]);o.id=null;document.getElementById("exrows").insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();}
+function delRow(btn){btn.closest(".exrow").remove();relabel();bouwerDirty=true;}
+function addExBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRow({}));relabel();bouwerDirty=true;}
+function addCondBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRow({}));relabel();bouwerDirty=true;}
+function dupLast(){const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length){addExBtn();return;}const o=rowToObj(rows[rows.length-1]);o.id=null;document.getElementById("exrows").insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();bouwerDirty=true;}
 
 function inlineBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
@@ -464,9 +467,34 @@ function inlineBuilderHtml(w){
     '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+'</div>'+
     '<div class="msg" id="wmsg" style="font-size:11px;min-height:0"></div>';
 }
-function startEdit(ds,idx){editWid=null;editDay=ds;editIdx=idx;renderMonth({skipFetch:true});}
-function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;editWid=wid;editDay=w.workout_date;editIdx=idx;renderMonth({skipFetch:true});}
-function cancelEdit(){editWid=null;editDay=null;renderMonth({skipFetch:true});}
+// Automatisch opslaan bij het wegklikken uit de bouwer (feedback pilot-coach,
+// 30 juli): wie een andere sessie of dag aanklikt terwijl er onopgeslagen werk
+// in de bouwer staat, raakte dat werk kwijt. Nu slaan we eerst stil op.
+// - "Vies" wordt de bouwer door typen (input-listener hieronder) of door
+//   blokken toevoegen/kopiëren/verwijderen.
+// - Annuleren blijft het bewuste weggooi-knopje: dat slaat níet op.
+// - Zonder titel kunnen we niet opslaan: dan blokkeren we het wegklikken met
+//   een melding, zodat er nooit stiekem iets verdwijnt of half opslaat.
+let bouwerDirty=false;
+document.addEventListener("input",e=>{if(e.target&&e.target.closest&&e.target.closest(".ib2"))bouwerDirty=true;});
+async function autoSaveBouwer(){
+  if(!editDay&&!editWid)return true;   // geen bouwer open
+  if(!bouwerDirty)return true;         // niets gewijzigd
+  const t=document.getElementById("w_title");
+  if(!t)return true;                   // bouwer (nog) niet in beeld
+  if(!t.value.trim()){
+    const wm=document.getElementById("wmsg");
+    if(wm){wm.textContent="Nog niet opgeslagen: geef de workout eerst een titel, of klik Annuleren om weg te gooien.";wm.className="msg err";}
+    return false;
+  }
+  await saveWorkout();
+  // saveWorkout sluit de bouwer alleen bij succes; blijft hij open, dan staat
+  // de foutmelding er al en blokkeren we het wegklikken.
+  return !editDay&&!editWid;
+}
+async function startEdit(ds,idx){if(!(await autoSaveBouwer()))return;editWid=null;editDay=ds;editIdx=idx;bouwerDirty=false;renderMonth({skipFetch:true});}
+async function editWorkout(wid,idx){const w=monthWorkouts[wid];if(!w)return;if(!(await autoSaveBouwer()))return;editWid=wid;editDay=w.workout_date;editIdx=idx;bouwerDirty=false;renderMonth({skipFetch:true});}
+function cancelEdit(){bouwerDirty=false;editWid=null;editDay=null;renderMonth({skipFetch:true});}
 
 let monthResults={},monthByDate={},monthNotes={},monthMedia={},monthComments=[],dnDatum=null;
 // Reacties-knop op een kalenderkaart: teller + rood bolletje bij ongelezen van het lid.
@@ -527,6 +555,10 @@ function selKopieer(){
   const ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean);
   if(!ws.length){toast("Niets geselecteerd");return;}
   KLEMBORD=ws.map(wTemplate);
+  // Selectie meteen wissen (feedback pilot-coach, 30 juli): het klembord is nu
+  // gevuld, en een blijvende selectie plakte of verwijderde later méér dan de
+  // coach bedoelde.
+  selClear();
   toast(ws.length+" workout"+(ws.length>1?"s":"")+" gekopieerd, ga naar een dag en kies Plakken");
 }
 async function selVerwijder(){
@@ -873,6 +905,7 @@ function kiesCoach(id){
 function pickWorkout(ev){ev.stopPropagation();startEdit(curDay,0);}
 async function pickRest(ev){
   ev.stopPropagation();
+  if(!(await autoSaveBouwer()))return; // open bouwer eerst netjes opslaan
   const{error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:"Rest Day"});
   if(error){toast(error.message||"Opslaan mislukt");return;}
   toast("Dag ingesteld als rustdag");renderMonth();
@@ -897,6 +930,7 @@ function dagenTussen(a,b){return Math.round((new Date(a+"T12:00:00")-new Date(b+
 async function pickPaste(ev){
   ev.stopPropagation();
   if(!KLEMBORD||!KLEMBORD.length){toast("Nog niets gekopieerd, gebruik het kopieer-icoon of selecteer workouts");return;}
+  if(!(await autoSaveBouwer()))return; // open bouwer eerst netjes opslaan
   // Behoud de onderlinge dag-afstand: vroegste kopie op de gekozen dag, de rest met dezelfde offset.
   const base=KLEMBORD.reduce((m,t)=>(t.date&&(m===null||t.date<m)?t.date:m),null);
   for(const t of KLEMBORD){
@@ -1049,6 +1083,7 @@ async function saveWorkout(){
       if(error)throw error;
       if(rows.length){const{error:be}=await db.from("blocks").insert(mkBlocks(w.id));if(be)throw be;}
     }
+    bouwerDirty=false;
     editWid=null;editDay=null;renderMonth();
   }catch(e){wm.textContent=e.message||"Opslaan mislukt.";wm.className="msg err";g("saveW").disabled=false;}
 }
