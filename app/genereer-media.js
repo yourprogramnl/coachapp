@@ -261,7 +261,7 @@ function gmRowStrip(row){
   if(!media.length){if(strip)strip.remove();return;}
   const html=exMediaHtml(media);
   if(strip)strip.outerHTML=html;
-  else{const drop=row.querySelector(".exdrop");if(drop)drop.insertAdjacentHTML("beforebegin",html);else row.insertAdjacentHTML("beforeend",html);}
+  else{const anker=row.querySelector(".vlinkrow")||row.querySelector(".exdrop");if(anker)anker.insertAdjacentHTML("beforebegin",html);else row.insertAdjacentHTML("beforeend",html);}
 }
 function gmRowTegelWeg(el,i){
   const row=el.closest(".exrow");if(!row)return;
