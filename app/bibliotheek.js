@@ -194,7 +194,7 @@ function libLijst(){
       const tg=(o.tags||[]).slice(0,2).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
       return '<div class="trow" style="align-items:flex-start;cursor:pointer" onclick="tplBewerk('+o.id+')">'+
         '<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'+
-        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b></div>'+
+        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b>'+((o.media||[]).length?' <span class="sm muted" title="'+(o.media||[]).length+' demo-video\'s">🎥 '+(o.media||[]).length+'</span>':'')+'</div>'+
         '<div style="flex:2.6" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
         '<div style="flex:1.2">'+tg+'</div></div>';
     }).join("")||'<div class="cempty">Geen templates gevonden.</div>';
@@ -748,19 +748,39 @@ async function oefVerwijder(){
 function tplKleurDots(){
   document.getElementById("tpl-kleuren").innerHTML=TPLKLEUREN.map(k=>'<span class="'+(k===LIB.tplKleur?"aan":"")+'" title="'+LEGNAAM[k]+'" onclick="LIB.tplKleur=\''+k+'\';tplKleurDots()" style="background:'+TPLKLEUR[k]+'"></span>').join("");
 }
-// Video's uit Strivee bij een template: klein afspeelbaar (thumbnail met
-// play-knop; klik = YouTube-speler in de plaats van de tegel).
-function tplMediaRender(media){
+// Video's bij een template: sinds 4 aug (verzoek Stefan) bewerkbaar in de
+// popup — bestaande video's (Strivee of zelf geplakt) met verwijder-kruisje,
+// plus een linkveld om er een toe te voegen. Werkkopie in LIB.tplMedia; pas
+// bij Opslaan gaat hij naar templates.media. Invoegen van de template neemt
+// de video's al mee naar het blok (insInvoegen), dus het lid ziet ze in de app.
+function tplMediaRender(){
   const host=document.getElementById("tpl-media");if(!host)return;
-  const vids=Array.isArray(media)?media.filter(m=>m&&m.youtube_id):[];
-  if(!vids.length){host.innerHTML="";return;}
-  host.innerHTML='<label style="font-weight:800;font-size:12.5px;color:#5b6470;display:block;margin:2px 0 8px">Video\'s ('+vids.length+')</label>'+
-    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
+  const vids=(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id);
+  host.innerHTML='<div class="field"><label>Video\'s'+(vids.length?' ('+vids.length+')':'')+'</label>'+
+    (vids.length?'<div style="display:flex;flex-direction:column;gap:8px;margin:2px 0 10px">'+
     vids.map((v,i)=>'<div class="tplvid" data-yt="'+esc(v.youtube_id)+'" style="display:flex;align-items:center;gap:10px">'+
       '<div class="tplvid-thumb" onclick="tplVidSpeel(this)" style="position:relative;width:92px;height:56px;border-radius:8px;background:#000 url(\'https://i.ytimg.com/vi/'+esc(v.youtube_id)+'/mqdefault.jpg\') center/cover;cursor:pointer;flex:none">'+
         '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 12 12" fill="#fff"><path d="M2 1l8 5-8 5z"/></svg></span></span></div>'+
-      '<div class="sm" style="flex:1;line-height:1.35">'+esc(v.titel||"Video")+'</div></div>').join("")+
-    '</div>';
+      '<div class="sm" style="flex:1;line-height:1.35">'+esc(v.titel||"Video")+'</div>'+
+      '<span title="Video weghalen" onclick="tplVidWeg('+i+')" style="width:20px;height:20px;border-radius:50%;background:#171719;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;line-height:1">✕</span></div>').join("")+
+    '</div>':'')+
+    '<input id="tpl-vlink" placeholder="Plak een YouTube-link en druk op Enter" onkeydown="tplVidKey(event,this)" autocomplete="off">'+
+    '<div class="sm muted" style="margin-top:6px">Video\'s gaan mee voor het lid als je de template invoegt.</div></div>';
+}
+function tplVidWeg(i){
+  (LIB.tplMedia||[]).splice(i,1);
+  tplMediaRender();
+}
+function tplVidKey(ev,inp){
+  if(ev.key!=="Enter")return;
+  ev.preventDefault();
+  const id=ytIdVan(inp.value);
+  if(!id){toast("Dat lijkt geen YouTube-link. Kopieer de link via de Deel-knop van YouTube of uit de adresbalk.");return;}
+  LIB.tplMedia=(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id);
+  if(LIB.tplMedia.some(m=>m.youtube_id===id)){toast("Deze video staat er al bij");return;}
+  LIB.tplMedia.push({youtube_id:id,titel:"Eigen video"});
+  tplMediaRender();
+  const ni=document.getElementById("tpl-vlink");if(ni)ni.focus();
 }
 function tplVidSpeel(el){
   const rij=el.closest(".tplvid");const yt=rij&&rij.getAttribute("data-yt");if(!yt)return;
@@ -776,7 +796,9 @@ function tplBewerk(id){
   document.getElementById("tplmodal-msg").textContent="";
   LIB.tplKleur=o&&TPLKLEUREN.includes(o.kleur)?o.kleur:"yellow";
   tplKleurDots();
-  tplMediaRender(o&&o.media);
+  // Werkkopie van de video's (niet het origineel muteren tot Opslaan)
+  LIB.tplMedia=(o&&Array.isArray(o.media)?o.media:[]).filter(m=>m&&m.youtube_id).map(m=>({youtube_id:m.youtube_id,titel:m.titel||"Video"}));
+  tplMediaRender();
   const del=document.getElementById("tplmodal-del");
   del.innerHTML=(o&&myRole()==="platform_admin")?'<button class="btn ghost sm" onclick="tplVerwijder()">Verwijderen</button>':"";
   document.getElementById("tplmodal").classList.add("show");
@@ -785,7 +807,7 @@ async function tplOpslaan(){
   const naam=document.getElementById("tpl-naam").value.trim();
   const msg=document.getElementById("tplmodal-msg");
   if(!naam){msg.textContent="Vul een naam in.";msg.className="msg err";return;}
-  const velden={naam,instructies:document.getElementById("tpl-instr").value,type:document.getElementById("tpl-type").value,kleur:LIB.tplKleur};
+  const velden={naam,instructies:document.getElementById("tpl-instr").value,type:document.getElementById("tpl-type").value,kleur:LIB.tplKleur,media:(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id)};
   const wasEdit=!!LIB.editTpl;
   let fout=null;
   if(wasEdit){const{error}=await db.from("templates").update(velden).eq("id",LIB.editTpl);fout=error;}
