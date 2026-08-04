@@ -600,7 +600,7 @@ function mcardHtml(w){
     const kleur=b.color?' k-'+esc(b.color):'';
     const lk=b.linked?' linked2':'';
     const pr=composePresc(b);
-    const sc=resultScoreTxt(r);
+    const sc=resultScoreVol(r);
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
     const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
     inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
@@ -775,7 +775,7 @@ function histRender(){
       const sc=r
         ?(r.status==="missed"
           ?'<div class="hsc miss">✕ Gemist</div>'
-          :'<div class="hsc">✓ '+esc(resultScoreTxt(r)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
+          :'<div class="hsc">✓ '+esc(resultScoreVol(r)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
             (r.note?'<div class="hpr" style="font-style:italic">💬 '+esc(r.note)+'</div>':''))
         :'<div class="hsc leeg">Nog niet gelogd</div>';
       return '<div class="histcard"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+'</span></div>'+

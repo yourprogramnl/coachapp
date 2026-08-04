@@ -31,6 +31,10 @@ function toast(t){let e=document.getElementById("toast2");if(!e){e=document.crea
 // Upload van een lid: foto of video? Het opslagpad eindigt op de extensie.
 const isFotoUpload=p=>/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(p||"");
 function resultScoreTxt(r){if(!r)return"";if(r.time_seconds!=null)return Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60);if(r.load_kg!=null)return r.load_kg+" kg";if(r.rounds!=null)return r.rounds+" rondes"+(r.reps!=null?" + "+r.reps:"");if(r.reps!=null)return r.reps+" reps";return r.score_text||"";}
+// Volledige weergave: sinds 4 aug typt de sporter bij kg/reps/tijd-blokken vrije
+// tekst ("50,52,55,56 ging goed"); die staat in score_text naast het getal.
+// Feed/kalender/historie tonen de tekst; het leaderboard blijft compact (resultScoreTxt).
+function resultScoreVol(r){return r&&r.score_text?r.score_text:resultScoreTxt(r);}
 const KLEUREN=[["","geen kleur"],["grijs","grijs"],["roze","roze"],["oranje","oranje"],["geel","geel"],["blauw","blauw"],["groen","groen"]];
 const SCORETYPES=[["text","vrije tekst"],["time","tijd"],["load","gewicht"],["reps","reps"],["rounds_reps","rondes+reps"],["none","geen score"]];
 const selOpts=(list,cur)=>list.map(o=>'<option value="'+o[0]+'"'+(o[0]===(cur||list[0][0])?" selected":"")+'>'+o[1]+'</option>').join("");

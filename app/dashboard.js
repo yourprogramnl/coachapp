@@ -142,7 +142,7 @@ function dashRender(){
     const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     let done=0;
     const rij=(badge,titel,tekst,r,vids)=>{
-      const sc=resultScoreTxt(r);
+      const sc=resultScoreVol(r);
       // Video-uploads van het lid bij dit blok (result_media): inline in de feed
       // zoals CoachRx; klik = direct afspelen, geen apart scherm. De src (signed
       // URL) wordt na het renderen in één keer gezet door dashVidSrcs().
