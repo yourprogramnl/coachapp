@@ -232,7 +232,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .ai-tab th{background:#f7f8f9;font-weight:700}
 .lmodal{position:fixed;inset:0;background:rgba(15,18,22,.55);display:none;align-items:center;justify-content:center;z-index:400}
 .lmodal.show{display:flex}
-.lmodal .box{background:#fff;border-radius:14px;padding:20px;width:460px;max-width:92vw;max-height:88vh;overflow:auto}
+.lmodal .box{background:#fff;border-radius:14px;padding:20px;width:460px;max-width:92vw;max-height:84vh;overflow:auto}
 .lmodal h3{margin-bottom:12px}
 /* Scores invoeren door de coach (results-modal) */
 .resrow{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #eef0f2}

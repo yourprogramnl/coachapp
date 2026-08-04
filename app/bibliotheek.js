@@ -42,13 +42,16 @@ function libShellHtml(){
 function ensureLibModals(){
   if(document.getElementById("libmodals"))return;
   const d=document.createElement("div");d.id="libmodals";
-  d.innerHTML='<div class="lmodal" id="exmodal"><div class="box"><h3 id="exmodal-titel">Oefening bewerken</h3>'+
+  // Kruisje rechtsboven op elke popup (verzoek Stefan: niet naar beneden
+  // hoeven scrollen voor Annuleren); zelfde opzet als het toewijzen-venster.
+  const kop=(id,titel)=>'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 id="'+id+'" style="margin:0">'+titel+'</h3><span onclick="libModalDicht()" title="Sluiten" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>';
+  d.innerHTML='<div class="lmodal" id="exmodal"><div class="box">'+kop("exmodal-titel","Oefening bewerken")+
       '<div class="field"><label>Naam</label><input id="exmodal-naam"></div>'+
       '<div class="field"><label>Video (YouTube-link of andere video-URL)</label><input id="exmodal-video" placeholder="https://youtu.be/…"></div>'+
       '<div id="exmodal-prev" style="margin-bottom:14px"></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="exOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="exmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="exmodal-msg"></div></div></div>'+
-    '<div class="lmodal" id="tplmodal"><div class="box"><h3 id="tplmodal-titel">Template bewerken</h3>'+
+    '<div class="lmodal" id="tplmodal"><div class="box">'+kop("tplmodal-titel","Template bewerken")+
       '<div class="field"><label>Naam</label><input id="tpl-naam"></div>'+
       '<div class="field"><label>Soort</label><select id="tpl-type"><option value="warmup">Warming-up</option><option value="other">Workout</option><option value="cooldown">Cooldown</option></select></div>'+
       '<div class="field"><label>Kleur</label><div class="kleurdots" id="tpl-kleuren"></div></div>'+
@@ -56,14 +59,14 @@ function ensureLibModals(){
       '<div id="tpl-media"></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="tplmodal-msg"></div></div></div>'+
-    '<div class="lmodal" id="bmmodal"><div class="box"><h3 id="bmmodal-titel">Benchmark toevoegen (Custom)</h3>'+
+    '<div class="lmodal" id="bmmodal"><div class="box">'+kop("bmmodal-titel","Benchmark toevoegen (Custom)")+
       '<div class="field"><label>Naam</label><input id="bm-naam" placeholder="bijv. CFC Challenge 2026"></div>'+
       '<div class="field"><label>Type (optioneel)</label><select id="bm-badge"><option value="">geen</option><option value="bodyweight">bodyweight</option><option value="light">light</option><option value="heavy">heavy</option><option value="endurance">endurance</option><option value="skill">skill</option></select></div>'+
       '<div class="field"><label>Workout</label><textarea id="bm-tekst" style="min-height:140px" placeholder="For time:&#10;21-15-9&#10;…"></textarea></div>'+
       '<div class="field"><label>Bewegingen (tags, gescheiden door komma\'s)</label><input id="bm-tags" placeholder="bijv. Thruster, Pull-up"></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="bmOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="bmmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="bmmodal-msg"></div></div></div>'+
-    '<div class="lmodal" id="progmodal"><div class="box"><h3 id="progmodal-titel">Programma toevoegen</h3>'+
+    '<div class="lmodal" id="progmodal"><div class="box">'+kop("progmodal-titel","Programma toevoegen")+
       '<div class="field"><label>Naam</label><input id="prog-naam" placeholder="bijv. 6-weken hypertrofie"></div>'+
       '<div class="field"><label>Omschrijving</label><textarea id="prog-desc" style="min-height:80px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
       '<div class="field"><label>Niveau / trainingsleeftijd</label><input id="prog-age" placeholder="bijv. Beginner, Gevorderd"></div>'+
@@ -778,8 +781,10 @@ function tplVidZoek(inp){
     if(!LIB.geladen&&!LIB.busy)libLaad().then(()=>tplVidZoek(inp));
     drop.innerHTML='<div class="sm muted" style="padding:6px 2px">Bibliotheek laden…</div>';return;
   }
-  const hits=LIB.oef.filter(o=>o.youtube_id&&(o.naam||"").toLowerCase().includes(v)).slice(0,8);
-  drop.innerHTML=hits.length?'<div style="border:1px solid #e5e8ec;border-radius:10px;margin-top:6px;overflow:hidden">'+
+  // Alle treffers tonen in een scrolbare lijst (verzoek Stefan: "back" heeft
+  // er veel meer dan 8); een zachte kap van 100 houdt het rap.
+  const hits=LIB.oef.filter(o=>o.youtube_id&&(o.naam||"").toLowerCase().includes(v)).slice(0,100);
+  drop.innerHTML=hits.length?'<div style="border:1px solid #e5e8ec;border-radius:10px;margin-top:6px;overflow-y:auto;max-height:264px">'+
     hits.map(o=>'<div onclick="tplVidKies('+o.id+')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#f6f7f9\'" onmouseout="this.style.background=\'\'">'+
       '<div style="width:52px;height:32px;border-radius:6px;flex:none;background:#000 url(\'https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/mqdefault.jpg\') center/cover"></div>'+
       '<div class="sm" style="flex:1">'+esc(o.naam||"Video")+'</div></div>').join("")+'</div>'
