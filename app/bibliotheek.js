@@ -764,8 +764,35 @@ function tplMediaRender(){
       '<div class="sm" style="flex:1;line-height:1.35">'+esc(v.titel||"Video")+'</div>'+
       '<span title="Video weghalen" onclick="tplVidWeg('+i+')" style="width:20px;height:20px;border-radius:50%;background:#171719;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;line-height:1">✕</span></div>').join("")+
     '</div>':'')+
-    '<input id="tpl-vlink" placeholder="Plak een YouTube-link en druk op Enter" onkeydown="tplVidKey(event,this)" autocomplete="off">'+
+    '<input id="tpl-vlink" placeholder="Zoek in de videobibliotheek of plak een YouTube-link" oninput="tplVidZoek(this)" onkeydown="tplVidKey(event,this)" autocomplete="off">'+
+    '<div id="tpl-vdrop"></div>'+
     '<div class="sm muted" style="margin-top:6px">Video\'s gaan mee voor het lid als je de template invoegt.</div></div>';
+}
+// Zoeken in de videobibliotheek (oefeningen, allemaal YouTube) vanuit de
+// template-popup: typen = live suggesties, klik = toevoegen met de echte naam.
+function tplVidZoek(inp){
+  const drop=document.getElementById("tpl-vdrop");if(!drop)return;
+  const v=inp.value.trim().toLowerCase();
+  if(!v||v.length<2||ytIdVan(inp.value)){drop.innerHTML="";return;}
+  if(!LIB.oef.length){
+    if(!LIB.geladen&&!LIB.busy)libLaad().then(()=>tplVidZoek(inp));
+    drop.innerHTML='<div class="sm muted" style="padding:6px 2px">Bibliotheek laden…</div>';return;
+  }
+  const hits=LIB.oef.filter(o=>o.youtube_id&&(o.naam||"").toLowerCase().includes(v)).slice(0,8);
+  drop.innerHTML=hits.length?'<div style="border:1px solid #e5e8ec;border-radius:10px;margin-top:6px;overflow:hidden">'+
+    hits.map(o=>'<div onclick="tplVidKies('+o.id+')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#f6f7f9\'" onmouseout="this.style.background=\'\'">'+
+      '<div style="width:52px;height:32px;border-radius:6px;flex:none;background:#000 url(\'https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/mqdefault.jpg\') center/cover"></div>'+
+      '<div class="sm" style="flex:1">'+esc(o.naam||"Video")+'</div></div>').join("")+'</div>'
+    :'<div class="sm muted" style="padding:6px 2px">Niets gevonden in de bibliotheek. Een YouTube-link plakken kan ook.</div>';
+}
+function tplVidKies(oefId){
+  const o=LIB.oef.find(x=>x.id===oefId);
+  if(!o||!o.youtube_id)return;
+  LIB.tplMedia=(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id);
+  if(LIB.tplMedia.some(m=>m.youtube_id===o.youtube_id)){toast("Deze video staat er al bij");return;}
+  LIB.tplMedia.push({youtube_id:o.youtube_id,titel:o.naam||"Video"});
+  tplMediaRender();
+  const ni=document.getElementById("tpl-vlink");if(ni)ni.focus();
 }
 function tplVidWeg(i){
   (LIB.tplMedia||[]).splice(i,1);
@@ -775,7 +802,12 @@ function tplVidKey(ev,inp){
   if(ev.key!=="Enter")return;
   ev.preventDefault();
   const id=ytIdVan(inp.value);
-  if(!id){toast("Dat lijkt geen YouTube-link. Kopieer de link via de Deel-knop van YouTube of uit de adresbalk.");return;}
+  if(!id){
+    // Geen link: Enter pakt de bovenste treffer uit de bibliotheek-zoeker.
+    const eerste=document.querySelector("#tpl-vdrop [onclick^='tplVidKies']");
+    if(eerste){eerste.click();return;}
+    toast("Zoek op naam in de bibliotheek, of plak een YouTube-link.");return;
+  }
   LIB.tplMedia=(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id);
   if(LIB.tplMedia.some(m=>m.youtube_id===id)){toast("Deze video staat er al bij");return;}
   LIB.tplMedia.push({youtube_id:id,titel:"Eigen video"});
