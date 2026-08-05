@@ -1,19 +1,36 @@
 // app/dashboard.js — het coach-dashboard: aandacht nodig, contactmomenten,
 // activiteit-feed, mijn cijfers, mijn taken en workout van de week.
 let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false,dashFeedLimit=6,dashFeedTab="workouts";
+// ---------- Weekoverzicht "dit speelt er per klant" (verzoek Stefan, 5 aug) ----------
+// Signaalwoorden kleuren rood in het weekoverzicht en zetten de klant met een
+// ⚠ bovenaan. Vul deze lijst gerust aan (kleine letters; een deel van een
+// woord telt ook, dus "pijn" vangt ook "hoofdpijn").
+const SIGNAALWOORDEN=["blessure","geblesseerd","pijn","zeer aan","ziek","griep","koorts","moe","vermoeid","uitgeput","overtraind","slecht geslapen","stress","gestrest","knie","schouder","rug","nek","heup","pols","enkel","elleboog","lies","hamstring","kuit","kramp","duizelig"];
+function wkSignaal(t){const s=(t||"").toLowerCase();return SIGNAALWOORDEN.some(w=>s.includes(w));}
+function wkMarkeer(t){
+  let uit=esc(t||"");
+  // Langste woorden eerst, anders markeert "pijn" al binnen "hoofdpijn"
+  SIGNAALWOORDEN.slice().sort((a,b)=>b.length-a.length).forEach(w=>{
+    uit=uit.replace(new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")(?![^<]*>)","gi"),'<b style="color:#c0392b">$1</b>');
+  });
+  return uit;
+}
+const wkKort=(t,n)=>{t=String(t||"").trim();return t.length>n?t.slice(0,n-1)+"…":t;};
 async function fillDashboard(){
   const ids=actieveKlanten().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
-  let ws=[],rs=[],md=[],wc=[],msgs=[],blog=null,blogRes=[],consults=[];
+  let ws=[],rs=[],md=[],wc=[],msgs=[],blog=null,blogRes=[],consults=[],mets=[];
   if(ids.length){
     ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("*").in("workout_id",wids)).data||[];
     if(wids.length)md=(await db.from("result_media").select("*").in("workout_id",wids)).data||[];
     if(wids.length)wc=(await db.from("workout_comments").select("*").in("workout_id",wids).order("created_at")).data||[];
-    msgs=(await db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
+    msgs=(await db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
     // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
     consults=(await db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40)).data||[];
+    // Nieuwe metingen/PR's van deze week, voor het weekoverzicht
+    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
   }
   // Tags voor het feed-filter (zelfde tags als op de Klanten-pagina)
   const dtags=(await db.from("tags").select("id,name,color").order("name")).data||[];
@@ -25,7 +42,7 @@ async function fillDashboard(){
     blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
   }
-  DASH={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
+  DASH={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags,mets};
   dashRender();
 }
 function dashSetFilter(f){dashFilter=f;dashRender();}
@@ -131,6 +148,47 @@ function dashRender(){
   const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten <span class="muted" style="font-weight:600">('+cmPct+'%)</span></h2>'+
     '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+actieveKlanten().length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
     '<div style="display:flex;gap:26px;flex-wrap:wrap">'+actieveKlanten().map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
+  // Weekoverzicht "dit speelt er": per klant de PR's, gemiste onderdelen en
+  // alle opmerkingen sinds maandag (score-notities, dag-reacties, en chat- of
+  // scoretekst met een signaalwoord). Klanten met een signaalwoord staan
+  // bovenaan met een ⚠.
+  const monISO=ymd(mon);
+  const wkW={};ws.forEach(w=>wkW[w.id]=w);
+  const wkB={};ws.forEach(w=>(w.blocks||[]).forEach(b=>wkB[b.id]=b));
+  const DAGK=["zo","ma","di","wo","do","vr","za"];
+  const wkDag=ts=>{const d=new Date(ts);return isNaN(d)?"":DAGK[d.getDay()];};
+  const wkKlanten=[];
+  actieveKlanten().forEach(p=>{
+    const regels=[];let alarm=false;
+    (DASH.mets||[]).filter(m=>m.athlete_id===p.id).forEach(m=>
+      regels.push('🏆 Nieuwe meting/PR: <b>'+esc(m.metric)+'</b> · '+esc(String(m.value==null?"":m.value).replace(".",","))+' '+esc(m.unit||"kg")));
+    const gemist=rs.filter(r=>r.athlete_id===p.id&&r.status==="missed"&&wkW[r.workout_id]&&wkW[r.workout_id].workout_date>=monISO);
+    if(gemist.length)regels.push('✗ <b>'+gemist.length+'</b> onderdeel'+(gemist.length===1?"":"en")+' gemist deze week');
+    const bron=r=>{const b=wkB[r.block_id];return b?(b.exercise||(b.kind==="conditioning"?"conditioning":"workout")):"workout";};
+    rs.filter(r=>r.athlete_id===p.id&&(r.created_at||"")>=monISO&&((r.note||"").trim()||wkSignaal(r.score_text))).forEach(r=>{
+      const tekst=[(r.note||"").trim(),wkSignaal(r.score_text)?String(r.score_text||"").trim():""].filter(Boolean).join(" · ");
+      if(wkSignaal(tekst))alarm=true;
+      regels.push('💬 '+wkDag(r.created_at)+' · '+esc(bron(r))+': “'+wkMarkeer(wkKort(tekst,150))+'”');
+    });
+    wc.filter(c=>c.author_id===p.id&&(c.created_at||"")>=monISO).forEach(c=>{
+      if(wkSignaal(c.body))alarm=true;
+      regels.push('💬 '+wkDag(c.created_at)+' · dag-reactie: “'+wkMarkeer(wkKort(c.body,150))+'”');
+    });
+    (msgs||[]).filter(m=>m.sender_id===p.id&&wkSignaal(m.body)).forEach(m=>{
+      alarm=true;
+      regels.push('💬 '+wkDag(m.created_at)+' · chat: “'+wkMarkeer(wkKort(m.body,150))+'”');
+    });
+    if(regels.length)wkKlanten.push({p,regels,alarm});
+  });
+  wkKlanten.sort((a,b)=>(b.alarm?1:0)-(a.alarm?1:0));
+  const wkOverHtml='<h2 style="margin:22px 0 4px">Deze week per klant</h2>'+
+    '<div class="sm muted" style="margin-bottom:10px">PR\'s, gemiste onderdelen en opmerkingen sinds maandag. Signaalwoorden (blessure, pijn, ziek…) kleuren rood; die klanten staan bovenaan met ⚠️.</div>'+
+    (wkKlanten.length?'<div class="attn-card">'+wkKlanten.map(k=>
+      '<div style="padding:10px 14px;border-bottom:1px solid #f0f1f3">'+
+        '<div style="display:flex;align-items:center;gap:9px;cursor:pointer" onclick="openClient(\''+k.p.id+'\')"><div class="cavc" style="'+avFotoStyle(k.p)+'">'+avFotoText(k.p)+'</div><b>'+naamVan(k.p)+'</b>'+(k.alarm?' <span title="Signaalwoord gevonden deze week">⚠️</span>':'')+'</div>'+
+        '<div class="sm" style="margin:6px 0 0 33px;display:flex;flex-direction:column;gap:3px">'+k.regels.map(r=>'<div>'+r+'</div>').join("")+'</div>'+
+      '</div>').join("")+'</div>'
+    :'<div class="attn-card"><div class="cempty">Nog niets deze week.<br>Zodra klanten loggen, reageren of een PR zetten, zie je het hier per klant bij elkaar.</div></div>');
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
   let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
   const feedSet=dashFeedSet();
@@ -202,7 +260,7 @@ function dashRender(){
   cp.innerHTML='<h1>Dashboard</h1><div class="dashgrid">'+
     '<div class="panel">'+
       '<div class="ctabs"><button class="on">Aandacht nodig</button></div>'+
-      chips+attnHtml+cmHtml+
+      chips+attnHtml+wkOverHtml+cmHtml+
       '<div style="display:flex;align-items:center;gap:14px;margin:26px 0 8px;flex-wrap:wrap"><h2 style="margin:0">Activiteit</h2>'+
         '<select onchange="dashSetFeedClient(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="all">Alle klanten</option>'+
           ((DASH.dtags||[]).length?'<optgroup label="Tags">'+(DASH.dtags||[]).map(t=>'<option value="tag:'+esc(String(t.id))+'"'+(dashFeedClient==="tag:"+t.id?" selected":"")+'>● '+esc(t.name)+'</option>').join("")+'</optgroup>':"")+
