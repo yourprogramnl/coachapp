@@ -303,9 +303,10 @@ function wkMarkeer(t){
   return uit;
 }
 const wkKort=(t,n)=>{t=String(t||"").trim();return t.length>n?t.slice(0,n-1)+"…":t;};
-let ncTab="week",ncKlant="all";
+let ncTab="week",ncKlant="all",ncWeekTerug=0; // 0 = deze week, 1 = vorige week, …
 function ncTabZet(t){ncTab=t;fillNotifCentrum();}
 function ncKlantZet(v){ncKlant=v;fillNotifCentrum();}
+function ncWeekZet(n){ncWeekTerug=parseInt(n,10)||0;fillNotifCentrum();}
 async function fillNotifCentrum(){
   const cp=document.getElementById("cpage");if(!cp)return;
   cp.innerHTML='<h1>Meldingen</h1>'+
@@ -319,13 +320,15 @@ async function ncWeek(){
   const host=document.getElementById("nc-body");if(!host)return;
   const klanten=actieveKlanten();
   const ids=klanten.map(p=>p.id);
-  const monISO=ymd(mondayOf(new Date()));
+  // Gekozen week: van maandag tot de maandag erna (deze week, vorige week, …)
+  const mon=addDays(mondayOf(new Date()),-7*ncWeekTerug);
+  const monISO=ymd(mon),eindISO=ymd(addDays(mon,7));
   let rs=[],wc=[],msgs=[],mets=[];
   if(ids.length){
-    rs=(await db.from("results").select("*, blocks(exercise,kind), workouts(workout_date)").in("athlete_id",ids).gte("created_at",monISO)).data||[];
-    wc=(await db.from("workout_comments").select("*").in("athlete_id",ids).gte("created_at",monISO)).data||[];
-    msgs=(await db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO)).data||[];
-    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at").in("athlete_id",ids).gte("created_at",monISO)).data||[];
+    rs=(await db.from("results").select("*, blocks(exercise,kind), workouts(workout_date)").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
+    wc=(await db.from("workout_comments").select("*").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
+    msgs=(await db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
+    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
   }
   const DAGK=["zo","ma","di","wo","do","vr","za"];
   const wkDag=ts=>{const d=new Date(ts);return isNaN(d)?"":DAGK[d.getDay()];};
@@ -335,7 +338,7 @@ async function ncWeek(){
     mets.filter(m=>m.athlete_id===p.id).forEach(m=>
       regels.push('🏆 Nieuwe meting/PR: <b>'+esc(m.metric)+'</b> · '+esc(String(m.value==null?"":m.value).replace(".",","))+' '+esc(m.unit||"kg")));
     const gemist=rs.filter(r=>r.athlete_id===p.id&&r.status==="missed");
-    if(gemist.length)regels.push('✗ <b>'+gemist.length+'</b> onderdeel'+(gemist.length===1?"":"en")+' gemist deze week');
+    if(gemist.length)regels.push('✗ <b>'+gemist.length+'</b> onderdeel'+(gemist.length===1?"":"en")+' gemist');
     const bron=r=>r.blocks?(r.blocks.exercise||(r.blocks.kind==="conditioning"?"conditioning":"workout")):"workout";
     rs.filter(r=>r.athlete_id===p.id&&((r.note||"").trim()||wkSignaal(r.score_text))).forEach(r=>{
       const tekst=[(r.note||"").trim(),wkSignaal(r.score_text)?String(r.score_text||"").trim():""].filter(Boolean).join(" · ");
@@ -356,12 +359,21 @@ async function ncWeek(){
   wkKlanten.sort((a,b)=>(b.alarm?1:0)-(a.alarm?1:0));
   const zicht=ncKlant==="all"?wkKlanten:wkKlanten.filter(k=>k.p.id===ncKlant);
   const chip=(v,lbl,aan)=>'<span class="fchip'+(aan?" on":"")+'" onclick="ncKlantZet(\''+v+'\')">'+lbl+'</span>';
-  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'+
+  // Week-kiezer: deze week t/m 8 weken terug (verzoek Stefan, 10 aug)
+  const wkLbl=n=>{
+    const m=addDays(mondayOf(new Date()),-7*n);
+    const l="ma "+("0"+m.getDate()).slice(-2)+"-"+("0"+(m.getMonth()+1)).slice(-2);
+    return (n===0?"Deze week":n===1?"Vorige week":n+" weken geleden")+" · "+l;
+  };
+  const weekSel='<select onchange="ncWeekZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px;margin-left:auto">'+
+    Array.from({length:9},(_,n)=>'<option value="'+n+'"'+(n===ncWeekTerug?" selected":"")+'>'+wkLbl(n)+'</option>').join("")+'</select>';
+  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'+
     chip("all","Iedereen",ncKlant==="all")+
-    klanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>chip(p.id,esc(naamVan(p)),ncKlant===p.id)).join("")+'</div>';
-  const mon=mondayOf(new Date());
+    klanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>chip(p.id,esc(naamVan(p)),ncKlant===p.id)).join("")+
+    weekSel+'</div>';
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2);
-  host.innerHTML='<div class="sm muted" style="margin-bottom:10px">PR\'s, gemiste onderdelen en opmerkingen sinds maandag '+monLbl+'. Signaalwoorden (blessure, pijn, ziek…) kleuren rood; die klanten staan bovenaan met ⚠️.</div>'+
+  const zoLbl=(d=>("0"+d.getDate()).slice(-2)+"-"+("0"+(d.getMonth()+1)).slice(-2))(addDays(mon,6));
+  host.innerHTML='<div class="sm muted" style="margin-bottom:10px">PR\'s, gemiste onderdelen en opmerkingen in de week van maandag '+monLbl+' t/m zondag '+zoLbl+'. Signaalwoorden (blessure, pijn, ziek…) kleuren rood; die klanten staan bovenaan met ⚠️.</div>'+
     kiezer+
     (zicht.length?'<div class="attn-card">'+zicht.map(k=>
       '<div style="padding:10px 14px;border-bottom:1px solid #f0f1f3">'+
@@ -369,7 +381,7 @@ async function ncWeek(){
         (k.regels.length?'<div class="sm" style="margin:6px 0 0 33px;display:flex;flex-direction:column;gap:3px">'+k.regels.map(r=>'<div>'+r+'</div>').join("")+'</div>'
           :'<div class="sm muted" style="margin:6px 0 0 33px">Niets gemeld deze week.</div>')+
       '</div>').join("")+'</div>'
-    :'<div class="attn-card"><div class="cempty">Nog niets deze week.<br>Zodra klanten loggen, reageren of een PR zetten, zie je het hier per klant bij elkaar.</div></div>');
+    :'<div class="attn-card"><div class="cempty">Niets gemeld in deze week.<br>Zodra klanten loggen, reageren of een PR zetten, zie je het hier per klant bij elkaar.</div></div>');
 }
 // Tab 2: het notificatiecentrum (de lijst van de bel, met filters)
 async function ncNotifs(){
