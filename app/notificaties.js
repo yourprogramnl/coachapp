@@ -358,19 +358,20 @@ async function ncWeek(){
   });
   wkKlanten.sort((a,b)=>(b.alarm?1:0)-(a.alarm?1:0));
   const zicht=ncKlant==="all"?wkKlanten:wkKlanten.filter(k=>k.p.id===ncKlant);
-  const chip=(v,lbl,aan)=>'<span class="fchip'+(aan?" on":"")+'" onclick="ncKlantZet(\''+v+'\')">'+lbl+'</span>';
-  // Week-kiezer: deze week t/m 8 weken terug (verzoek Stefan, 10 aug)
+  // Klant-kiezer als uitklapmenu (verzoek Stefan: chips schalen niet bij veel
+  // klanten): alfabetisch, met Iedereen bovenaan. Scrollt vanzelf bij een
+  // lange lijst. Ernaast de week-kiezer (deze week t/m 8 weken terug).
+  const klantSel='<select onchange="ncKlantZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px">'+
+    '<option value="all"'+(ncKlant==="all"?" selected":"")+'>Iedereen</option>'+
+    klanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>'<option value="'+p.id+'"'+(ncKlant===p.id?" selected":"")+'>'+esc(naamVan(p))+'</option>').join("")+'</select>';
   const wkLbl=n=>{
     const m=addDays(mondayOf(new Date()),-7*n);
     const l="ma "+("0"+m.getDate()).slice(-2)+"-"+("0"+(m.getMonth()+1)).slice(-2);
     return (n===0?"Deze week":n===1?"Vorige week":n+" weken geleden")+" · "+l;
   };
-  const weekSel='<select onchange="ncWeekZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px;margin-left:auto">'+
+  const weekSel='<select onchange="ncWeekZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px">'+
     Array.from({length:9},(_,n)=>'<option value="'+n+'"'+(n===ncWeekTerug?" selected":"")+'>'+wkLbl(n)+'</option>').join("")+'</select>';
-  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'+
-    chip("all","Iedereen",ncKlant==="all")+
-    klanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>chip(p.id,esc(naamVan(p)),ncKlant===p.id)).join("")+
-    weekSel+'</div>';
+  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'+klantSel+weekSel+'</div>';
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2);
   const zoLbl=(d=>("0"+d.getDate()).slice(-2)+"-"+("0"+(d.getMonth()+1)).slice(-2))(addDays(mon,6));
   host.innerHTML='<div class="sm muted" style="margin-bottom:10px">PR\'s, gemiste onderdelen en opmerkingen in de week van maandag '+monLbl+' t/m zondag '+zoLbl+'. Signaalwoorden (blessure, pijn, ziek…) kleuren rood; die klanten staan bovenaan met ⚠️.</div>'+
