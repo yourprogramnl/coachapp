@@ -74,7 +74,9 @@ function cnavItems(){
   const role=myRole();
   const n=[["dash","Dashboard"],["clients","Klanten"],["library","Bibliotheek"]];
   if(role!=="coach")n.push(["coaches","Coaches"]);
-  n.push(["blog","Blog"],["week",SHOWDOWN],["msgs","Berichten"],["data","Data"]);
+  // "Meldingen" (verzoek Stefan, 10 aug): notificaties + weekoverzicht per
+  // klant op één duidelijke plek, rechts van Berichten.
+  n.push(["blog","Blog"],["week",SHOWDOWN],["msgs","Berichten"],["notifs","Meldingen"],["data","Data"]);
   // AI-coach-testpaneel: alleen platform_admin, coaches zien hem bewust nog niet.
   if(role==="platform_admin")n.push(["ai","AI-coach"]);
   // "Bedrijven" (platform_admin) bewust verborgen zolang er één gym is (Stefan,

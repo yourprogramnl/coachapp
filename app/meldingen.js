@@ -80,9 +80,9 @@ function meldDatum(iso){
 async function fillMeldingen(){
   const cp=document.getElementById("cpage");if(!cp)return;
   if(myRole()!=="platform_admin"){cp.innerHTML='<div class="csoon">Deze pagina is alleen voor beheerders.</div>';return;}
-  cp.innerHTML='<h1>Meldingen</h1><div class="spin">Laden…</div>';
+  cp.innerHTML='<h1>App-meldingen</h1><div class="spin">Laden…</div>';
   const{data,error}=await db.from("app_meldingen").select("*").order("created_at",{ascending:false});
-  if(error){cp.innerHTML='<h1>Meldingen</h1><div class="card"><div class="row"><span class="muted">Laden mislukt: '+esc(error.message)+'</span></div></div>';return;}
+  if(error){cp.innerHTML='<h1>App-meldingen</h1><div class="card"><div class="row"><span class="muted">Laden mislukt: '+esc(error.message)+'</span></div></div>';return;}
   meldLijst=data||[];
   // Namen van de melders erbij (aparte query; profielen staan los van de melding).
   const ids=[...new Set(meldLijst.map(m=>m.profile_id))];
@@ -112,7 +112,7 @@ function meldRender(namen){
     '</div>';
   }).join("");
   cp.innerHTML='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">'+
-    '<h1 style="margin:0">Meldingen</h1>'+
+    '<h1 style="margin:0">App-meldingen</h1>'+
     '<span class="sm muted">'+(open?open+' open':'niets open')+'</span>'+
     '<div class="seg" style="margin-left:auto">'+
       ['open','afgehandeld','alles'].map(f=>'<button class="'+(meldFilter===f?"on":"")+'" onclick="meldFilterZet(\''+f+'\')">'+esc(f.charAt(0).toUpperCase()+f.slice(1))+'</button>').join("")+

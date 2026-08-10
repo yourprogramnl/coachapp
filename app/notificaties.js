@@ -219,7 +219,7 @@ function belPanelVernieuw(){
   const p=document.getElementById("bel-panel");if(!p||!p.classList.contains("show"))return;
   const rows=belZichtbaar().slice(0,10);
   const ongelezen=rows.some(r=>!r.read_at);
-  p.innerHTML='<div class="belkop">'+(ongelezen?'<span class="bellink" onclick="belAllesGelezen()">Markeer alles als gelezen</span> <span class="muted" style="font-size:11px">|</span> ':'')+'<span class="bellink" onclick="this.closest(\'.belpanel\').classList.remove(\'show\');coachGo(\'notifs\')">Alles bekijken</span></div>'+
+  p.innerHTML='<div class="belkop">'+(ongelezen?'<span class="bellink" onclick="belAllesGelezen()">Markeer alles als gelezen</span> <span class="muted" style="font-size:11px">|</span> ':'')+'<span class="bellink" onclick="this.closest(\'.belpanel\').classList.remove(\'show\');ncTab=\'notifs\';coachGo(\'notifs\')">Alles bekijken</span></div>'+
     (rows.length?rows.map(belRijHtml).join(""):'<div class="belleeg">'+(BEL.geladen?"Geen notificaties.":"Laden…")+'</div>');
 }
 function belRijHtml(r){
@@ -284,13 +284,100 @@ document.addEventListener("click",()=>{const p=document.getElementById("bel-pane
 // Zelfde data en voorkeuren als de bel; de filters rechts zijn de app-vinkjes
 // uit Instellingen > Notificaties (één plek in de database, direct opgeslagen).
 let ncAlleenOngelezen=false;
+// ---------- De Meldingen-pagina: weekoverzicht per klant + notificaties ----------
+// (verzoek Stefan, 10 aug: alles wat binnenkomt op één duidelijke plek in de
+// topnav, rechts van Berichten). Twee tabbladen: "Deze week per klant" (wat
+// speelt er — PR's, gemiste onderdelen, opmerkingen, signaalwoorden) en
+// "Notificaties" (de lijst van de bel, met filters).
+// Signaalwoorden kleuren rood en zetten de klant met een ⚠ bovenaan. Vul de
+// lijst gerust aan (kleine letters; een deel van een woord telt ook, dus
+// "pijn" vangt ook "hoofdpijn").
+const SIGNAALWOORDEN=["blessure","geblesseerd","pijn","zeer aan","ziek","griep","koorts","moe","vermoeid","uitgeput","overtraind","slecht geslapen","stress","gestrest","knie","schouder","rug","nek","heup","pols","enkel","elleboog","lies","hamstring","kuit","kramp","duizelig"];
+function wkSignaal(t){const s=(t||"").toLowerCase();return SIGNAALWOORDEN.some(w=>s.includes(w));}
+function wkMarkeer(t){
+  let uit=esc(t||"");
+  // Langste woorden eerst, anders markeert "pijn" al binnen "hoofdpijn"
+  SIGNAALWOORDEN.slice().sort((a,b)=>b.length-a.length).forEach(w=>{
+    uit=uit.replace(new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")(?![^<]*>)","gi"),'<b style="color:#c0392b">$1</b>');
+  });
+  return uit;
+}
+const wkKort=(t,n)=>{t=String(t||"").trim();return t.length>n?t.slice(0,n-1)+"…":t;};
+let ncTab="week",ncKlant="all";
+function ncTabZet(t){ncTab=t;fillNotifCentrum();}
+function ncKlantZet(v){ncKlant=v;fillNotifCentrum();}
 async function fillNotifCentrum(){
   const cp=document.getElementById("cpage");if(!cp)return;
+  cp.innerHTML='<h1>Meldingen</h1>'+
+    '<div class="ctabs" style="margin-bottom:14px"><button class="'+(ncTab==="week"?"on":"")+'" onclick="ncTabZet(\'week\')">Deze week per klant</button>'+
+    '<button class="'+(ncTab==="notifs"?"on":"")+'" onclick="ncTabZet(\'notifs\')">Notificaties</button></div>'+
+    '<div id="nc-body"><div class="spin">Laden…</div></div>';
+  if(ncTab==="week")await ncWeek();else await ncNotifs();
+}
+// Tab 1: wat speelt er deze week, per klant of voor iedereen tegelijk
+async function ncWeek(){
+  const host=document.getElementById("nc-body");if(!host)return;
+  const klanten=actieveKlanten();
+  const ids=klanten.map(p=>p.id);
+  const monISO=ymd(mondayOf(new Date()));
+  let rs=[],wc=[],msgs=[],mets=[];
+  if(ids.length){
+    rs=(await db.from("results").select("*, blocks(exercise,kind), workouts(workout_date)").in("athlete_id",ids).gte("created_at",monISO)).data||[];
+    wc=(await db.from("workout_comments").select("*").in("athlete_id",ids).gte("created_at",monISO)).data||[];
+    msgs=(await db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO)).data||[];
+    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at").in("athlete_id",ids).gte("created_at",monISO)).data||[];
+  }
+  const DAGK=["zo","ma","di","wo","do","vr","za"];
+  const wkDag=ts=>{const d=new Date(ts);return isNaN(d)?"":DAGK[d.getDay()];};
+  const wkKlanten=[];
+  klanten.forEach(p=>{
+    const regels=[];let alarm=false;
+    mets.filter(m=>m.athlete_id===p.id).forEach(m=>
+      regels.push('🏆 Nieuwe meting/PR: <b>'+esc(m.metric)+'</b> · '+esc(String(m.value==null?"":m.value).replace(".",","))+' '+esc(m.unit||"kg")));
+    const gemist=rs.filter(r=>r.athlete_id===p.id&&r.status==="missed");
+    if(gemist.length)regels.push('✗ <b>'+gemist.length+'</b> onderdeel'+(gemist.length===1?"":"en")+' gemist deze week');
+    const bron=r=>r.blocks?(r.blocks.exercise||(r.blocks.kind==="conditioning"?"conditioning":"workout")):"workout";
+    rs.filter(r=>r.athlete_id===p.id&&((r.note||"").trim()||wkSignaal(r.score_text))).forEach(r=>{
+      const tekst=[(r.note||"").trim(),wkSignaal(r.score_text)?String(r.score_text||"").trim():""].filter(Boolean).join(" · ");
+      if(!tekst)return;
+      if(wkSignaal(tekst))alarm=true;
+      regels.push('💬 '+wkDag(r.created_at)+' · '+esc(bron(r))+': “'+wkMarkeer(wkKort(tekst,150))+'”');
+    });
+    wc.filter(c=>c.author_id===p.id).forEach(c=>{
+      if(wkSignaal(c.body))alarm=true;
+      regels.push('💬 '+wkDag(c.created_at)+' · dag-reactie: “'+wkMarkeer(wkKort(c.body,150))+'”');
+    });
+    msgs.filter(m=>m.sender_id===p.id&&wkSignaal(m.body)).forEach(m=>{
+      alarm=true;
+      regels.push('💬 '+wkDag(m.created_at)+' · chat: “'+wkMarkeer(wkKort(m.body,150))+'”');
+    });
+    if(regels.length||ncKlant===p.id)wkKlanten.push({p,regels,alarm});
+  });
+  wkKlanten.sort((a,b)=>(b.alarm?1:0)-(a.alarm?1:0));
+  const zicht=ncKlant==="all"?wkKlanten:wkKlanten.filter(k=>k.p.id===ncKlant);
+  const chip=(v,lbl,aan)=>'<span class="fchip'+(aan?" on":"")+'" onclick="ncKlantZet(\''+v+'\')">'+lbl+'</span>';
+  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'+
+    chip("all","Iedereen",ncKlant==="all")+
+    klanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(p=>chip(p.id,esc(naamVan(p)),ncKlant===p.id)).join("")+'</div>';
+  const mon=mondayOf(new Date());
+  const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2);
+  host.innerHTML='<div class="sm muted" style="margin-bottom:10px">PR\'s, gemiste onderdelen en opmerkingen sinds maandag '+monLbl+'. Signaalwoorden (blessure, pijn, ziek…) kleuren rood; die klanten staan bovenaan met ⚠️.</div>'+
+    kiezer+
+    (zicht.length?'<div class="attn-card">'+zicht.map(k=>
+      '<div style="padding:10px 14px;border-bottom:1px solid #f0f1f3">'+
+        '<div style="display:flex;align-items:center;gap:9px;cursor:pointer" onclick="openClient(\''+k.p.id+'\')"><div class="cavc" style="'+avFotoStyle(k.p)+'">'+avFotoText(k.p)+'</div><b>'+naamVan(k.p)+'</b>'+(k.alarm?' <span title="Signaalwoord gevonden deze week">⚠️</span>':'')+'</div>'+
+        (k.regels.length?'<div class="sm" style="margin:6px 0 0 33px;display:flex;flex-direction:column;gap:3px">'+k.regels.map(r=>'<div>'+r+'</div>').join("")+'</div>'
+          :'<div class="sm muted" style="margin:6px 0 0 33px">Niets gemeld deze week.</div>')+
+      '</div>').join("")+'</div>'
+    :'<div class="attn-card"><div class="cempty">Nog niets deze week.<br>Zodra klanten loggen, reageren of een PR zetten, zie je het hier per klant bij elkaar.</div></div>');
+}
+// Tab 2: het notificatiecentrum (de lijst van de bel, met filters)
+async function ncNotifs(){
+  const host=document.getElementById("nc-body");if(!host)return;
   // Verse, ruimere lading voor de pagina (de bel laadt er maar 40)
   const{data}=await db.from("notifications").select("*").eq("recipient_id",ME.user.id).order("created_at",{ascending:false}).limit(200);
   BEL.rows=data||BEL.rows;BEL.geladen=true;belBadge();
-  cp.innerHTML='<h1>Notificaties</h1>'+
-    '<div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap">'+
+  host.innerHTML='<div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap">'+
       '<div class="card" style="flex:1;min-width:340px;padding:0" id="nc-lijst"></div>'+
       '<div class="card" style="width:300px;padding:16px 18px">'+
         '<b style="font-size:14px">Filters</b><div class="sm muted" id="nc-aantal" style="margin:2px 0 10px"></div>'+
