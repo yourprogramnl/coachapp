@@ -228,15 +228,19 @@ async function thisMonth(){
   calRef=new Date();renderMonth();
 }
 
-// Blokkleuren zoals het ontwerp: 6 legendakleuren met slimme standaard per oefening
+// Blokkleuren: 6 legendakleuren met slimme standaard per oefening. Volgt de
+// indeling van de coaches (17 aug): rood = weightlifting/primers, blauw =
+// conditioning, groen = gymnastics, geel = accessory/special strength,
+// paars = workout met leaderboard (die kiest de coach zelf, nooit automatisch).
 function kleurVoorOefening(naam){
   const n=String(naam||"").toLowerCase();
   let b=null;(LIB.oef||[]).forEach(o=>{if(!b&&(o.naam||"").toLowerCase()===n)b=o;});
   const t=n+" "+(b?(b.tags||[]).join(" "):"");
-  if(/stretch|mobilit|breath|adem|foam|cool.?down|pigeon|cars\b|herstel/.test(t))return "green";
-  if(/muscle.?up|handstand|hspu|ring|toes to bar|t2b|rope climb|lever|planche|gymnast/.test(t))return "purple";
-  if(/bike|erg\b|\brun|ski\b|amrap|interval|metcon|burpee|double.?under|sprint|conditioning|for time|emom|wod/.test(t))return "yellow";
-  if(/squat|deadlift|press|bench|pull.?up|chin.?up|row|curl|lunge|rdl|hip thrust|clean|snatch|jerk|carry|dip\b|raise|extension|swing|thruster|barbell|dumbbell|kettlebell|kracht/.test(t))return "blue";
+  if(/stretch|mobilit|breath|adem|foam|cool.?down|pigeon|cars\b|herstel/.test(t))return "orange";
+  if(/muscle.?up|handstand|hspu|ring|toes to bar|t2b|rope climb|lever|planche|gymnast|pull.?up|chin.?up|pistol/.test(t))return "green";
+  if(/bike|erg\b|\brun|ski\b|amrap|interval|metcon|burpee|double.?under|sprint|conditioning|for time|emom|wod/.test(t))return "blue";
+  if(/clean|snatch|jerk|squat|deadlift|bench|press|thruster|primer/.test(t))return "red";
+  if(/curl|lunge|rdl|hip thrust|carry|dip\b|raise|extension|swing|good.?morning|row|kracht|barbell|dumbbell|kettlebell|accessor/.test(t))return "yellow";
   return "orange";
 }
 function blokKleurDots(cur){return TPLKLEUREN.map(k=>'<span title="'+LEGNAAM[k]+'" onclick="kiesBlokKleur(this,\''+k+'\')" style="background:'+TPLKLEUR[k]+(k===cur?';outline:2px solid #171719;outline-offset:1.5px':'')+'"></span>').join("");}

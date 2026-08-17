@@ -4,7 +4,9 @@
 // ---------- BIBLIOTHEEK (live uit oefeningen + templates) ----------
 const TPLKLEUR={yellow:"#eab308",blue:"#3b82f6",purple:"#8b5cf6",red:"#ef4444",green:"#22c55e",orange:"#f97316",gray:"#9ca3af"};
 const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
-const LEGNAAM={yellow:"Conditie",blue:"Kracht",purple:"Gymnastics",red:"Intensief",green:"Herstel",orange:"Overig"};
+// Legenda-namen zoals de coaches de kleuren echt gebruiken (aangepast 17 aug
+// op aangeven van coach Vissenberg via Stefan).
+const LEGNAAM={yellow:"Accessory / Special Strength",blue:"Conditioning",purple:"Workout met Leaderboard",red:"Weightlifting / Primers",green:"Gymnastics",orange:"Overig"};
 const LIB_PER=50;
 let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",bmJaar:"",bmMove:"",bmFormat:"",bmDiv:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
 // Benchmark-categorieën (zelfde indeling als Strivee's Add Benchmark)
