@@ -146,8 +146,10 @@ function dashRender(){
       // Video-uploads van het lid bij dit blok (result_media): inline in de feed
       // zoals CoachRx; klik = direct afspelen, geen apart scherm. De src (signed
       // URL) wordt na het renderen in één keer gezet door dashVidSrcs().
+      // Foto's openen de groot-weergave met bladerpijltjes over alle media van dit blok
+      const padLijst=(vids||[]).map(v=>v.storage_path).join("|");
       const vidHtml=(vids&&vids.length)?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+vids.map(v=>isFotoUpload(v.storage_path)
-        ?'<img class="dashvid" style="cursor:zoom-in;object-fit:cover" title="Foto van het lid, klik voor groot" data-vp="'+esc(v.storage_path)+'" onclick="vidSpeel(\''+esc(v.storage_path)+'\')">'
+        ?'<img class="dashvid" style="cursor:zoom-in;object-fit:cover" title="Foto van het lid, klik voor groot" data-vp="'+esc(v.storage_path)+'" onclick="vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'
         :'<video class="dashvid" controls preload="metadata" playsinline data-vp="'+esc(v.storage_path)+'"></video>').join("")+'</div>':'';
       // Vinkje/kruisje: klikbaar om tussen voltooid en gemist te wisselen (coach corrigeert de status)
       const statusBtn=r?'<span class="okc2'+(r.status==="missed"?" miss":"")+'" style="cursor:pointer" title="'+(r.status==="missed"?"Gemist — klik om op voltooid te zetten":"Voltooid — klik om op gemist te zetten")+'" onclick="dashToggleStatus(\''+r.id+'\',\''+r.status+'\')"><svg class="i sm-i"><use href="#'+(r.status==="missed"?"i-x":"i-check")+'"/></svg></span>':'';
@@ -278,7 +280,7 @@ function ensureWcModal(){
     '<span onclick="closeWc()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
     '<div class="sm muted" style="margin:6px 0 8px">Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat.</div>'+
     '<div id="wc-body" style="max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0;background:#f6f7f9;border-radius:10px;padding:10px"></div>'+
-    '<div style="display:flex;gap:8px;margin-top:12px"><input id="wc-inp" placeholder="Schrijf een reactie…" style="flex:1" onkeydown="if(event.key===\'Enter\')wcStuur()"><button class="btn" onclick="wcStuur()">Stuur</button></div>'+
+    '<div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end"><textarea id="wc-inp" rows="1" placeholder="Schrijf een reactie… (Enter = nieuwe regel)" style="flex:1;resize:none;overflow:hidden;font-family:inherit;font-size:13px;line-height:1.5;padding:9px 12px;border:1px solid var(--line);border-radius:10px" oninput="wcGroei(this)" onkeydown="if(event.key===\'Enter\'&&(event.ctrlKey||event.metaKey)){event.preventDefault();wcStuur();}"></textarea><button class="btn" onclick="wcStuur()">Stuur</button></div>'+
     '</div></div>';
   document.body.appendChild(wrap.firstChild);
   document.getElementById("wcmodal").addEventListener("click",e=>{if(e.target.id==="wcmodal")closeWc();});
@@ -329,6 +331,9 @@ async function openDayComments(wid,aid){
   }
 }
 function dashComments(wid,aid){return openDayComments(wid,aid);} // oude naam blijft werken
+// Meegroeiend reactieveld: alinea's typen kan (Enter = nieuwe regel,
+// Ctrl+Enter of de knop = versturen) — pilotfeedback 17 aug.
+function wcGroei(ta){ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight+2,160)+"px";if(ta.scrollHeight+2>160)ta.style.overflow="auto";}
 async function wcStuur(){
   const inp=document.getElementById("wc-inp");
   const tekst=(inp.value||"").trim();if(!tekst||!wcWid)return;
@@ -336,7 +341,7 @@ async function wcStuur(){
     workout_id:wcWid,athlete_id:wcAid,company_id:ME.profile.company_id,author_id:ME.user.id,body:tekst
   }).select().single();
   if(error){toast(error.message||"Versturen mislukt");return;}
-  inp.value="";
+  inp.value="";inp.style.height="auto";
   const rij=data||{workout_id:wcWid,athlete_id:wcAid,author_id:ME.user.id,body:tekst,created_at:new Date().toISOString()};
   WCC.push(rij);
   if(DASH&&DASH.wc)DASH.wc.push(rij);
@@ -346,7 +351,17 @@ async function wcStuur(){
 }
 // Video of foto van een lid groot in het midden van het scherm (signed URL uit
 // de private media-bucket); foto's krijgen een <img> in plaats van een speler.
-async function vidSpeel(pad){
+// Met een lijst ("pad1|pad2|…") kun je met de pijltjes (knoppen of toetsenbord)
+// door alle bestanden van dat onderdeel bladeren, in plaats van elk bestand
+// los aan te klikken (pilotfeedback 17 aug).
+let VIDLIJST=[],vidIdx=0;
+function vidSpeel(pad,lijst){
+  VIDLIJST=(lijst?String(lijst).split("|"):[pad]).filter(Boolean);
+  vidIdx=Math.max(0,VIDLIJST.indexOf(pad));
+  return vidToonHuidig();
+}
+async function vidToonHuidig(){
+  const pad=VIDLIJST[vidIdx];
   const{data,error}=await db.storage.from("media").createSignedUrl(pad,3600);
   if(error||!data||!data.signedUrl){toast("Openen mislukt");return;}
   let ov=document.getElementById("vidoverlay");
@@ -355,11 +370,23 @@ async function vidSpeel(pad){
     ov.addEventListener("click",e=>{if(e.target.id==="vidoverlay"||e.target.classList.contains("vx"))vidSluit();});
     document.body.appendChild(ov);
   }
-  ov.innerHTML='<span class="vx" title="Sluiten">×</span>'+(isFotoUpload(pad)
-    ?'<img src="'+esc(data.signedUrl)+'" style="max-width:92vw;max-height:88vh;border-radius:12px" alt="Foto van het lid">'
-    :'<video src="'+esc(data.signedUrl)+'" controls autoplay playsinline></video>');
+  const meer=VIDLIJST.length>1;
+  ov.innerHTML='<span class="vx" title="Sluiten">×</span>'+
+    (meer?'<span class="vnav vprev" title="Vorige (pijltje links)" onclick="event.stopPropagation();vidStap(-1)">‹</span>':'')+
+    (isFotoUpload(pad)
+      ?'<img src="'+esc(data.signedUrl)+'" style="max-width:88vw;max-height:88vh;border-radius:12px" alt="Foto van het lid">'
+      :'<video src="'+esc(data.signedUrl)+'" controls autoplay playsinline></video>')+
+    (meer?'<span class="vnav vnext" title="Volgende (pijltje rechts)" onclick="event.stopPropagation();vidStap(1)">›</span><span class="vtel">'+(vidIdx+1)+' / '+VIDLIJST.length+'</span>':'');
   ov.style.display="flex";
 }
+function vidStap(d){if(VIDLIJST.length<2)return;vidIdx=(vidIdx+d+VIDLIJST.length)%VIDLIJST.length;vidToonHuidig();}
+document.addEventListener("keydown",e=>{
+  const ov=document.getElementById("vidoverlay");
+  if(!ov||ov.style.display!=="flex")return;
+  if(e.key==="ArrowLeft"){e.preventDefault();vidStap(-1);}
+  else if(e.key==="ArrowRight"){e.preventDefault();vidStap(1);}
+  else if(e.key==="Escape")vidSluit();
+});
 function vidSluit(){const ov=document.getElementById("vidoverlay");if(ov){ov.style.display="none";ov.innerHTML="";}}
 // Vinkje/kruisje in de feed: wissel de status van een gelogd blok (voltooid <-> gemist).
 async function dashToggleStatus(resId,huidig){

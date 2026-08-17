@@ -26,9 +26,10 @@ function chatPreview(m){
 // (private bucket, signed URL) en klikken opent groot via vidSpeel().
 function chatMediaTiles(m){
   const md=m.media||[];if(!md.length)return "";
+  const lijst=md.map(x=>x.path).join("|"); // groot bekijken = bladeren door alle bijlagen van dit bericht
   return '<div class="chatmedia">'+md.map(x=>x.kind==="image"
-    ?'<img class="dashvid" data-vp="'+esc(x.path)+'" onclick="vidSpeel(\''+esc(x.path)+'\')" alt="Foto">'
-    :'<video class="dashvid" data-vp="'+esc(x.path)+'" preload="metadata" muted playsinline onclick="vidSpeel(\''+esc(x.path)+'\')"></video>').join("")+'</div>';
+    ?'<img class="dashvid" data-vp="'+esc(x.path)+'" onclick="vidSpeel(\''+esc(x.path)+'\',\''+esc(lijst)+'\')" alt="Foto">'
+    :'<video class="dashvid" data-vp="'+esc(x.path)+'" preload="metadata" muted playsinline onclick="vidSpeel(\''+esc(x.path)+'\',\''+esc(lijst)+'\')"></video>').join("")+'</div>';
 }
 function chatKies(key){ // opent de bestandskiezer voor deze invoerbalk
   let inp=document.getElementById("chat-file-"+key);

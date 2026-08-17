@@ -308,7 +308,7 @@ function ytSpeel(yt){
   ov.innerHTML='<span class="vx" title="Sluiten">×</span><div class="ytvak"><iframe src="https://www.youtube.com/embed/'+esc(yt)+'?autoplay=1" title="Video" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
   ov.style.display="flex";
 }
-function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn" title="Blok kopiëren" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.media&&b.media.length?' has-video':'')+'" title="Demo-video toevoegen" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Blok kopiëren" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;let media=null;try{media=r.dataset.media?JSON.parse(r.dataset.media):null;}catch(e){}if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,media,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,media,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
@@ -374,11 +374,60 @@ function toggleVid(cam){
   const row=cam.closest(".exrow"),vid=row.querySelector(".vidpop");
   if(!vid)return;
   if(vid.classList.contains("show")){vid.classList.remove("show");return;}
-  if(!row.dataset.oefid){toast("Kies eerst een oefening uit de bibliotheek");return;}
+  // Geen gekoppelde bibliotheek-oefening (eigen naam, conditioning)? Dan opent
+  // het camera-icoon meteen de video-kiezer i.p.v. een dood "kies eerst een
+  // oefening"-melding (pilotfeedback 17 aug).
+  if(!row.dataset.oefid){vidKiesToon(row);return;}
   const o=LIB.oef.find(x=>String(x.id)===row.dataset.oefid);
   const naam=row.querySelector(".exn").value||"Oefening";
-  vid.innerHTML=vidPopInner(naam,o);
+  vid.innerHTML=vidPopInner(naam,o)+'<div class="demolink" style="margin-top:8px" onclick="event.stopPropagation();vidKiesToon(this.closest(\'.exrow\'))">+ Nog een demo-video toevoegen</div>';
   vid.classList.add("show");
+}
+// ---------- Video-kiezer op het camera-icoon (pilotfeedback 17 aug) ----------
+// Zoek een oefening uit de bibliotheek en voeg zijn demo-video toe aan dit
+// blok. Meerdere kan (ze komen in de mediastrook en gaan mee voor het lid),
+// werkt ook bij eigen bloknamen die niet in de bibliotheek staan en op
+// conditioning-blokken. Wordt gedeeld met de programma-editor (zelfde rijen).
+function vidKiesToon(row){
+  const vid=row.querySelector(".vidpop");if(!vid)return;
+  if(!LIB.geladen)libLaad();
+  vid.innerHTML='<span class="vp-x" onclick="event.stopPropagation();this.closest(\'.vidpop\').classList.remove(\'show\')">✕</span>'+
+    '<div class="vt">Demo-video toevoegen</div>'+
+    '<input class="vzk" placeholder="Zoek een oefening uit de bibliotheek…" oninput="vidKiesZoek(this)" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();this.closest(\'.vidpop\').classList.remove(\'show\');}" autocomplete="off">'+
+    '<div class="vzk-lijst"></div>'+
+    '<div class="vp-cap" style="margin-top:8px">Meerdere video\'s kan. Een eigen YouTube-link plak je via 🎥 Video-link plakken onder het blok.</div>';
+  vid.classList.add("show");
+  const inp=vid.querySelector(".vzk");
+  inp.value=row.querySelector(".exn").value||""; // bloknaam voorvullen geeft vaak meteen treffers
+  vidKiesZoek(inp);
+  inp.focus();inp.select();
+}
+function vidKiesZoek(inp){
+  const vid=inp.closest(".vidpop"),lijst=vid.querySelector(".vzk-lijst");if(!lijst)return;
+  const v=inp.value.trim().toLowerCase();
+  if(!LIB.geladen){
+    lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Bibliotheek laden…</div>';
+    libLaad().then(()=>{if(document.contains(inp))vidKiesZoek(inp);});
+    return;
+  }
+  if(v.length<2){lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Typ minstens twee letters.</div>';return;}
+  const hits=LIB.oef.filter(o=>o.youtube_id&&((o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v)));
+  lijst.innerHTML=hits.length?hits.slice(0,40).map(o=>'<div class="vzk-rij" onclick="event.stopPropagation();vidKiesKies(this,'+o.id+')"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" alt="">'+esc(o.naam)+'</div>').join("")
+    :'<div class="sm muted" style="padding:6px 2px">Niets gevonden met een demo-video.</div>';
+}
+function vidKiesKies(el,oefId){
+  const row=el.closest(".exrow"),o=LIB.oef.find(x=>x.id===oefId);
+  if(!row||!o||!o.youtube_id)return;
+  let media=[];try{media=row.dataset.media?JSON.parse(row.dataset.media):[];}catch(e){}
+  media=(media||[]).filter(m=>m&&m.youtube_id);
+  if(media.some(m=>m.youtube_id===o.youtube_id)){toast("Deze video staat er al bij");return;}
+  media.push({youtube_id:o.youtube_id,titel:o.naam});
+  row.dataset.media=JSON.stringify(media);
+  gmRowStrip(row);
+  bouwerDirty=true;
+  const cam=row.querySelector(".cam");if(cam)cam.classList.add("has-video");
+  row.querySelector(".vidpop").classList.remove("show");
+  toast("Demo-video toegevoegd, gaat mee voor het lid");
 }
 // ---------- Demo-video koppelen aan warming-up / cooldown (vrije-tekstblokken) ----------
 function cwNaamVan(oefId){if(!oefId)return"";const o=(LIB.oef||[]).find(x=>String(x.id)===String(oefId));return o?o.naam:"";}
@@ -602,7 +651,8 @@ function mcardHtml(w){
     const pr=composePresc(b);
     const sc=resultScoreVol(r);
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
-    const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
+    const padLijst=(monthMedia[b.id]||[]).map(v=>v.storage_path).join("|");
+    const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
     inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
