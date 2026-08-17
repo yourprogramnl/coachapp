@@ -975,3 +975,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 /* "+ Plak blok" in de knoppenrij van de bouwer (blok-klembord) */
 .addbtns .plakblok{border-style:dashed;color:#2a9fce;border-color:#bfe3f2}
 .addbtns .plakblok:hover{background:#f0f8fc}
+
+/* Blok slepen naar een andere sessie: sleepgreep + doelmarkering */
+.exrow .lbl-badge[draggable]{cursor:grab}
+.exrow .lbl-badge[draggable]:active{cursor:grabbing}
+.mcard.dragover{outline:2px dashed #3eb3e0;outline-offset:2px;background:#f0f8fc}

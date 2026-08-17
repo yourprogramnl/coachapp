@@ -250,7 +250,7 @@ function kiesBlokKleur(el,k){
 }
 function rowOpts(b){return '<div class="f-opts" style="align-items:center"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div></div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
 // Demo-video's op een blok in de bouwer: kleine klikbare tegels (thumbnail +
 // play) mét verwijder-kruisje; komen uit templates of uit Genereer media.
 // Het lid krijgt dezelfde video's in de app. gmTegel/gmRowTegelWeg staan in
@@ -312,7 +312,7 @@ function ytSpeel(yt){
   ov.innerHTML='<span class="vx" title="Sluiten">×</span><div class="ytvak"><iframe src="https://www.youtube.com/embed/'+esc(yt)+'?autoplay=1" title="Video" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
   ov.style.display="flex";
 }
-function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.media&&b.media.length?' has-video':'')+'" title="Demo-video toevoegen" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.media&&b.media.length?' has-video':'')+'" title="Demo-video toevoegen" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
 function rowToObj(r){const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null,score_type=r.dataset.score||"text";const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;let media=null;try{media=r.dataset.media?JSON.parse(r.dataset.media):null;}catch(e){}if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,source_blog_workout_id,media,notes:(r.querySelector(".f-desc").value||"").trim()};return{id,kind:"exercise",linked,exercise,color,score_type,oefening_id,source_blog_workout_id,media,prescription:r.querySelector(".f-presc").value.trim()};}
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
@@ -674,7 +674,7 @@ function cardComBtn(w){
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
-    return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
+    return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
       '<div class="msc"><span style="color:#27b376">Rustdag</span></div>'+
       '<div class="cblk"><div class="pr" style="color:#8a919c">Geen instructies</div></div>'+
       cardComBtn(w)+'</div>';
@@ -700,7 +700,7 @@ function mcardHtml(w){
       '</div>';
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)">'+cardTools(w)+
+  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
     '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     cardComBtn(w)+'</div>';
 }
@@ -778,6 +778,47 @@ function dragStart(ev,wid){
   if(card&&ev.dataTransfer.setDragImage)ev.dataTransfer.setDragImage(card,24,18);
 }
 function dragEnd(){dragWid=null;document.querySelectorAll(".mday.dragover").forEach(c=>c.classList.remove("dragover"));}
+// ---------- Blok slepen naar een andere sessie (pilotfeedback 17 aug) ----------
+// Pak het letterlabel (A/B/C) van een blok in de open bouwer en laat hem los
+// op een andere workout-kaart op de kalender: het blok verhuist daarheen.
+// Een bestaand blok houdt zijn gelogde scores (die hangen aan block_id; de
+// workout_id-denormalisatie op results/result_media gaat mee).
+let dragBlokRow=null;
+function blokDragStart(ev,el){
+  const row=el.closest(".exrow");if(!row)return;
+  dragBlokRow=row;
+  try{ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain","blok");}catch(e){}
+  try{if(ev.dataTransfer.setDragImage)ev.dataTransfer.setDragImage(row,20,16);}catch(e){}
+}
+function blokDragEnd(){dragBlokRow=null;document.querySelectorAll(".mcard.dragover").forEach(c=>c.classList.remove("dragover"));}
+function blokDragOver(ev,card){if(!dragBlokRow)return;ev.preventDefault();ev.stopPropagation();card.classList.add("dragover");}
+function blokDragLeave(card){card.classList.remove("dragover");}
+async function dropBlokOpKaart(ev,wid){
+  if(!dragBlokRow)return;
+  ev.preventDefault();ev.stopPropagation();
+  document.querySelectorAll(".mcard.dragover").forEach(c=>c.classList.remove("dragover"));
+  const row=dragBlokRow;dragBlokRow=null;
+  if(editWid&&editWid===wid)return; // op de eigen open workout loslaten = niets doen
+  const target=monthWorkouts[wid];if(!target){toast("Doel-workout niet gevonden");return;}
+  const o=rowToObj(row);
+  if(!o.exercise){toast("Dit blok is nog leeg; er valt niets te verplaatsen");return;}
+  const sort=((target.blocks||[]).reduce((m,b)=>Math.max(m,b.sort||0),0))+1;
+  const label=String.fromCharCode(65+Math.min((target.blocks||[]).length,25));
+  if(o.id){
+    const{error}=await db.from("blocks").update({workout_id:wid,sort,label,linked:false}).eq("id",o.id);
+    if(error){toast(error.message||"Verplaatsen mislukt");return;}
+    try{
+      await db.from("results").update({workout_id:wid}).eq("block_id",o.id);
+      await db.from("result_media").update({workout_id:wid}).eq("block_id",o.id);
+    }catch(e){}
+  }else{
+    const{error}=await db.from("blocks").insert({workout_id:wid,kind:o.kind,label,linked:false,exercise:o.exercise,prescription:o.prescription||null,notes:o.notes||null,sort,color:o.color||null,score_type:o.score_type||"text",oefening_id:o.oefening_id||null,source_blog_workout_id:o.source_blog_workout_id||null,media:o.media||null});
+    if(error){toast(error.message||"Verplaatsen mislukt");return;}
+  }
+  row.remove();relabel();bouwerDirty=true;
+  toast('Blok verplaatst naar "'+(target.title||"workout")+'"');
+  renderMonth(); // doel-kaart bijwerken; de open bouwer blijft staan (levend element)
+}
 function dragOver(ev,cell){if(!dragWid)return;ev.preventDefault();cell.classList.add("dragover");}
 function dragLeave(cell){cell.classList.remove("dragover");}
 async function dropDay(ev,ds){
