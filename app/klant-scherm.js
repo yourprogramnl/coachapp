@@ -883,7 +883,9 @@ async function renderMonth(opts){
       if(editing){
         editCol=i; // deze kolom breder maken zodat de bouwer meer ruimte krijgt
         inner+=dayWos.filter(w=>w.id!==editWid).map(mcardHtml).join("");
-        inner+='<div class="ib2" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
+        // data-eday/data-ewid: zodat een her-render kan zien of een bewaard
+        // bouwer-element nog bij dezelfde dag/workout hoort (zie onderaan renderMonth)
+        inner+='<div class="ib2" data-eday="'+ds+'" data-ewid="'+esc(editWid||"")+'" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else if(dayWos.length){
         inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Toevoegen</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
         inner+=dayWos.map(mcardHtml).join("");
@@ -913,7 +915,18 @@ async function renderMonth(opts){
     weeks+='<div class="mrow" data-d="'+ymd(addDays(gridStart,wk*cols))+'"'+rowStyle+'>'+cells+'</div>';
   }
   if(activePanel!=="kalender")return;
+  // Een open bouwer overleeft elke her-render MET alles wat erin getypt is:
+  // we tillen het echte element eruit en zetten het na het tekenen terug.
+  // Zonder dit zette bijvoorbeeld het bijladen van weken bij het scrollen
+  // (of slepen/plakken elders op de kalender) een openstaande bouwer stil
+  // terug naar de databasestand — de coach raakte zo onopgeslagen werk kwijt
+  // (pilotmelding 16/17 aug: "opslaan verwijdert soms al m'n aanpassingen").
+  // Alleen terugzetten als het bewaarde element nog bij dezelfde dag én
+  // dezelfde workout hoort (bewust wisselen van dag/workout = verse bouwer).
+  let levendeBouwer=(editDay||editWid)?m.querySelector(".ib2"):null;
+  if(levendeBouwer&&!(levendeBouwer.dataset.eday===editDay&&levendeBouwer.dataset.ewid===(editWid||"")))levendeBouwer=null;
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';
+  if(levendeBouwer){const vers=m.querySelector(".ib2");if(vers)vers.replaceWith(levendeBouwer);}
   if(editDay){relabel();groei();}
   selBarUpdate();
   if(calView==="maand"){
