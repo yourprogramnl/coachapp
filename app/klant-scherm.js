@@ -356,6 +356,7 @@ function kiesEx(el,oefId){
   const cam=row.querySelector(".cam");if(cam)cam.classList.add("has-video");
   const ch=row.querySelector(".blokchips");if(ch)ch.innerHTML='<span class="vidchip">🎥 '+esc(o.naam)+' <span class="x" onclick="chipWeg(this,event)">✕</span></span>';
   row.querySelector(".f-presc").focus();
+  exNotesInject(); // techniek-notitie-kaartje meteen laten meebewegen met de gekozen naam
   toast("Demo-video automatisch gekoppeld, de sporter ziet hem bij de workout");
 }
 function chipWeg(x,ev){
@@ -611,7 +612,74 @@ function blokPlak(){
   const o=Object.assign({},BLOKKLEMBORD);o.id=null;
   host.insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));
   relabel();groei();bouwerDirty=true;dupInBeeld();
+  exNotesInject();
 }
+// ---------- Techniek-notitie per oefening per klant (exercise_notes) ----------
+// Eén blijvend kaartje per oefening ("knieën naar buiten, volgende keer
+// pauze-squats") dat vanzelf onder het blok verschijnt zodra de coach die
+// oefening programmeert; de sporter ziet hetzelfde kaartje in de app.
+// Matching op de genormaliseerde naam, zodat "Back Squat 5x5" en "back squat"
+// samenvallen (zelfde aanpak als de PR-herkenning in de app).
+// Herhaalschema's (5x5), RM-aanduidingen en eenheden vallen weg, en losse
+// restletters ook — zo matcht "Back Squat 5x5" met "back squat".
+const oefSleutel=s=>String(s||"").toLowerCase().replace(/\(.*?\)/g," ").replace(/\d+\s*[x×]\s*\d+/g," ").replace(/\b\d+\s*(rm|m|km|s|sec|min|cal|reps?|rondes?)\b/g," ").replace(/[^a-z]+/g," ").replace(/\b[a-z]\b/g," ").replace(/\s+/g," ").trim();
+let EXNOTES=null,exNotesVoor=null; // map exercise_key -> rij, per klant geladen
+async function exNotesLaad(){
+  if(!calClient)return;
+  const{data}=await db.from("exercise_notes").select("*").eq("athlete_id",calClient);
+  EXNOTES={};(data||[]).forEach(n=>{EXNOTES[n.exercise_key]=n;});
+  exNotesVoor=calClient;
+}
+// Kaartje (of toevoeg-link) onder elk blok in de open bouwer zetten/bijwerken.
+// Alleen in de klant-kalender (#calwrap): de programma-editor is klant-loos.
+function exNotesInject(){
+  if(!EXNOTES)return;
+  document.querySelectorAll("#calwrap .ib2 .exrow").forEach(row=>{
+    let host=row.querySelector(".exnote");
+    if(!host){host=document.createElement("div");host.className="exnote";const drop=row.querySelector(".exdrop");row.insertBefore(host,drop);}
+    if(host.querySelector(".exnote-edit"))return; // niet verstoren tijdens het typen
+    const naam=((row.querySelector(".exn")||{}).value||"").trim();
+    const key=oefSleutel(naam);
+    host.dataset.key=key;
+    const n=key?EXNOTES[key]:null;
+    host.innerHTML=!key?"":(n
+      ?'<div class="exnote-kaart" title="Techniek-notitie · klik om te bewerken" onclick="exNoteBewerk(this)">📝 '+esc(n.body)+'</div>'
+      :'<div class="demolink" onclick="exNoteBewerk(this)">📝 Techniek-notitie toevoegen</div>');
+  });
+}
+function exNoteBewerk(el){
+  const host=el.closest(".exnote");if(!host||!host.dataset.key)return;
+  const n=EXNOTES[host.dataset.key];
+  host.innerHTML='<div class="exnote-edit"><textarea rows="2" placeholder="Bijv. knieën naar buiten, diepte wordt beter, volgende keer pauze-squats…">'+esc(n?n.body:"")+'</textarea>'+
+    '<div style="display:flex;gap:6px;margin-top:5px;align-items:center"><button class="btn sm2" onclick="exNoteOpslaan(this)">Opslaan</button>'+
+    '<button class="btn ghost sm" onclick="exNoteAnnuleer(this)">Annuleren</button>'+
+    '<span class="sm muted" style="margin-left:auto">zichtbaar voor de sporter'+(n?' · leegmaken = weghalen':'')+'</span></div></div>';
+  const ta=host.querySelector("textarea");ta.focus();ta.style.height="auto";ta.style.height=(ta.scrollHeight+2)+"px";
+}
+function exNoteAnnuleer(btn){const host=btn.closest(".exnote");host.innerHTML="";exNotesInject();}
+async function exNoteOpslaan(btn){
+  const host=btn.closest(".exnote"),row=btn.closest(".exrow");
+  const key=host.dataset.key;if(!key)return;
+  const naam=((row.querySelector(".exn")||{}).value||"").trim();
+  const body=host.querySelector("textarea").value.trim();
+  btn.disabled=true;
+  if(!body){ // leegmaken = notitie weghalen
+    if(EXNOTES[key]){
+      const{error}=await db.from("exercise_notes").delete().eq("id",EXNOTES[key].id);
+      if(error){toast(error.message||"Weghalen mislukt");btn.disabled=false;return;}
+      delete EXNOTES[key];toast("Techniek-notitie weggehaald");
+    }
+    host.innerHTML="";exNotesInject();return;
+  }
+  const rij={athlete_id:calClient,company_id:ME.profile.company_id,exercise_key:key,exercise_name:naam||key,body,updated_by:ME.user.id,updated_at:new Date().toISOString()};
+  const{data,error}=await db.from("exercise_notes").upsert(rij,{onConflict:"athlete_id,exercise_key"}).select().single();
+  if(error){toast(error.message||"Opslaan mislukt");btn.disabled=false;return;}
+  EXNOTES[key]=data||rij;
+  host.innerHTML="";exNotesInject();
+  toast("Techniek-notitie opgeslagen; de sporter ziet hem bij deze oefening");
+}
+// Naam gewijzigd of oefening gekozen: kaartje onder het blok laten meebewegen.
+document.addEventListener("focusout",e=>{if(e.target&&e.target.matches&&e.target.matches("#calwrap .ib2 .exn"))exNotesInject();});
 
 function inlineBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
@@ -872,7 +940,18 @@ async function histZoek(){
   const pat=exact?q:"%"+q+"%";
   // Oefeningen: workouts van dit lid met een blok waarvan de oefeningsnaam matcht (blocks!inner filtert de blokken).
   const{data:wrows}=await db.from("workouts").select("id,title,workout_date,blocks!inner(id,label,exercise,prescription,notes)").eq("client_id",calClient).ilike("blocks.exercise",pat).order("workout_date",{ascending:false}).limit(60);
-  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({blockId:b.id,title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes})));
+  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({workoutId:w.id,blockId:b.id,title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes})));
+  // Reacties van die dagen erbij (dag-reacties horen bij de workout, niet bij
+  // het blok) + de techniek-notitie bovenaan — zo vind je eerdere feedback
+  // over een oefening terug (verzoek Stefan, 17 aug).
+  const cwids=[...new Set(oef.map(o=>o.workoutId))];
+  if(cwids.length){
+    const{data:wcs}=await db.from("workout_comments").select("workout_id,author_id,athlete_id,body,created_at").in("workout_id",cwids).order("created_at");
+    const perWo={};(wcs||[]).forEach(c=>{(perWo[c.workout_id]=perWo[c.workout_id]||[]).push(c);});
+    oef.forEach(o=>{o.comments=perWo[o.workoutId]||[];});
+  }
+  if(EXNOTES===null||exNotesVoor!==calClient)await exNotesLaad();
+  histExnote=(EXNOTES&&EXNOTES[oefSleutel(q)])||null;
   // Wat het lid erbij logde (score, gemist, notitie) — dat wil je als coach juist zien.
   const bids=oef.map(o=>o.blockId).filter(Boolean);
   if(bids.length){
@@ -896,10 +975,12 @@ function histTab(t){
   const idx={oef:0,wo:1,mx:2}[t];if(btns[idx])btns[idx].classList.add("on");
   histRender();
 }
+let histExnote=null;
 function histRender(){
   const host=document.getElementById("hist-lijst");if(!host)return;
   if(histTabF==="oef"){
-    host.innerHTML=histData.oef.map(b=>{
+    const noteKaart=histExnote?'<div class="histcard" style="background:#fff9e6;border-color:#f0e2b0"><div class="hh"><b>📝 Techniek-notitie</b><span class="sm muted">bijgewerkt '+esc(histExnote.updated_at?datumNL(String(histExnote.updated_at).slice(0,10)):"")+'</span></div><div class="hbody" style="white-space:pre-wrap">'+esc(histExnote.body)+'</div></div>':'';
+    host.innerHTML=noteKaart+histData.oef.map(b=>{
       // Gelogde score van het lid onder het voorschrift (groen), gemist rood.
       const r=b.result;
       const sc=r
@@ -908,9 +989,11 @@ function histRender(){
           :'<div class="hsc">✓ '+esc(resultScoreVol(r)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
             (r.note?'<div class="hpr" style="font-style:italic">💬 '+esc(r.note)+'</div>':''))
         :'<div class="hsc leeg">Nog niet gelogd</div>';
+      // Dag-reacties van die dag eronder: eerdere feedback direct terug te lezen.
+      const cmts=(b.comments&&b.comments.length)?'<div class="hpr" style="margin-top:5px;border-top:1px dashed #e7e9ec;padding-top:5px">'+b.comments.map(c=>'💬 <b>'+(c.author_id===c.athlete_id?"Lid":"Coach")+':</b> '+esc(c.body)).join("<br>")+'</div>':'';
       return '<div class="histcard"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+'</span></div>'+
         '<div class="hbody"><span class="hlabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
-        (b.prescription?'<div class="hpr">'+esc(b.prescription)+'</div>':'')+(b.notes?'<div class="hpr">'+esc(b.notes)+'</div>':'')+sc+'</div></div>';
+        (b.prescription?'<div class="hpr">'+esc(b.prescription)+'</div>':'')+(b.notes?'<div class="hpr">'+esc(b.notes)+'</div>':'')+sc+cmts+'</div></div>';
     }).join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
   }else if(histTabF==="wo"){
     host.innerHTML=histData.wo.map(w=>'<div class="histcard"><div class="hh"><b>'+esc(w.title||"Workout")+'</b><span class="sm muted">'+esc(w.workout_date?datumNL(w.workout_date):"")+'</span></div></div>').join("")||'<div class="cempty">Geen workouts gevonden.</div>';
@@ -959,6 +1042,8 @@ async function renderMonth(opts){
     monthNotes={};
     const{data:dns}=await db.from("day_notes").select("*").eq("athlete_id",id).gte("note_date",ymd(gridStart)).lte("note_date",ymd(gridEnd));
     (dns||[]).forEach(n=>{monthNotes[n.note_date]=n;});
+    // Techniek-notities van deze klant (kaartjes in de bouwer + Historie)
+    if(exNotesVoor!==id)await exNotesLaad();
   }
   const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   let label;
@@ -1057,7 +1142,7 @@ async function renderMonth(opts){
   if(levendeBouwer&&!(levendeBouwer.dataset.eday===editDay&&levendeBouwer.dataset.ewid===(editWid||"")))levendeBouwer=null;
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';
   if(levendeBouwer){const vers=m.querySelector(".ib2");if(vers)vers.replaceWith(levendeBouwer);}
-  if(editDay){relabel();groei();}
+  if(editDay){relabel();groei();exNotesInject();}
   selBarUpdate();
   if(calView==="maand"){
     kalScrollBind();
