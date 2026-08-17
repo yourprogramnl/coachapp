@@ -639,6 +639,7 @@ function progDayMenu(ev,week,day){
 async function progRustdag(week,day){
   if(!progMagOfMeld())return;
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  if(!(await progAutoSave()))return; // open bouwer eerst netjes opslaan
   const{error}=await db.from("program_workouts").insert({program_id:PROG.id,company_id:ME.profile.company_id,week,day,title:"Rest Day"});
   if(error){toast(error.message||"Mislukt");return;}
   await progReloadWorkouts();
@@ -654,15 +655,30 @@ function progCard(w){
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
-function progOpenBuilder(week,day,wid){if(!progMagOfMeld())return;document.querySelectorAll(".daymenu").forEach(x=>x.remove());progEditDay={week,day};progEditWid=wid||null;progRender();}
-function progCloseBuilder(){progEditDay=null;progEditWid=null;progRender();}
+// Wegklikken uit een open programma-bouwer slaat eerst stil op (zelfde
+// afspraak als de klant-bouwer; pilotfeedback 17 aug: op een andere dag
+// klikken zonder opslaan gooide de sessie weg). Annuleren blijft weggooien.
+async function progAutoSave(){
+  if(!progEditDay||!bouwerDirty)return true;      // niets open of niets gewijzigd
+  if(!document.querySelector(".pe-ib #w_title"))return true; // bouwer niet in beeld
+  return await progSaveWorkout();                  // false = fout, wissel afbreken
+}
+async function progOpenBuilder(week,day,wid){
+  if(!progMagOfMeld())return;
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  if(!(await progAutoSave()))return;
+  progEditDay={week,day};progEditWid=wid||null;bouwerDirty=false;progRender();
+}
+function progCloseBuilder(){bouwerDirty=false;progEditDay=null;progEditWid=null;progRender();}
 function progBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
   const rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
-  return '<div class="sec"><input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea></div>'+
+  return '<div class="sec"><input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
+      '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div></div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
-    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea></div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof BLOKKLEMBORD!=="undefined"&&BLOKKLEMBORD?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+
+      '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div></div>'+
     '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
 }
 async function progReloadWorkouts(){
@@ -685,8 +701,9 @@ async function progSaveWorkout(){
       const{data:nw,error}=await db.from("program_workouts").insert(wf).select().single();if(error)throw error;
       if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(nw.id));if(be)throw be;}
     }
-    toast("Workout opgeslagen");await progReloadWorkouts();
-  }catch(e){toast(e.message||"Opslaan mislukt");}
+    toast("Workout opgeslagen");bouwerDirty=false;await progReloadWorkouts();
+    return true;
+  }catch(e){toast(e.message||"Opslaan mislukt");return false;}
 }
 async function progDeleteWorkout(id){
   if(!progMagOfMeld())return;

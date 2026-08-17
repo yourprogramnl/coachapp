@@ -161,7 +161,10 @@ window.addEventListener("hashchange",()=>{
 });
 function coachShellHtml(inner){
   document.body.classList.add("coachmode");
-  const btns=cnavItems().map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="coachGo(\''+n[0]+'\')">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</button>').join("");
+  // Echte links (met href) in plaats van knoppen: zo opent middenklik of
+  // Ctrl+klik een sectie in een nieuw tabblad (pilotfeedback 17 aug); een
+  // gewone klik blijft binnen de app via coachGo.
+  const btns=cnavItems().map(n=>'<a class="'+(n[0]===coachSection?"on":"")+'" href="#'+n[0]+'" onclick="coachGo(\''+n[0]+'\');return false">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</a>').join("");
   // Avatar rechtsboven = uitklapmenu (naar CoachRx-voorbeeld, 17 juli): naam +
   // rol bovenin, Instellingen (komt nog) en Uitloggen (losse knop is weg).
   return '<div class="cwrap"><div class="cbar"><img class="cbar-logo" src="img/logo-yp-2021.png" alt="YourProgram"><div class="cnav2">'+btns+'</div>'+
