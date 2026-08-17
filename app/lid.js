@@ -98,9 +98,11 @@ async function lidChatOpen(){
   if(!lidCoach){try{const{data}=await db.rpc("my_coach");lidCoach=(data||[])[0]||null;}catch(e){}}
   const p=lidCoach||{first_name:"Coach"};
   // Berichten alleen-lezen als de coach dat zo heeft ingesteld (profiel-instelling)
+  // Bijlage-knop (foto/video) alleen als uploads voor dit lid niet uitstaan.
+  CHATBIJL.pop=[];
   const invoer=ME.profile.messages_readonly
     ?'<div class="sm muted" style="padding:10px 12px;text-align:center;border-top:1px solid #eef0f3">Meelezen kan; berichten sturen staat voor jou uit.</div>'
-    :'<div class="cin"><input id="chat-inp" placeholder="Schrijf een bericht…" onkeydown="if(event.key===\'Enter\')chatStuur()"><div class="cinrow"><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
+    :'<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><input id="chat-inp" placeholder="Schrijf een bericht…" onkeydown="if(event.key===\'Enter\')chatStuur()"><div class="cinrow">'+(ME.profile.disable_uploads?'':'<button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button>')+'<button class="send" onclick="chatStuur()">Stuur</button></div></div>';
   pop=document.createElement("div");pop.id="chatpop";pop.className="chatpop show";
   pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+(lidCoach?naamVan(lidCoach):"Je coach")+'</b>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
