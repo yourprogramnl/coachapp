@@ -572,13 +572,16 @@ function schuifRow(btn,richting){
   relabel();bouwerDirty=true;
   r.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
-function addExBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRow({}));relabel();bouwerDirty=true;}
-function addCondBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRow({}));relabel();bouwerDirty=true;}
-function dupLast(){const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length){addExBtn();return;}const o=rowToObj(rows[rows.length-1]);o.id=null;document.getElementById("exrows").insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();bouwerDirty=true;dupInBeeld();}
+// Na het invoegen van een (gekopieerd) blok ook groei() draaien: de textareas
+// starten op 1 regel en groeien anders pas bij typen mee — een kopie met veel
+// tekst oogde daardoor als een dichtgeklapt "scrollblokje" (pilotfeedback 17 aug).
+function addExBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",exRow({}));relabel();groei();bouwerDirty=true;}
+function addCondBtn(){document.getElementById("exrows").insertAdjacentHTML("beforeend",condRow({}));relabel();groei();bouwerDirty=true;}
+function dupLast(){const rows=[...document.querySelectorAll("#exrows .exrow")];if(!rows.length){addExBtn();return;}const o=rowToObj(rows[rows.length-1]);o.id=null;document.getElementById("exrows").insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();groei();bouwerDirty=true;dupInBeeld();}
 // Kopieerknop op élk blok (feedback pilot-coach, 30 juli): de kopie komt direct
 // onder het origineel. Daarna in beeld scrollen — een nieuwe rij viel anders
 // half buiten de dag-cel en oogde als een vastgelopen scrollvlakje.
-function dupRow(btn){const r=btn.closest(".exrow");if(!r)return;const o=rowToObj(r);o.id=null;r.insertAdjacentHTML("afterend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();bouwerDirty=true;const nieuw=r.nextElementSibling;if(nieuw&&nieuw.scrollIntoView)nieuw.scrollIntoView({block:"nearest",behavior:"smooth"});}
+function dupRow(btn){const r=btn.closest(".exrow");if(!r)return;const o=rowToObj(r);o.id=null;r.insertAdjacentHTML("afterend",o.kind==="conditioning"?condRow(o):exRow(o));relabel();groei();bouwerDirty=true;const nieuw=r.nextElementSibling;if(nieuw&&nieuw.scrollIntoView)nieuw.scrollIntoView({block:"nearest",behavior:"smooth"});}
 function dupInBeeld(){const rows=document.querySelectorAll("#exrows .exrow");const l=rows[rows.length-1];if(l&&l.scrollIntoView)l.scrollIntoView({block:"nearest",behavior:"smooth"});}
 
 function inlineBuilderHtml(w){
