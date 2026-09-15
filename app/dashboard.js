@@ -234,6 +234,30 @@ function dashConsultHtml(byId){
       (cn.notes?'<div class="sm" style="line-height:1.55;color:#5d6570;white-space:pre-wrap">'+esc(cn.notes)+'</div>':'<div class="sm muted">Geen notitie bij dit consult.</div>')+'</div>';
   }).join("")+meer;
 }
+// HEIC-foto's (de iPhone-standaard) kan een browser niet tonen. We zetten ze
+// in de browser om naar JPEG met heic2any; die bibliotheek laadt pas als er
+// echt een HEIC in beeld komt (pilotmelding sept: "foto's van Zoë tonen niet").
+const isHeic=p=>/\.hei[cf]$/i.test(p||"");
+let heicLib=null;const heicCache={};
+function heicLaad(){
+  if(heicLib)return heicLib;
+  heicLib=new Promise((ok,nee)=>{
+    if(window.heic2any)return ok(window.heic2any);
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
+    s.onload=()=>ok(window.heic2any);s.onerror=()=>nee(new Error("HEIC-omzetter kon niet laden"));
+    document.head.appendChild(s);
+  });
+  return heicLib;
+}
+async function heicNaarUrl(signedUrl,pad){
+  if(heicCache[pad])return heicCache[pad];
+  const conv=await heicLaad();
+  const blob=await (await fetch(signedUrl)).blob();
+  const jpg=await conv({blob,toType:"image/jpeg",quality:0.85});
+  const url=URL.createObjectURL(Array.isArray(jpg)?jpg[0]:jpg);
+  heicCache[pad]=url;return url;
+}
 // Signed URL's voor alle inline feed-video's in één keer ophalen en zetten.
 async function dashVidSrcs(){
   const els=[...document.querySelectorAll("video.dashvid[data-vp]:not([src]),img.dashvid[data-vp]:not([src])")];
@@ -243,7 +267,11 @@ async function dashVidSrcs(){
     const{data,error}=await db.storage.from("media").createSignedUrls(paden,3600);
     if(error||!data)return;
     const url={};data.forEach(d=>{if(d.signedUrl)url[d.path]=d.signedUrl;});
-    els.forEach(e=>{const u=url[e.dataset.vp];if(u)e.src=u;});
+    els.forEach(e=>{
+      const pad=e.dataset.vp,u=url[pad];if(!u)return;
+      if(isHeic(pad)){e.title="HEIC-foto wordt omgezet…";heicNaarUrl(u,pad).then(b=>{e.src=b;e.title="Foto van het lid";}).catch(()=>{e.title="HEIC-foto kon niet worden omgezet";});}
+      else e.src=u;
+    });
   }catch(e){}
 }
 function taakInvoer(){const r=document.getElementById("taak-row");if(!r)return;r.style.display="flex";const i=document.getElementById("taak-inp");if(i)i.focus();}
@@ -364,6 +392,11 @@ async function vidToonHuidig(){
   const pad=VIDLIJST[vidIdx];
   const{data,error}=await db.storage.from("media").createSignedUrl(pad,3600);
   if(error||!data||!data.signedUrl){toast("Openen mislukt");return;}
+  // HEIC-foto's eerst omzetten (zie heicNaarUrl), anders blijft het beeld leeg
+  if(isHeic(pad)){
+    try{data.signedUrl=await heicNaarUrl(data.signedUrl,pad);}
+    catch(e){toast("Deze HEIC-foto kan in de browser niet worden getoond");}
+  }
   let ov=document.getElementById("vidoverlay");
   if(!ov){
     ov=document.createElement("div");ov.id="vidoverlay";

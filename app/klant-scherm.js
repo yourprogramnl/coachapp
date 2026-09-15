@@ -194,6 +194,7 @@ function kalScrollNaar(doel,direct){
   let el=null;
   if(doel==="today")el=document.querySelector(".mday.today-cell");
   else if(doel==="top")el=document.getElementById("calwrap");
+  else if(String(doel).indexOf("d-")===0)el=document.querySelector('.mday[data-d="'+doel.slice(2)+'"]')||document.getElementById("calwrap"); // een specifieke dag (vanuit de Historie)
   else el=document.querySelector('.mlabel[data-manchor="'+doel+'"]')||document.getElementById("calwrap");
   if(el){
     kalAnim=Date.now()+1400;
@@ -267,7 +268,11 @@ function exMediaHtml(media){
 // declaratie hier legde het hele bestand plat — namen zijn gedeeld over alle
 // app-bestanden, dus altijd eerst grep'en voor je een helper toevoegt).
 function vidLinkHtml(){
-  return '<div class="vlinkrow" style="margin-top:5px">'+
+  // Twee manieren om video's bij een blok te zetten, allebei zichtbaar onder
+  // het blok (pilotmelding sept: de kiezer op het camera-icoon werd niet
+  // gevonden): uit de bibliotheek kiezen, of een eigen YouTube-link plakken.
+  return '<div class="vlinkrow" style="margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">'+
+    '<span class="demolink" onclick="vidKiesToon(this.closest(\'.exrow\'))">🎬 Demo-video uit bibliotheek</span>'+
     '<span class="demolink vlink-open" onclick="vidLinkStart(this)">🎥 Video-link plakken</span>'+
     '<input class="vlinkinp" placeholder="Plak een YouTube-link en druk op Enter" style="display:none" '+
       'onkeydown="vidLinkKey(event,this)" onblur="vidLinkBlur(this)" autocomplete="off"></div>';
@@ -416,9 +421,19 @@ function vidKiesZoek(inp){
     return;
   }
   if(v.length<2){lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Typ minstens twee letters.</div>';return;}
-  const hits=LIB.oef.filter(o=>o.youtube_id&&((o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v)));
-  lijst.innerHTML=hits.length?hits.slice(0,40).map(o=>'<div class="vzk-rij" onclick="event.stopPropagation();vidKiesKies(this,'+o.id+')"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" alt="">'+esc(o.naam)+'</div>').join("")
-    :'<div class="sm muted" style="padding:6px 2px">Niets gevonden met een demo-video.</div>';
+  const zoek=q=>LIB.oef.filter(o=>o.youtube_id&&((o.naam||"").toLowerCase().includes(q)||(o.tags||[]).join(" ").toLowerCase().includes(q)));
+  // Volledige bloknamen ("Rope Climb Technique programma") staan zelden zo in
+  // de bibliotheek; dan zoeken we korter (woorden van achteren weghalen, daarna
+  // per los woord) en zeggen dat erbij, zodat de kiezer nooit leeg lijkt.
+  let hits=zoek(v),gebruikt=v;
+  if(!hits.length){
+    const w=v.split(" ").filter(x=>x.length>=3);
+    for(let n=w.length-1;n>=1&&!hits.length;n--){gebruikt=w.slice(0,n).join(" ");hits=zoek(gebruikt);}
+    for(let i=0;i<w.length&&!hits.length;i++){gebruikt=w[i];hits=zoek(gebruikt);}
+  }
+  const kop=hits.length&&gebruikt!==v?'<div class="sm muted" style="padding:4px 2px">Geen exacte treffer voor "'+esc(v)+'"; dit lijkt erop ("'+esc(gebruikt)+'"):</div>':'';
+  lijst.innerHTML=kop+(hits.length?hits.slice(0,40).map(o=>'<div class="vzk-rij" onclick="event.stopPropagation();vidKiesKies(this,'+o.id+')"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" alt="">'+esc(o.naam)+'</div>').join("")
+    :'<div class="sm muted" style="padding:6px 2px">Niets gevonden met een demo-video. Probeer een korter woord (bijv. "rope").</div>');
 }
 function vidKiesKies(el,oefId){
   const row=el.closest(".exrow"),o=LIB.oef.find(x=>x.id===oefId);
@@ -589,15 +604,25 @@ function dupInBeeld(){const rows=document.querySelectorAll("#exrows .exrow");con
 // kopieert, "+ Plak blok" in de knoppenrij van elke open bouwer plakt.
 // Werkt over dagen, klanten én de programma-editor heen (zelfde rijen).
 let BLOKKLEMBORD=null;
+// Het klembord staat ook in localStorage: zo plak je een blok bij een andere
+// klant of in een tweede tabblad (pilotmelding sept: "kopiëren in tab 1,
+// plakken in tab 2"). Het geheugen wint zolang deze pagina leeft.
+function blokKlembordLees(){
+  if(BLOKKLEMBORD)return BLOKKLEMBORD;
+  try{const v=localStorage.getItem("forge_blokklembord");if(v)BLOKKLEMBORD=JSON.parse(v);}catch(e){}
+  return BLOKKLEMBORD;
+}
+window.addEventListener("storage",e=>{if(e.key==="forge_blokklembord"){BLOKKLEMBORD=null;blokKlembordLees();blokPlakKnopToon();}});
 function blokKopieer(btn){
   const r=btn.closest(".exrow");if(!r)return;
   const o=rowToObj(r);o.id=null;
   BLOKKLEMBORD=o;
+  try{localStorage.setItem("forge_blokklembord",JSON.stringify(o));}catch(e){}
   blokPlakKnopToon();
-  toast('Blok gekopieerd. Klik "+ Plak blok" in deze of een andere workout.');
+  toast('Blok gekopieerd. Klik "+ Plak blok" in deze of een andere workout, ook bij een andere klant of in een ander tabblad.');
 }
 function blokPlakKnopToon(){ // knop tonen in de bouwer(s) die nu open staan
-  if(!BLOKKLEMBORD)return;
+  if(!blokKlembordLees())return;
   document.querySelectorAll(".addbtns").forEach(a=>{
     if(a.querySelector(".plakblok"))return;
     const b=document.createElement("button");
@@ -607,9 +632,10 @@ function blokPlakKnopToon(){ // knop tonen in de bouwer(s) die nu open staan
   });
 }
 function blokPlak(){
-  if(!BLOKKLEMBORD){toast("Nog geen blok gekopieerd (📋 op een blok)");return;}
+  const kb=blokKlembordLees();
+  if(!kb){toast("Nog geen blok gekopieerd (📋 op een blok)");return;}
   const host=document.getElementById("exrows");if(!host)return;
-  const o=Object.assign({},BLOKKLEMBORD);o.id=null;
+  const o=Object.assign({},kb);o.id=null;
   host.insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));
   relabel();groei();bouwerDirty=true;dupInBeeld();
   exNotesInject();
@@ -695,7 +721,7 @@ function inlineBuilderHtml(w){
       '<div class="demolink" title="Herken oefeningen in de tekst en stel demo-video\'s voor" onclick="gmOpen()">🎥 Genereer media</div>'+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button>'+(BLOKKLEMBORD?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button>'+(blokKlembordLees()?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+cwMediaHtml("cooldown",w.cooldown_oefening_id,w.cooldown_media)+
       '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div>'+
     '</div>'+
@@ -975,7 +1001,24 @@ function histTab(t){
   const idx={oef:0,wo:1,mx:2}[t];if(btns[idx])btns[idx].classList.add("on");
   histRender();
 }
-let histExnote=null;
+let histExnote=null,histLicht=null;
+// Klik op een treffer in de Historie: venster dicht en naar die dag op de
+// kalender springen (de dagkaart licht even op). Zo zie je het blok in zijn
+// hele sessie van toen en kun je hem zo openen (pilotmelding sept).
+async function histGaNaar(ds){
+  if(!ds)return;
+  closeHist();
+  if(!(await autoSaveBouwer()))return;
+  editDay=null;editWid=null;bouwerDirty=false;
+  calView="maand";
+  const doel=new Date(ds+"T12:00:00");
+  if(doel<new Date(calRef.getFullYear(),calRef.getMonth(),1))calRef=new Date(doel.getFullYear(),doel.getMonth(),1);
+  const gridStart=mondayOf(new Date(calRef.getFullYear(),calRef.getMonth(),1));
+  const nodig=Math.ceil((mondayOf(doel)-gridStart)/(7*864e5))+4; // genoeg weken laden om die dag te bereiken
+  if(kalWeken<nodig)kalWeken=nodig;
+  histLicht=ds;kalScrollDoel="d-"+ds;
+  renderMonth();
+}
 function histRender(){
   const host=document.getElementById("hist-lijst");if(!host)return;
   if(histTabF==="oef"){
@@ -991,12 +1034,12 @@ function histRender(){
         :'<div class="hsc leeg">Nog niet gelogd</div>';
       // Dag-reacties van die dag eronder: eerdere feedback direct terug te lezen.
       const cmts=(b.comments&&b.comments.length)?'<div class="hpr" style="margin-top:5px;border-top:1px dashed #e7e9ec;padding-top:5px">'+b.comments.map(c=>'💬 <b>'+(c.author_id===c.athlete_id?"Lid":"Coach")+':</b> '+esc(c.body)).join("<br>")+'</div>':'';
-      return '<div class="histcard"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+'</span></div>'+
+      return '<div class="histcard klik" title="Klik om naar deze dag op de kalender te gaan" onclick="histGaNaar(\''+esc(b.date||"")+'\')"><div class="hh"><b>'+esc(b.title||"Workout")+'</b><span class="sm muted">'+esc(b.date?datumNL(b.date):"")+' · open dag ›</span></div>'+
         '<div class="hbody"><span class="hlabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
         (b.prescription?'<div class="hpr">'+esc(b.prescription)+'</div>':'')+(b.notes?'<div class="hpr">'+esc(b.notes)+'</div>':'')+sc+cmts+'</div></div>';
     }).join("")||'<div class="cempty">Geen oefeningen gevonden.</div>';
   }else if(histTabF==="wo"){
-    host.innerHTML=histData.wo.map(w=>'<div class="histcard"><div class="hh"><b>'+esc(w.title||"Workout")+'</b><span class="sm muted">'+esc(w.workout_date?datumNL(w.workout_date):"")+'</span></div></div>').join("")||'<div class="cempty">Geen workouts gevonden.</div>';
+    host.innerHTML=histData.wo.map(w=>'<div class="histcard klik" title="Klik om naar deze dag op de kalender te gaan" onclick="histGaNaar(\''+esc(w.workout_date||"")+'\')"><div class="hh"><b>'+esc(w.title||"Workout")+'</b><span class="sm muted">'+esc(w.workout_date?datumNL(w.workout_date):"")+' · open dag ›</span></div></div>').join("")||'<div class="cempty">Geen workouts gevonden.</div>';
   }else{
     host.innerHTML=histData.mx.map(m=>'<div class="histcard"><div class="hh"><b>'+esc(m.metric||"")+'</b><span class="sm muted">'+esc(m.measured_at?datumNL(m.measured_at):"")+'</span></div><div class="hbody">'+esc((m.value!=null?String(m.value):(m.value_text||""))+(m.unit?" "+m.unit:""))+'</div></div>').join("")||'<div class="cempty">Geen metrics gevonden.</div>';
   }
@@ -1107,7 +1150,7 @@ async function renderMonth(opts){
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
       }
-      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
+      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'" data-d="'+ds+'" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
     }
     // maand-scheidingsbalk vóór de week waarin een nieuwe maand begint (zoals CoachRx)
     if(calView==="maand"&&wk>0){
@@ -1143,6 +1186,8 @@ async function renderMonth(opts){
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';
   if(levendeBouwer){const vers=m.querySelector(".ib2");if(vers)vers.replaceWith(levendeBouwer);}
   if(editDay){relabel();groei();exNotesInject();}
+  // Vanuit de Historie hierheen gesprongen? Dan die dag even laten oplichten.
+  if(histLicht){const cel=m.querySelector('.mday[data-d="'+histLicht+'"]');histLicht=null;if(cel){cel.classList.add("hist-licht");setTimeout(()=>cel.classList.remove("hist-licht"),2600);}}
   selBarUpdate();
   if(calView==="maand"){
     kalScrollBind();
@@ -1580,6 +1625,10 @@ function openKeys(){
 // Globale sneltoetsen, alleen actief op het klant-scherm.
 document.addEventListener("keydown",e=>{
   if(!calClient||!document.querySelector(".client-layout"))return;
+  // Groot-weergave van foto's/video's open? Dan zijn pijltjes en Esc van háár
+  // (bladeren/sluiten); de kalender mag dan niet van maand springen en de
+  // bouwer niet dichtgaan (pilotmelding sept: "sessie kwijt bij doorklikken").
+  const ov=document.getElementById("vidoverlay");if(ov&&ov.style.display==="flex")return;
   const tag=(e.target.tagName||"").toLowerCase();
   const typt=tag==="input"||tag==="textarea"||tag==="select"||e.target.isContentEditable;
   const k=(e.key||"").toLowerCase();
