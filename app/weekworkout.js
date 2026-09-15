@@ -79,7 +79,13 @@ async function wwToggleBoard(id){
 function wwCmp(st){
   const n=(v,d)=>v==null?d:Number(v);
   return (a,b)=>{
-    if(st==="time")return n(a.time_seconds,1e15)-n(b.time_seconds,1e15);
+    // Tijd met timecap: finishers eerst (snelste boven), daarna wie gecapt is
+    // op rondes/reps (meeste boven).
+    if(st==="time"){
+      const ca=a.capped?1:0,cb=b.capped?1:0;if(ca!==cb)return ca-cb;
+      if(ca)return (n(b.rounds,-1)-n(a.rounds,-1))||(n(b.reps,-1)-n(a.reps,-1));
+      return n(a.time_seconds,1e15)-n(b.time_seconds,1e15);
+    }
     if(st==="load")return n(b.load_kg,-1)-n(a.load_kg,-1);
     if(st==="reps")return n(b.reps,-1)-n(a.reps,-1);
     if(st==="rounds_reps")return (n(b.rounds,-1)-n(a.rounds,-1))||(n(b.reps,-1)-n(a.reps,-1));
@@ -108,7 +114,7 @@ function wwBoardInner(id){
 }
 function wwRij(r,rank){
   const p={first_name:r.first_name,last_name:r.last_name,avatar_url:r.avatar_url,email:""};
-  const score=resultScoreTxt(r)||"–";
+  const score=(r.capped?"CAP · ":"")+(resultScoreTxt(r)||"–"); // gecapt: reps/rondes binnen de timecap
   const lid=r.membership_type==="one_on_one"?"1-op-1 klant":(r.membership_type==="free_blog"?"blog-lid":"");
   const sub=[score,lid,(r.media_url?"video":"")].filter(Boolean).join(" · ");
   const tag=r.rx==="scaled"?'<span class="rxtag sc">SC</span>':'<span class="rxtag">RX</span>';
@@ -131,6 +137,7 @@ function wwFindRow(resultId){
 }
 async function wwRefreshBoard(wid){
   if(!wid)return;
+  if(typeof blogBoardRefresh==="function"&&blogBoardRefresh(wid))return; // bord van een blogworkout (blog.js)
   await wwLoadBoardFor(wid);
   const el=document.getElementById("ww-board-"+wid);
   if(el)el.innerHTML=wwBoardInner(wid);
@@ -207,11 +214,15 @@ function wwBewerk(id){
   document.getElementById("wwmodal-titel").textContent=id?"Weekworkout bewerken":"Nieuwe weekworkout";
   document.getElementById("ww-naam").value=w?(w.title||""):wwStandaardNaam();
   document.getElementById("ww-score").value=(blk&&blk.score_type)||"time";
+  document.getElementById("ww-cap").value=blk&&blk.timecap_seconds?secNaarTijd(blk.timecap_seconds):"";
+  document.getElementById("ww-capst").value=(blk&&blk.cap_score_type)||"reps";
+  wwCapToggle();
   document.getElementById("ww-tekst").value=blk?(blk.kind==="conditioning"?(blk.notes||""):(blk.prescription||"")):"";
   document.getElementById("wwmodal-msg").textContent="";
   document.getElementById("wwmodal").classList.add("show");
 }
 function wwModalDicht(){document.getElementById("wwmodal").classList.remove("show");WW_EDIT=null;}
+function wwCapToggle(){const v=document.getElementById("ww-capveld"),s=document.getElementById("ww-score");if(v&&s)v.style.display=s.value==="time"?"":"none";}
 async function wwOpslaan(){
   // Zonder bedrijf zou de workout onvindbaar zijn (alle lijsten filteren op bedrijf).
   if(!ME.profile.company_id){toast("Dit account is niet aan een bedrijf gekoppeld; de weekworkout zou onvindbaar worden. Log in met een account van het bedrijf.");return;}
@@ -221,15 +232,20 @@ async function wwOpslaan(){
   const msg=document.getElementById("wwmodal-msg");
   if(!naam){msg.textContent="Geef de weekworkout een naam (bijv. "+wwStandaardNaam()+").";msg.className="msg err";return;}
   if(!tekst){msg.textContent="Vul de workout-tekst in (met Rx/Scaled-gewichten).";msg.className="msg err";return;}
+  // Timecap (alleen bij tijd): wie de cap niet haalt logt reps of rondes+reps.
+  const capTxt=document.getElementById("ww-cap").value.trim();
+  const timecap_seconds=score==="time"&&capTxt?tijdNaarSec(capTxt):null;
+  if(score==="time"&&capTxt&&!timecap_seconds){msg.textContent="Vul de timecap in als mm:ss (bijv. 20:00).";msg.className="msg err";return;}
+  const cap_score_type=document.getElementById("ww-capst").value||"reps";
   if(WW_EDIT){
     const w=WW.list.find(x=>x.id===WW_EDIT),blk=w?wwMainBlock(w):null;
     const{error}=await db.from("workouts").update({title:naam}).eq("id",WW_EDIT);
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
     if(blk){
-      const{error:be}=await db.from("blocks").update({exercise:naam,notes:tekst,score_type:score}).eq("id",blk.id);
+      const{error:be}=await db.from("blocks").update({exercise:naam,notes:tekst,score_type:score,timecap_seconds,cap_score_type}).eq("id",blk.id);
       if(be){msg.textContent=be.message||"Opslaan mislukt";msg.className="msg err";return;}
     }else{
-      const{error:be}=await db.from("blocks").insert({workout_id:WW_EDIT,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,color:"yellow"});
+      const{error:be}=await db.from("blocks").insert({workout_id:WW_EDIT,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,timecap_seconds,cap_score_type,color:"yellow"});
       if(be){msg.textContent=be.message||"Opslaan mislukt";msg.className="msg err";return;}
     }
     wwModalDicht();toast("Weekworkout bijgewerkt");
@@ -237,7 +253,7 @@ async function wwOpslaan(){
     // Publicatiedatum = vandaag: de weekworkout staat direct live (de datum zit al in de naam).
     const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:todayStr(),title:naam,audience:"blog"}).select("id").single();
     if(error){msg.textContent=error.message||"Aanmaken mislukt";msg.className="msg err";return;}
-    const{error:be}=await db.from("blocks").insert({workout_id:nw.id,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,color:"yellow"});
+    const{error:be}=await db.from("blocks").insert({workout_id:nw.id,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,timecap_seconds,cap_score_type,color:"yellow"});
     if(be){msg.textContent=be.message||"Aanmaken mislukt";msg.className="msg err";return;}
     WW.open={};WW.open[nw.id]=true;
     wwModalDicht();toast("Weekworkout staat live");
@@ -260,7 +276,9 @@ function ensureWwModals(){
   d.innerHTML='<div class="lmodal" id="wwmodal"><div class="box"><h3 id="wwmodal-titel">Nieuwe weekworkout</h3>'+
       '<div class="field"><label>Naam</label><input id="ww-naam" placeholder="bijv. YP Showdown 25 juli"></div>'+
       '<div class="field"><label>Workout-tekst (met Rx/Scaled)</label><textarea id="ww-tekst" style="min-height:120px" placeholder="30 clean & jerks voor tijd&#10;Rx: 60/42,5 kg · Scaled: 42,5/30 kg"></textarea></div>'+
-      '<div class="field"><label>Score</label><select id="ww-score">'+WW_SCORES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join("")+'</select></div>'+
+      '<div class="field"><label>Score</label><select id="ww-score" onchange="wwCapToggle()">'+WW_SCORES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join("")+'</select></div>'+
+      '<div class="field" id="ww-capveld"><label>Timecap (leeg = geen)</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="ww-cap" placeholder="mm:ss, bijv. 20:00" style="width:150px"><select id="ww-capst" style="flex:1;min-width:220px"><option value="reps">wie de cap niet haalt logt reps</option><option value="rounds_reps">wie de cap niet haalt logt rondes + reps</option></select></div>'+
+        '<div class="sm muted" style="margin-top:4px">Finishers staan bovenaan op tijd; wie gecapt is komt daaronder op reps/rondes (zoals Strivee).</div></div>'+
       '<div class="sm muted" style="margin-bottom:12px">De weekworkout staat na het opslaan direct live voor 1-op-1 klanten én blog-leden.</div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="wwOpslaan()">Opslaan</button><button class="btn ghost" onclick="wwModalDicht()">Annuleren</button></div>'+
       '<div class="msg" id="wwmodal-msg"></div></div></div>'+

@@ -991,3 +991,9 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .histcard.klik{cursor:pointer}
 .histcard.klik:hover{background:#f4f9fc;border-color:#bfe3f2}
 .mday.hist-licht{outline:3px solid #3eb3e0;outline-offset:-3px;background:#eaf6fb;transition:background .6s,outline-color .6s}
+
+/* Scoretype + timecap op een blok (alleen in de blog-bouwer) */
+.scorevak{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.scorevak select,.scorevak input{font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;background:#fff}
+.scorevak .capinp{width:110px}
+.scorevak .capvak{display:inline-flex;gap:6px;align-items:center}

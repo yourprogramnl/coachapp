@@ -48,6 +48,22 @@ async function initInvite(token){
   }catch(e){}
 }
 
+// Aanmeldlink van een blogprogramma (?blog=TOKEN): iedereen met de link kan
+// zichzelf als gratis blog-lid aanmelden (keuze Stefan 15 sep, zoals Strivee's
+// Subscribe-knop). De koppeling gebeurt serverside (redeem_blog_join) en geeft
+// nooit een coach of 1-op-1-status.
+async function initBlogJoin(token){
+  if(!token)return;
+  try{
+    const{data}=await db.rpc("blog_join_info",{p_token:token});
+    const bp=(data||[])[0];
+    if(!bp||!bp.open){setMsg("Deze aanmeldlink is niet (meer) geldig. Vraag de coach om een nieuwe link.","err");return;}
+    localStorage.setItem("blog_token",token);
+    setMode("up");inviteRol="lid";
+    const w=document.getElementById("inv-welkom");
+    if(w){w.style.display="";w.textContent="Je meldt je aan voor "+bp.name+(bp.company_name?" van "+bp.company_name:"")+". Maak een account aan (of log in als je er al een hebt); daarna staat het programma voor je klaar in de app.";}
+  }catch(e){}
+}
 async function submitAuth(){
   const email=document.getElementById("email").value.trim(),pw=document.getElementById("pw").value;
   if(!email||!pw){setMsg("Vul e-mail en wachtwoord in.","err");return;}
@@ -82,13 +98,17 @@ async function submitAuth(){
       // zonder ?invite= terug en moet de koppeling alsnog gebeuren (zie loadApp).
       const tok=new URLSearchParams(location.search).get("invite");
       if(tok)localStorage.setItem("invite_token",tok);
-      const redir=location.origin+location.pathname+(tok?"?invite="+tok:"");
+      const btok=new URLSearchParams(location.search).get("blog")||localStorage.getItem("blog_token"); // aanmeldlink blogprogramma
+      const redir=location.origin+location.pathname+(tok?"?invite="+tok:(btok?"?blog="+btok:""));
       const{data,error}=await db.auth.signUp({email,password:pw,options:{emailRedirectTo:redir}});if(error)throw error;
       // Uitnodiging meteen inwisselen (er is direct een sessie): het account is
       // dan al volledig gekoppeld, óók als de klant hierna rechtstreeks de
       // FORGE-app op zijn telefoon pakt en de browser nooit meer opent.
       if(data&&data.session&&tok){
         try{await db.rpc("redeem_invite",{p_token:tok});localStorage.removeItem("invite_token");}catch(e){}
+      }
+      if(data&&data.session&&!tok&&btok){
+        try{await db.rpc("redeem_blog_join",{p_token:btok});localStorage.removeItem("blog_token");}catch(e){}
       }
       document.getElementById("go").disabled=false;
       toonAccountKlaar(!!(data&&data.session));
@@ -254,6 +274,20 @@ async function loadApp(){
     // Al gekoppeld aan een bedrijf: token opruimen zodat er geen foutmelding komt.
     history.replaceState(null,"",location.pathname);
     localStorage.removeItem("invite_token");
+  }
+  // Aanmeldlink van een blogprogramma (?blog=TOKEN of bewaard in localStorage
+  // tot na de e-mailbevestiging): serverside aanmelden als gratis blog-lid.
+  const blogToken=new URLSearchParams(location.search).get("blog")||localStorage.getItem("blog_token");
+  if(blogToken){
+    const{error}=await db.rpc("redeem_blog_join",{p_token:blogToken});
+    history.replaceState(null,"",location.pathname);
+    localStorage.removeItem("blog_token");
+    if(error)toast("Aanmelden voor het programma is niet gelukt: "+(error.message||"probeer de link opnieuw"));
+    else{
+      toast("Je bent aangemeld voor het programma, welkom!");
+      const{data:p3}=await db.from("profiles").select("*").eq("id",user.id).single();
+      if(p3)ME.profile=p3;
+    }
   }
   // Merkkleur van het bedrijf ook in het dashboard, als die schakelaar aanstaat
   if(ME.profile.company_id){

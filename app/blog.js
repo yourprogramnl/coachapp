@@ -99,6 +99,8 @@ function blogpModal(id){
   document.getElementById("blogp-koop").checked=!!(p&&p.for_sale);
   document.getElementById("blogp-koopprijs").value=p&&p.price_cents?String(p.price_cents/100).replace(".",","):"";
   document.getElementById("blogp-koopint").value=(p&&p.price_interval)||"month";
+  document.getElementById("blogp-join").checked=!!(p&&p.join_open);
+  document.getElementById("blogp-joinlink").value=blogJoinUrl(p);
   blogpKoopToggle();
   blogpVulCoaches(p);
   document.getElementById("blogpmodal").classList.add("show");
@@ -139,6 +141,7 @@ async function blogpOpslaan(){
     const gekozen=[...document.querySelectorAll(".blogp-c:checked")].map(x=>x.value);
     rec.coach_ids=(alleEl.checked||!gekozen.length)?null:gekozen;
   }
+  rec.join_open=document.getElementById("blogp-join").checked; // aanmeldlink aan/uit
   // Winkel: prijs in centen; te koop kan alleen met een geldige prijs (min. €1).
   rec.for_sale=document.getElementById("blogp-koop").checked;
   const prijsTxt=document.getElementById("blogp-koopprijs").value.trim();
@@ -229,7 +232,7 @@ function blogDetailRender(){
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="blogTerug()">‹ Terug</button>'+
       '<div class="pe-badges"><span class="cpill">'+esc(blogTypeNL(p.type))+'</span><span class="cpill">'+(p.price_text?esc(p.price_text):"Gratis")+'</span><span class="cpill teal">'+n+" klant"+(n===1?"":"en")+'</span></div>'+
-      '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn ghost sm" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
+      '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'+(p.join_open?'<button class="btn ghost sm" title="Iedereen met deze link kan zich als gratis blog-lid aanmelden" onclick="blogKopieerJoin()">🔗 Aanmeldlink kopiëren</button>':'')+'<button class="btn ghost sm" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
     '<div class="pe-weeks" style="margin-top:10px;align-items:center">'+
       '<h1 style="margin:0;font-size:20px">'+esc(maandNaam)+'</h1><span class="muted" style="font-weight:700;font-size:13px;margin-left:4px">Week '+isoWeek(midden)+'</span>'+
       '<button class="btn ghost sm" style="margin-left:14px" onclick="blogWeekGa(0)">Vandaag</button>'+
@@ -269,9 +272,59 @@ function blogCardTools(w){
     '<button title="Bewerken" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="blogDragStart(event,\''+w.id+'\')" ondragend="blogDragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
     '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();blogKopieer(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    '<button title="Leaderboard van deze workout" onclick="event.stopPropagation();blogBoard(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-fist"/></svg></button>'+
     '<button title="Verwijderen" onclick="event.stopPropagation();blogDeleteWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
     '</span>';
 }
+// ---------- Leaderboard per blogworkout (keuze Stefan 15 sep, zoals Strivee) ----------
+// Elke workout in een blogprogramma heeft een leaderboard per blok met de
+// openbare scores van de volgers. Rijen, fist bumps en reacties hergebruiken
+// de code van de Showdown (weekworkout.js); het bord staat in WW.boards.
+let BLOGBOARD=null; // {wid} zolang het venster open is
+async function blogBoard(wid){
+  const w=BLOG.workouts.find(x=>x.id===wid);if(!w)return;
+  ensureWwModals();ensureBlogModals();
+  BLOGBOARD={wid};
+  document.getElementById("blogboard-titel").textContent=(w.title||"Workout")+" · "+datumNL(w.workout_date);
+  document.getElementById("blogboard-body").innerHTML='<div class="cempty">Leaderboard laden…</div>';
+  document.getElementById("blogboardmodal").classList.add("show");
+  await blogBoardLaad(wid);
+}
+async function blogBoardLaad(wid){
+  const{data,error}=await db.rpc("blog_leaderboard",{p_workout_id:wid});
+  if(error){toast(error.message||"Leaderboard laden mislukt");return;}
+  WW.boards[wid]=data||[];
+  const host=document.getElementById("blogboard-body");if(host)host.innerHTML=blogBoardHtml(wid);
+}
+// Haakje voor wwRefreshBoard: na een fist bump/reactie dit venster verversen.
+function blogBoardRefresh(wid){if(!BLOGBOARD||BLOGBOARD.wid!==wid)return false;blogBoardLaad(wid);return true;}
+function blogBoardHtml(wid){
+  const w=BLOG.workouts.find(x=>x.id===wid),rows=WW.boards[wid]||[];
+  const blocks=((w&&w.blocks)||[]).slice().sort((a,b)=>a.sort-b.sort);
+  if(!rows.length)return '<div class="cempty">Nog geen openbare scores op deze workout. Zodra volgers loggen en hun score op "openbaar" zetten, staan ze hier.</div>';
+  return blocks.map(b=>{
+    const br=rows.filter(r=>r.block_id===b.id);
+    let html='<div class="lbcat" style="margin-top:14px;font-size:13px">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.timecap_seconds?' <span class="muted" style="font-weight:500">· cap '+secNaarTijd(b.timecap_seconds)+'</span>':'')+'</div>';
+    if(!br.length)return html+'<div class="sm muted" style="padding:4px 0 6px">Nog geen openbare scores op dit onderdeel.</div>';
+    const st=b.score_type||"text";
+    [["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]].forEach(cat=>{["rx","scaled"].forEach(rx=>{
+      const groep=br.filter(r=>{const g=(r.gender==="man"||r.gender==="vrouw")?r.gender:"overig";return g===cat[0]&&(r.rx==="scaled"?"scaled":"rx")===rx;}).sort(wwCmp(st));
+      if(groep.length)html+='<div class="sm muted" style="margin:8px 0 4px;font-weight:700">'+cat[1]+' / '+(rx==="rx"?"Rx":"Scaled")+'</div><div class="card">'+groep.map((r,i)=>wwRij(r,i+1)).join("")+'</div>';
+    });});
+    return html;
+  }).join("");
+}
+function blogBoardDicht(){document.getElementById("blogboardmodal").classList.remove("show");BLOGBOARD=null;}
+// ---------- Aanmeldlink (gratis blog-lid via een link, zoals Strivee's Subscribe) ----------
+const blogJoinUrl=p=>p&&p.join_token?location.origin+location.pathname+"?blog="+p.join_token:"";
+function kopieerNaarKlembord(t,melding){
+  if(!t)return;
+  const ok=()=>toast(melding||"Gekopieerd");
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok).catch(()=>window.prompt("Kopieer de link:",t));
+  else window.prompt("Kopieer de link:",t);
+}
+function blogpKopieerLink(){const inp=document.getElementById("blogp-joinlink");if(inp&&inp.value)kopieerNaarKlembord(inp.value,"Aanmeldlink gekopieerd");}
+function blogKopieerJoin(){kopieerNaarKlembord(blogJoinUrl(BLOG.cur),"Aanmeldlink gekopieerd, deel hem met wie mee wil doen");}
 function blogCard(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   const sel=blogSel.has(w.id)?" selected":"";
@@ -413,7 +466,7 @@ async function blogSaveWorkout(){
   const title=(g("w_title").value||"").trim();
   const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
   const wf={company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:BLOG.editDay,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown"),warmup_media:gmStripLees("warmup"),cooldown_media:gmStripLees("cooldown")};
-  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null}));
+  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null}));
   try{
     if(BLOG.editWid){
       const{error:ue}=await db.from("workouts").update(wf).eq("id",BLOG.editWid);if(ue)throw ue;
@@ -496,9 +549,17 @@ function ensureBlogModals(){
         '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-koop" onchange="blogpKoopToggle()"><span class="pf-sw"></span> Te koop op de winkelpagina (/winkel.html)</label>'+
         '<div id="blogp-koopvak" style="display:none;gap:8px;align-items:center"><span class="sm muted">Prijs €</span><input id="blogp-koopprijs" placeholder="39,00" style="width:90px"><select id="blogp-koopint" style="width:130px"><option value="month">per maand</option><option value="week">per week</option><option value="year">per jaar</option></select></div>'+
         '<div class="sm muted" style="margin-top:4px">Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma.</div></div>'+
+      '<div class="field"><label>Aanmeldlink (gratis blog-lid)</label>'+
+        '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-join"><span class="pf-sw"></span> Iedereen met de link kan zich zelf aanmelden</label>'+
+        '<div style="display:flex;gap:6px;align-items:center"><input id="blogp-joinlink" readonly style="flex:1;font-size:12px" placeholder="De link verschijnt na het aanmaken"><button class="btn ghost sm" type="button" onclick="blogpKopieerLink()">Kopiëren</button></div>'+
+        '<div class="sm muted" style="margin-top:4px">Wie zich via de link aanmeldt wordt gratis blog-lid van dit programma (nooit 1-op-1, geen coach). Link uit = geen nieuwe aanmeldingen; bestaande leden blijven.</div></div>'+
       '<div class="field"><label>Zichtbaar voor coaches</label><div class="sm muted" style="margin:-2px 0 6px">Eigenaar en beheerder zien altijd alle programma\'s; geen selectie = alle coaches.</div><div id="blogp-coaches"></div></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="blogpOpslaan()">Opslaan</button><button class="btn ghost" onclick="blogpDicht()">Annuleren</button></div>'+
       '<div class="msg" id="blogp-msg"></div></div></div>'+
+    '<div class="lmodal" id="blogboardmodal" style="z-index:397"><div class="box" style="width:640px;max-width:96vw">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0" id="blogboard-titel">Leaderboard</h3><span onclick="blogBoardDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+      '<div class="sm muted" style="margin-bottom:6px">Openbare scores van de volgers van dit programma, per onderdeel. Fist bumps en reacties werken zoals bij de Showdown.</div>'+
+      '<div id="blogboard-body" style="max-height:62vh;overflow:auto"></div></div></div>'+
     '<div class="lmodal" id="blogledmodal" style="z-index:398"><div class="box" style="width:460px;max-width:94vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Leden koppelen</h3><span onclick="blogLedenDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
       '<div class="sm muted" style="margin-bottom:8px">Klik op een lid om te (ont)koppelen. Een lid volgt één blogprogramma tegelijk.</div>'+
