@@ -132,7 +132,7 @@ function berBubHtml(m,c){
   const vanLid=m.sender_id===c.id;
   let meta=tijdNL(m.created_at);
   if(!vanLid&&m.sender_id!==ME.user.id)meta=berNaam(m.sender_id)+" · "+meta;
-  return '<div class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+meta+'</div></div>';
+  return '<div data-notr class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+meta+'</div></div>';
 }
 function berScroll(){const h=document.getElementById("ber-msgs");if(h)h.scrollTop=h.scrollHeight;}
 async function berOpen(id){
@@ -214,7 +214,7 @@ function berRealtime(){
 function berGroepBubHtml(m){
   const mij=m.sender_id===ME.user.id;
   const meta=(mij?"":berNaamAlg(m.sender_id)+" · ")+tijdNL(m.created_at);
-  return '<div class="bub '+(mij?"me":"them")+'">'+esc(m.body)+'<div class="meta">'+meta+'</div></div>';
+  return '<div data-notr class="bub '+(mij?"me":"them")+'">'+esc(m.body)+'<div class="meta">'+meta+'</div></div>';
 }
 function berGroepThreadHtml(gid){
   const g=berGroep(gid);

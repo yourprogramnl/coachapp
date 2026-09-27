@@ -111,7 +111,7 @@ async function chatLaad(){
 }
 function chatBubHtml(m){
   const mij=m.sender_id===ME.user.id;
-  return '<div class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>';
+  return '<div data-notr class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>';
 }
 function chatToon(m,scroll){
   const host=document.getElementById("chat-msgs");if(!host)return;

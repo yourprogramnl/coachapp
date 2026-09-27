@@ -172,9 +172,9 @@ function coachShellHtml(inner){
     '<div class="avwrap"><button class="cavbtn" title="Menu" onclick="avMenuToggle(event)"><span class="cav" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><svg class="i cav-caret"><use href="#i-chev"/></svg></button>'+
     '<div class="avmenu" id="avmenu">'+
       '<div class="avm-kop"><span class="avm-av" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><span><b>'+esc(naamVan(ME.profile))+'</b><span class="avm-rol">'+esc(ROLE_NL[myRole()]||"")+'</span></span></div>'+
-      '<button onclick="coachGo(\'settings\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+(typeof taalKnopHtml==="function"?taalKnopHtml():"")+
+      '<button onclick="coachGo(\'settings\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+
       '<button onclick="signOut()"><svg class="i sm-i"><use href="#i-x"/></svg> Uitloggen</button>'+
-    '</div></div></div></div>'+
+    '</div></div>'+(typeof taalMenuHtml==="function"?taalMenuHtml():"")+'</div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
 }
 function avMenuToggle(ev){

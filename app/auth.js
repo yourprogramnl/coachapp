@@ -253,8 +253,12 @@ async function loadApp(){
   ME={user,profile:profile||{role:"lid"}};
   // Taal: het profiel wint van de browser/localStorage (zie i18n.js). Een
   // nieuw account zonder taal krijgt de taal waarmee het zich aanmeldde.
-  if(profile&&profile.lang&&TALEN.includes(profile.lang)&&profile.lang!==LANG){try{localStorage.setItem("forge_lang",profile.lang);}catch(e){}location.reload();return;}
-  if(profile&&!profile.lang){try{await db.from("profiles").update({lang:LANG}).eq("id",user.id);}catch(e){}}
+  // Eigen keuze op dit apparaat wint en gaat naar het profiel; anders volgt
+  // het apparaat de taal uit het profiel (van de app of een ander apparaat).
+  if(profile){
+    if(taalExpliciet()||!profile.lang){if(profile.lang!==LANG){try{await db.from("profiles").update({lang:LANG}).eq("id",user.id);profile.lang=LANG;}catch(e){}}}
+    else if(TALEN.includes(profile.lang)&&profile.lang!==LANG){try{localStorage.setItem("forge_lang",profile.lang);}catch(e){}location.reload();return;}
+  }
   // Na een bevestigde e-mailwijziging loopt profiles.email achter op het
   // auth-adres; stilletjes gelijktrekken.
   if(profile&&user.email&&profile.email!==user.email){

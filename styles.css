@@ -997,3 +997,9 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .scorevak select,.scorevak input{font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;background:#fff}
 .scorevak .capinp{width:110px}
 .scorevak .capvak{display:inline-flex;gap:6px;align-items:center}
+
+/* Taalkiezer in de bovenbalk (vlag + pijltje) */
+.taalbtn .vlag{width:22px;height:15px;border-radius:3px;display:block;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+.taalmenu{min-width:180px}
+.taalmenu .vlag{width:20px;height:14px;border-radius:2px;flex:none}
+.taalmenu .taal-check{margin-left:auto;color:#2a2e35;font-weight:700}

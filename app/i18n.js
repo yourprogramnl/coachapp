@@ -113,7 +113,22 @@ async function setLang(l){
   try{if(typeof ME!=="undefined"&&ME&&ME.user&&typeof db!=="undefined")await db.from("profiles").update({lang:l}).eq("id",ME.user.id);}catch(e){}
   location.reload();
 }
-// Knop voor het avatar-menu: toont de andere taal.
-function taalKnopHtml(){return '<button data-notr onclick="setLang(\''+(LANG==="en"?"nl":"en")+'\')"><svg class="i sm-i"><use href="#i-globe"/></svg> '+(LANG==="en"?"Nederlands":"English")+'</button>';}
+// Heeft de gebruiker op dit apparaat zelf een taal gekozen? Dan wint die van
+// het profiel (en wordt hij naar het profiel geschreven), anders volgt het
+// apparaat het profiel. Zo springt de taal niet terug na het inloggen.
+function taalExpliciet(){try{return TALEN.includes(localStorage.getItem("forge_lang"));}catch(e){return false;}}
+// Vlaggetjes als SVG (Windows toont vlag-emoji niet).
+const VLAG={
+  nl:'<svg class="vlag" viewBox="0 0 22 15" aria-hidden="true"><rect width="22" height="5" fill="#AE1C28"/><rect y="5" width="22" height="5" fill="#fff"/><rect y="10" width="22" height="5" fill="#21468B"/></svg>',
+  en:'<svg class="vlag" viewBox="0 0 22 15" aria-hidden="true"><rect width="22" height="15" fill="#012169"/><path d="M0 0L22 15M22 0L0 15" stroke="#fff" stroke-width="3"/><path d="M0 0L22 15M22 0L0 15" stroke="#C8102E" stroke-width="1.2"/><path d="M11 0V15M0 7.5H22" stroke="#fff" stroke-width="5"/><path d="M11 0V15M0 7.5H22" stroke="#C8102E" stroke-width="3"/></svg>'
+};
+const TAALNAAM={nl:"Nederlands",en:"English"};
+// Taalkiezer rechts in de bovenbalk: vlag + pijltje, uitklapmenu met beide talen.
+function taalMenuHtml(){
+  return '<div class="avwrap taalwrap" data-notr><button class="cavbtn taalbtn" title="'+(LANG==="en"?"Language":"Taal")+'" onclick="taalMenuToggle(event)">'+VLAG[LANG]+'<svg class="i cav-caret"><use href="#i-chev"/></svg></button>'+
+    '<div class="avmenu taalmenu" id="taalmenu">'+TALEN.map(l=>'<button onclick="setLang(\''+l+'\')">'+VLAG[l]+' '+TAALNAAM[l]+(l===LANG?' <span class="taal-check">✓</span>':'')+'</button>').join("")+'</div></div>';
+}
+function taalMenuToggle(ev){ev.stopPropagation();const m=document.getElementById("taalmenu");if(m)m.classList.toggle("show");const a=document.getElementById("avmenu");if(a)a.classList.remove("show");}
+document.addEventListener("click",e=>{if(!e.target.closest(".taalwrap")){const m=document.getElementById("taalmenu");if(m)m.classList.remove("show");}});
 // Voor het testen: welke teksten op het scherm hebben nog geen vertaling?
 function i18nOntbreekt(){return [...I18N.ontbreekt].sort();}
