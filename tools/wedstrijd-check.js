@@ -37,7 +37,9 @@ const args = (() => {
 const COMPANY = args.company || 'd927c766-832c-4b8e-8001-4d416b9a35bc'; // bedrijf van de bestaande wedstrijddata
 const UIT = args.uit || './wedstrijd-uit';
 const BATCH = 25; // rijen per SQL-bestand (klein genoeg om via de Supabase MCP te sturen)
-const BASE = 'https://competitioncorner.net/api2/v1';
+// Basis-URL van de Competition Corner-API; via CC_BASE te vervangen door een proxy als een omgeving
+// (bijv. GitHub-runners) door Competition Corner wordt geweigerd.
+const BASE = (process.env.CC_BASE || 'https://competitioncorner.net/api2/v1').replace(/\/+$/, '');
 const H = { headers: { 'User-Agent': 'Mozilla/5.0 (coachapp wedstrijd-check)', accept: 'application/json' } };
 const LANDEN = ['Netherlands', 'Belgium', 'Spain'];
 const VANDAAG = new Date().toISOString().slice(0, 10);
@@ -77,7 +79,8 @@ const cacheStats = { live: 0, hits: 0, fouten: 0 };
 let cacheData = null;
 function laadCache() {
   if (cacheData) return cacheData;
-  try { cacheData = (CACHE && !VUL_CACHE && fs.existsSync(CACHE)) ? lees(CACHE) : { opgehaald: null, antwoorden: {} }; }
+  // Ook bij --vul-cache beginnen we met de bestaande cache: wat live mislukt blijft dan bewaard.
+  try { cacheData = (CACHE && fs.existsSync(CACHE)) ? lees(CACHE) : { opgehaald: null, antwoorden: {} }; }
   catch (err) { cacheData = { opgehaald: null, antwoorden: {} }; }
   if (!cacheData.antwoorden) cacheData.antwoorden = {};
   return cacheData;
@@ -333,13 +336,24 @@ function logSql(items) {
     for (const url of NATIONALS_PAGINAS) {
       try { await haal(url, true); } catch (err) { fouten.push('The Nationals ' + url + ': ' + err.message); }
     }
+    // Statusbestand naast de cache (altijd), zodat je op GitHub kunt zien wat er live is gelukt.
+    const statusPad = VUL_CACHE.replace(/\.json$/i, '') + '-status.json';
+    const status = { opgehaald: new Date().toISOString(), events: ccEvents.length, live: cacheStats.live, gevolgd: versNodig.length, fouten, basis: BASE };
+    fs.mkdirSync(path.dirname(path.resolve(VUL_CACHE)), { recursive: true });
+    fs.writeFileSync(statusPad, JSON.stringify(status, null, 1));
+    if (!ccEvents.length) {
+      // Geen enkele eventlijst binnen: de bestaande cache NIET overschrijven met een lege.
+      console.log(`Cache NIET bijgewerkt: geen eventlijsten van Competition Corner ontvangen (${fouten.length} fouten, zie ${statusPad}).`);
+      fouten.forEach((f) => console.log('- ' + f));
+      process.exitCode = 1;
+      return;
+    }
     const c = laadCache();
-    c.opgehaald = new Date().toISOString();
+    c.opgehaald = status.opgehaald;
     c.events = ccEvents.length;
     c.gevolgd = versNodig.map((t) => ({ id: t.e.id, naam: t.naam, event: t.event, jaar: t.jaar, fase: t.fase }));
-    fs.mkdirSync(path.dirname(path.resolve(VUL_CACHE)), { recursive: true });
     fs.writeFileSync(VUL_CACHE, JSON.stringify(c));
-    console.log(`Cache gevuld in ${VUL_CACHE}: ${cacheStats.live} antwoorden, ${versNodig.length} gevolgde events geoogst, ${fouten.length} fouten.`);
+    console.log(`Cache gevuld in ${VUL_CACHE}: ${cacheStats.live} antwoorden live, ${versNodig.length} gevolgde events geoogst, ${fouten.length} fouten.`);
     fouten.forEach((f) => console.log('- ' + f));
     return;
   }
