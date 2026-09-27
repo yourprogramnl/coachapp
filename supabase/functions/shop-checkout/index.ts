@@ -1,9 +1,13 @@
 // Winkel-afrekenen: maakt een Stripe Checkout-sessie (abonnement) voor een
 // blogprogramma en geeft de betaal-URL terug. De klant rekent af op de
 // beveiligde pagina van Stripe; kaartgegevens komen nooit bij ons.
-// Terugkeeradres: de etalage (programmering.yourprogram.nl) stuurt haar eigen adres mee als
-// `site` en krijgt /bedankt; het dashboard (app.yourprogram.nl) houdt winkel.html. Alleen
-// bekende adressen zijn toegestaan.
+// Voorwaarden: de koper moet op onze eigen pagina het vinkje "ik ga akkoord" zetten
+// (`akkoord: true` + `voorwaarden_versie`); zonder dat vinkje start er geen betaling.
+// Het moment van akkoord staat in shop_orders.terms_accepted_at.
+// Terugkeeradres: na een gelukte betaling gaat iedereen naar de bedankpagina op de
+// etalage (programmering.yourprogram.nl/bedankt) met het Stripe-sessienummer, zodat de
+// koper daar direct zijn wachtwoord kan kiezen (shop-bedankt). Afbreken = terug naar
+// de site waar hij vandaan kwam. Alleen bekende adressen zijn toegestaan.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -13,6 +17,7 @@ const cors = {
 const DASHBOARD = "https://app.yourprogram.nl";
 const DASHBOARD_OUD = "https://coachapp-steel.vercel.app";
 const ETALAGE = "https://programmering.yourprogram.nl";
+const VOORWAARDEN_VERSIE = "2026-09";
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
@@ -33,9 +38,10 @@ Deno.serve(async (req) => {
   const sleutel = Deno.env.get("STRIPE_SECRET_KEY");
   if (!sleutel) return json({ error: "Betalen is nog niet ingesteld (STRIPE_SECRET_KEY ontbreekt)." }, 500);
 
-  let body: { program_id?: string; site?: string } = {};
+  let body: { program_id?: string; site?: string; akkoord?: boolean; voorwaarden_versie?: string } = {};
   try { body = await req.json(); } catch (_e) { /* leeg */ }
   if (!body.program_id) return json({ error: "program_id ontbreekt" }, 400);
+  if (body.akkoord !== true) return json({ error: "Ga eerst akkoord met de voorwaarden." }, 400);
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: p } = await db.from("blog_programs")
@@ -47,8 +53,11 @@ Deno.serve(async (req) => {
 
   const site = body.site && siteOk(body.site) ? new URL(body.site).origin : DASHBOARD;
   const dashboardSite = site === DASHBOARD || site === DASHBOARD_OUD;
-  const gelukt = dashboardSite ? site + "/winkel.html?besteld=1" : site + "/bedankt?besteld=1";
+  // Lokaal testen (localhost) houdt zijn eigen bedankpagina; live gaat alles naar de etalage.
+  const bedanktSite = dashboardSite ? ETALAGE : site;
+  const gelukt = bedanktSite + "/bedankt?besteld=1&session_id={CHECKOUT_SESSION_ID}";
   const afgebroken = dashboardSite ? site + "/winkel.html?geannuleerd=1" : site + "/bedankt?geannuleerd=1";
+  const versie = (body.voorwaarden_versie || VOORWAARDEN_VERSIE).slice(0, 20);
 
   const vorm = new URLSearchParams();
   vorm.set("mode", "subscription");
@@ -61,7 +70,9 @@ Deno.serve(async (req) => {
   vorm.set("success_url", gelukt);
   vorm.set("cancel_url", afgebroken);
   vorm.set("metadata[program_id]", p.id);
+  vorm.set("metadata[voorwaarden_versie]", versie);
   vorm.set("subscription_data[metadata][program_id]", p.id);
+  vorm.set("subscription_data[metadata][voorwaarden_versie]", versie);
 
   const r = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
@@ -77,6 +88,7 @@ Deno.serve(async (req) => {
   await db.from("shop_orders").insert({
     company_id: p.company_id, blog_program_id: p.id,
     status: "pending", stripe_session_id: sessie.id,
+    terms_accepted_at: new Date().toISOString(), terms_version: versie,
   });
 
   return json({ url: sessie.url });

@@ -27,6 +27,16 @@
   footer{padding:26px;text-align:center;color:#66666B;font-size:12.5px}
   footer a{color:#9A9A9E;text-decoration:none}
   footer a:hover{color:#D9B44A}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:9}
+  .modal{background:#17171A;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:22px;max-width:520px;width:100%}
+  .modal h2{font-size:18px;font-weight:800;margin-bottom:12px}
+  .modal ul{padding-left:18px;color:#C9C8C4;font-size:14px;line-height:1.55}
+  .modal li{margin-bottom:6px}
+  .check{display:flex;gap:10px;align-items:flex-start;margin:16px 0 6px;font-size:14px;line-height:1.5;color:#F5F4F2;cursor:pointer}
+  .check input{margin-top:4px;width:17px;height:17px;flex:none;accent-color:#D9B44A}
+  .check a{color:#D9B44A}
+  .knop.grijs{background:#26262B;color:#F5F4F2;margin-left:0}
+  .knop:disabled{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -38,6 +48,18 @@
     <div id="melding"></div>
     <div id="lijst"><div class="leeg">Programma's laden…</div></div>
   </main>
+  <div id="akkoord" class="modal-bg" onclick="if(event.target===this)sluitAkkoord()">
+    <div class="modal">
+      <h2>Voordat je afrekent</h2>
+      <ul>
+        <li>Je betaalt nu de eerste periode met iDEAL of kaart; daarna wordt het bedrag automatisch per periode afgeschreven.</li>
+        <li>Opzeggen kan altijd, in de app onder Profiel. Opzegtermijn: één maand, je abonnement stopt aan het einde van de volgende betaalperiode.</li>
+        <li>Direct na het betalen kies je je wachtwoord en download je de YourProgram-app.</li>
+      </ul>
+      <label class="check"><input type="checkbox" id="akkoord-vink" onchange="document.getElementById('akkoord-go').disabled=!this.checked"> <span>Ik ga akkoord met de <a href="https://programmering.yourprogram.nl/voorwaarden" target="_blank" rel="noopener">voorwaarden</a> en de opzegtermijn van één maand.</span></label>
+      <div class="rij"><button class="knop grijs" onclick="sluitAkkoord()">Terug</button><button class="knop" id="akkoord-go" onclick="betaal()" disabled>Naar betalen</button></div>
+    </div>
+  </div>
   <footer><a href="/">Inloggen voor coaches</a></footer>
 <script>
 const FN = "https://ujuvbxqgnxkyjcmcrqpw.supabase.co/functions/v1";
@@ -75,12 +97,23 @@ async function laad() {
   }
 }
 
-async function bestel(knop, id) {
-  knop.disabled = true; knop.textContent = "Even geduld…";
+// Eerst een kort venster met de voorwaarden en een vinkje; zonder vinkje start er geen
+// betaling (de serverfunctie eist het ook). Na betalen: bedankpagina op de etalage.
+const VOORWAARDEN_VERSIE = "2026-09";
+let bestelId = null;
+function bestel(knop, id) {
+  bestelId = id;
+  document.getElementById("akkoord-vink").checked = false;
+  document.getElementById("akkoord-go").disabled = true;
+  document.getElementById("akkoord").style.display = "flex";
+}
+function sluitAkkoord() { document.getElementById("akkoord").style.display = "none"; }
+async function betaal() {
+  const go = document.getElementById("akkoord-go"); go.disabled = true; go.textContent = "Even geduld…";
   try {
     const r = await fetch(FN + "/shop-checkout", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program_id: id }),
+      body: JSON.stringify({ program_id: bestelId, site: location.origin, akkoord: true, voorwaarden_versie: VOORWAARDEN_VERSIE }),
     });
     const j = await r.json();
     if (j.url) { location.href = j.url; return; }
@@ -88,8 +121,9 @@ async function bestel(knop, id) {
   } catch (e) {
     alert("Afrekenen kon niet gestart worden. Probeer het later opnieuw.");
   }
-  knop.disabled = false; knop.textContent = "Bestellen";
+  go.disabled = false; go.textContent = "Naar betalen";
 }
+
 laad();
 </script>
 </body>
