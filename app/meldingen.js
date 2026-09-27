@@ -74,7 +74,7 @@ const meldSoortLabel=s=>(MELD_SOORTEN.find(x=>x[0]===s)||[null,s])[1];
 function meldDatum(iso){
   try{
     const d=new Date(iso);
-    return d.toLocaleDateString("nl-NL",{day:"numeric",month:"long"})+" om "+d.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});
+    return d.toLocaleDateString(LOCALE,{day:"numeric",month:"long"})+t(" om ")+d.toLocaleTimeString(LOCALE,{hour:"2-digit",minute:"2-digit"});
   }catch(e){return "";}
 }
 async function fillMeldingen(){

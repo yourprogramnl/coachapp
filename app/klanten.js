@@ -610,7 +610,7 @@ function coachWegKeuze(w){if(COACHWEG){COACHWEG.keuze=w;coachWegRender();}}
 function coachWegCheck(){
   const inp=document.getElementById("cw-typ"),go=document.getElementById("cw-go");
   if(!inp||!go||!COACHWEG)return;
-  go.disabled=inp.value.trim().toLowerCase()!==COACHWEG.keuze;
+  const getypt=inp.value.trim().toLowerCase();go.disabled=!(getypt===COACHWEG.keuze||getypt==={archiveren:"archive",verwijderen:"delete"}[COACHWEG.keuze]);
 }
 
 async function coachWegDoe(){

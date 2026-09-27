@@ -122,8 +122,8 @@ function dtFmtScore(k,v){
   if(v==null)return '—';
   const u=DT_TESTS[k].unit;
   if(u==='tijd')return dtFmtTijd(v);
-  if(u==='kg')return (Math.round(v*10)/10).toLocaleString('nl-NL')+' kg';
-  return Math.round(v).toLocaleString('nl-NL');
+  if(u==='kg')return (Math.round(v*10)/10).toLocaleString(LOCALE)+' kg';
+  return Math.round(v).toLocaleString(LOCALE);
 }
 const dtRawScore=(k,v)=>v==null?'':DT_TESTS[k].unit==='tijd'?dtFmtTijd(v):String(Math.round(v*10)/10);
 const dtFmtPct=v=>v==null?'—':Math.max(0,Math.round((1+v)*100))+'%';

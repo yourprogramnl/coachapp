@@ -251,6 +251,10 @@ async function loadApp(){
   if(!user){show("login");return;}
   const{data:profile}=await db.from("profiles").select("*").eq("id",user.id).single();
   ME={user,profile:profile||{role:"lid"}};
+  // Taal: het profiel wint van de browser/localStorage (zie i18n.js). Een
+  // nieuw account zonder taal krijgt de taal waarmee het zich aanmeldde.
+  if(profile&&profile.lang&&TALEN.includes(profile.lang)&&profile.lang!==LANG){try{localStorage.setItem("forge_lang",profile.lang);}catch(e){}location.reload();return;}
+  if(profile&&!profile.lang){try{await db.from("profiles").update({lang:LANG}).eq("id",user.id);}catch(e){}}
   // Na een bevestigde e-mailwijziging loopt profiles.email achter op het
   // auth-adres; stilletjes gelijktrekken.
   if(profile&&user.email&&profile.email!==user.email){
