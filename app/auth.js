@@ -165,7 +165,7 @@ function show(which){
   document.getElementById("login").classList.toggle("hidden",which!=="login");
   document.getElementById("app").classList.toggle("hidden",which!=="app");
 }
-async function signOut(){if(typeof msgBadgeStop==="function")msgBadgeStop();if(typeof stopNotifs==="function")stopNotifs();await db.auth.signOut();document.getElementById("pw").value="";show("login");}
+async function signOut(){if(typeof msgBadgeStop==="function")msgBadgeStop();if(typeof stopNotifs==="function")stopNotifs();if(typeof versWis==="function")versWis();await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
 // ---------- Wachtwoord vergeten / herstellen ----------
 // De herstel-mail van Supabase komt terug op deze pagina met tokens in de

@@ -113,20 +113,25 @@ function libLaad(){
   if(LIB.busy&&LIB.laadPromise)return LIB.laadPromise;
   LIB.busy=true;
   LIB.laadPromise=(async()=>{
-    let alles=[],from=0;
-    while(true){
-      const{data,error}=await db.from("oefeningen").select("id,naam,youtube_id,video_url,tags,bron").order("naam").range(from,from+999);
-      if(error){LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';return;}
-      alles=alles.concat(data||[]);
-      if(!data||data.length<1000)break;
-      from+=1000;
-    }
-    const{data:tpl}=await db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media").order("naam");
-    const{data:bms}=await db.from("benchmarks").select("*").order("naam");
-    LIB.bm=bms||[];
-    const{data:progs}=await db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name");
-    const{data:asgs}=await db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks");
-    LIB.oef=alles;LIB.tpl=tpl||[];LIB.programs=progs||[];LIB.programAsgs=asgs||[];LIB.geladen=true;LIB.busy=false;
+    // Ronde 1: de eerste 1000 oefeningen (met het totaal erbij) tegelijk met
+    // templates, benchmarks, programma's en toewijzingen. Ronde 2: de overige
+    // pagina's oefeningen tegelijk. Was negen aanroepen na elkaar.
+    const KOL="id,naam,youtube_id,video_url,tags,bron";
+    const mislukt=()=>{LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';};
+    const[eerste,tplq,bmq,progq,asgq]=await Promise.all([
+      db.from("oefeningen").select(KOL,{count:"exact"}).order("naam").range(0,999),
+      db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media").order("naam"),
+      db.from("benchmarks").select("*").order("naam"),
+      db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name"),
+      db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks")
+    ]);
+    if(eerste.error){mislukt();return;}
+    let alles=eerste.data||[];
+    const totaal=eerste.count!=null?eerste.count:alles.length;
+    const rest=[];for(let from=1000;from<totaal;from+=1000)rest.push(db.from("oefeningen").select(KOL).order("naam").range(from,from+999));
+    for(const r of await Promise.all(rest)){if(r.error){mislukt();return;}alles=alles.concat(r.data||[]);}
+    LIB.bm=bmq.data||[];
+    LIB.oef=alles;LIB.tpl=tplq.data||[];LIB.programs=progq.data||[];LIB.programAsgs=asgq.data||[];LIB.geladen=true;LIB.busy=false;
     libLijst();
   })();
   return LIB.laadPromise;

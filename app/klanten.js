@@ -28,26 +28,54 @@ function klantScope(){return klantCoachFilter?coachClients.filter(p=>p.coach_id=
 // De klanten in het actieve tabblad (Actief of Archief).
 function klantLijst(){return klantScope().filter(p=>!!p.archived===klantArchief);}
 function klantTab(a){klantArchief=a;klantenRender();}
+// Laadvolgnummer: ben je al doorgeklikt voordat de data binnen is, dan tekent
+// een oude lading niets meer over het nieuwe scherm heen.
+let klantLaadNr=0;
+const klantenInBeeld=()=>coachSection==="clients"&&!document.querySelector(".client-layout")&&!!document.getElementById("cpage");
+const KDATA_LEEG=()=>({ws:[],done:new Set(),msgs:[],alleTags:[],tagsByClient:{},cons:[],lastConsult:{},pending:{}});
 async function fillKlanten(){
+  const nr=++klantLaadNr;
   const ids=klantScope().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89)),plus14=ymd(addDays(new Date(),14));
-  let ws=[],rs=[],msgs=[],alleTags=[],ptags=[],cons=[],openInv=[];
-  if(ME.profile.company_id)alleTags=(await db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name")).data||[];
-  if(ids.length){
+  // Eerst tekenen wat er al is: de vorige stand uit het korte geheugen, of de
+  // namen met puntjes op de plek van de cijfers. De cijfers volgen zodra ze
+  // binnen zijn; alle aanroepen lopen tegelijk (was zeven na elkaar).
+  const sleutel="klanten:"+(klantCoachFilter||"alle");
+  const oud=versPak(sleutel,60000);
+  KDATA=oud?oud.kdata:Object.assign(KDATA_LEEG(),{laden:true});
+  klantenRender();
+  const leeg=Promise.resolve({data:[]});
+  const[tq,wq,mq,pq,cq,iq]=await Promise.all([
+    ME.profile.company_id?db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name"):leeg,
+    // Resultaten meteen mee-ophalen bij de workouts: één aanroep, en geen lange lijst workout-id's in de link
+    ids.length?db.from("workouts").select("id,client_id,workout_date,title,results(workout_id,status)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date"):leeg,
+    ids.length?db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
+    ids.length?db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids):leeg,
+    ids.length?db.from("consults").select("athlete_id,consult_date").in("athlete_id",ids):leeg,
+    // Open uitnodigingen (account bestaat al, klant heeft nog geen wachtwoord gekozen)
+    ids.length?db.from("invites").select("profile_id,expires_at").is("accepted_at",null).not("profile_id","is",null).in("profile_id",ids):leeg,
+  ]);
+  let ws=[],rs=[];
+  if(wq.error&&ids.length){
+    // Terugvalroute: workouts en resultaten los ophalen (zoals vroeger).
     ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
-    msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
-    ptags=(await db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids)).data||[];
-    cons=(await db.from("consults").select("athlete_id,consult_date").in("athlete_id",ids)).data||[];
-    // Open uitnodigingen (account bestaat al, klant heeft nog geen wachtwoord gekozen)
-    openInv=(await db.from("invites").select("profile_id,expires_at").is("accepted_at",null).not("profile_id","is",null).in("profile_id",ids)).data||[];
+  }else{
+    ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);delete w.results;return w;});
   }
+  const msgs=mq.data||[],alleTags=tq.data||[],ptags=pq.data||[],cons=cq.data||[],openInv=iq.data||[];
   const tagsByClient={};ptags.forEach(pt=>{(tagsByClient[pt.profile_id]=tagsByClient[pt.profile_id]||[]).push(pt.tag_id);});
   const lastConsult={};cons.forEach(c=>{if(c.consult_date&&(!lastConsult[c.athlete_id]||c.consult_date>lastConsult[c.athlete_id]))lastConsult[c.athlete_id]=c.consult_date;});
   const pending={};openInv.forEach(i=>{pending[i.profile_id]=i.expires_at;});
-  KDATA={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient,cons,lastConsult,pending};
-  klantenRender();
+  const kdata={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient,cons,lastConsult,pending};
+  const vingerafdruk=JSON.stringify([ws,rs,msgs,alleTags,ptags,cons,openInv]);
+  versZet(sleutel,{kdata,vingerafdruk});
+  if(nr!==klantLaadNr)return; // er is intussen opnieuw geladen
+  // Staat precies dezelfde data al op het scherm? Dan niets overtekenen.
+  if(oud&&oud.vingerafdruk===vingerafdruk&&KDATA===oud.kdata)return;
+  KDATA=kdata;
+  if(klantenInBeeld())klantenRender();
 }
 function klantWorkoutChip(p){
   const td=todayStr();
@@ -93,11 +121,13 @@ function klantRijen(){
         ?' <span class="pendtag" style="color:#e5484d;background:rgba(229,72,77,.1);border-color:rgba(229,72,77,.35)" title="De uitnodiging is verlopen; stuur een nieuwe via + Klant toevoegen">Uitnodiging verlopen</span>'
         :' <span class="pendtag" title="De klant heeft zijn account nog niet geactiveerd; programmeren kan al wel">Uitnodiging open</span>';
     }
+    // Zolang de cijfers nog onderweg zijn (KDATA.laden) staan er puntjes.
+    const L=!!KDATA.laden;
     return '<div class="trow click"'+(af?' style="opacity:.45"':'')+' onclick="openClient(\''+p.id+'\')">'+afBtn+
-      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div style="font-weight:700;font-size:13px'+(af?';text-decoration:line-through':'')+'">'+naamVan(p)+pend+'</div><div class="sm muted">Laatste consult: '+(KDATA.lastConsult[p.id]?esc(datumNL(KDATA.lastConsult[p.id])):"n.v.t.")+'</div></div></div>'+
-      '<div style="flex:1.2">'+klantWorkoutChip(p)+'</div>'+
-      '<div style="flex:1">'+(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>')+'</div>'+
-      '<div style="flex:1.6" onclick="event.stopPropagation()">'+klantTagCel(p)+'</div>'+
+      '<div style="flex:2.2;display:flex;gap:11px;align-items:center"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div style="font-weight:700;font-size:13px'+(af?';text-decoration:line-through':'')+'">'+naamVan(p)+pend+'</div><div class="sm muted">Laatste consult: '+(L?'…':(KDATA.lastConsult[p.id]?esc(datumNL(KDATA.lastConsult[p.id])):"n.v.t."))+'</div></div></div>'+
+      '<div style="flex:1.2">'+(L?'<span class="wchip leeg">…</span>':klantWorkoutChip(p))+'</div>'+
+      '<div style="flex:1">'+(L?'<span class="muted">…</span>':(wp==null?'<span class="muted">–</span>':'<b style="color:'+(wp>=70?'#1d9a63':'#e5484d')+'">'+wp+'%</b>'))+'</div>'+
+      '<div style="flex:1.6" onclick="event.stopPropagation()">'+(L?'':klantTagCel(p))+'</div>'+
       '<button class="kebab" onclick="event.stopPropagation();openKlantMenu(event,\''+p.id+'\','+(p.archived?'true':'false')+')">⋮</button></div>';
   }).join("");
 }
@@ -112,12 +142,13 @@ function klantenRender(){
   const consFrom=ymd(addDays(new Date(),-29));
   const consIds=new Set((KDATA.cons||[]).filter(c=>(c.consult_date||"")>=consFrom).map(c=>c.athlete_id));
   const crTot=actief.length?Math.round(actief.filter(p=>consIds.has(p.id)).length/actief.length*100):null;
+  const L=!!KDATA.laden; // cijfers nog onderweg: puntjes tonen
   const banner=klantCoachFilter?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><a onclick="coachGo(\'coaches\')" style="color:var(--accent);cursor:pointer;font-weight:700">‹ Alle coaches</a><span class="muted">Klanten van <b style="color:var(--txt)">'+esc(klantCoachNaam)+'</b></span></div>':'';
   cp.innerHTML=banner+'<div class="statbar2">'+
     '<div><div class="n">'+actief.length+'</div><div class="l">Actieve klanten</div></div>'+
-    '<div><div class="n acc">'+(totaal==null?'–':totaal+'%')+'</div><div class="l">Compliance</div><div><select onchange="klantPeriode=parseInt(this.value);klantenRender()">'+[7,30,90].map(n=>'<option value="'+n+'"'+(klantPeriode===n?' selected':'')+'>Workout: '+n+' dagen</option>').join('')+'</select></div></div>'+
-    '<div><div class="n acc">'+(crTot==null?'–':crTot+'%')+'</div><div class="l">Consult-rate · 30 dagen</div></div>'+
-    '<div><div class="n acc">'+(cmTot==null?'–':cmTot+'%')+'</div><div class="l">Contactmomenten</div></div></div>'+
+    '<div><div class="n acc">'+(L?'…':(totaal==null?'–':totaal+'%'))+'</div><div class="l">Compliance</div><div><select onchange="klantPeriode=parseInt(this.value);klantenRender()">'+[7,30,90].map(n=>'<option value="'+n+'"'+(klantPeriode===n?' selected':'')+'>Workout: '+n+' dagen</option>').join('')+'</select></div></div>'+
+    '<div><div class="n acc">'+(L?'…':(crTot==null?'–':crTot+'%'))+'</div><div class="l">Consult-rate · 30 dagen</div></div>'+
+    '<div><div class="n acc">'+(L?'…':(cmTot==null?'–':cmTot+'%'))+'</div><div class="l">Contactmomenten</div></div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'+
       '<div class="search2" style="max-width:360px"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek op naam…" value="'+esc(klantZoek)+'" oninput="klantZoekF(this.value)"></div>'+
       klantTagKiezerHtml()+

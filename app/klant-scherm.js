@@ -54,10 +54,12 @@ function renderClient(panel){
 }
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
 async function vulKlantStats(p){
-  const[wq,rq,ciq]=await Promise.all([
+  const[wq,rq,ciq,cq]=await Promise.all([
     db.from("workouts").select("id,workout_date,title").eq("client_id",p.id),
     db.from("results").select("workout_id,status").eq("athlete_id",p.id),
-    db.from("client_info").select("data").eq("athlete_id",p.id).limit(1)
+    db.from("client_info").select("data").eq("athlete_id",p.id).limit(1),
+    // naam van de coach voor de kalender-kop, meteen in dezelfde ronde
+    (p.coach_id&&myRole()!=="coach")?db.from("profiles").select("first_name").eq("id",p.coach_id).single():Promise.resolve({data:null})
   ]);
   const ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
   const doneIds=new Set((rq.data||[]).filter(r=>r.status==="completed").map(r=>r.workout_id));
@@ -89,7 +91,7 @@ async function vulKlantStats(p){
   csDagenToon();
   // naam van de coach in de kalender-kop (cache zodat renderMonth hem niet overschrijft)
   if(p.coach_id&&myRole()!=="coach"){
-    const{data:cp}=await db.from("profiles").select("first_name").eq("id",p.coach_id).single();
+    const cp=cq&&cq.data;
     if(cp){coachChipNaam=cp.first_name||"";const cc=el("cs-coach");if(cc)cc.textContent="Coach "+coachChipNaam;}
   }
 }
@@ -1117,7 +1119,17 @@ async function renderMonth(opts){
   if(skipFetch){
     byDate=monthByDate; // hergebruik de al geladen workouts/results, geen database-oproep
   }else{
-    const{data:workouts,error:werr}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
+    // Workouts, dag-notities en techniek-notities tegelijk ophalen (ronde 1);
+    // daarna resultaten, uploads en reacties tegelijk (ronde 2). Was zes
+    // aanroepen na elkaar.
+    const[wres,dnq]=await Promise.all([
+      db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",ymd(gridStart)).lte("workout_date",ymd(gridEnd)).order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at"),
+      // Dag-notities voor het zichtbare bereik
+      db.from("day_notes").select("*").eq("athlete_id",id).gte("note_date",ymd(gridStart)).lte("note_date",ymd(gridEnd)),
+      // Techniek-notities van deze klant (kaartjes in de bouwer + Historie)
+      exNotesVoor!==id?exNotesLaad():Promise.resolve()
+    ]);
+    const{data:workouts,error:werr}=wres;
     // Een mislukte opvraag mag nooit stil een lege kalender opleveren.
     if(werr)toast("Kalender kon niet laden: "+(werr.message||"onbekende fout")+" — ververs de pagina of probeer opnieuw.");
     monthWorkouts={};monthByDate={};byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
@@ -1125,21 +1137,19 @@ async function renderMonth(opts){
     monthResults={};monthMedia={};monthComments=[];
     const wids=(workouts||[]).map(w=>w.id);
     if(wids.length){
-      const{data:res}=await db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids);
+      const[{data:res},{data:mds},{data:wcs}]=await Promise.all([
+        db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids),
+        // Video-uploads van het lid (kleine tegels achter de resultaten)
+        db.from("result_media").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at"),
+        // Dag-reacties (voor de Reacties-knop op de kaarten)
+        db.from("workout_comments").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at")
+      ]);
       (res||[]).forEach(r=>{monthResults[r.block_id]=r;});
-      // Video-uploads van het lid (kleine tegels achter de resultaten)
-      const{data:mds}=await db.from("result_media").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at");
       (mds||[]).forEach(m=>{(monthMedia[m.block_id]=monthMedia[m.block_id]||[]).push(m);});
-      // Dag-reacties (voor de Reacties-knop op de kaarten)
-      const{data:wcs}=await db.from("workout_comments").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at");
       monthComments=wcs||[];
     }
-    // Dag-notities voor het zichtbare bereik
     monthNotes={};
-    const{data:dns}=await db.from("day_notes").select("*").eq("athlete_id",id).gte("note_date",ymd(gridStart)).lte("note_date",ymd(gridEnd));
-    (dns||[]).forEach(n=>{monthNotes[n.note_date]=n;});
-    // Techniek-notities van deze klant (kaartjes in de bouwer + Historie)
-    if(exNotesVoor!==id)await exNotesLaad();
+    (dnq.data||[]).forEach(n=>{monthNotes[n.note_date]=n;});
   }
   const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   let label;

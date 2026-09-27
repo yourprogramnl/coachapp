@@ -13,29 +13,32 @@ const actieveKlanten=()=>((coachClients||[]).filter(p=>!p.archived));
 // alleen zijn eigen klanten: alleen de eigen coach kan op gelezen zetten,
 // anders zou het bolletje bij de eigenaar nooit uitgaan), plus ongelezen
 // groepsberichten van groepen waar je zelf lid van bent. Realtime bijgewerkt.
-let msgBadgeAantal=0,msgBadgeKanaal=null,msgBadgeGestart=false;
+let msgBadgeAantal=0,msgBadgeKanaal=null,msgBadgeGestart=false,msgBadgeTijd=0;
 async function telMsgBadge(){
   if(!ME||!ME.profile||myRole()==="lid")return;
+  msgBadgeTijd=Date.now();
+  // Eigen klanten staan al in coachClients (geladen door renderCoach); alleen
+  // als die lijst leeg is vragen we ze aan de database. Scheelt een aanroep.
+  const eigen=(coachClients||[]).filter(p=>p.coach_id===ME.user.id).map(p=>({id:p.id}));
   const[kl,lidm]=await Promise.all([
-    db.from("profiles").select("id").eq("coach_id",ME.user.id),
+    eigen.length?Promise.resolve({data:eigen}):db.from("profiles").select("id").eq("coach_id",ME.user.id),
     db.from("chat_group_members").select("group_id,last_read_at").eq("profile_id",ME.user.id),
   ]);
-  let n=0;
   const ids=(kl.data||[]).map(k=>k.id);
-  if(ids.length){
-    const{data}=await db.from("messages").select("athlete_id,sender_id").in("athlete_id",ids).is("read_at",null);
-    // bericht ván het lid = sender is het lid zelf (coachberichten hebben ook read_at null tot het lid ze leest)
-    n+=(data||[]).filter(m=>m.sender_id===m.athlete_id).length;
-  }
   const gids=(lidm.data||[]).map(m=>m.group_id);
-  if(gids.length){
-    const{data:gm}=await db.from("chat_group_messages").select("group_id,sender_id,created_at").in("group_id",gids).neq("sender_id",ME.user.id);
-    n+=(gm||[]).filter(m=>{
-      const eigen=(lidm.data||[]).find(x=>x.group_id===m.group_id);
-      const sinds=eigen&&eigen.last_read_at?eigen.last_read_at:"";
-      return m.created_at>sinds;
-    }).length;
-  }
+  // Beide tellingen tegelijk ophalen, niet na elkaar.
+  const[mq,gq]=await Promise.all([
+    ids.length?db.from("messages").select("athlete_id,sender_id").in("athlete_id",ids).is("read_at",null):Promise.resolve({data:[]}),
+    gids.length?db.from("chat_group_messages").select("group_id,sender_id,created_at").in("group_id",gids).neq("sender_id",ME.user.id):Promise.resolve({data:[]}),
+  ]);
+  let n=0;
+  // bericht ván het lid = sender is het lid zelf (coachberichten hebben ook read_at null tot het lid ze leest)
+  n+=(mq.data||[]).filter(m=>m.sender_id===m.athlete_id).length;
+  n+=(gq.data||[]).filter(m=>{
+    const eigenLid=(lidm.data||[]).find(x=>x.group_id===m.group_id);
+    const sinds=eigenLid&&eigenLid.last_read_at?eigenLid.last_read_at:"";
+    return m.created_at>sinds;
+  }).length;
   msgBadgeAantal=n;
   msgBadgeDom();
 }
@@ -50,7 +53,9 @@ function msgBadgeDom(){
   el.textContent=msgBadgeAantal>9?"9+":msgBadgeAantal;
 }
 function msgBadgeStart(){
-  telMsgBadge();
+  // Niet bij elke tabwissel opnieuw tellen: het realtime-kanaal en de chat
+  // roepen telMsgBadge zelf aan zodra er iets verandert. Hoogstens elke 20 s.
+  if(!msgBadgeGestart||Date.now()-msgBadgeTijd>20000)telMsgBadge();
   if(msgBadgeGestart)return;
   msgBadgeGestart=true;
   try{
@@ -144,9 +149,9 @@ async function renderCoach(section){
   let q=db.from("profiles").select("*");
   if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);
   else{if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);q=q.or("role.eq.lid,coach_id.not.is.null");}
-  const{data:clients}=await q;
+  // Klanten en oefeningenlijst tegelijk ophalen (twee losse aanroepen na elkaar was trager).
+  const[{data:clients},{data:exs}]=await Promise.all([q,db.from("exercises").select("name").order("name")]);
   coachClients=clients||[];
-  const{data:exs}=await db.from("exercises").select("name").order("name");
   coachExercises=exs||[];
   const dl=document.getElementById("exlist");if(dl)dl.innerHTML=coachExercises.map(e=>'<option value="'+esc(e.name)+'">').join("");
   coachRenderSection();

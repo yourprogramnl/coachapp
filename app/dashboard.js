@@ -1,32 +1,69 @@
 // app/dashboard.js — het coach-dashboard: aandacht nodig, contactmomenten,
 // activiteit-feed, mijn cijfers, mijn taken en workout van de week.
 let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false,dashFeedLimit=6,dashFeedTab="workouts";
+// Laadvolgnummer: ben je al doorgeklikt voordat de data binnen is, dan tekent
+// een oude lading niets meer over het nieuwe scherm heen.
+let dashLaadNr=0;
+const dashInBeeld=()=>coachSection==="dash"&&!document.querySelector(".client-layout")&&!!document.getElementById("cpage");
 async function fillDashboard(){
+  const nr=++dashLaadNr;
   const ids=actieveKlanten().map(p=>p.id);
   const td=todayStr(),from90=ymd(addDays(new Date(),-89));
-  let ws=[],rs=[],md=[],wc=[],msgs=[],blog=null,blogRes=[],consults=[];
-  if(ids.length){
+  // Vorige stand uit het korte geheugen meteen tekenen; vers ophalen op de achtergrond.
+  const oud=versPak("dash",60000);
+  if(oud){DASH=oud.dash;dashRender();}
+  const leeg=Promise.resolve({data:[]});
+  const heeft=ids.length>0;
+  // Alle aanroepen tegelijk (was twaalf na elkaar). Resultaten, uploads en
+  // reacties komen in dezelfde aanroep mee als de workouts: geen lange lijst
+  // workout-id's meer in de link.
+  const[wq,mq,cq,tq,pq,taq,sq,bq]=await Promise.all([
+    heeft?db.from("workouts").select("*, blocks(*), results(*), result_media(*), workout_comments(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
+    heeft?db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
+    // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
+    heeft?db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40):leeg,
+    // Tags voor het feed-filter (zelfde tags als op de Klanten-pagina)
+    db.from("tags").select("id,name,color").order("name"),
+    db.from("profile_tags").select("tag_id,profile_id"),
+    db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false}),
+    db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id),
+    ME.profile.company_id?db.from("workouts").select("id,title,workout_date, blocks(*), results(athlete_id,created_at)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1):leeg,
+  ]);
+  let ws=[],rs=[],md=[],wc=[];
+  if(wq.error&&heeft){
+    // Terugvalroute: los ophalen zoals vroeger.
     ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
     const wids=ws.map(w=>w.id);
-    if(wids.length)rs=(await db.from("results").select("*").in("workout_id",wids)).data||[];
-    if(wids.length)md=(await db.from("result_media").select("*").in("workout_id",wids)).data||[];
-    if(wids.length)wc=(await db.from("workout_comments").select("*").in("workout_id",wids).order("created_at")).data||[];
-    msgs=(await db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
-    // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
-    consults=(await db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40)).data||[];
+    if(wids.length){
+      const[r1,r2,r3]=await Promise.all([
+        db.from("results").select("*").in("workout_id",wids),
+        db.from("result_media").select("*").in("workout_id",wids),
+        db.from("workout_comments").select("*").in("workout_id",wids).order("created_at")
+      ]);
+      rs=r1.data||[];md=r2.data||[];wc=r3.data||[];
+    }
+  }else{
+    ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);md=md.concat(w.result_media||[]);wc=wc.concat(w.workout_comments||[]);delete w.results;delete w.result_media;delete w.workout_comments;return w;});
+    wc.sort((a,b)=>a.created_at<b.created_at?-1:(a.created_at>b.created_at?1:0)); // zelfde volgorde als vroeger (op tijd)
   }
-  // Tags voor het feed-filter (zelfde tags als op de Klanten-pagina)
-  const dtags=(await db.from("tags").select("id,name,color").order("name")).data||[];
-  const ptags=(await db.from("profile_tags").select("tag_id,profile_id")).data||[];
-  const tasks=(await db.from("tasks").select("*").eq("owner_id",ME.user.id).order("created_at",{ascending:false})).data||[];
-  const snoozeRows=(await db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id)).data||[];
+  const msgs=mq.data||[],consults=cq.data||[],dtags=tq.data||[],ptags=pq.data||[],tasks=taq.data||[],snoozeRows=sq.data||[];
   const snoozeMap={};snoozeRows.forEach(s=>snoozeMap[s.athlete_id]=s.snoozed_until);
-  if(ME.profile.company_id){
+  let blog=null,blogRes=[];
+  if(bq.error&&ME.profile.company_id){
     blog=((await db.from("workouts").select("id,title,workout_date, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1)).data||[])[0]||null;
     if(blog)blogRes=(await db.from("results").select("athlete_id,created_at").eq("workout_id",blog.id)).data||[];
+  }else{
+    blog=(bq.data||[])[0]||null;
+    if(blog){blogRes=blog.results||[];delete blog.results;}
   }
-  DASH={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
-  dashRender();
+  const dash={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
+  const vingerafdruk=JSON.stringify(dash);
+  versZet("dash",{dash,vingerafdruk});
+  if(nr!==dashLaadNr)return; // er is intussen opnieuw geladen
+  // Staat precies dezelfde data al op het scherm? Dan niets overtekenen.
+  if(oud&&oud.vingerafdruk===vingerafdruk&&DASH===oud.dash)return;
+  DASH=dash;
+  if(dashInBeeld())dashRender();
 }
 function dashSetFilter(f){dashFilter=f;dashRender();}
 function dashSetFeedTab(t){dashFeedTab=t;dashFeedLimit=6;dashRender();}

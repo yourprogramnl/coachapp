@@ -26,6 +26,13 @@ const todayStr=()=>ymd(new Date());
 const mondayOf=d=>{const x=new Date(d);const k=(x.getDay()+6)%7;x.setDate(x.getDate()-k);x.setHours(0,0,0,0);return x;};
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 let ME={user:null,profile:null};
+// Kort geheugen voor schermdata (Klanten, Dashboard). Bij heen en weer klikken
+// tekenen we meteen de vorige stand en halen we op de achtergrond vers op; is
+// er niets veranderd, dan blijft het scherm gewoon staan (geen flits).
+const VERS={};
+function versZet(k,v){VERS[k]={t:Date.now(),v};}
+function versPak(k,maxMs){const e=VERS[k];return (e&&Date.now()-e.t<maxMs)?e.v:null;}
+function versWis(){for(const k in VERS)delete VERS[k];}
 const MAANDKORT=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 function toast(t){let e=document.getElementById("toast2");if(!e){e=document.createElement("div");e.id="toast2";e.className="toast2";document.body.appendChild(e);}e.textContent=t;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),2600);}
 // Upload van een lid: foto of video? Het opslagpad eindigt op de extensie.
