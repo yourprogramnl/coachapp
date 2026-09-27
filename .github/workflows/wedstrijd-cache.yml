@@ -1,0 +1,38 @@
+# Vult elke maandagochtend de cache met de antwoorden van Competition Corner en jointhenationals.com,
+# zodat de wekelijkse cloudroutine "Wedstrijddata-controle" (die competitioncorner.net zelf niet
+# kan bereiken) er twee uur later mee kan werken. Zie tools/wedstrijd-check.js.
+name: Wedstrijddata cache
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'   # maandag 04:00 UTC, de routine draait om 06:00 UTC
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/wedstrijd-cache.yml'
+      - 'tools/wedstrijd-check.js'
+
+permissions:
+  contents: write
+
+jobs:
+  vul-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cache vullen
+        run: node tools/wedstrijd-check.js --vul-cache tools/cc-cache.json
+      - name: Cache committen
+        run: |
+          git config user.name "wedstrijd-cache"
+          git config user.email "actions@users.noreply.github.com"
+          git add tools/cc-cache.json
+          if git diff --cached --quiet; then
+            echo "Cache ongewijzigd"
+          else
+            git commit -m "Wedstrijddata-cache bijgewerkt (Competition Corner, The Nationals)"
+            git push
+          fi
