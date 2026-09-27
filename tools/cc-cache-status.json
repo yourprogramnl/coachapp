@@ -1,12 +1,8 @@
 {
- "opgehaald": "2026-09-27T11:35:10.270Z",
- "events": 0,
- "live": 3,
- "gevolgd": 0,
- "fouten": [
-  "Competition Corner Netherlands: HTTP 403 op https://competitioncorner.net/api2/v1/events/filtered?location=Netherlands&includePastEvents=true&page=1&perPage=500",
-  "Competition Corner Belgium: HTTP 403 op https://competitioncorner.net/api2/v1/events/filtered?location=Belgium&includePastEvents=true&page=1&perPage=500",
-  "Competition Corner Spain: HTTP 403 op https://competitioncorner.net/api2/v1/events/filtered?location=Spain&includePastEvents=true&page=1&perPage=500"
- ],
+ "opgehaald": "2026-09-27T11:55:47.072Z",
+ "events": 436,
+ "live": 247,
+ "gevolgd": 5,
+ "fouten": [],
  "basis": "https://competitioncorner.net/api2/v1"
 }
