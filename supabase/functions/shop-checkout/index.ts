@@ -1,15 +1,31 @@
 // Winkel-afrekenen: maakt een Stripe Checkout-sessie (abonnement) voor een
 // blogprogramma en geeft de betaal-URL terug. De klant rekent af op de
 // beveiligde pagina van Stripe; kaartgegevens komen nooit bij ons.
+// Terugkeeradres: de etalage (programmering.yourprogram.nl) stuurt haar eigen adres mee als
+// `site` en krijgt /bedankt; het dashboard (app.yourprogram.nl) houdt winkel.html. Alleen
+// bekende adressen zijn toegestaan.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
-const SITE = "https://app.yourprogram.nl";
+const DASHBOARD = "https://app.yourprogram.nl";
+const DASHBOARD_OUD = "https://coachapp-steel.vercel.app";
+const ETALAGE = "https://programmering.yourprogram.nl";
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+function siteOk(s: string): boolean {
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:" && u.hostname !== "localhost") return false;
+    return [DASHBOARD, DASHBOARD_OUD, ETALAGE].includes(u.origin) ||
+      /^yp-programmering(-[a-z0-9-]+)?\.vercel\.app$/.test(u.hostname) ||
+      /^yp-programmering-[a-z0-9-]+-yourprogramnl1\.vercel\.app$/.test(u.hostname) ||
+      u.hostname === "localhost";
+  } catch (_e) { return false; }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -17,7 +33,7 @@ Deno.serve(async (req) => {
   const sleutel = Deno.env.get("STRIPE_SECRET_KEY");
   if (!sleutel) return json({ error: "Betalen is nog niet ingesteld (STRIPE_SECRET_KEY ontbreekt)." }, 500);
 
-  let body: { program_id?: string } = {};
+  let body: { program_id?: string; site?: string } = {};
   try { body = await req.json(); } catch (_e) { /* leeg */ }
   if (!body.program_id) return json({ error: "program_id ontbreekt" }, 400);
 
@@ -29,6 +45,11 @@ Deno.serve(async (req) => {
     return json({ error: "Dit programma is niet (meer) te koop." }, 400);
   }
 
+  const site = body.site && siteOk(body.site) ? new URL(body.site).origin : DASHBOARD;
+  const dashboardSite = site === DASHBOARD || site === DASHBOARD_OUD;
+  const gelukt = dashboardSite ? site + "/winkel.html?besteld=1" : site + "/bedankt?besteld=1";
+  const afgebroken = dashboardSite ? site + "/winkel.html?geannuleerd=1" : site + "/bedankt?geannuleerd=1";
+
   const vorm = new URLSearchParams();
   vorm.set("mode", "subscription");
   vorm.set("locale", "nl");
@@ -37,8 +58,8 @@ Deno.serve(async (req) => {
   vorm.set("line_items[0][price_data][unit_amount]", String(p.price_cents));
   vorm.set("line_items[0][price_data][recurring][interval]", p.price_interval || "month");
   vorm.set("line_items[0][price_data][product_data][name]", p.name);
-  vorm.set("success_url", SITE + "/winkel.html?besteld=1");
-  vorm.set("cancel_url", SITE + "/winkel.html?geannuleerd=1");
+  vorm.set("success_url", gelukt);
+  vorm.set("cancel_url", afgebroken);
   vorm.set("metadata[program_id]", p.id);
   vorm.set("subscription_data[metadata][program_id]", p.id);
 
