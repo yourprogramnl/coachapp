@@ -1,0 +1,4 @@
+# Gereedschap en cache voor de wekelijkse wedstrijddata-controle horen niet op de site.
+tools/
+.github/
+supabase/
