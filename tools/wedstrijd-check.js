@@ -65,11 +65,46 @@ const VERWACHT_HANDMATIG = [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const lees = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
-async function getJson(url) {
+// Cache van alle opgehaalde antwoorden, in één JSON-bestand ({opgehaald, antwoorden: {url: data}}).
+// Twee standen:
+//   --vul-cache <bestand>  alles live ophalen en bewaren; draait wekelijks als GitHub Action
+//                          (.github/workflows/wedstrijd-cache.yml), want de cloud-omgeving van de
+//                          routine mag alleen GitHub en pakketbronnen bereiken (HTTP 403 op de rest).
+//   --cache <bestand>      live proberen en bij een fout terugvallen op de bewaarde antwoorden.
+const VUL_CACHE = args['vul-cache'] || null;
+const CACHE = VUL_CACHE || args.cache || null;
+const cacheStats = { live: 0, hits: 0, fouten: 0 };
+let cacheData = null;
+function laadCache() {
+  if (cacheData) return cacheData;
+  try { cacheData = (CACHE && !VUL_CACHE && fs.existsSync(CACHE)) ? lees(CACHE) : { opgehaald: null, antwoorden: {} }; }
+  catch (err) { cacheData = { opgehaald: null, antwoorden: {} }; }
+  if (!cacheData.antwoorden) cacheData.antwoorden = {};
+  return cacheData;
+}
+async function haalLive(url, alsTekst) {
+  if (args.offline) throw new Error('offline (testschakelaar --offline) op ' + url); // om de terugval op de cache te testen
   const res = await fetch(url, H);
   if (!res.ok) throw new Error('HTTP ' + res.status + ' op ' + url);
-  return res.json();
+  return alsTekst ? res.text() : res.json();
 }
+async function haal(url, alsTekst) {
+  if (VUL_CACHE) {
+    const data = await haalLive(url, alsTekst);
+    laadCache().antwoorden[url] = data;
+    cacheStats.live++;
+    return data;
+  }
+  try { const data = await haalLive(url, alsTekst); cacheStats.live++; return data; }
+  catch (err) {
+    const c = laadCache();
+    if (CACHE && Object.prototype.hasOwnProperty.call(c.antwoorden, url)) { cacheStats.hits++; return c.antwoorden[url]; }
+    cacheStats.fouten++;
+    throw err;
+  }
+}
+const getJson = (url) => haal(url, false);
+const cacheDatum = () => laadCache().opgehaald;
 
 function stripHtml(html) {
   if (!html) return '';
@@ -288,6 +323,27 @@ function logSql(items) {
     teDoen.push({ e, naam, start, eind, event: g.event, jaar, fase, recent, bekend: ccBekend.has(e.id), eerder });
   }
 
+  if (VUL_CACHE) {
+    // Alleen de cache vullen: lijsten staan er al in, nu ook alle workouts van de gevolgde
+    // wedstrijden van de laatste 400 dagen plus toekomstige, en de pagina's van The Nationals.
+    const versNodig = teDoen.filter((t) => t.eind >= dagenGeleden(400) || t.start > VANDAAG);
+    for (const t of versNodig) {
+      try { await oogst(t.e, t.event, t.jaar, t.fase); } catch (err) { fouten.push(`Cache vullen event ${t.e.id} (${t.naam}): ${err.message}`); }
+    }
+    for (const url of NATIONALS_PAGINAS) {
+      try { await haal(url, true); } catch (err) { fouten.push('The Nationals ' + url + ': ' + err.message); }
+    }
+    const c = laadCache();
+    c.opgehaald = new Date().toISOString();
+    c.events = ccEvents.length;
+    c.gevolgd = versNodig.map((t) => ({ id: t.e.id, naam: t.naam, event: t.event, jaar: t.jaar, fase: t.fase }));
+    fs.mkdirSync(path.dirname(path.resolve(VUL_CACHE)), { recursive: true });
+    fs.writeFileSync(VUL_CACHE, JSON.stringify(c));
+    console.log(`Cache gevuld in ${VUL_CACHE}: ${cacheStats.live} antwoorden, ${versNodig.length} gevolgde events geoogst, ${fouten.length} fouten.`);
+    fouten.forEach((f) => console.log('- ' + f));
+    return;
+  }
+
   for (const t of teDoen) {
     const { e, naam, start, event, jaar, fase, eerder } = t;
     if (!t.bekend && andereBron(event, jaar, fase)) {
@@ -316,9 +372,7 @@ function logSql(items) {
   const nieuwePdfs = new Set();
   for (const url of NATIONALS_PAGINAS) {
     try {
-      const res = await fetch(url, { headers: { 'User-Agent': H.headers['User-Agent'] } });
-      if (!res.ok) continue;
-      const html = await res.text();
+      const html = await haal(url, true);
       for (const m of html.matchAll(/https?:\/\/(?:www\.)?jointhenationals\.com\/[^"'\s<>)]+?\.pdf/gi)) {
         const u = m[0];
         if (!bronnenBekend.has(u)) nieuwePdfs.add(u);
@@ -355,7 +409,13 @@ function logSql(items) {
   fs.writeFileSync(path.join(UIT, 'synclog.sql'), logSql(logItems));
   fs.writeFileSync(path.join(UIT, 'kandidaten.json'), JSON.stringify(kandidaten, null, 1));
 
-  const kop = [`# Wedstrijddata-controle ${VANDAAG}`, '', `Competition Corner: ${ccEvents.length} events bekeken in ${LANDEN.join(', ')}; ${teDoen.length} relevant voor de gevolgde wedstrijden (${GEVOLGD.map((g) => g.event).join(', ')}).`, ''];
+  const kop = [`# Wedstrijddata-controle ${VANDAAG}`, '', `Competition Corner: ${ccEvents.length} events bekeken in ${LANDEN.join(', ')}; ${teDoen.length} relevant voor de gevolgde wedstrijden (${GEVOLGD.map((g) => g.event).join(', ')}).`];
+  if (cacheStats.hits) {
+    const cd = cacheDatum();
+    const oud = cd && (Date.now() - Date.parse(cd)) > 10 * 864e5;
+    kop.push(`Let op: ${cacheStats.hits} antwoorden kwamen uit de cache${cd ? ' van ' + cd.slice(0, 10) : ''} (live ophalen lukte niet).${oud ? ' Die cache is ouder dan 10 dagen: controleer of de GitHub Action "Wedstrijddata cache" nog draait.' : ''}`);
+  }
+  kop.push('');
   const body = rapport.length ? rapport : ['- Niets nieuws gevonden. Alles is up-to-date.'];
   const staart = ['', `Klaar om te schrijven: ${kandidaten.length} workout-rijen in ${sqlBestanden.length} SQL-bestand(en), ${logItems.length} logregel(s) in synclog.sql.`];
   if (ngNieuw.length) staart.push('', 'Tip, nieuw gezien maar niet gevolgd (wil je ze erbij? zet ze dan in GEVOLGD in tools/wedstrijd-check.js):', ...ngNieuw.map((x) => `- ${x.naam} (${x.land}, ${x.start}) https://competitioncorner.net/events/${x.id}`));
