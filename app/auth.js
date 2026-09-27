@@ -310,6 +310,7 @@ async function loadApp(){
   // het inlogscherm (verzoek Stefan, 26 juli).
   if(role==="lid"){
     if(ME.profile.archived)renderGearchiveerd();
+    else if(!ME.profile.company_id)renderStartKeuze(); // nog nergens bij: uitnodiging of eigen omgeving
     else renderAppOnly();
     return;
   }
@@ -354,6 +355,40 @@ function renderAppOnly(){
       :'')+
     '<button class="btn" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>'+
     (APP_STORE_URL?'':'<div class="muted" style="font-size:12.5px;margin-top:14px;line-height:1.55">Heb je de app nog niet? Vraag je coach om de installatielink.</div>'));
+}
+
+// Account zonder bedrijf (zelf aangemaakt, geen uitnodiging ingewisseld): twee
+// wegen. Een sporter opent alsnog de uitnodigingslink; een coach start met één
+// bedrijfsnaam zijn eigen omgeving en wordt daar eigenaar van (rpc start_bedrijf,
+// serverside afgeschermd: nooit koppelen aan een bestaand bedrijf).
+function renderStartKeuze(){
+  toonLoginKaart(
+    '<div style="font-size:34px;line-height:1;margin-bottom:12px">👋</div>'+
+    '<h3 style="margin:0 0 6px;font-size:19px">Welkom! Hoe wil je verder?</h3>'+
+    '<div class="muted" style="font-size:13px;line-height:1.6;margin-bottom:16px">Je account is nog nergens aan gekoppeld. Kies wat bij jou past.</div>'+
+    '<div style="text-align:left;border:1px solid #2a2a30;border-radius:12px;padding:14px 16px;margin-bottom:12px">'+
+      '<div style="font-weight:700;margin-bottom:4px">Ik ben uitgenodigd door een coach of gym</div>'+
+      '<div class="muted" style="font-size:12.5px;line-height:1.6">Open de link uit de e-mail van je coach; daarmee koppelt je account zich vanzelf. Geen mail gekregen? Vraag je coach om een nieuwe uitnodiging.</div>'+
+    '</div>'+
+    '<div style="text-align:left;border:1px solid #2a2a30;border-radius:12px;padding:14px 16px;margin-bottom:14px">'+
+      '<div style="font-weight:700;margin-bottom:4px">Ik ben coach en start mijn eigen omgeving</div>'+
+      '<div class="muted" style="font-size:12.5px;line-height:1.6;margin-bottom:10px">Je wordt eigenaar van een nieuwe, lege omgeving met eigen klanten, programmering en berichten. Daarna kun je meteen klanten en collega-coaches uitnodigen.</div>'+
+      '<input id="start-naam" maxlength="60" placeholder="Naam van je bedrijf of gym" style="width:100%;box-sizing:border-box;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')startBedrijf()">'+
+      '<button class="btn" id="start-knop" style="width:100%" onclick="startBedrijf()">Start mijn omgeving</button>'+
+    '</div>'+
+    '<div class="msg" id="start-msg"></div>'+
+    '<button class="btn ghost" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>');
+}
+async function startBedrijf(){
+  const inp=document.getElementById("start-naam"),knop=document.getElementById("start-knop"),msg=document.getElementById("start-msg");
+  const naam=(inp&&inp.value||"").trim();
+  const meld=(t,k)=>{if(msg){msg.textContent=t;msg.className="msg "+(k||"");}};
+  if(naam.length<2){meld("Vul eerst de naam van je bedrijf of gym in.","err");if(inp)inp.focus();return;}
+  if(knop)knop.disabled=true;meld("");
+  const{error}=await db.rpc("start_bedrijf",{p_naam:naam});
+  if(error){meld(error.message||"Starten mislukt, probeer het opnieuw.","err");if(knop)knop.disabled=false;return;}
+  meld("Je omgeving staat klaar, welkom!","ok");
+  setTimeout(()=>location.reload(),700);
 }
 
 // Gearchiveerd lid: alle data blijft bewaard, maar de app is op slot tot de
