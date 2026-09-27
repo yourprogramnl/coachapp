@@ -6,6 +6,8 @@
 // - Werkuren: staat de ontvanger op "alleen tijdens werkuren", dan schuift de
 //   mail door naar het eerstvolgende toegestane moment (Europe/Amsterdam).
 // - Mislukt versturen: 3 pogingen met 10 min tussenruimte, daarna failed.
+// - Taal (27 sep 2026): elke mail in de taal van de ontvanger (profiles.lang,
+//   nl of en). Een uitnodiging volgt de taal van wie uitnodigde (created_by).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -21,11 +23,137 @@ const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "";
 // zodra de app publiek is: dan APP_STORE_URL vullen, die gaat voor.
 const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "https://testflight.apple.com/join/JqqZHVDp";
 
+type Taal = "nl" | "en";
+const taalVan = (l: unknown): Taal => (l === "en" ? "en" : "nl");
+
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
-function naamVan(p: { first_name?: string; last_name?: string } | null): string {
-  if (!p) return "Onbekend";
-  return [p.first_name, p.last_name].filter(Boolean).join(" ") || "Onbekend";
+// Alle teksten per taal. Nederlands is de bron; Engels Brits, "program".
+const TXT = {
+  nl: {
+    onbekend: "Onbekend", workout: "Workout", vandaag: "vandaag", sporter: "sporter", jeCoach: "je coach", JeCoach: "Je coach",
+    gemist: "gemist", rondes: "rondes", reps: "reps", voltooid: "voltooid", nogNietGelogd: "nog niet gelogd",
+    coachNotities: "Notities van je coach", warmup: "Warming-up", cooldown: "Cooldown",
+    dagKop: "Je workout voor vandaag",
+    dagIntro: (naam: string, datum: string) => `Goedemorgen ${naam}, dit staat er vandaag (${datum}) voor je klaar.`,
+    dagVoet: "Je krijgt deze mail elke ochtend omdat je 'Workout per e-mail' hebt aangezet op je Profiel in de app. Daar kun je hem ook weer uitzetten.",
+    dagOnderwerp: (datum: string) => `Je workout voor vandaag · ${datum}`,
+    coachVoet: "Mail-meldingen beheer je in het dashboard onder Instellingen > Notificaties.",
+    berichtOnderwerp: (naam: string) => `${naam} heeft je een bericht gestuurd`,
+    berichtTitel: (naam: string) => `Nieuw bericht van ${naam}`,
+    berichtIntro: "De laatste berichten:",
+    berichtVoet: "Antwoorden doe je via Berichten in het dashboard. ",
+    workoutOnderwerp: (naam: string) => `${naam} heeft een workout afgetekend`,
+    workoutTitel: (naam: string) => `${naam} heeft getraind`,
+    workoutVoet: "Bekijk de details in de activiteit-feed van het dashboard. ",
+    videoOnderwerp: (naam: string, n: number) => `${naam} heeft ${n === 1 ? "een video" : n + " video's"} geüpload`,
+    videoTitel: (naam: string) => `Nieuwe video's van ${naam}`,
+    videoIntro: (titel: string, datum: string, n: number) => `Bij ${titel} van ${datum} ${n === 1 ? "staat nu een video" : "staan nu " + n + " video's"}.`,
+    deWorkout: "de workout",
+    videoVoet: "Bekijk en beoordeel ze in de activiteit-feed van het dashboard. ",
+    fotoOnderwerp: (naam: string) => `${naam} heeft voortgangsfoto's geüpload`,
+    fotoTitel: (naam: string) => `Nieuwe voortgangsfoto's van ${naam}`,
+    fotoIntro: (n: number, datum: string) => `Er ${n === 1 ? "staat 1 nieuwe foto" : "staan " + n + " nieuwe foto's"} klaar (datum ${datum}).`,
+    fotoVoet: "Bekijk ze via het klantprofiel > Voortgangsfoto's. ",
+    reactieIntroLid: (datum: string) => `Er is een nieuwe reactie op je workout van ${datum}.`,
+    reactieIntroCoach: (naam: string, datum: string) => `${naam} heeft een reactie geplaatst op de workout-dag van ${datum}.`,
+    reactieVoetLid: "Open de app om te reageren. Deze mail staat aan in je meldingsinstellingen.",
+    reactieVoetCoach: "Open het dashboard om te reageren. Mail-meldingen beheer je onder Instellingen > Notificaties.",
+    reactieTitel: (naam: string) => `${naam} heeft gereageerd`,
+    reactieWorkout: (titel: string | null, datum: string) => titel ? `Workout: ${titel} · ${datum}` : `Workout van ${datum}`,
+    reactieOnderwerpLid: (datum: string) => `Nieuwe reactie op je workout van ${datum}`,
+    reactieOnderwerpCoach: (naam: string) => `${naam} reageerde op een workout-dag`,
+    // uitnodiging
+    invOnderwerpLid: (bedrijf: string) => `Je account bij ${bedrijf} staat klaar`,
+    invOnderwerpCoach: (bedrijf: string) => `Je coach-account bij ${bedrijf} staat klaar`,
+    invWelkom: (voornaam: string) => `Welkom${voornaam ? " " + voornaam : ""}!`,
+    invIntro: (bedrijf: string) => `${bedrijf} heeft een account voor je klaargezet. In drie stappen ben je binnen.`,
+    invAppStore: (a: string) => `Zoek <b style="color:#e6e6ea">YourProgram</b> in de App Store, of gebruik <a href="${APP_STORE_URL}" style="color:${a}">deze link</a>.`,
+    invTestflight: (a: string) => `De app is nog in test en loopt via TestFlight van Apple. Installeer eerst <b style="color:#e6e6ea">TestFlight</b> uit de App Store en open daarna <a href="${TESTFLIGHT_URL}" style="color:${a}">deze link</a> op je telefoon.`,
+    invGeenApp: "De app staat nog niet in de App Store. Je coach stuurt je de downloadlink, dat gaat via TestFlight van Apple.",
+    invStap1Kop: "Kies je wachtwoord",
+    invStap1: (naar: string) => `Klik op de knop hieronder en kies een wachtwoord. Gebruik het e-mailadres waarop je deze mail kreeg: <b style="color:#e6e6ea">${naar}</b>.`,
+    invStap2LidKop: "Zet de app op je telefoon",
+    invStap3LidKop: "Log in en je bent binnen",
+    invStap3Lid: "Inloggen doe je met hetzelfde e-mailadres en je nieuwe wachtwoord. Je programma staat dan al voor je klaar.",
+    invStap2CoachKop: "Log in op het dashboard",
+    invStap2Coach: (a: string) => `Je werkt op de computer, op <a href="https://coachapp-steel.vercel.app" style="color:${a}">coachapp-steel.vercel.app</a>. Daar staan je klanten, je programmering en je berichten.`,
+    invStap3CoachKop: "Lees je even in",
+    invStap3Coach: "Rechtsboven zit een vraagteken met de handleiding: per onderdeel een schermafbeelding met uitleg. Begin bij Dashboard en Klant-scherm.",
+    invWatKanJe: "In de app zie je elke dag je training, vul je je scores in en chat je met je coach.",
+    invKnop: "Wachtwoord kiezen",
+    invVast: "Loopt het ergens vast?",
+    invV1: "Knop doet niks?", invA1: "Kopieer deze link naar je browser:",
+    invV2: "Wachtwoord kwijt?", invA2: "Kies bij het inloggen \"Wachtwoord vergeten\", dan krijg je een nieuwe link.",
+    invV3: "Verkeerd e-mailadres?", invA3Lid: "Laat het je coach weten, dan krijg je een nieuwe uitnodiging.", invA3Coach: "Laat het weten aan wie je uitnodigde, dan krijg je een nieuwe uitnodiging.",
+    invV4: "Nog vragen?", invA4Lid: "Stuur je coach een berichtje, dan komt het goed.", invA4Coach: "Stel ze aan wie je uitnodigde, of stuur een bericht via het dashboard.",
+    invGeldig: "Deze uitnodiging is 14 dagen geldig.",
+  },
+  en: {
+    onbekend: "Unknown", workout: "Workout", vandaag: "today", sporter: "athlete", jeCoach: "your coach", JeCoach: "Your coach",
+    gemist: "missed", rondes: "rounds", reps: "reps", voltooid: "completed", nogNietGelogd: "not logged yet",
+    coachNotities: "Notes from your coach", warmup: "Warm-up", cooldown: "Cool-down",
+    dagKop: "Your workout for today",
+    dagIntro: (naam: string, datum: string) => `Good morning ${naam}, here's what's ready for you today (${datum}).`,
+    dagVoet: "You get this email every morning because you switched on 'Workout by email' on your Profile in the app. You can switch it off there too.",
+    dagOnderwerp: (datum: string) => `Your workout for today · ${datum}`,
+    coachVoet: "Manage email notifications in the dashboard under Settings > Notifications.",
+    berichtOnderwerp: (naam: string) => `${naam} sent you a message`,
+    berichtTitel: (naam: string) => `New message from ${naam}`,
+    berichtIntro: "The latest messages:",
+    berichtVoet: "Reply via Messages in the dashboard. ",
+    workoutOnderwerp: (naam: string) => `${naam} completed a workout`,
+    workoutTitel: (naam: string) => `${naam} has trained`,
+    workoutVoet: "See the details in the activity feed of the dashboard. ",
+    videoOnderwerp: (naam: string, n: number) => `${naam} uploaded ${n === 1 ? "a video" : n + " videos"}`,
+    videoTitel: (naam: string) => `New videos from ${naam}`,
+    videoIntro: (titel: string, datum: string, n: number) => `${titel} from ${datum} now has ${n === 1 ? "a video" : n + " videos"}.`,
+    deWorkout: "the workout",
+    videoVoet: "Watch and review them in the activity feed of the dashboard. ",
+    fotoOnderwerp: (naam: string) => `${naam} uploaded progress photos`,
+    fotoTitel: (naam: string) => `New progress photos from ${naam}`,
+    fotoIntro: (n: number, datum: string) => `There ${n === 1 ? "is 1 new photo" : "are " + n + " new photos"} (date ${datum}).`,
+    fotoVoet: "View them via the client profile > Progress photos. ",
+    reactieIntroLid: (datum: string) => `There's a new comment on your workout of ${datum}.`,
+    reactieIntroCoach: (naam: string, datum: string) => `${naam} commented on the workout day of ${datum}.`,
+    reactieVoetLid: "Open the app to reply. This email is switched on in your notification settings.",
+    reactieVoetCoach: "Open the dashboard to reply. Manage email notifications under Settings > Notifications.",
+    reactieTitel: (naam: string) => `${naam} replied`,
+    reactieWorkout: (titel: string | null, datum: string) => titel ? `Workout: ${titel} · ${datum}` : `Workout of ${datum}`,
+    reactieOnderwerpLid: (datum: string) => `New comment on your workout of ${datum}`,
+    reactieOnderwerpCoach: (naam: string) => `${naam} commented on a workout day`,
+    invOnderwerpLid: (bedrijf: string) => `Your account at ${bedrijf} is ready`,
+    invOnderwerpCoach: (bedrijf: string) => `Your coach account at ${bedrijf} is ready`,
+    invWelkom: (voornaam: string) => `Welcome${voornaam ? " " + voornaam : ""}!`,
+    invIntro: (bedrijf: string) => `${bedrijf} has set up an account for you. Three steps and you're in.`,
+    invAppStore: (a: string) => `Search for <b style="color:#e6e6ea">YourProgram</b> in the App Store, or use <a href="${APP_STORE_URL}" style="color:${a}">this link</a>.`,
+    invTestflight: (a: string) => `The app is still in testing and runs through Apple's TestFlight. First install <b style="color:#e6e6ea">TestFlight</b> from the App Store, then open <a href="${TESTFLIGHT_URL}" style="color:${a}">this link</a> on your phone.`,
+    invGeenApp: "The app isn't in the App Store yet. Your coach will send you the download link, via Apple's TestFlight.",
+    invStap1Kop: "Choose your password",
+    invStap1: (naar: string) => `Click the button below and choose a password. Use the email address this message was sent to: <b style="color:#e6e6ea">${naar}</b>.`,
+    invStap2LidKop: "Get the app on your phone",
+    invStap3LidKop: "Log in and you're in",
+    invStap3Lid: "Log in with the same email address and your new password. Your program will be waiting for you.",
+    invStap2CoachKop: "Log in to the dashboard",
+    invStap2Coach: (a: string) => `You work on your computer at <a href="https://coachapp-steel.vercel.app" style="color:${a}">coachapp-steel.vercel.app</a>. That's where your clients, programming and messages live.`,
+    invStap3CoachKop: "Have a quick read",
+    invStap3Coach: "Top right there's a question mark with the manual: a screenshot with explanation for every section. Start with Dashboard and Client screen.",
+    invWatKanJe: "In the app you see your training every day, enter your scores and chat with your coach.",
+    invKnop: "Choose password",
+    invVast: "Stuck somewhere?",
+    invV1: "Button not working?", invA1: "Copy this link into your browser:",
+    invV2: "Lost your password?", invA2: "Choose \"Forgot password\" when logging in and you'll get a new link.",
+    invV3: "Wrong email address?", invA3Lid: "Let your coach know and you'll get a new invitation.", invA3Coach: "Let the person who invited you know and you'll get a new invitation.",
+    invV4: "Any questions?", invA4Lid: "Send your coach a message and it'll be sorted.", invA4Coach: "Ask the person who invited you, or send a message via the dashboard.",
+    invGeldig: "This invitation is valid for 14 days.",
+  },
+};
+type Teksten = typeof TXT.nl;
+const T = (taal: Taal): Teksten => (taal === "en" ? (TXT.en as unknown as Teksten) : TXT.nl);
+
+function naamVan(p: { first_name?: string; last_name?: string } | null, taal: Taal = "nl"): string {
+  if (!p) return T(taal).onbekend;
+  return [p.first_name, p.last_name].filter(Boolean).join(" ") || T(taal).onbekend;
 }
 
 // Huidige tijd in Amsterdam: { dag 0=ma..6=zo, uur }
@@ -54,9 +182,9 @@ function werkurenCheck(tijden: { modus?: string; van?: number; tot?: number; dag
   return { magNu: false, wachtUren: 24 };
 }
 
-function datumNL(iso: string): string {
+function datumTxt(iso: string, taal: Taal): string {
   try {
-    return new Intl.DateTimeFormat("nl-NL", { timeZone: "Europe/Amsterdam", day: "numeric", month: "long", year: "numeric" }).format(new Date(iso + "T12:00:00"));
+    return new Intl.DateTimeFormat(taal === "en" ? "en-GB" : "nl-NL", { timeZone: "Europe/Amsterdam", day: "numeric", month: "long", year: "numeric" }).format(new Date(iso + "T12:00:00"));
   } catch {
     return iso;
   }
@@ -87,8 +215,8 @@ function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string
 type Blok = { label: string | null; exercise: string | null; prescription: string | null; notes: string | null };
 type WorkoutMail = { title: string | null; coach_notes: string | null; warmup: string | null; cooldown: string | null; blokken: Blok[] };
 
-function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMail[]; voet: string; accent: string }): string {
-  const accent = opts.accent;
+function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMail[]; voet: string; accent: string; taal: Taal }): string {
+  const accent = opts.accent, t = T(opts.taal);
   const sectie = (kop: string, tekst: string | null) => tekst
     ? `<div style="margin:8px 0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a919c;margin-bottom:2px">${esc(kop)}</div><div style="font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${esc(tekst)}</div></div>`
     : "";
@@ -102,30 +230,32 @@ function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMa
         `</div>`;
     }).join("");
     return `<div style="margin:14px 0;padding:14px 16px;background:#141417;border:1px solid #26262b;border-radius:12px">` +
-      `<div style="font-size:16px;font-weight:700;color:${accent};margin-bottom:6px">${esc(w.title || "Workout")}</div>` +
-      sectie("Notities van je coach", w.coach_notes) +
-      sectie("Warming-up", w.warmup) +
+      `<div style="font-size:16px;font-weight:700;color:${accent};margin-bottom:6px">${esc(w.title || t.workout)}</div>` +
+      sectie(t.coachNotities, w.coach_notes) +
+      sectie(t.warmup, w.warmup) +
       blokken +
-      sectie("Cooldown", w.cooldown) +
+      sectie(t.cooldown, w.cooldown) +
       `</div>`;
   }).join("");
   return KADER_OPEN +
-    `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">Je workout voor vandaag</h2>` +
-    `<p style="margin:0 0 6px;line-height:1.5;color:#c9c9ce">Goedemorgen ${esc(opts.naam)}, dit staat er vandaag (${esc(opts.datum)}) voor je klaar.</p>` +
+    `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">${esc(t.dagKop)}</h2>` +
+    `<p style="margin:0 0 6px;line-height:1.5;color:#c9c9ce">${esc(t.dagIntro(opts.naam, opts.datum))}</p>` +
     kaarten +
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
 }
 
 // Compacte weergave van een gelogde score (zelfde volgorde als de apps)
-function scoreTxt(r: { score_text?: string | null; time_seconds?: number | null; load_kg?: number | null; reps?: number | null; rounds?: number | null; status?: string } | null): string {
+function scoreTxt(r: { score_text?: string | null; time_seconds?: number | null; load_kg?: number | null; reps?: number | null; rounds?: number | null; status?: string; capped?: boolean | null } | null, taal: Taal): string {
+  const t = T(taal);
   if (!r) return "";
-  if (r.status === "missed") return "gemist";
+  if (r.status === "missed") return t.gemist;
   if (r.score_text) return r.score_text;
-  if (r.time_seconds != null) { const m = Math.floor(r.time_seconds / 60), s = r.time_seconds % 60; return `${m}:${String(s).padStart(2, "0")}`; }
-  if (r.load_kg != null) return `${r.load_kg} kg`;
-  if (r.rounds != null) return `${r.rounds} rondes${r.reps != null ? " + " + r.reps : ""}`;
-  if (r.reps != null) return `${r.reps} reps`;
-  return "voltooid";
+  const cap = r.capped ? "CAP · " : "";
+  if (!r.capped && r.time_seconds != null) { const m = Math.floor(r.time_seconds / 60), s = r.time_seconds % 60; return `${m}:${String(s).padStart(2, "0")}`; }
+  if (r.load_kg != null) return `${cap}${r.load_kg} kg`;
+  if (r.rounds != null) return `${cap}${r.rounds} ${t.rondes}${r.reps != null ? " + " + r.reps : ""}`;
+  if (r.reps != null) return `${cap}${r.reps} ${t.reps}`;
+  return t.voltooid;
 }
 
 // Eenvoudige mail: titel + intro + losse regels (voor bericht/workout/video/foto)
@@ -145,8 +275,8 @@ function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet
 // kiezen, app installeren, inloggen. Daarom drie genummerde stappen en onderaan
 // de vragen die mensen echt stellen (mail niet gezien, knop doet niks,
 // wachtwoord kwijt).
-function inviteHtml(o: { bedrijfsNaam: string; voornaam: string; naar: string; link: string; accent: string; isLid: boolean; logoUrl?: string | null }): string {
-  const a = o.accent;
+function inviteHtml(o: { bedrijfsNaam: string; voornaam: string; naar: string; link: string; accent: string; isLid: boolean; logoUrl?: string | null; taal: Taal }): string {
+  const a = o.accent, t = T(o.taal);
   // Kopregel: het bedrijfslogo als het in Instellingen > Thema staat, anders de
   // bedrijfsnaam. Zo werkt het ook voor een ander bedrijf dan YourProgram, en
   // blijft de mail leesbaar als de ontvanger afbeeldingen blokkeert.
@@ -158,40 +288,32 @@ function inviteHtml(o: { bedrijfsNaam: string; voornaam: string; naar: string; l
     `<div style="font-size:14px;font-weight:700;color:#f4f4f5">` +
     `<span style="display:inline-block;width:21px;height:21px;border-radius:50%;background:${a};color:#0E0E10;text-align:center;line-height:21px;font-size:12px;font-weight:800;margin-right:9px">${n}</span>${esc(kop)}</div>` +
     `<div style="font-size:13px;line-height:1.6;color:#c9c9ce;margin:7px 0 0 30px">${tekst}</div></div>`;
-  const appTekst = APP_STORE_URL
-    ? `Zoek <b style="color:#e6e6ea">YourProgram</b> in de App Store, of gebruik <a href="${APP_STORE_URL}" style="color:${a}">deze link</a>.`
-    : (TESTFLIGHT_URL
-      ? `De app is nog in test en loopt via TestFlight van Apple. Installeer eerst <b style="color:#e6e6ea">TestFlight</b> uit de App Store en open daarna <a href="${TESTFLIGHT_URL}" style="color:${a}">deze link</a> op je telefoon.`
-      : `De app staat nog niet in de App Store. Je coach stuurt je de downloadlink, dat gaat via TestFlight van Apple.`);
+  const appTekst = APP_STORE_URL ? t.invAppStore(a) : (TESTFLIGHT_URL ? t.invTestflight(a) : t.invGeenApp);
   const stappen = o.isLid
-    ? stap(1, "Kies je wachtwoord", `Klik op de knop hieronder en kies een wachtwoord. Gebruik het e-mailadres waarop je deze mail kreeg: <b style="color:#e6e6ea">${esc(o.naar)}</b>.`) +
-      stap(2, "Zet de app op je telefoon", appTekst) +
-      stap(3, "Log in en je bent binnen", "Inloggen doe je met hetzelfde e-mailadres en je nieuwe wachtwoord. Je programma staat dan al voor je klaar.")
-    : stap(1, "Kies je wachtwoord", `Klik op de knop hieronder en kies een wachtwoord. Gebruik het e-mailadres waarop je deze mail kreeg: <b style="color:#e6e6ea">${esc(o.naar)}</b>.`) +
-      stap(2, "Log in op het dashboard", `Je werkt op de computer, op <a href="https://coachapp-steel.vercel.app" style="color:${a}">coachapp-steel.vercel.app</a>. Daar staan je klanten, je programmering en je berichten.`) +
-      stap(3, "Lees je even in", "Rechtsboven zit een vraagteken met de handleiding: per onderdeel een schermafbeelding met uitleg. Begin bij Dashboard en Klant-scherm.");
+    ? stap(1, t.invStap1Kop, t.invStap1(esc(o.naar))) +
+      stap(2, t.invStap2LidKop, appTekst) +
+      stap(3, t.invStap3LidKop, t.invStap3Lid)
+    : stap(1, t.invStap1Kop, t.invStap1(esc(o.naar))) +
+      stap(2, t.invStap2CoachKop, t.invStap2Coach(a)) +
+      stap(3, t.invStap3CoachKop, t.invStap3Coach);
   const watKanJe = o.isLid
-    ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#c9c9ce">In de app zie je elke dag je training, vul je je scores in en chat je met je coach.</p>`
+    ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#c9c9ce">${t.invWatKanJe}</p>`
     : "";
   const vraag = (v: string, antw: string) =>
     `<div style="margin:7px 0"><span style="color:#e6e6ea;font-weight:600">${esc(v)}</span> <span style="color:#8a919c">${antw}</span></div>`;
   return KADER_OPEN + kop +
-    `<h2 style="color:${a};margin:0 0 8px;font-size:20px">Welkom${o.voornaam ? " " + esc(o.voornaam) : ""}!</h2>` +
-    `<p style="margin:0 0 14px;line-height:1.6;color:#c9c9ce">${esc(o.bedrijfsNaam)} heeft een account voor je klaargezet. In drie stappen ben je binnen.</p>` +
+    `<h2 style="color:${a};margin:0 0 8px;font-size:20px">${esc(t.invWelkom(o.voornaam))}</h2>` +
+    `<p style="margin:0 0 14px;line-height:1.6;color:#c9c9ce">${esc(t.invIntro(o.bedrijfsNaam))}</p>` +
     stappen +
-    `<div style="margin:18px 0 0"><a href="${o.link}" style="display:inline-block;background:${a};color:#0E0E10;font-weight:700;padding:13px 24px;border-radius:10px;text-decoration:none">Wachtwoord kiezen</a></div>` +
+    `<div style="margin:18px 0 0"><a href="${o.link}" style="display:inline-block;background:${a};color:#0E0E10;font-weight:700;padding:13px 24px;border-radius:10px;text-decoration:none">${esc(t.invKnop)}</a></div>` +
     watKanJe +
     `<div style="margin:20px 0 0;padding-top:14px;border-top:1px solid #26262b;font-size:12.5px;line-height:1.55">` +
-    `<div style="color:#e6e6ea;font-weight:700;margin-bottom:6px">Loopt het ergens vast?</div>` +
-    vraag("Knop doet niks?", `Kopieer deze link naar je browser:<br><span style="color:#6f747c">${esc(o.link)}</span>`) +
-    vraag("Wachtwoord kwijt?", "Kies bij het inloggen \"Wachtwoord vergeten\", dan krijg je een nieuwe link.") +
-    vraag("Verkeerd e-mailadres?", o.isLid
-      ? "Laat het je coach weten, dan krijg je een nieuwe uitnodiging."
-      : "Laat het weten aan wie je uitnodigde, dan krijg je een nieuwe uitnodiging.") +
-    vraag("Nog vragen?", o.isLid
-      ? "Stuur je coach een berichtje, dan komt het goed."
-      : "Stel ze aan wie je uitnodigde, of stuur een bericht via het dashboard.") +
-    `<div style="margin:12px 0 0;color:#6f747c">Deze uitnodiging is 14 dagen geldig.</div></div></div>`;
+    `<div style="color:#e6e6ea;font-weight:700;margin-bottom:6px">${esc(t.invVast)}</div>` +
+    vraag(t.invV1, `${esc(t.invA1)}<br><span style="color:#6f747c">${esc(o.link)}</span>`) +
+    vraag(t.invV2, esc(t.invA2)) +
+    vraag(t.invV3, esc(o.isLid ? t.invA3Lid : t.invA3Coach)) +
+    vraag(t.invV4, esc(o.isLid ? t.invA4Lid : t.invA4Coach)) +
+    `<div style="margin:12px 0 0;color:#6f747c">${esc(t.invGeldig)}</div></div></div>`;
 }
 // ---- inviteHtml einde ----
 
@@ -211,19 +333,25 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
 
   // Uitnodigingsmail: de ontvanger heeft nog geen profiel, dus geen vinkjes of
   // werkuren; gaat rechtstreeks naar het e-mailadres uit de uitnodiging.
-  // De opbouw (drie stappen) staat in inviteHtml hierboven.
+  // Taal: die van wie uitnodigde (created_by), tenzij de payload een taal geeft.
   if (event === "invite") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
     const { data: bedrijfI } = await db.from("companies").select("name,theme,logo_url").eq("id", rij.company_id).maybeSingle();
     const accent = accentVan(bedrijfI?.theme);
-    const bedrijfsNaam = bedrijfI?.name || "je coach";
     const link = `https://coachapp-steel.vercel.app/?invite=${payload.token}`;
     const voornaam = (payload.first_name as string) || "";
-    const { data: invRij } = await db.from("invites").select("role").eq("token", payload.token as string).maybeSingle();
+    const { data: invRij } = await db.from("invites").select("role,created_by").eq("token", payload.token as string).maybeSingle();
     const isLidInvite = !invRij || invRij.role === "lid";
-    const html = inviteHtml({ bedrijfsNaam, voornaam, naar, link, accent, isLid: isLidInvite, logoUrl: bedrijfI?.logo_url || null });
-    const r = await verstuur(naar, bedrijfsNaam, isLidInvite ? `Je account bij ${bedrijfsNaam} staat klaar` : `Je coach-account bij ${bedrijfsNaam} staat klaar`, html);
+    let taal: Taal = taalVan(payload.lang);
+    if (payload.lang == null && invRij?.created_by) {
+      const { data: maker } = await db.from("profiles").select("lang").eq("id", invRij.created_by).maybeSingle();
+      taal = taalVan(maker?.lang);
+    }
+    const t = T(taal);
+    const bedrijfsNaam = bedrijfI?.name || t.jeCoach;
+    const html = inviteHtml({ bedrijfsNaam, voornaam, naar, link, accent, isLid: isLidInvite, logoUrl: bedrijfI?.logo_url || null, taal });
+    const r = await verstuur(naar, bedrijfsNaam, isLidInvite ? t.invOnderwerpLid(bedrijfsNaam) : t.invOnderwerpCoach(bedrijfsNaam), html);
     if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
     const foutI = await r.text().catch(() => String(r.status));
     const pogingenI = ((rij.attempts as number) || 0) + 1;
@@ -232,7 +360,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   }
 
   // Melding van een coach over de app zelf (bug, idee of vraag). Gaat naar een
-  // vast adres, dus geen profiel, geen vinkjes en geen werkuren.
+  // vast adres van ons, dus altijd Nederlands; geen profiel, vinkjes of werkuren.
   if (event === "melding") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
@@ -263,8 +391,10 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     return "fout";
   }
 
-  const { data: ontvanger } = await db.from("profiles").select("id,first_name,last_name,email,role,notify_prefs,company_id").eq("id", rij.recipient_id).single();
+  const { data: ontvanger } = await db.from("profiles").select("id,first_name,last_name,email,role,notify_prefs,company_id,lang").eq("id", rij.recipient_id).single();
   if (!ontvanger || !ontvanger.email) { await klaar({ status: "skipped", last_error: "geen ontvanger/e-mail" }); return "skipped"; }
+  const taal = taalVan(ontvanger.lang);
+  const t = T(taal);
 
   // Vinkjes: staf standaard uit, lid standaard aan; dagworkout altijd opt-in.
   const prefs = (ontvanger.notify_prefs || {}) as { mail?: Record<string, boolean>; mail_tijden?: Record<string, unknown> };
@@ -290,7 +420,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
 
   if (event === "dagworkout") {
     const ids = (payload.workout_ids || []) as string[];
-    const datum = datumNL(String(payload.datum || ""));
+    const datum = datumTxt(String(payload.datum || ""), taal);
     const { data: ws } = await db.from("workouts").select("id,title,coach_notes,warmup,cooldown").in("id", ids);
     if (!ws || !ws.length) { await klaar({ status: "skipped", last_error: "workout(s) niet meer gevonden" }); return "skipped"; }
     const { data: bs } = await db.from("blocks").select("workout_id,sort,label,exercise,prescription,notes").in("workout_id", ids).order("sort");
@@ -298,14 +428,8 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       title: w.title, coach_notes: w.coach_notes, warmup: w.warmup, cooldown: w.cooldown,
       blokken: (bs || []).filter((b) => b.workout_id === w.id),
     }));
-    const html = dagworkoutHtml({
-      naam: ontvanger.first_name || "sporter",
-      datum,
-      workouts,
-      voet: "Je krijgt deze mail elke ochtend omdat je 'Workout per e-mail' hebt aangezet op je Profiel in de app. Daar kun je hem ook weer uitzetten.",
-      accent,
-    });
-    const r = await verstuur(ontvanger.email, afzenderNaam, `Je workout voor vandaag · ${datum}`, html);
+    const html = dagworkoutHtml({ naam: ontvanger.first_name || t.sporter, datum, workouts, voet: t.dagVoet, accent, taal });
+    const r = await verstuur(ontvanger.email, afzenderNaam, t.dagOnderwerp(datum), html);
     if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
     const fout = await r.text().catch(() => String(r.status));
     const pogingen = ((rij.attempts as number) || 0) + 1;
@@ -313,10 +437,10 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     return "fout";
   }
 
-  const coachVoet = "Mail-meldingen beheer je in het dashboard onder Instellingen > Notificaties.";
+  const coachVoet = t.coachVoet;
   const klantNaam = async (aid: string) => {
     const { data } = await db.from("profiles").select("first_name,last_name").eq("id", aid).maybeSingle();
-    return naamVan(data || null);
+    return naamVan(data || null, taal);
   };
   const stuurEnBoek = async (onderwerp: string, html: string): Promise<string> => {
     const r = await verstuur(ontvanger.email, afzenderNaam, onderwerp, html);
@@ -334,11 +458,11 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const { data: ms } = await db.from("messages").select("body,created_at").eq("athlete_id", aid).eq("sender_id", aid).order("created_at", { ascending: false }).limit(4);
     const regels = (ms || []).reverse().map((m) => esc(m.body));
     if (!regels.length) { await klaar({ status: "skipped", last_error: "geen berichten gevonden" }); return "skipped"; }
-    return await stuurEnBoek(`${naam} heeft je een bericht gestuurd`, simpelHtml({
-      titel: `Nieuw bericht van ${naam}`,
-      intro: "De laatste berichten:",
+    return await stuurEnBoek(t.berichtOnderwerp(naam), simpelHtml({
+      titel: t.berichtTitel(naam),
+      intro: t.berichtIntro,
       regels,
-      voet: "Antwoorden doe je via Berichten in het dashboard. " + coachVoet,
+      voet: t.berichtVoet + coachVoet,
       accent,
     }));
   }
@@ -350,20 +474,20 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const [{ data: workout }, { data: blokken }, { data: results }] = await Promise.all([
       db.from("workouts").select("title,workout_date").eq("id", wid).maybeSingle(),
       db.from("blocks").select("id,label,exercise").eq("workout_id", wid).order("sort"),
-      db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds").eq("workout_id", wid).eq("athlete_id", aid),
+      db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,capped").eq("workout_id", wid).eq("athlete_id", aid),
     ]);
     if (!workout) { await klaar({ status: "skipped", last_error: "workout niet meer gevonden" }); return "skipped"; }
-    const datum = workout.workout_date ? datumNL(workout.workout_date) : "vandaag";
+    const datum = workout.workout_date ? datumTxt(workout.workout_date, taal) : t.vandaag;
     const regels = (blokken || []).map((b) => {
       const r = (results || []).find((x) => x.block_id === b.id) || null;
-      const sc = scoreTxt(r);
-      return `<b>${esc([b.label, b.exercise].filter(Boolean).join(" · "))}</b>${sc ? `: ${esc(sc)}` : ": nog niet gelogd"}`;
+      const sc = scoreTxt(r, taal);
+      return `<b>${esc([b.label, b.exercise].filter(Boolean).join(" · "))}</b>${sc ? `: ${esc(sc)}` : ": " + esc(t.nogNietGelogd)}`;
     });
-    return await stuurEnBoek(`${naam} heeft een workout afgetekend`, simpelHtml({
-      titel: `${naam} heeft getraind`,
-      intro: `${workout.title || "Workout"} · ${datum}`,
+    return await stuurEnBoek(t.workoutOnderwerp(naam), simpelHtml({
+      titel: t.workoutTitel(naam),
+      intro: `${workout.title || t.workout} · ${datum}`,
       regels,
-      voet: "Bekijk de details in de activiteit-feed van het dashboard. " + coachVoet,
+      voet: t.workoutVoet + coachVoet,
       accent,
     }));
   }
@@ -376,13 +500,13 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       db.from("workouts").select("title,workout_date").eq("id", wid).maybeSingle(),
       db.from("result_media").select("id", { count: "exact", head: true }).eq("workout_id", wid).eq("athlete_id", aid),
     ]);
-    const datum = workout?.workout_date ? datumNL(workout.workout_date) : "vandaag";
+    const datum = workout?.workout_date ? datumTxt(workout.workout_date, taal) : t.vandaag;
     const n = count || 1;
-    return await stuurEnBoek(`${naam} heeft ${n === 1 ? "een video" : n + " video's"} geüpload`, simpelHtml({
-      titel: `Nieuwe video's van ${naam}`,
-      intro: `Bij ${workout?.title || "de workout"} van ${datum} ${n === 1 ? "staat nu een video" : "staan nu " + n + " video's"}.`,
+    return await stuurEnBoek(t.videoOnderwerp(naam, n), simpelHtml({
+      titel: t.videoTitel(naam),
+      intro: t.videoIntro(workout?.title || t.deWorkout, datum, n),
       regels: [],
-      voet: "Bekijk en beoordeel ze in de activiteit-feed van het dashboard. " + coachVoet,
+      voet: t.videoVoet + coachVoet,
       accent,
     }));
   }
@@ -393,11 +517,11 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const naam = await klantNaam(aid);
     const { count } = await db.from("progress_photos").select("id", { count: "exact", head: true }).eq("athlete_id", aid).eq("taken_on", payload.taken_on as string);
     const n = count || 1;
-    return await stuurEnBoek(`${naam} heeft voortgangsfoto's geüpload`, simpelHtml({
-      titel: `Nieuwe voortgangsfoto's van ${naam}`,
-      intro: `Er ${n === 1 ? "staat 1 nieuwe foto" : "staan " + n + " nieuwe foto's"} klaar (datum ${datumNL(String(payload.taken_on || ""))}).`,
+    return await stuurEnBoek(t.fotoOnderwerp(naam), simpelHtml({
+      titel: t.fotoTitel(naam),
+      intro: t.fotoIntro(n, datumTxt(String(payload.taken_on || ""), taal)),
       regels: [],
-      voet: "Bekijk ze via het klantprofiel > Voortgangsfoto's. " + coachVoet,
+      voet: t.fotoVoet + coachVoet,
       accent,
     }));
   }
@@ -411,28 +535,24 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   ]);
   const auteurIds = [...new Set((draad || []).map((c) => c.author_id))];
   const { data: auteurs } = await db.from("profiles").select("id,first_name,last_name").in("id", auteurIds);
-  const naamBij = (aid: string) => naamVan((auteurs || []).find((a) => a.id === aid) || null);
+  const naamBij = (aid: string) => naamVan((auteurs || []).find((a) => a.id === aid) || null, taal);
 
   const laatste = (draad || [])[(draad || []).length - 1];
-  const anderNaam = laatste ? naamBij(laatste.author_id) : "Je coach";
-  const datum = workout?.workout_date ? datumNL(workout.workout_date) : "vandaag";
-  const intro = isLid
-    ? `Er is een nieuwe reactie op je workout van ${datum}.`
-    : `${anderNaam} heeft een reactie geplaatst op de workout-dag van ${datum}.`;
-  const voet = isLid
-    ? "Open de app om te reageren. Deze mail staat aan in je meldingsinstellingen."
-    : "Open het dashboard om te reageren. Mail-meldingen beheer je onder Instellingen > Notificaties.";
+  const anderNaam = laatste ? naamBij(laatste.author_id) : t.JeCoach;
+  const datum = workout?.workout_date ? datumTxt(workout.workout_date, taal) : t.vandaag;
+  const intro = isLid ? t.reactieIntroLid(datum) : t.reactieIntroCoach(anderNaam, datum);
+  const voet = isLid ? t.reactieVoetLid : t.reactieVoetCoach;
 
   const html = reactieHtml({
-    titel: `${anderNaam} heeft gereageerd`,
+    titel: t.reactieTitel(anderNaam),
     intro,
     draad: (draad || []).slice(-4).map((c) => ({ naam: naamBij(c.author_id), body: c.body, vanMij: c.author_id === ontvanger.id })),
-    workoutTitel: workout?.title ? `Workout: ${workout.title} · ${datum}` : `Workout van ${datum}`,
+    workoutTitel: t.reactieWorkout(workout?.title || null, datum),
     voet,
     accent,
   });
 
-  const r = await verstuur(ontvanger.email, afzenderNaam, isLid ? `Nieuwe reactie op je workout van ${datum}` : `${anderNaam} reageerde op een workout-dag`, html);
+  const r = await verstuur(ontvanger.email, afzenderNaam, isLid ? t.reactieOnderwerpLid(datum) : t.reactieOnderwerpCoach(anderNaam), html);
   if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
   const fout = await r.text().catch(() => String(r.status));
   const pogingen = ((rij.attempts as number) || 0) + 1;

@@ -141,7 +141,7 @@ async function csDagenBewaar(arr){
 document.addEventListener("click",()=>{const pop=document.getElementById("cs-dagen-pop");if(pop)pop.classList.remove("show");});
 let calView="maand",hideScores=false;
 // Doorlopend scrollen zoals CoachRx: aantal weken groeit mee tijdens het scrollen
-let kalWeken=10,kalBusy=false,kalScrollBound=false,kalLabelMaand=null,kalScrollDoel=null,prevScrollY=null,kalAnim=0;
+let kalWeken=10,kalBusy=false,kalScrollBound=false,kalLabelMaand=null,kalScrollDoel=null,prevScrollY=null,kalAnim=0,kalBehoud=null,kalLaatsteY=0;
 const DAGVOL=["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"];
 async function kalSetView(v){if(!(await autoSaveBouwer()))return;calView=v;editDay=null;editWid=null;if(v==="maand")kalScrollDoel="top";renderMonth();}
 function kalLabelUpdate(){
@@ -173,13 +173,35 @@ function kalScrollBind(){
   window.addEventListener("scroll",()=>{
     if(calView!=="maand"||activePanel!=="kalender"||!calClient||!document.getElementById("calwrap"))return;
     kalLabelUpdate();
+    const y=window.scrollY,omhoog=y<kalLaatsteY;kalLaatsteY=y;
     // bijna onderaan: zes weken bijladen (niet tijdens een maand-sprong)
     if(Date.now()<kalAnim)return;
-    if(!kalBusy&&kalWeken<104&&window.innerHeight+window.scrollY>document.body.scrollHeight-900){
-      kalBusy=true;kalWeken+=6;prevScrollY=window.scrollY;
+    if(!kalBusy&&kalWeken<104&&window.innerHeight+y>document.body.scrollHeight-900){
+      kalBusy=true;kalWeken+=6;prevScrollY=y;
       Promise.resolve(renderMonth()).finally(()=>{kalBusy=false;});
     }
+    // bijna bovenaan en omhoog aan het scrollen: de maand ervoor erboven zetten
+    else if(!kalBusy&&omhoog&&y<260)kalEerderLaden();
   },{passive:true});
+  // Helemaal bovenaan vuurt geen scroll-event meer; het muiswiel omhoog wel.
+  window.addEventListener("wheel",e=>{
+    if(e.deltaY>=0||window.scrollY>0||calView!=="maand"||activePanel!=="kalender"||!calClient||!document.getElementById("calwrap"))return;
+    if(!kalBusy&&Date.now()>=kalAnim)kalEerderLaden();
+  },{passive:true});
+}
+// Eerdere maand vóór de huidige start zetten (scrollen naar boven). De kijker
+// blijft op dezelfde dag staan: na het tekenen schuift de pagina precies zoveel
+// omlaag als er boven is bijgekomen. Niet verder terug dan twee jaar.
+async function kalEerderLaden(){
+  const grens=new Date();grens.setFullYear(grens.getFullYear()-2);
+  const oudStart=mondayOf(new Date(calRef.getFullYear(),calRef.getMonth(),1));
+  if(oudStart<grens||kalWeken>=160)return;
+  kalBusy=true;
+  calRef=new Date(calRef.getFullYear(),calRef.getMonth()-1,1);
+  const nieuwStart=mondayOf(calRef);
+  kalWeken+=Math.max(1,Math.round((oudStart-nieuwStart)/(7*864e5)));
+  kalBehoud={hoogte:document.body.scrollHeight,y:window.scrollY};prevScrollY=window.scrollY;kalScrollDoel=null;
+  try{await renderMonth();}finally{kalBusy=false;}
 }
 function kalGaNaarMaand(doel){
   const start=new Date(calRef.getFullYear(),calRef.getMonth(),1);
@@ -1225,7 +1247,8 @@ async function renderMonth(opts){
     // dagenbalk plakt onder de (variabele) kalenderkop
     const ch=m.querySelector(".calhead"),pg=document.getElementById("cpage");
     if(ch&&pg)pg.style.setProperty("--calh",Math.round(ch.getBoundingClientRect().height)+"px");
-    if(kalScrollDoel){const doel=kalScrollDoel;kalScrollDoel=null;prevScrollY=null;requestAnimationFrame(()=>{kalScrollNaar(doel,true);setTimeout(kalLabelUpdate,80);});}
+    if(kalBehoud){const b=kalBehoud;kalBehoud=null;prevScrollY=null;window.scrollTo(0,b.y+(document.body.scrollHeight-b.hoogte));kalLaatsteY=window.scrollY;kalAnim=Date.now()+400;kalLabelUpdate();}
+    else if(kalScrollDoel){const doel=kalScrollDoel;kalScrollDoel=null;prevScrollY=null;requestAnimationFrame(()=>{kalScrollNaar(doel,true);setTimeout(kalLabelUpdate,80);});}
     else if(prevScrollY!=null){const y=prevScrollY;prevScrollY=null;window.scrollTo(0,y);kalLabelUpdate();}
   }
 }
