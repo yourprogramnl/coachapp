@@ -100,6 +100,12 @@ function blogpModal(id){
   document.getElementById("blogp-koopprijs").value=p&&p.price_cents?String(p.price_cents/100).replace(".",","):"";
   document.getElementById("blogp-koopint").value=(p&&p.price_interval)||"month";
   document.getElementById("blogp-join").checked=!!(p&&p.join_open);
+  document.getElementById("blogp-slug").value=p?(p.slug||""):"";
+  document.getElementById("blogp-sort").value=p&&p.sort!=null?p.sort:"";
+  document.getElementById("blogp-level").value=p&&p.level?String(p.level):"";
+  document.getElementById("blogp-days").value=p&&p.days_per_week?p.days_per_week:"";
+  document.getElementById("blogp-cover").value=p?(p.cover_url||""):"";
+  document.getElementById("blogp-desclong").value=p?(p.description_long||""):"";
   document.getElementById("blogp-joinlink").value=blogJoinUrl(p);
   blogpKoopToggle();
   blogpVulCoaches(p);
@@ -142,12 +148,25 @@ async function blogpOpslaan(){
     rec.coach_ids=(alleEl.checked||!gekozen.length)?null:gekozen;
   }
   rec.join_open=document.getElementById("blogp-join").checked; // aanmeldlink aan/uit
+  // Etalage-velden (programmering.yourprogram.nl)
+  const slug=document.getElementById("blogp-slug").value.trim().toLowerCase();
+  if(slug&&!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)){msg.textContent="Het adres (slug) mag alleen kleine letters, cijfers en streepjes bevatten, bijv. the-next-step.";msg.className="msg err";return;}
+  rec.slug=slug||null;
+  const sortTxt=document.getElementById("blogp-sort").value.trim();rec.sort=sortTxt===""?100:Math.max(0,parseInt(sortTxt,10)||0);
+  const lvl=document.getElementById("blogp-level").value;rec.level=lvl?parseInt(lvl,10):null;
+  const dg=parseInt(document.getElementById("blogp-days").value,10);rec.days_per_week=dg>=1&&dg<=7?dg:null;
+  rec.cover_url=document.getElementById("blogp-cover").value.trim()||null;
+  rec.description_long=document.getElementById("blogp-desclong").value.trim()||null;
   // Winkel: prijs in centen; te koop kan alleen met een geldige prijs (min. €1).
   rec.for_sale=document.getElementById("blogp-koop").checked;
   const prijsTxt=document.getElementById("blogp-koopprijs").value.trim();
   const prijs=Math.round(parseFloat(prijsTxt.replace(",","."))*100);
-  if(rec.for_sale){
-    if(isNaN(prijs)||prijs<100){msg.textContent="Vul een winkelprijs in van minstens €1 (bijv. 39,00).";msg.className="msg err";return;}
+  if(rec.for_sale&&prijsTxt===""){
+    // Gratis programma op de etalage: aanmelden gaat via de aanmeldlink, dus die moet aan.
+    if(!rec.join_open){msg.textContent="Een gratis programma op de etalage heeft de aanmeldlink nodig: zet 'Iedereen met de link kan zich zelf aanmelden' aan, of vul een prijs in.";msg.className="msg err";return;}
+    rec.price_cents=null;rec.price_interval=document.getElementById("blogp-koopint").value;
+  }else if(rec.for_sale){
+    if(isNaN(prijs)||prijs<100){msg.textContent="Vul een winkelprijs in van minstens €1 (bijv. 39,00), of laat de prijs leeg voor een gratis programma.";msg.className="msg err";return;}
     rec.price_cents=prijs;rec.price_interval=document.getElementById("blogp-koopint").value;
   }else if(!isNaN(prijs)&&prijs>0){
     rec.price_cents=prijs;rec.price_interval=document.getElementById("blogp-koopint").value;
@@ -543,12 +562,22 @@ function ensureBlogModals(){
   d.innerHTML='<div class="lmodal" id="blogpmodal"><div class="box"><h3 id="blogp-titel">Programma aanmaken</h3>'+
       '<div class="field"><label>Naam</label><input id="blogp-naam" placeholder="bijv. YP Hyrox Program"></div>'+
       '<div class="field"><label>Omschrijving</label><textarea id="blogp-desc" style="min-height:70px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
+      '<div class="field"><label>Etalage (programmering.yourprogram.nl)</label>'+
+        '<div class="sm muted" style="margin:-2px 0 6px">Deze velden vullen de programmapagina op de etalage. Alleen programma’s met "Zichtbaar op de etalage" aan worden getoond.</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+          '<div><div class="sm muted">Adres (slug)</div><input id="blogp-slug" placeholder="bijv. the-next-step"></div>'+
+          '<div><div class="sm muted">Volgorde (laag = eerst)</div><input id="blogp-sort" type="number" min="0" placeholder="100"></div>'+
+          '<div><div class="sm muted">Niveau (1-5)</div><select id="blogp-level"><option value="">–</option><option value="1">1 · beginner</option><option value="2">2</option><option value="3">3 · gemiddeld</option><option value="4">4</option><option value="5">5 · top</option></select></div>'+
+          '<div><div class="sm muted">Trainingen per week</div><input id="blogp-days" type="number" min="1" max="7" placeholder="5"></div>'+
+        '</div>'+
+        '<div class="sm muted" style="margin-top:6px">Omslagfoto (link)</div><input id="blogp-cover" placeholder="https://…/foto.jpg">'+
+        '<div class="sm muted" style="margin-top:6px">Lange omschrijving (voor de programmapagina; lege regel = nieuwe alinea)</div><textarea id="blogp-desclong" style="min-height:110px" placeholder="Voor wie is dit programma, hoe ziet een week eruit, wat mag je verwachten…"></textarea></div>'+
       '<div class="field"><label>Type</label><select id="blogp-type">'+BLOG_TYPES.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join("")+'</select></div>'+
       '<div class="field"><label>Prijs (alleen weergave; betalen loopt via Strivee)</label><input id="blogp-prijs" placeholder="bijv. €39 /maand (leeg = gratis)"></div>'+
       '<div class="field"><label>Winkel</label>'+
-        '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-koop" onchange="blogpKoopToggle()"><span class="pf-sw"></span> Te koop op de winkelpagina (/winkel.html)</label>'+
+        '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-koop" onchange="blogpKoopToggle()"><span class="pf-sw"></span> Zichtbaar op de etalage (te koop of gratis)</label>'+
         '<div id="blogp-koopvak" style="display:none;gap:8px;align-items:center"><span class="sm muted">Prijs €</span><input id="blogp-koopprijs" placeholder="39,00" style="width:90px"><select id="blogp-koopint" style="width:130px"><option value="month">per maand</option><option value="week">per week</option><option value="year">per jaar</option></select></div>'+
-        '<div class="sm muted" style="margin-top:4px">Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma.</div></div>'+
+        '<div class="sm muted" style="margin-top:4px">Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma. Prijs leeg = gratis programma: dan moet de aanmeldlink hieronder aan staan.</div></div>'+
       '<div class="field"><label>Aanmeldlink (gratis blog-lid)</label>'+
         '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-join"><span class="pf-sw"></span> Iedereen met de link kan zich zelf aanmelden</label>'+
         '<div style="display:flex;gap:6px;align-items:center"><input id="blogp-joinlink" readonly style="flex:1;font-size:12px" placeholder="De link verschijnt na het aanmaken"><button class="btn ghost sm" type="button" onclick="blogpKopieerLink()">Kopiëren</button></div>'+
