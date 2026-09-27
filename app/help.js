@@ -270,13 +270,18 @@ function helpTreffers(){
   return uit;
 }
 
+// Engelse screenshots (img/help-en/, gemaakt met shots-en.js uit de
+// FORGE-map handleiding-screenshots) zodra de taal Engels is; de
+// telefoonplaatjes van de sporter-app zijn er alleen in het Nederlands.
+function helpImg(s){return (typeof LANG!=="undefined"&&LANG==="en"&&s.img&&!s.telefoon)?s.img.replace("img/help/","img/help-en/"):s.img;}
 function helpStapHtml(s,nr,hoofdstukTitel){
+  const img=helpImg(s);
   return '<div class="helpstap" id="helpstap-'+nr+'">'+
     '<div class="helpstap-kop"><span class="helpnr">'+nr+'</span><h2>'+esc(s.titel)+'</h2>'+
     (hoofdstukTitel?'<span class="helpbron">'+esc(hoofdstukTitel)+'</span>':'')+'</div>'+
     '<p>'+esc(s.tekst)+'</p>'+
-    (s.img?'<figure class="helpshot'+(s.telefoon?" telefoon":"")+'" onclick="helpZoom(\''+esc(s.img)+'\')" title="Klik om te vergroten">'+
-      '<img src="'+esc(s.img)+'" alt="'+esc(s.titel)+'" loading="lazy" onerror="this.parentNode.classList.add(\'ontbreekt\')">'+
+    (img?'<figure class="helpshot'+(s.telefoon?" telefoon":"")+'" onclick="helpZoom(\''+esc(img)+'\')" title="Klik om te vergroten">'+
+      '<img src="'+esc(img)+'" alt="'+esc(s.titel)+'" loading="lazy" onerror="this.parentNode.classList.add(\'ontbreekt\')">'+
       '<figcaption>Klik op de afbeelding om te vergroten</figcaption></figure>':'')+
     '</div>';
 }

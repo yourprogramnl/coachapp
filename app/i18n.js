@@ -40,6 +40,10 @@ function i18nNaam(k){
   for(const r of I18N.naamRegels){const m=k.match(r.re);if(!m)continue;let i=1;return r.uit.replace(/\{naam\}|\{n\}/g,()=>m[i++]!==undefined?m[i-1]:"");}
   return undefined;
 }
+// Regels voor teksten die de code zelf in elkaar plakt (bijv. "Gedaan op <datum>"):
+// i18nRegel(/^Gedaan op (.+)$/, "Done on $1") in vertaling-en-extra.js.
+function i18nRegel(re,uit){(I18N.regels=I18N.regels||[]).push({re,uit});}
+function i18nViaRegels(k){for(const r of (I18N.regels||[])){if(r.re.test(k))return k.replace(r.re,r.uit);}return undefined;}
 // Meerdere zinnen: vertaal per zin als elke zin apart bekend is.
 function i18nZinnen(k){
   const delen=k.split(/(?<=[.!?…])\s+(?=[A-ZÀ-Þ])/);if(delen.length<2)return undefined;
@@ -52,6 +56,7 @@ function t(s){
   let d=I18N.dict[k];
   if(d===undefined)d=i18nPatroon(k);
   if(d===undefined)d=i18nNaam(k);
+  if(d===undefined)d=i18nViaRegels(k);
   if(d===undefined)d=i18nZinnen(k);
   if(d===undefined){if(/[a-zà-ÿ]{3,}/i.test(k)&&!/^[A-Za-z0-9_.-]+@/.test(k)&&!I18N.geproduceerd.has(k))I18N.ontbreekt.add(k);return s;}
   return i18nRand(s,d);
