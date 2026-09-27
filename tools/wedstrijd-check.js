@@ -85,9 +85,28 @@ function laadCache() {
   if (!cacheData.antwoorden) cacheData.antwoorden = {};
   return cacheData;
 }
+// Competition Corner weigert GitHub-runners (HTTP 403). Dan gaat dezelfde aanvraag via een klein
+// doorgeefluik op de BurpeeTalk-site (Vercel mag wel): app/api/cc-proxy/route.ts in de repo
+// functional-news, aan te roepen als <proxy>?pad=<pad na /api2/v1/>&<zelfde querystring>.
+const CC_DIRECT = 'https://competitioncorner.net/api2/v1';
+const CC_PROXY = process.env.CC_PROXY === '' ? null : (process.env.CC_PROXY || 'https://www.burpeetalknews.nl/api/cc-proxy');
+function viaProxy(url) {
+  if (!CC_PROXY || !url.startsWith(CC_DIRECT + '/')) return null;
+  const rest = url.slice(CC_DIRECT.length + 1);
+  const [pad, qs] = rest.split('?');
+  return CC_PROXY + '?pad=' + encodeURIComponent(pad) + (qs ? '&' + qs : '');
+}
 async function haalLive(url, alsTekst) {
   if (args.offline) throw new Error('offline (testschakelaar --offline) op ' + url); // om de terugval op de cache te testen
-  const res = await fetch(url, H);
+  let res = null, fout = null;
+  try { res = await fetch(url, H); } catch (err) { fout = err; }
+  if (!res || !res.ok) {
+    const p = viaProxy(url);
+    if (p) {
+      try { const r2 = await fetch(p, H); if (r2.ok) { cacheStats.proxy = (cacheStats.proxy || 0) + 1; res = r2; fout = null; } } catch (err) { /* proxy ook niet bereikbaar */ }
+    }
+  }
+  if (fout) throw fout;
   if (!res.ok) throw new Error('HTTP ' + res.status + ' op ' + url);
   return alsTekst ? res.text() : res.json();
 }
