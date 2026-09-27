@@ -7,7 +7,7 @@ const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
-const SITE = "https://coachapp-steel.vercel.app";
+const SITE = "https://app.yourprogram.nl";
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...cors, "Content-Type": "application/json" } });
 

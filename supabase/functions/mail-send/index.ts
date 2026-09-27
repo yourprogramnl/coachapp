@@ -77,7 +77,7 @@ const TXT = {
     invStap3LidKop: "Log in en je bent binnen",
     invStap3Lid: "Inloggen doe je met hetzelfde e-mailadres en je nieuwe wachtwoord. Je programma staat dan al voor je klaar.",
     invStap2CoachKop: "Log in op het dashboard",
-    invStap2Coach: (a: string) => `Je werkt op de computer, op <a href="https://coachapp-steel.vercel.app" style="color:${a}">coachapp-steel.vercel.app</a>. Daar staan je klanten, je programmering en je berichten.`,
+    invStap2Coach: (a: string) => `Je werkt op de computer, op <a href="https://app.yourprogram.nl" style="color:${a}">app.yourprogram.nl</a>. Daar staan je klanten, je programmering en je berichten.`,
     invStap3CoachKop: "Lees je even in",
     invStap3Coach: "Rechtsboven zit een vraagteken met de handleiding: per onderdeel een schermafbeelding met uitleg. Begin bij Dashboard en Klant-scherm.",
     invWatKanJe: "In de app zie je elke dag je training, vul je je scores in en chat je met je coach.",
@@ -135,7 +135,7 @@ const TXT = {
     invStap3LidKop: "Log in and you're in",
     invStap3Lid: "Log in with the same email address and your new password. Your program will be waiting for you.",
     invStap2CoachKop: "Log in to the dashboard",
-    invStap2Coach: (a: string) => `You work on your computer at <a href="https://coachapp-steel.vercel.app" style="color:${a}">coachapp-steel.vercel.app</a>. That's where your clients, programming and messages live.`,
+    invStap2Coach: (a: string) => `You work on your computer at <a href="https://app.yourprogram.nl" style="color:${a}">app.yourprogram.nl</a>. That's where your clients, programming and messages live.`,
     invStap3CoachKop: "Have a quick read",
     invStap3Coach: "Top right there's a question mark with the manual: a screenshot with explanation for every section. Start with Dashboard and Client screen.",
     invWatKanJe: "In the app you see your training every day, enter your scores and chat with your coach.",
@@ -339,7 +339,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
     const { data: bedrijfI } = await db.from("companies").select("name,theme,logo_url").eq("id", rij.company_id).maybeSingle();
     const accent = accentVan(bedrijfI?.theme);
-    const link = `https://coachapp-steel.vercel.app/?invite=${payload.token}`;
+    const link = `https://app.yourprogram.nl/?invite=${payload.token}`;
     const voornaam = (payload.first_name as string) || "";
     const { data: invRij } = await db.from("invites").select("role,created_by").eq("token", payload.token as string).maybeSingle();
     const isLidInvite = !invRij || invRij.role === "lid";
