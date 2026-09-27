@@ -24,15 +24,21 @@ jobs:
         with:
           node-version: 20
       - name: Cache vullen
+        id: vullen
+        continue-on-error: true
+        env:
+          CC_BASE: ${{ vars.CC_BASE }}
         run: node tools/wedstrijd-check.js --vul-cache tools/cc-cache.json
-      - name: Cache committen
+      - name: Cache en status committen
         run: |
           git config user.name "wedstrijd-cache"
           git config user.email "actions@users.noreply.github.com"
-          git add tools/cc-cache.json
+          git add tools/cc-cache.json tools/cc-cache-status.json
           if git diff --cached --quiet; then
             echo "Cache ongewijzigd"
           else
             git commit -m "Wedstrijddata-cache bijgewerkt (Competition Corner, The Nationals)"
             git push
           fi
+      - name: Rood als de eventlijsten niet binnenkwamen
+        run: node -e "const s=require('./tools/cc-cache-status.json');console.log(JSON.stringify(s,null,1));process.exit(s.events>0?0:1)"
