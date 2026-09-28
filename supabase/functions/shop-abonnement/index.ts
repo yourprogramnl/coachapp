@@ -23,7 +23,6 @@ const cors = {
 };
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
-const BEDENKTIJD_MS = 14 * 86400_000;
 const MAX_MAILS_PER_UUR = 6; // tegen misbruik: niet eindeloos bevestigingsmails laten versturen
 
 // ---- datum ----
@@ -43,6 +42,13 @@ function amsNaarUtc(j: number, m: number, d: number, u: number, mi: number, s: n
 }
 // Einde van de opzegtermijn: dezelfde kalenderdag een maand later (bestaat die niet, dan de
 // laatste dag van die maand), om 23:59:59 Amsterdamse tijd.
+// Einde van de bedenktijd: t/m de 14e dag na de dag van de aankoop, 23:59:59 Amsterdamse tijd.
+export function eindeBedenktijd(start: Date): Date {
+  const a = amsDelen(start);
+  return amsNaarUtc(a.j, a.m, a.d + 14, 23, 59, 59); // Date.UTC loopt netjes door naar de volgende maand
+}
+const amsDag = (d: Date) => { const a = amsDelen(d); return a.j * 10000 + a.m * 100 + a.d; };
+
 export function eindeOpzegtermijn(nu: Date): Date {
   const a = amsDelen(nu);
   let j = a.j, m = a.m + 1;
@@ -70,7 +76,9 @@ function opzegPlan(sub: any): { periodeEinde: boolean; eind: Date } {
   const item = sub?.items?.data?.[0] || {};
   const pe = (item.current_period_end || sub?.current_period_end || 0) * 1000;
   const eind = eindeOpzegtermijn(new Date());
-  if (sub?.status === "trialing" || eind.getTime() <= pe) return { periodeEinde: true, eind: new Date(pe) };
+  // Proefperiode, einddatum binnen de betaalde periode, of de verlenging valt op dezelfde dag als
+  // de einddatum (dan geen losse betaling voor een paar uur): stoppen aan het eind van de periode.
+  if (sub?.status === "trialing" || eind.getTime() <= pe || (pe && amsDag(eind) === amsDag(new Date(pe)))) return { periodeEinde: true, eind: new Date(pe) };
   return { periodeEinde: false, eind };
 }
 
@@ -80,7 +88,7 @@ function samenvatting(sub: any) {
   const periodeEinde = item.current_period_end || sub?.current_period_end || null; // nieuwe en oude API-versie
   const stoptOp = sub?.cancel_at || (sub?.cancel_at_period_end ? periodeEinde : null);
   const actief = ["active", "trialing", "past_due"].includes(sub?.status);
-  const herroepTot = sub?.start_date ? sub.start_date * 1000 + BEDENKTIJD_MS : null;
+  const herroepTot = sub?.start_date ? eindeBedenktijd(new Date(sub.start_date * 1000)).getTime() : null;
   return {
     stripe_status: sub?.status || null,
     prijs_cents: item.price?.unit_amount ?? null,
@@ -137,26 +145,38 @@ Deno.serve(async (req) => {
   const nlDatum = (iso: string | null) => iso ? new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: TZ }) : "";
 
   // Bevestigingsmail in de wachtrij. Geeft false als dat niet lukte (dan zetten we het in de melding).
-  const plantMail = async (payload: Record<string, unknown>): Promise<boolean> => {
+  const plantMail = async (payload: Record<string, unknown>, altijd = false): Promise<boolean> => {
     if (!naar) return false;
-    const { count } = await db.from("mail_queue").select("id", { count: "exact", head: true })
-      .eq("event", "opzegging").eq("payload->>order_id", o.id).gte("created_at", new Date(Date.now() - 3600_000).toISOString());
-    if ((count || 0) >= MAX_MAILS_PER_UUR) return false;
+    // De herroepingsbevestiging is wettelijk verplicht: die gaat altijd, ook boven de rem.
+    if (!altijd) {
+      const { count } = await db.from("mail_queue").select("id", { count: "exact", head: true })
+        .eq("event", "opzegging").eq("payload->>order_id", o.id).gte("created_at", new Date(Date.now() - 3600_000).toISOString());
+      if ((count || 0) >= MAX_MAILS_PER_UUR) return false;
+    }
     const { error } = await db.from("mail_queue").insert({ company_id: o.company_id, recipient_email: naar, event: "opzegging", payload: { order_id: o.id, ...payload } });
     if (error) { console.error("bevestigingsmail niet ingepland:", error.message); return false; }
     return true;
   };
-  const meld = async (onderwerp: string, bericht: string, context: Record<string, unknown>) => {
-    const { error } = await db.from("app_meldingen").insert({ company_id: o.company_id, profile_id: uid, soort: "vraag", pagina: "winkel", onderwerp, bericht, context });
-    if (error) console.error("melding mislukt:", error.message);
+  const meld = async (onderwerp: string, bericht: string, context: Record<string, unknown>, altijd = false) => {
+    if (!altijd) {
+      const { count } = await db.from("app_meldingen").select("id", { count: "exact", head: true })
+        .eq("context->>order_id", o.id).gte("created_at", new Date(Date.now() - 3600_000).toISOString());
+      if ((count || 0) >= MAX_MAILS_PER_UUR) return; // al genoeg meldingen over dit abonnement dit uur
+    }
+    for (let i = 0; i < 2; i++) {
+      const { error } = await db.from("app_meldingen").insert({ company_id: o.company_id, profile_id: uid, soort: "vraag", pagina: "winkel", onderwerp, bericht, context });
+      if (!error) return;
+      console.error("melding mislukt:", error.message, onderwerp, JSON.stringify(context));
+    }
   };
   // Bestelling bijwerken; bij een fout één keer opnieuw (Stripe is dan al aangepast).
-  const zetOrder = async (patch: Record<string, unknown>) => {
+  const zetOrder = async (patch: Record<string, unknown>): Promise<boolean> => {
     for (let i = 0; i < 2; i++) {
       const { error } = await db.from("shop_orders").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", o.id);
-      if (!error) return;
+      if (!error) return true;
       console.error("bestelling bijwerken mislukt:", error.message);
     }
+    return false;
   };
 
   let sub;
@@ -184,8 +204,8 @@ Deno.serve(async (req) => {
     try { nieuw = await stripe("subscriptions/" + encodeURIComponent(o.stripe_subscription_id), "POST", vorm); }
     catch (e) { console.error("opzeggen mislukt:", (e as Error).message); return json(502, { error: "Opzeggen lukt nu niet. Probeer het zo opnieuw." }); }
     const info = samenvatting(nieuw);
-    await zetOrder({ cancel_at: info.stopt_op, cancel_requested_at: new Date().toISOString() });
-    const mailOk = await plantMail({ soort: "opgezegd", stopt_op: info.stopt_op, laatste_betaling: info.volgende_betaling });
+    const dbOk = await zetOrder({ cancel_at: info.stopt_op, cancel_requested_at: new Date().toISOString() });
+    const mailOk = await plantMail({ soort: "opgezegd", stopt_op: info.stopt_op, laatste_betaling: info.volgende_betaling, herroepbaar_tot: info.herroepbaar_tot, db_ok: dbOk });
     await meld("Winkel: opzegging " + programma,
       naam + " heeft " + programma + " opgezegd. Het abonnement stopt op " + nlDatum(info.stopt_op) + "." +
       (reden ? " Reden: " + reden : " Geen reden opgegeven.") +
@@ -197,6 +217,9 @@ Deno.serve(async (req) => {
   if (body.actie === "intrekken") {
     if (!actief) return json(400, { error: "Dit abonnement is al gestopt; bestel het programma opnieuw als je weer wilt starten." });
     if (!sub.cancel_at && !sub.cancel_at_period_end) return json(200, { ok: true, ...samenvatting(sub) });
+    const itemI = sub.items?.data?.[0] || {};
+    const peI = itemI.current_period_end || sub.current_period_end || 0;
+    const inhaal = !sub.cancel_at_period_end && !!sub.cancel_at && !!peI && sub.cancel_at <= peI; // al in de laatste, ingekorte periode
     const vorm = new URLSearchParams();
     // Eén van beide tegelijk: een einddatum (zo zeggen wij op) of "einde periode".
     if (sub.cancel_at_period_end) vorm.set("cancel_at_period_end", "false");
@@ -206,8 +229,8 @@ Deno.serve(async (req) => {
     try { nieuw = await stripe("subscriptions/" + encodeURIComponent(o.stripe_subscription_id), "POST", vorm); }
     catch (e) { console.error("intrekken mislukt:", (e as Error).message); return json(502, { error: "Dat lukt nu niet. Probeer het zo opnieuw." }); }
     await zetOrder({ cancel_at: null, cancel_requested_at: null });
-    const mailOk = await plantMail({ soort: "ingetrokken" });
-    return json(200, { ok: true, programma: p?.name || null, mail: mailOk, ...samenvatting(nieuw) });
+    const mailOk = await plantMail({ soort: "ingetrokken", inhaal });
+    return json(200, { ok: true, programma: p?.name || null, mail: mailOk, inhaal, ...samenvatting(nieuw) });
   }
 
   if (body.actie === "herroepen") {
@@ -226,12 +249,12 @@ Deno.serve(async (req) => {
     const nu = new Date().toISOString();
     await zetOrder({ cancel_at: nu, cancel_requested_at: nu, withdrawn_at: nu });
     const bedrag = "€" + (terug / 100).toFixed(2).replace(".", ",");
-    const mailOk = await plantMail({ soort: "herroepen", ontvangen_op: nu, terug_cents: terug });
-    await meld("Winkel: herroeping " + programma + " (terugbetalen " + bedrag + ")",
+    const mailOk = await plantMail({ soort: "herroepen", ontvangen_op: nu, terug_cents: terug }, true);
+    await meld("Winkel: herroeping " + programma + " (terugbetalen ongeveer " + bedrag + ")",
       naam + " heeft " + programma + " herroepen binnen de bedenktijd. Het abonnement is direct gestopt. " +
-      (terug > 0 ? "Betaal " + bedrag + " terug (ongebruikte deel van de eerste betaling) in Stripe: Betalingen > deze klant > Terugbetalen. Wettelijk binnen 14 dagen." : "Er hoeft niets terugbetaald te worden (proefperiode of niets betaald).") +
+      (terug > 0 ? "Betaal ongeveer " + bedrag + " terug (ongebruikte deel van de eerste betaling; controleer in Stripe wanneer er echt betaald is) via Stripe: Betalingen > deze klant > Terugbetalen. Wettelijk binnen 14 dagen." : "Er hoeft niets terugbetaald te worden (proefperiode of niets betaald).") +
       (mailOk ? "" : " LET OP: de bevestigingsmail kon niet worden ingepland; stuur het lid zelf een bevestiging."),
-      { order_id: o.id, terug_cents: terug, stripe_subscription_id: o.stripe_subscription_id });
+      { order_id: o.id, terug_cents: terug, stripe_subscription_id: o.stripe_subscription_id }, true);
     return json(200, { ok: true, herroepen: true, terug_cents: terug, mail: mailOk });
   }
 

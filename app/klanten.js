@@ -434,6 +434,12 @@ async function klantResetlink(id){
 }
 async function klantArchiveer(id,arch){
   klantMenuWeg();
+  // Betaalt deze klant nog via de winkel? In het archief kan hij in de app niet meer bij Mijn
+  // abonnement om op te zeggen, terwijl de betaling doorloopt. Eerst vragen.
+  if(arch){
+    const{data:lo}=await db.from("shop_orders").select("id,cancel_at").eq("profile_id",id).in("status",["paid","processing"]);
+    if((lo||[]).length&&!confirm("Deze klant betaalt nog via de winkel. In het archief kan hij in de app niet meer zelf opzeggen, en de betaling loopt door. Zeg het abonnement eerst op in Stripe. Toch archiveren?"))return;
+  }
   const{error}=await db.from("profiles").update({archived:arch}).eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
   const p=coachClients.find(x=>x.id===id);if(p)p.archived=arch;

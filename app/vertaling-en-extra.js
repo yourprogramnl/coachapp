@@ -65,6 +65,7 @@ i18nLaad({
   "2 lopende abonnementen": "2 running subscriptions",
   "Dit lid betaalt twee keer voor hetzelfde programma; zeg er één op in Stripe": "This member pays twice for the same program; cancel one in Stripe",
   "herroepen": "withdrawn",
+  "Deze klant betaalt nog via de winkel. In het archief kan hij in de app niet meer zelf opzeggen, en de betaling loopt door. Zeg het abonnement eerst op in Stripe. Toch archiveren?": "This client still pays through the shop. Once archived they can no longer cancel in the app, and the payment continues. Cancel the subscription in Stripe first. Archive anyway?",
 });
 // Samengestelde regels (worden na het woordenboek geprobeerd)
 if (typeof i18nRegel === "function") {
@@ -90,4 +91,4 @@ if (typeof i18nRegel === "function") {
   i18nRegel(/^Programma van (.+) geopend$/, "Opened $1's program");
 }
 if (typeof i18nRegel === "function") i18nRegel(/^opgezegd, stopt (.+)$/, "cancelled, ends $1");
-if (typeof i18nRegel === "function") i18nRegel(/^Dit lid betaalt nog via de winkel voor dit programma(.*)\. Ontkoppelen stopt de betaling niet; zeg het abonnement zo nodig op in Stripe\. Toch ontkoppelen\?$/, "This member still pays for this program through the shop$1. Unlinking does not stop the payment; cancel the subscription in Stripe if needed. Unlink anyway?");
+if (typeof i18nRegel === "function") i18nRegel(/^Dit lid betaalt nog via de winkel voor dit programma(?: \(opgezegd, loopt tot (.+)\))?\. Ontkoppelen stopt de betaling niet; zeg het abonnement zo nodig op in Stripe\. Toch ontkoppelen\?$/, (m, d) => "This member still pays for this program through the shop" + (d ? " (cancelled, runs until " + d + ")" : "") + ". Unlinking does not stop the payment; cancel the subscription in Stripe if needed. Unlink anyway?");

@@ -365,11 +365,14 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   if (event === "opzegging") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
-    const { data: o } = await db.from("shop_orders").select("cancel_at,blog_program_id,company_id,profile_id").eq("id", payload.order_id as string).maybeSingle();
+    const { data: o } = await db.from("shop_orders").select("cancel_at,withdrawn_at,blog_program_id,company_id,profile_id").eq("id", payload.order_id as string).maybeSingle();
     if (!o) { await klaar({ status: "skipped", last_error: "bestelling niet gevonden" }); return "skipped"; }
     const soort = ["ingetrokken", "herroepen"].includes(payload.soort as string) ? payload.soort as string : "opgezegd";
+    // Intussen herroepen? Dan vervangt de herroepingsmail alle eerdere.
+    if (soort !== "herroepen" && o.withdrawn_at) { await klaar({ status: "skipped", last_error: "intussen herroepen" }); return "skipped"; }
     // Intussen alweer ingetrokken (of juist opnieuw opgezegd)? Dan klopt deze mail niet meer.
-    if (soort === "opgezegd" && !o.cancel_at) { await klaar({ status: "skipped", last_error: "opzegging intussen ingetrokken" }); return "skipped"; }
+    // (db_ok false: het vastleggen bij ons mislukte; dan geldt de datum uit de mail zelf.)
+    if (soort === "opgezegd" && !o.cancel_at && payload.db_ok !== false) { await klaar({ status: "skipped", last_error: "opzegging intussen ingetrokken" }); return "skipped"; }
     if (soort === "ingetrokken" && o.cancel_at) { await klaar({ status: "skipped", last_error: "intussen opnieuw opgezegd" }); return "skipped"; }
     const [{ data: prof }, { data: prog }, { data: bedrijfO }] = await Promise.all([
       o.profile_id ? db.from("profiles").select("first_name,lang").eq("id", o.profile_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -400,12 +403,16 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
             ? `The notice period is one month. On ${laatste} we'll charge you one last time, only for the days up to ${datum}. After that nothing more is charged.`
             : `The notice period is one month. After ${datum} nothing more is charged.`,
           "Changed your mind? Withdraw your cancellation in the app: Profile > My subscription.",
+          ...(payload.herroepbaar_tot && new Date(String(payload.herroepbaar_tot)) > new Date()
+            ? [`You're still within your cooling-off period. Until ${dat(payload.herroepbaar_tot)} you can also withdraw in the app (Profile > My subscription): it ends right away and you get the unused part back.`] : []),
         ] : [
           `Je abonnement stopt op ${datum}. Tot die dag kun je gewoon trainen.`,
           laatste
             ? `De opzegtermijn is één maand. Op ${laatste} schrijven we nog één keer af, alleen voor de dagen tot en met ${datum}. Daarna schrijven we niets meer af.`
             : `De opzegtermijn is één maand. Na ${datum} schrijven we niets meer af.`,
           "Toch door? Trek je opzegging in via de app: Profiel > Mijn abonnement.",
+          ...(payload.herroepbaar_tot && new Date(String(payload.herroepbaar_tot)) > new Date()
+            ? [`Je zit nog in je bedenktijd. Tot en met ${dat(payload.herroepbaar_tot)} kun je ook herroepen in de app (Profiel > Mijn abonnement): dan stopt het meteen en krijg je het ongebruikte deel terug.`] : []),
         ]).map(esc),
         voet: en ? "This email is your confirmation of the cancellation. Please keep it." : "Deze mail is de bevestiging van je opzegging. Bewaar hem goed.",
         accent: accentO,
@@ -432,7 +439,8 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       html = simpelHtml({
         titel: en ? "Your subscription continues" : "Je abonnement loopt door",
         intro: en ? `${hoi}, you've withdrawn your cancellation of ${programma}.` : `${hoi}, je hebt je opzegging van ${programma} ingetrokken.`,
-        regels: [esc(en ? "Your subscription simply continues and the monthly payments carry on as before your cancellation." : "Je abonnement loopt gewoon door en de maandelijkse betalingen gaan verder zoals voor je opzegging.")],
+        regels: [esc(en ? "Your subscription simply continues and the monthly payments carry on as before your cancellation." : "Je abonnement loopt gewoon door en de maandelijkse betalingen gaan verder zoals voor je opzegging."),
+          ...(payload.inhaal ? [esc(en ? "You were already in your last, shortened period. It becomes a full month again; the difference is added to your next payment." : "Je zat al in je laatste, ingekorte periode. Die wordt weer een volle maand; het verschil komt bij je volgende betaling.")] : [])],
         voet: en ? "You can cancel at any time in the app: Profile > My subscription." : "Opzeggen kan altijd in de app: Profiel > Mijn abonnement.",
         accent: accentO,
       });
