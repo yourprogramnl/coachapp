@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
     .select("id,slug,name,description,description_long,cover_url,level,days_per_week,sort,price_cents,price_interval,join_open,join_token")
     .eq("for_sale", true)
     .in("company_id", WINKEL_BEDRIJVEN)
+    .eq("price_interval", "month") // de voorwaarden gaan uit van een maandabonnement
     .order("sort")
     .order("name");
   if (error) {

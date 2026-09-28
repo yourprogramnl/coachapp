@@ -152,9 +152,17 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
         else {
           const { data: prof, error: profErr } = await db.from("profiles").select("company_id,role").eq("id", profileId).maybeSingle();
           if (profErr) throw new Error("profiel ophalen: " + profErr.message);
-          const zelfdeBedrijf = !!prof && prof.company_id === p.company_id;
-          const losLid = !!prof && !prof.company_id && (prof.role || "lid") === "lid";
-          state = zelfdeBedrijf || losLid ? "bestaand" : "ander_bedrijf";
+          if (!prof) {
+            // Inlog zonder profiel (bijvoorbeeld na "coach definitief verwijderen"): profiel
+            // herstellen als los lid; stap 2 koppelt het daarna aan bedrijf en programma.
+            const { error: herstelErr } = await db.from("profiles").upsert({ id: profileId, email, role: "lid" }, { onConflict: "id", ignoreDuplicates: true });
+            if (herstelErr) throw new Error("profiel herstellen: " + herstelErr.message);
+            state = "bestaand";
+          } else {
+            const zelfdeBedrijf = prof.company_id === p.company_id;
+            const losLid = !prof.company_id && (prof.role || "lid") === "lid";
+            state = zelfdeBedrijf || losLid ? "bestaand" : "ander_bedrijf";
+          }
         }
       }
       await zet({ ...basis, profile_id: profileId, account_state: state });
@@ -257,13 +265,15 @@ async function stopAbonnement(subId: string): Promise<void> {
 const antwoord = (status: number, obj: unknown) =>
   new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json" } });
 
-// Bestelling bij deze Stripe-sessie; bestaat hij niet (sessie niet via shop-checkout gemaakt),
-// dan maken we hem alsnog aan.
+// Bestelling bij deze Stripe-sessie. Bestaat hij niet, dan maken we hem alsnog aan, maar alleen
+// als het een sessie van onze winkel is (met program_id). Andere betalingen op het Stripe-account
+// (betaallinks, andere koppelingen) laten we met rust: dan geeft deze functie null.
 async function bestellingVan(db: SupabaseClient, s: Sessie) {
   const kolommen = "id,status";
   const { data: o, error } = await db.from("shop_orders").select(kolommen).eq("stripe_session_id", s.id).maybeSingle();
   if (error) throw new Error("bestelling zoeken: " + error.message);
   if (o) return o;
+  if (!s.metadata?.program_id) return null;
   const programId = s.metadata?.program_id || null;
   const { data: p } = programId ? await db.from("blog_programs").select("company_id").eq("id", programId).maybeSingle() : { data: null };
   const { data: nieuw, error: insErr } = await db.from("shop_orders").insert({
@@ -291,6 +301,7 @@ Deno.serve(async (req) => {
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const s = event.data.object as Sessie;
       const o = await bestellingVan(db, s);
+      if (!o) return antwoord(200, { received: true, genegeerd: "geen winkelbestelling" });
       if (!BETAALD.includes(s.payment_status || "")) {
         // SEPA-incasso: betaling onderweg. Alvast vastleggen wie het is; leveren volgt bij
         // async_payment_succeeded.
@@ -322,7 +333,7 @@ Deno.serve(async (req) => {
       if (error) throw new Error("status failed zetten: " + error.message);
       // Het abonnement dat Stripe al aanmaakte stoppen: anders probeert Stripe later opnieuw
       // te incasseren voor iets wat we niet leveren. De klant bestelt gewoon opnieuw.
-      if (s.subscription) await stopAbonnement(String(s.subscription));
+      if (s.subscription && s.metadata?.program_id) await stopAbonnement(String(s.subscription));
     } else if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
       const { error } = await db.rpc("shop_afsluiten", { p_subscription_id: sub.id });

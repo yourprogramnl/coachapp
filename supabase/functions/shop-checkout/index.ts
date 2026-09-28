@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
   const { data: p } = await db.from("blog_programs")
     .select("id,name,company_id,price_cents,price_interval,for_sale")
     .eq("id", body.program_id).maybeSingle();
-  if (!p || !p.for_sale || !p.price_cents || p.price_cents < 100 || !WINKEL_BEDRIJVEN.includes(p.company_id)) {
+  if (!p || !p.for_sale || !p.price_cents || p.price_cents < 100 || !WINKEL_BEDRIJVEN.includes(p.company_id) ||
+      (p.price_interval || "month") !== "month") {
     return json({ error: "Dit programma is niet (meer) te koop." }, 400);
   }
 

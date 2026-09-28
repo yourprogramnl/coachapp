@@ -145,9 +145,17 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
         else {
           const { data: prof, error: profErr } = await db.from("profiles").select("company_id,role").eq("id", profileId).maybeSingle();
           if (profErr) throw new Error("profiel ophalen: " + profErr.message);
-          const zelfdeBedrijf = !!prof && prof.company_id === p.company_id;
-          const losLid = !!prof && !prof.company_id && (prof.role || "lid") === "lid";
-          state = zelfdeBedrijf || losLid ? "bestaand" : "ander_bedrijf";
+          if (!prof) {
+            // Inlog zonder profiel (bijvoorbeeld na "coach definitief verwijderen"): profiel
+            // herstellen als los lid; stap 2 koppelt het daarna aan bedrijf en programma.
+            const { error: herstelErr } = await db.from("profiles").upsert({ id: profileId, email, role: "lid" }, { onConflict: "id", ignoreDuplicates: true });
+            if (herstelErr) throw new Error("profiel herstellen: " + herstelErr.message);
+            state = "bestaand";
+          } else {
+            const zelfdeBedrijf = prof.company_id === p.company_id;
+            const losLid = !prof.company_id && (prof.role || "lid") === "lid";
+            state = zelfdeBedrijf || losLid ? "bestaand" : "ander_bedrijf";
+          }
         }
       }
       await zet({ ...basis, profile_id: profileId, account_state: state });
