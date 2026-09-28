@@ -784,21 +784,30 @@ function kopieerInvLink(){const i=document.getElementById("inv-link");i.select()
 // Bedrijven (alleen platform_admin): per bedrijf alleen tellingen en de eigenaar
 // als zakelijk contact, via rpc admin_bedrijven_overzicht. Bewust geen namen of
 // gegevens van klanten van andere bedrijven (AVG: alleen wat we nodig hebben).
+const bedrijfDatum=d=>d?new Date(d).toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"}):"–";
+function bedrijfSinds(d){
+  if(!d)return '<span class="muted">nooit</span>';
+  const dagen=Math.floor((Date.now()-new Date(d))/864e5);
+  return dagen<=0?"vandaag":dagen===1?"gisteren":dagen+" dagen geleden";
+}
+// #companies = de lijst, #companies/<id> = één bedrijf (zie parseHash).
+function bedrijfOpen(id){setHash("companies/"+id);fillCompanies();}
+function bedrijfTerug(){setHash("companies");fillCompanies();}
 async function fillCompanies(){
   const cp=document.getElementById("cpage");if(!cp)return;
+  const p=(location.hash||"").replace(/^#/,"").split("/");
+  if(p[0]==="companies"&&p[1])return bedrijfDetail(p[1]);
   const{data,error}=await db.rpc("admin_bedrijven_overzicht");
   if(!document.getElementById("cpage"))return;
   if(error){cp.innerHTML='<h1>Bedrijven</h1><div class="csoon">Het overzicht laden lukte niet. Probeer het later opnieuw.</div>';return;}
   const lijst=data||[];
   const som=k=>lijst.reduce((a,b)=>a+(b[k]||0),0);
-  const datum=d=>d?new Date(d).toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"}):"–";
-  const sinds=d=>{if(!d)return '<span class="muted">nooit</span>';const dagen=Math.floor((Date.now()-new Date(d))/864e5);
-    return dagen<=0?"vandaag":dagen===1?"gisteren":dagen+" dagen geleden";};
-  const rows=lijst.map(co=>'<div class="trow">'+
+  const datum=bedrijfDatum,sinds=bedrijfSinds;
+  const rows=lijst.map(co=>'<div class="trow crow" title="Open dit bedrijf" onclick="bedrijfOpen(\''+esc(co.id)+'\')">'+
     '<div style="flex:2;display:flex;gap:11px;align-items:center"><div class="cavc">'+esc((co.naam||"?").slice(0,2).toUpperCase())+'</div>'+
       '<div><div style="font-weight:700;font-size:13px">'+esc(co.naam)+'</div><div class="sm muted">Sinds '+datum(co.aangemaakt)+' · plan '+esc(co.plan||"–")+'</div></div></div>'+
     '<div style="flex:1.8;min-width:0">'+(co.eigenaar_email
-      ?'<div style="font-size:13px">'+esc(co.eigenaar_naam||"–")+'</div><a class="sm" href="mailto:'+esc(co.eigenaar_email)+'" data-notr>'+esc(co.eigenaar_email)+'</a>'
+      ?'<div style="font-size:13px">'+esc(co.eigenaar_naam||"–")+'</div><a class="sm" href="mailto:'+esc(co.eigenaar_email)+'" onclick="event.stopPropagation()" data-notr>'+esc(co.eigenaar_email)+'</a>'
       :'<span class="muted">Geen eigenaar (beheerders)</span>')+'</div>'+
     '<div style="flex:.8">'+co.coaches+'</div>'+
     '<div style="flex:1">'+co.klanten+(co.klanten?'<div class="sm muted">'+co.klanten_actief_30d+' actief</div>':'')+'</div>'+
@@ -816,4 +825,44 @@ async function fillCompanies(){
     '<div class="card"><div class="thead"><div style="flex:2">Bedrijf</div><div style="flex:1.8">Eigenaar</div><div style="flex:.8">Coaches</div><div style="flex:1">Klanten</div>'+
       '<div style="flex:1">Workouts · 30 d</div><div style="flex:1">Scores · 30 d</div><div style="flex:1.2">Staf laatst ingelogd</div><div style="width:70px"></div></div>'+
     (rows||'<div class="trow"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
+}
+// Eén bedrijf (keuze Stefan 28 sep: overzicht, AVG-veilig). Staf met naam en
+// e-mail (zakelijke contactpersonen), klanten alleen als aantallen per coach.
+async function bedrijfDetail(id){
+  const cp=document.getElementById("cpage");if(!cp)return;
+  const terug='<button class="lnk" style="margin-bottom:10px" onclick="bedrijfTerug()">← Alle bedrijven</button>';
+  cp.innerHTML=terug+'<div class="spin">Laden…</div>';
+  const{data:d,error}=await db.rpc("admin_bedrijf_detail",{p_company:id});
+  if(!document.getElementById("cpage"))return;
+  if(error||!d||!d.bedrijf){cp.innerHTML=terug+'<div class="csoon">Dit bedrijf kon niet geladen worden.</div>';return;}
+  const b=d.bedrijf,ROL={eigenaar:"Eigenaar",coach:"Coach",platform_admin:"Beheerder"};
+  const staf=(d.staf||[]).map(s=>'<div class="trow">'+
+    '<div style="flex:1.6;font-weight:700;font-size:13px">'+esc(s.naam||"–")+(s.gearchiveerd?' <span class="cpill purple">Gearchiveerd</span>':'')+'</div>'+
+    '<div style="flex:1"><span class="cpill '+(s.rol==="coach"?"teal":"purple")+'">'+(ROL[s.rol]||esc(s.rol))+'</span></div>'+
+    '<div style="flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis">'+(s.email?'<a class="sm" href="mailto:'+esc(s.email)+'" data-notr>'+esc(s.email)+'</a>':'–')+'</div>'+
+    '<div style="flex:1">'+s.klanten+(s.klanten?'<div class="sm muted">'+s.klanten_actief_30d+' actief</div>':'')+'</div>'+
+    '<div style="flex:1">'+s.workouts_30d+'</div>'+
+    '<div style="flex:1.2">'+bedrijfSinds(s.laatst_ingelogd)+'</div></div>').join("");
+  const blogs=(d.blogs||[]).map(g=>'<div class="trow">'+
+    '<div style="flex:2;font-weight:700;font-size:13px">'+esc(g.naam)+'</div>'+
+    '<div style="flex:1">'+g.volgers+'</div><div style="flex:1">'+g.workouts+'</div>'+
+    '<div style="flex:1">'+(g.te_koop?"Ja":"Nee")+'</div><div style="flex:1">'+(g.aanmelden_open?"Aan":"Uit")+'</div></div>').join("");
+  cp.innerHTML=terug+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><div class="cavc">'+esc((b.naam||"?").slice(0,2).toUpperCase())+'</div>'+
+      '<div><h1 style="margin:0">'+esc(b.naam)+'</h1><div class="sm muted">Sinds '+bedrijfDatum(b.aangemaakt)+' · plan '+esc(b.plan||"–")+'</div></div>'+
+      '<span class="cpill '+(b.status==="active"?"teal":"purple")+'" style="margin-left:auto">'+(b.status==="active"?"Actief":esc(b.status||"–"))+'</span></div>'+
+    '<div class="statbar2">'+
+      '<div><div class="n">'+(d.staf||[]).length+'</div><div class="l">Coaches</div></div>'+
+      '<div><div class="n acc">'+d.klanten+'</div><div class="l">Klanten totaal</div></div>'+
+      '<div><div class="n acc">'+d.klanten_actief_30d+'</div><div class="l">Actief · 30 dagen</div></div>'+
+      '<div><div class="n acc">'+d.open_uitnodigingen+'</div><div class="l">Open uitnodigingen</div></div></div>'+
+    '<h2 style="font-size:16px;margin:4px 0 8px">Coaches en eigenaar</h2>'+
+    '<div class="card" style="margin-bottom:18px"><div class="thead"><div style="flex:1.6">Naam</div><div style="flex:1">Rol</div><div style="flex:2">E-mail</div>'+
+      '<div style="flex:1">Klanten</div><div style="flex:1">Workouts · 30 d</div><div style="flex:1.2">Laatst ingelogd</div></div>'+
+      (staf||'<div class="trow"><span class="muted">Nog geen coaches.</span></div>')+'</div>'+
+    (d.klanten_zonder_coach?'<div class="sm muted" style="margin:-10px 0 18px">'+d.klanten_zonder_coach+' klant(en) zonder coach</div>':'')+
+    '<h2 style="font-size:16px;margin:4px 0 8px">Blogprogramma\'s</h2>'+
+    '<div class="card" style="margin-bottom:12px"><div class="thead"><div style="flex:2">Naam</div><div style="flex:1">Volgers</div><div style="flex:1">Workouts</div><div style="flex:1">Te koop</div><div style="flex:1">Aanmeldlink</div></div>'+
+      (blogs||'<div class="trow"><span class="muted">Nog geen blogprogramma\'s.</span></div>')+'</div>'+
+    '<div class="sm muted" style="max-width:80ch">Klanten zie je hier alleen als aantallen, zonder namen (AVG).</div>';
 }

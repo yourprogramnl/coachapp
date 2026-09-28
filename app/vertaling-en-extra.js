@@ -50,7 +50,7 @@ i18nLaad({
   "De klanten van deze coach": "This coach's clients",
   "{n} actieve klant": "{n} active client", "{n} actieve klanten": "{n} active clients",
   // Bedrijven-overzicht voor beheerders (klanten.js, fillCompanies)
-  "Beheer": "Admin", "Bedrijf": "Company", "Coaches": "Coaches", "nooit": "never", "{n} actief": "{n} active",
+  "Beheer": "Admin", "Laatst ingelogd": "Last logged in", "Aan": "On", "Uit": "Off", "Blogprogramma's": "Blog programs", "← Alle bedrijven": "← All companies", "Open dit bedrijf": "Open this company", "Dit bedrijf kon niet geladen worden.": "This company couldn't be loaded.", "Coaches en eigenaar": "Coaches and owner", "{n} klant(en) zonder coach": "{n} client(s) without a coach", "Actief · 30 dagen": "Active · 30 days", "Open uitnodigingen": "Open invitations", "Volgers": "Followers", "Te koop": "For sale", "Aanmeldlink": "Sign-up link", "Nog geen blogprogramma's.": "No blog programs yet.", "Klanten zie je hier alleen als aantallen, zonder namen (AVG).": "Clients are only shown as numbers here, without names (GDPR).", "Bedrijf": "Company", "Coaches": "Coaches", "nooit": "never", "{n} actief": "{n} active",
   "Workouts · 30 dagen": "Workouts · 30 days", "Scores · 30 dagen": "Scores · 30 days",
   "Workouts · 30 d": "Workouts · 30 d", "Scores · 30 d": "Scores · 30 d", "Staf laatst ingelogd": "Staff last logged in",
   "Geen eigenaar (beheerders)": "No owner (admins)",

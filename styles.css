@@ -26,6 +26,7 @@ label{font-size:13px;font-weight:600;color:var(--muted)}
   background:#0E0E10;
   background-image:radial-gradient(900px 520px at 50% -12%,rgba(217,180,74,.14),transparent 62%),radial-gradient(720px 440px at 88% 112%,rgba(217,180,74,.07),transparent 55%)}
 #login.hidden{display:none}
+html.opstart #login .card{visibility:hidden}
 .login-kop{text-align:center;margin-bottom:24px}
 .login-logo-img{width:min(300px,78vw);height:auto;display:block;margin:0 auto;filter:drop-shadow(0 8px 22px rgba(217,180,74,.25))}
 .cbar-logo{height:24px;width:auto;margin-right:20px;flex-shrink:0}

@@ -93,6 +93,7 @@ function sectionFromHash(){
   let h=(location.hash||"").replace(/^#/,"");
   if(h.indexOf("settings")===0)h="settings"; // #settings/<pagina> telt als settings
   if(h.indexOf("help")===0)h="help"; // #help/<hoofdstuk> telt als help
+  if(h.indexOf("companies/")===0)h="companies"; // #companies/<id> = één bedrijf (fillCompanies)
   const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]); // settings/notifs/help zitten niet in de topnav
   return geldig.includes(h)?h:"dash";
 }
@@ -110,6 +111,7 @@ function parseHash(){
     if(p[1]&&typeof HELP_HOOFDSTUKKEN!=="undefined"&&HELP_HOOFDSTUKKEN.some(h=>h.id===p[1]))helpTab=p[1];
     return{type:"section",section:"help"};
   }
+  if(p[0]==="companies"&&p[1])return{type:"section",section:"companies"}; // fillCompanies leest het id uit de link
   const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }

@@ -169,6 +169,7 @@ function accountTerug(){
   setMsg("Bevestig eerst je e-mailadres via de mail, log daarna hier in.","ok");
 }
 function show(which){
+  document.documentElement.classList.remove("opstart"); // zie het scriptje in index.html
   if(which!=="app"){
     document.body.classList.remove("coachmode");
     // zwevende lid-chat opruimen (anders blijft hij over het inlogscherm zweven)

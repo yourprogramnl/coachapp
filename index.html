@@ -8,6 +8,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="styles.css">
+<script>
+// Staat er een bewaarde inlogsessie? Dan tijdens het opstarten alleen het logo
+// tonen i.p.v. het inlogformulier (anders flitst dat bij herladen of taal
+// wisselen). show() in auth.js haalt de klasse weg; na 6 s sowieso.
+try{if(!/type=recovery/.test(location.hash))for(let i=0;i<localStorage.length;i++){if(/^sb-.+-auth-token$/.test(localStorage.key(i))){document.documentElement.classList.add("opstart");setTimeout(()=>document.documentElement.classList.remove("opstart"),6000);break;}}}catch(e){}
+</script>
 </head>
 <body>
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
