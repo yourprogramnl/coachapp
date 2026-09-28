@@ -328,9 +328,14 @@ Deno.serve(async (req) => {
       }
     } else if (event.type === "checkout.session.async_payment_failed") {
       const s = event.data.object as Sessie;
-      const { error } = await db.from("shop_orders").update({ status: "failed", updated_at: new Date().toISOString() })
-        .eq("stripe_session_id", s.id).in("status", ["pending", "processing"]);
+      const { data: rijen, error } = await db.from("shop_orders").update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("stripe_session_id", s.id).in("status", ["pending", "processing"]).select("id,company_id,email");
       if (error) throw new Error("status failed zetten: " + error.message);
+      if (rijen && rijen.length) {
+        await meldIntern(db, rijen[0].company_id, null, "Winkel: incasso mislukt",
+          (rijen[0].email || "Een koper") + " betaalde met automatische incasso, maar de bank heeft de betaling geweigerd. Het abonnement is gestopt; de klant heeft geen toegang. Neem eventueel contact op zodat hij opnieuw kan bestellen, bijvoorbeeld met iDEAL.",
+          { order_id: rijen[0].id, stripe_session_id: s.id, email: rijen[0].email });
+      }
       // Het abonnement dat Stripe al aanmaakte stoppen: anders probeert Stripe later opnieuw
       // te incasseren voor iets wat we niet leveren. De klant bestelt gewoon opnieuw.
       if (s.subscription && s.metadata?.program_id) await stopAbonnement(String(s.subscription));
