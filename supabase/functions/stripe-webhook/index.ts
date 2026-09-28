@@ -50,12 +50,18 @@ type Sessie = {
 // proefperiode of 100%-kortingscode. unpaid (SEPA-incasso) wacht op async_payment_succeeded.
 const BETAALD = ["paid", "no_payment_required"];
 const VASTGELOPEN_MS = 5 * 60_000; // een claim die zo lang op processing staat, is afgebroken
-const RESERVEMAIL_NA_MS = 10 * 60_000; // wie op de bedankpagina zijn wachtwoord kiest, krijgt geen overbodige mail
 
+// Interne melding voor ons (komt in het dashboard en als mail). Zonder bekend profiel
+// melden we namens de eerste beheerder, zodat de melding nooit stil verdwijnt.
 async function meldIntern(db: SupabaseClient, companyId: string | null, profileId: string | null, onderwerp: string, bericht: string, context: Record<string, unknown>) {
-  if (!profileId) { console.error("interne melding zonder profiel:", onderwerp, JSON.stringify(context)); return; }
+  let melder = profileId;
+  if (!melder) {
+    const { data: a } = await db.from("profiles").select("id").eq("role", "platform_admin").order("created_at").limit(1);
+    melder = a && a[0] ? a[0].id : null;
+  }
+  if (!melder) { console.error("interne melding zonder profiel:", onderwerp, JSON.stringify(context)); return; }
   const { error } = await db.from("app_meldingen").insert({
-    company_id: companyId, profile_id: profileId, soort: "vraag", onderwerp, bericht, pagina: "winkel", context,
+    company_id: companyId, profile_id: melder, soort: "vraag", onderwerp, bericht, pagina: "winkel", context,
   });
   if (error) console.error("interne melding mislukt:", error.message);
 }
@@ -87,6 +93,14 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
     const { error } = await db.from("shop_orders").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", orderId);
     if (error) throw new Error("bestelling bijwerken: " + error.message);
   };
+  // Eindstand alleen zetten als wij de bestelling nog in handen hebben (niet over een
+  // opzegging of een andere afhandeling heen die intussen plaatsvond).
+  const afronden = async (patch: Record<string, unknown>) => {
+    const { data, error } = await db.from("shop_orders").update({ ...basis, ...patch, status: "paid", updated_at: new Date().toISOString() })
+      .eq("id", orderId).eq("status", "processing").select("id");
+    if (error) throw new Error("bestelling afronden: " + error.message);
+    if (!data || !data.length) console.error("bestelling " + orderId + " was intussen al afgehandeld; status niet overschreven");
+  };
 
   try {
     const { data: p, error: pErr } = programId
@@ -103,10 +117,10 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
 
     if (!email || !p) {
       // Betaald, maar niets om aan te koppelen. Niet stil laten verdwijnen: melden.
-      await zet({ ...basis, status: "paid" });
+      await afronden({});
       await meldIntern(db, p?.company_id || claim.company_id || null, coachId,
         "Winkel: betaalde bestelling zonder " + (!email ? "e-mailadres" : "programma"),
-        "Er is betaald, maar de bestelling kon niet automatisch gekoppeld worden. Zoek de klant op in Stripe en koppel met de hand.",
+        "Er is betaald, maar de bestelling kon niet automatisch gekoppeld worden. Zoek de klant op in Stripe en koppel met de hand of betaal terug.",
         { order_id: orderId, stripe_session_id: s.id, email, program_id: programId });
       return "vervuld";
     }
@@ -121,25 +135,25 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
       const { data: bestaandId, error: zoekErr } = await db.rpc("shop_user_id_by_email", { p_email: email });
       if (zoekErr) throw new Error("account zoeken: " + zoekErr.message);
       if (!bestaandId) {
+        // Stempel met het bestelnummer: zo herkent een nieuwe poging dit account zeker als het
+        // onze (en nooit een account dat iemand anders intussen aanmaakte).
         const { data: created, error: mkErr } = await db.auth.admin.createUser({
           email, email_confirm: true, password: crypto.randomUUID() + "Aa1!",
+          app_metadata: { shop_order_id: orderId },
         });
         if (mkErr || !created?.user) throw new Error("account aanmaken: " + (mkErr?.message || "onbekend"));
         profileId = created.user.id;
         state = "nieuw";
       } else {
         profileId = bestaandId as string;
-        // Een account dat na het starten van deze bestelling is aangemaakt en nooit is
-        // gebruikt, is van een eerdere, afgebroken poging van ons: behandelen als nieuw.
-        const { data: u } = await db.auth.admin.getUserById(profileId);
-        const gemaakt = u?.user?.created_at ? new Date(u.user.created_at).getTime() : 0;
-        const vanOns = gemaakt > new Date(claim.created_at).getTime() && !u?.user?.last_sign_in_at;
-        if (vanOns) state = "nieuw";
+        const { data: u, error: uErr } = await db.auth.admin.getUserById(profileId);
+        if (uErr || !u?.user) throw new Error("account ophalen: " + (uErr?.message || "niet gevonden"));
+        if (u.user.app_metadata?.shop_order_id === orderId) state = "nieuw"; // door een eerdere poging van deze bestelling gemaakt
         else {
           const { data: prof, error: profErr } = await db.from("profiles").select("company_id,role").eq("id", profileId).maybeSingle();
           if (profErr) throw new Error("profiel ophalen: " + profErr.message);
-          const zelfdeBedrijf = prof?.company_id === p.company_id;
-          const losLid = !prof?.company_id && (prof?.role || "lid") === "lid";
+          const zelfdeBedrijf = !!prof && prof.company_id === p.company_id;
+          const losLid = !!prof && !prof.company_id && (prof.role || "lid") === "lid";
           state = zelfdeBedrijf || losLid ? "bestaand" : "ander_bedrijf";
         }
       }
@@ -154,8 +168,9 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
       };
       if (voornaam) patch.first_name = voornaam;
       if (achternaam) patch.last_name = achternaam;
-      const { error } = await db.from("profiles").update(patch).eq("id", profileId);
+      const { data: rij, error } = await db.from("profiles").update(patch).eq("id", profileId).select("id");
       if (error) throw new Error("profiel koppelen: " + error.message);
+      if (!rij || !rij.length) throw new Error("profiel koppelen: geen profiel gevonden voor het nieuwe account");
     } else if (state === "bestaand") {
       const { data: prof, error: profErr } = await db.from("profiles")
         .select("company_id,role,archived,blog_program_id,first_name,last_name").eq("id", profileId).single();
@@ -179,7 +194,7 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
     } else {
       // ander_bedrijf: het account hoort bij een ander bedrijf en ziet dit programma dus niet.
       // Niets aan het account veranderen; wij lossen het met de hand op.
-      await zet({ ...basis, status: "paid" });
+      await afronden({});
       await meldIntern(db, p.company_id, profileId,
         "Winkel: koper heeft al een account bij een ander bedrijf",
         email + " kocht " + p.name + ", maar dit e-mailadres hoort bij een account van een ander bedrijf. " +
@@ -193,35 +208,51 @@ async function vervul(db: SupabaseClient, orderId: string, s: Sessie): Promise<"
       .upsert({ company_id: p.company_id, blog_program_id: p.id, athlete_id: profileId }, { onConflict: "blog_program_id,athlete_id", ignoreDuplicates: true });
     if (mErr) throw new Error("programma koppelen: " + mErr.message);
 
-    // 4. Nieuw account: uitnodiging als reservemail ("kies je wachtwoord")
-    if (state === "nieuw" && !claim.invite_id) {
-      const { data: inv, error: invErr } = await db.from("invites").insert({
-        company_id: p.company_id, coach_id: coachId, email,
-        first_name: voornaam, last_name: achternaam,
-        role: "lid", membership_type: "free_blog", blog_program_id: p.id, profile_id: profileId,
-        expires_at: new Date(Date.now() + 14 * 864e5).toISOString(), created_by: coachId,
-      }).select("id,token,first_name,expires_at").single();
-      if (invErr) throw new Error("uitnodiging klaarzetten: " + invErr.message);
-      await zet({ invite_id: inv.id });
-      // De database zet de mail direct in de wachtrij. Winkelklanten krijgen hem in het
-      // Nederlands (de etalage is Nederlands) en pas na 10 minuten.
-      const { error: mqErr } = await db.from("mail_queue").update({
-        send_after: new Date(Date.now() + RESERVEMAIL_NA_MS).toISOString(),
-        payload: { token: inv.token, first_name: inv.first_name, expires_at: inv.expires_at, lang: "nl" },
-      }).eq("event", "invite").eq("status", "pending").eq("payload->>token", inv.token);
-      if (mqErr) console.error("reservemail uitstellen mislukt:", mqErr.message);
+    // 4. Nieuw account: uitnodiging als reservemail ("kies je wachtwoord"). De database zet
+    //    winkel-uitnodigingen (bron = winkel) zelf in het Nederlands en 10 minuten later in de
+    //    wachtrij. Een eerdere poging kan hem al gemaakt hebben: dan die gebruiken.
+    let inviteId: string | null = claim.invite_id || null;
+    if (state === "nieuw" && !inviteId) {
+      const { data: eerder, error: zErr } = await db.from("invites").select("id")
+        .eq("profile_id", profileId).eq("bron", "winkel").eq("blog_program_id", p.id).is("accepted_at", null).limit(1);
+      if (zErr) throw new Error("uitnodiging zoeken: " + zErr.message);
+      if (eerder && eerder[0]) inviteId = eerder[0].id;
+      else {
+        const { data: inv, error: invErr } = await db.from("invites").insert({
+          company_id: p.company_id, coach_id: coachId, email,
+          first_name: voornaam, last_name: achternaam,
+          role: "lid", membership_type: "free_blog", blog_program_id: p.id, profile_id: profileId,
+          expires_at: new Date(Date.now() + 14 * 864e5).toISOString(), created_by: coachId, bron: "winkel",
+        }).select("id").single();
+        if (invErr) throw new Error("uitnodiging klaarzetten: " + invErr.message);
+        inviteId = inv.id;
+      }
     }
 
-    await zet({ ...basis, status: "paid" });
+    await afronden(inviteId ? { invite_id: inviteId } : {});
     return "vervuld";
   } catch (e) {
     console.error("vervullen mislukt voor bestelling " + orderId + ":", (e as Error).message);
     // Terug naar pending (wat al gelukt is, blijft vastgelegd) zodat een nieuwe poging verder kan.
-    await db.from("shop_orders").update({ ...basis, status: "pending", updated_at: new Date().toISOString() }).eq("id", orderId);
+    await db.from("shop_orders").update({ ...basis, status: "pending", updated_at: new Date().toISOString() })
+      .eq("id", orderId).eq("status", "processing");
     throw e;
   }
 }
 // ---- vervul einde ----
+
+// Stripe-abonnement stoppen. Bestaat het niet (meer) of is het al gestopt, dan is dat goed.
+async function stopAbonnement(subId: string): Promise<void> {
+  const sleutel = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!sleutel) throw new Error("STRIPE_SECRET_KEY ontbreekt");
+  const url = "https://api.stripe.com/v1/subscriptions/" + encodeURIComponent(subId);
+  const r = await fetch(url, { method: "DELETE", headers: { Authorization: "Bearer " + sleutel } });
+  if (r.ok || r.status === 404) return;
+  const nu = await fetch(url, { headers: { Authorization: "Bearer " + sleutel } });
+  const sub = nu.ok ? await nu.json() : null;
+  if (sub && ["canceled", "incomplete_expired"].includes(sub.status)) return;
+  throw new Error("abonnement stoppen mislukt: " + (await r.text()).slice(0, 200));
+}
 
 const antwoord = (status: number, obj: unknown) =>
   new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json" } });
@@ -289,6 +320,9 @@ Deno.serve(async (req) => {
       const { error } = await db.from("shop_orders").update({ status: "failed", updated_at: new Date().toISOString() })
         .eq("stripe_session_id", s.id).in("status", ["pending", "processing"]);
       if (error) throw new Error("status failed zetten: " + error.message);
+      // Het abonnement dat Stripe al aanmaakte stoppen: anders probeert Stripe later opnieuw
+      // te incasseren voor iets wat we niet leveren. De klant bestelt gewoon opnieuw.
+      if (s.subscription) await stopAbonnement(String(s.subscription));
     } else if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
       const { error } = await db.rpc("shop_afsluiten", { p_subscription_id: sub.id });

@@ -9,6 +9,10 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 const DASHBOARD = "https://app.yourprogram.nl";
+// Alleen programma's van deze bedrijven staan in de winkel en worden via ons Stripe-account
+// verkocht. Iedereen kan zelf een omgeving starten; die programma's horen hier niet.
+const WINKEL_BEDRIJVEN = (Deno.env.get("SHOP_COMPANY_IDS") || "d927c766-832c-4b8e-8001-4d416b9a35bc")
+  .split(",").map((x) => x.trim()).filter(Boolean);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -16,6 +20,7 @@ Deno.serve(async (req) => {
   const { data, error } = await db.from("blog_programs")
     .select("id,slug,name,description,description_long,cover_url,level,days_per_week,sort,price_cents,price_interval,join_open,join_token")
     .eq("for_sale", true)
+    .in("company_id", WINKEL_BEDRIJVEN)
     .order("sort")
     .order("name");
   if (error) {

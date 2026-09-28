@@ -115,19 +115,22 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && akkoordOpe
 // Terug met de Terug-knop van de browser (vanaf Stripe): geen hangende "Even geduld…".
 window.addEventListener("pageshow", e => { if (e.persisted) { sluitAkkoord(); document.getElementById("akkoord-go").textContent = "Naar betalen"; } });
 async function betaal() {
+  const id = bestelId; // het programma van dít venster; een later geopend venster telt niet
   const go = document.getElementById("akkoord-go"); go.disabled = true; go.textContent = "Even geduld…";
   try {
     const r = await fetch(FN + "/shop-checkout", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program_id: bestelId, site: location.origin, akkoord: true, voorwaarden_versie: VOORWAARDEN_VERSIE }),
+      body: JSON.stringify({ program_id: id, site: location.origin, akkoord: true, voorwaarden_versie: VOORWAARDEN_VERSIE }),
     });
     const j = await r.json();
+    if (bestelId !== id) return; // intussen een ander programma gekozen
     if (j.url && akkoordOpen()) { location.href = j.url; return; }
     if (!j.url) alert(j.error || "Afrekenen kon niet gestart worden.");
   } catch (e) {
+    if (bestelId !== id) return;
     alert("Afrekenen kon niet gestart worden. Probeer het later opnieuw.");
   }
-  go.disabled = false; go.textContent = "Naar betalen";
+  go.disabled = !document.getElementById("akkoord-vink").checked; go.textContent = "Naar betalen";
 }
 
 laad();

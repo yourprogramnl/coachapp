@@ -20,6 +20,10 @@ const DASHBOARD_OUD = "https://coachapp-steel.vercel.app";
 const ETALAGE = "https://programmering.yourprogram.nl";
 const ETALAGE_VERCEL = "https://yp-programmering.vercel.app";
 const VOORWAARDEN_VERSIE = "2026-09";
+// Alleen programma's van deze bedrijven staan in de winkel en worden via ons Stripe-account
+// verkocht. Iedereen kan zelf een omgeving starten; die programma's horen hier niet.
+const WINKEL_BEDRIJVEN = (Deno.env.get("SHOP_COMPANY_IDS") || "d927c766-832c-4b8e-8001-4d416b9a35bc")
+  .split(",").map((x) => x.trim()).filter(Boolean);
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
@@ -50,7 +54,7 @@ Deno.serve(async (req) => {
   const { data: p } = await db.from("blog_programs")
     .select("id,name,company_id,price_cents,price_interval,for_sale")
     .eq("id", body.program_id).maybeSingle();
-  if (!p || !p.for_sale || !p.price_cents || p.price_cents < 100) {
+  if (!p || !p.for_sale || !p.price_cents || p.price_cents < 100 || !WINKEL_BEDRIJVEN.includes(p.company_id)) {
     return json({ error: "Dit programma is niet (meer) te koop." }, 400);
   }
 
