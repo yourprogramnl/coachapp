@@ -511,12 +511,18 @@ async function blogLedenOpen(){
   ensureBlogModals();
   document.getElementById("blogled-lijst").innerHTML='<div class="cempty">Laden…</div>';
   document.getElementById("blogledmodal").classList.add("show");
-  const[rl,rm]=await Promise.all([
+  const[rl,rm,ro]=await Promise.all([
     db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("archived",false).or("role.eq.lid,coach_id.not.is.null").order("first_name"),
-    db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id)
+    db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id),
+    // Winkelabonnementen op dit programma (betaald, opgezegd of gestopt); nieuwste eerst.
+    db.from("shop_orders").select("profile_id,status,cancel_at,created_at").eq("blog_program_id",BLOG.cur.id).in("status",["paid","processing","canceled"]).order("created_at",{ascending:false})
   ]);
   BLOG.leden=rl.data||[];
   BLOG.mems=rm.data||[];
+  BLOG.orders=ro.error?[]:(ro.data||[]);
+  // Wie betaalt, staat bovenaan: dan zie je in één oogopslag wie het programma via de winkel volgt.
+  const betaalt=new Set(BLOG.orders.filter(o=>o.status!=="canceled").map(o=>o.profile_id));
+  BLOG.leden.sort((a,b)=>(betaalt.has(b.id)?1:0)-(betaalt.has(a.id)?1:0));
   blogLedenRender();
 }
 function blogLedenRender(){
@@ -527,9 +533,14 @@ function blogLedenRender(){
     const aan=volgt.some(m=>m.blog_program_id===BLOG.cur.id);
     const ander=volgt.filter(m=>m.blog_program_id!==BLOG.cur.id).map(m=>(BLOG.list.find(x=>x.id===m.blog_program_id)||{}).name).filter(Boolean);
     const typePill=p.membership_type==="one_on_one"?'<span class="cpill gray" style="font-size:9.5px">1-op-1</span>':'<span class="cpill gray" style="font-size:9.5px">blog</span>';
+    const o=(BLOG.orders||[]).find(x=>x.profile_id===p.id);
+    const datum=d=>new Date(d).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"});
+    const aboPill=!o?"":o.status==="canceled"?'<span class="cpill gray" style="font-size:9.5px">abonnement gestopt</span>'
+      :o.cancel_at?'<span class="cpill bad" style="font-size:9.5px" title="Opgezegd; tot deze datum ziet het lid het programma nog">opgezegd, stopt '+esc(datum(o.cancel_at))+'</span>'
+      :'<span class="cpill ok" style="font-size:9.5px">betaald abonnement</span>';
     return '<div class="tagrow" style="cursor:pointer" onclick="blogLidToggle(\''+p.id+'\')">'+
       '<div class="cavc" style="width:28px;height:28px;font-size:10px;flex:none;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
-      '<div style="flex:1"><b style="font-size:12.5px">'+naamVan(p)+'</b> '+typePill+(ander.length?'<div class="sm muted" style="font-size:11px">volgt ook: '+esc(ander.join(", "))+'</div>':'')+'</div>'+
+      '<div style="flex:1"><b style="font-size:12.5px">'+naamVan(p)+'</b> '+typePill+(aboPill?" "+aboPill:"")+(ander.length?'<div class="sm muted" style="font-size:11px">volgt ook: '+esc(ander.join(", "))+'</div>':'')+'</div>'+
       '<span class="cpill '+(aan?"ok":"gray")+'">'+(aan?"gekoppeld":"koppel")+'</span></div>';
   }).join("");
 }

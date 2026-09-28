@@ -339,6 +339,23 @@ Deno.serve(async (req) => {
       // Het abonnement dat Stripe al aanmaakte stoppen: anders probeert Stripe later opnieuw
       // te incasseren voor iets wat we niet leveren. De klant bestelt gewoon opnieuw.
       if (s.subscription && s.metadata?.program_id) await stopAbonnement(String(s.subscription));
+    } else if (event.type === "customer.subscription.updated") {
+      // Einddatum bijhouden: na opzeggen in de app (shop-abonnement), maar ook als wij in het
+      // Stripe-dashboard opzeggen of een opzegging intrekken. Het dashboard toont deze datum.
+      const sub = event.data.object;
+      const item = sub.items?.data?.[0] || {};
+      const periodeEinde = item.current_period_end || sub.current_period_end || null;
+      const stopt = sub.cancel_at || (sub.cancel_at_period_end ? periodeEinde : null);
+      const { data: o, error: zErr } = await db.from("shop_orders").select("id,cancel_requested_at").eq("stripe_subscription_id", sub.id).maybeSingle();
+      if (zErr) throw new Error("bestelling zoeken: " + zErr.message);
+      if (o) {
+        const nu = new Date().toISOString();
+        const patch: Record<string, unknown> = { cancel_at: stopt ? new Date(stopt * 1000).toISOString() : null, updated_at: nu };
+        if (stopt && !o.cancel_requested_at) patch.cancel_requested_at = nu;
+        if (!stopt) { patch.cancel_requested_at = null; patch.cancel_reason = null; }
+        const { error } = await db.from("shop_orders").update(patch).eq("id", o.id);
+        if (error) throw new Error("einddatum bijwerken: " + error.message);
+      }
     } else if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
       const { error } = await db.rpc("shop_afsluiten", { p_subscription_id: sub.id });
