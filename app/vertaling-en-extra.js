@@ -62,6 +62,9 @@ i18nLaad({
   "betaald abonnement": "paid subscription",
   "abonnement gestopt": "subscription ended",
   "Opgezegd; tot deze datum ziet het lid het programma nog": "Cancelled; the member keeps access until this date",
+  "2 lopende abonnementen": "2 running subscriptions",
+  "Dit lid betaalt twee keer voor hetzelfde programma; zeg er één op in Stripe": "This member pays twice for the same program; cancel one in Stripe",
+  "herroepen": "withdrawn",
 });
 // Samengestelde regels (worden na het woordenboek geprobeerd)
 if (typeof i18nRegel === "function") {
@@ -87,3 +90,4 @@ if (typeof i18nRegel === "function") {
   i18nRegel(/^Programma van (.+) geopend$/, "Opened $1's program");
 }
 if (typeof i18nRegel === "function") i18nRegel(/^opgezegd, stopt (.+)$/, "cancelled, ends $1");
+if (typeof i18nRegel === "function") i18nRegel(/^Dit lid betaalt nog via de winkel voor dit programma(.*)\. Ontkoppelen stopt de betaling niet; zeg het abonnement zo nodig op in Stripe\. Toch ontkoppelen\?$/, "This member still pays for this program through the shop$1. Unlinking does not stop the payment; cancel the subscription in Stripe if needed. Unlink anyway?");

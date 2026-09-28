@@ -515,7 +515,7 @@ async function blogLedenOpen(){
     db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("archived",false).or("role.eq.lid,coach_id.not.is.null").order("first_name"),
     db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id),
     // Winkelabonnementen op dit programma (betaald, opgezegd of gestopt); nieuwste eerst.
-    db.from("shop_orders").select("profile_id,status,cancel_at,created_at").eq("blog_program_id",BLOG.cur.id).in("status",["paid","processing","canceled"]).order("created_at",{ascending:false})
+    db.from("shop_orders").select("profile_id,status,cancel_at,withdrawn_at,created_at").eq("blog_program_id",BLOG.cur.id).in("status",["paid","processing","canceled"]).order("created_at",{ascending:false})
   ]);
   BLOG.leden=rl.data||[];
   BLOG.mems=rm.data||[];
@@ -533,9 +533,14 @@ function blogLedenRender(){
     const aan=volgt.some(m=>m.blog_program_id===BLOG.cur.id);
     const ander=volgt.filter(m=>m.blog_program_id!==BLOG.cur.id).map(m=>(BLOG.list.find(x=>x.id===m.blog_program_id)||{}).name).filter(Boolean);
     const typePill=p.membership_type==="one_on_one"?'<span class="cpill gray" style="font-size:9.5px">1-op-1</span>':'<span class="cpill gray" style="font-size:9.5px">blog</span>';
-    const o=(BLOG.orders||[]).find(x=>x.profile_id===p.id);
+    // Alle winkelbestellingen van dit lid voor dit programma: lopende gaan voor gestopte.
+    const mijn=(BLOG.orders||[]).filter(x=>x.profile_id===p.id);
+    const lopend=mijn.filter(x=>x.status!=="canceled");
+    const o=lopend[0]||mijn[0];
     const datum=d=>new Date(d).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"});
-    const aboPill=!o?"":o.status==="canceled"?'<span class="cpill gray" style="font-size:9.5px">abonnement gestopt</span>'
+    const aboPill=!o?"":lopend.length>1?'<span class="cpill bad" style="font-size:9.5px" title="Dit lid betaalt twee keer voor hetzelfde programma; zeg er één op in Stripe">2 lopende abonnementen</span>'
+      :o.withdrawn_at?'<span class="cpill gray" style="font-size:9.5px">herroepen</span>'
+      :o.status==="canceled"?'<span class="cpill gray" style="font-size:9.5px">abonnement gestopt</span>'
       :o.cancel_at?'<span class="cpill bad" style="font-size:9.5px" title="Opgezegd; tot deze datum ziet het lid het programma nog">opgezegd, stopt '+esc(datum(o.cancel_at))+'</span>'
       :'<span class="cpill ok" style="font-size:9.5px">betaald abonnement</span>';
     return '<div class="tagrow" style="cursor:pointer" onclick="blogLidToggle(\''+p.id+'\')">'+
@@ -547,6 +552,9 @@ function blogLedenRender(){
 async function blogLidToggle(pid){
   const p=BLOG.leden.find(x=>x.id===pid);if(!p)return;
   const bestaand=(BLOG.mems||[]).find(m=>m.athlete_id===pid&&m.blog_program_id===BLOG.cur.id);
+  // Betaalt dit lid nog via de winkel? Dan niet met één klik ontkoppelen: de betaling loopt door.
+  const betaalt=(BLOG.orders||[]).find(o=>o.profile_id===pid&&o.status!=="canceled");
+  if(bestaand&&betaalt&&!confirm("Dit lid betaalt nog via de winkel voor dit programma"+(betaalt.cancel_at?" (opgezegd, loopt tot "+new Date(betaalt.cancel_at).toLocaleDateString("nl-NL",{day:"numeric",month:"long"})+")":"")+". Ontkoppelen stopt de betaling niet; zeg het abonnement zo nodig op in Stripe. Toch ontkoppelen?"))return;
   if(bestaand){
     const{error}=await db.from("blog_program_members").delete().eq("id",bestaand.id);
     if(error){toast(error.message||"Ontkoppelen mislukt");return;}

@@ -342,19 +342,38 @@ Deno.serve(async (req) => {
     } else if (event.type === "customer.subscription.updated") {
       // Einddatum bijhouden: na opzeggen in de app (shop-abonnement), maar ook als wij in het
       // Stripe-dashboard opzeggen of een opzegging intrekken. Het dashboard toont deze datum.
-      const sub = event.data.object;
-      const item = sub.items?.data?.[0] || {};
-      const periodeEinde = item.current_period_end || sub.current_period_end || null;
-      const stopt = sub.cancel_at || (sub.cancel_at_period_end ? periodeEinde : null);
-      const { data: o, error: zErr } = await db.from("shop_orders").select("id,cancel_requested_at").eq("stripe_subscription_id", sub.id).maybeSingle();
+      // We lezen de actuele stand bij Stripe: gebeurtenissen kunnen laat of dubbel binnenkomen.
+      const { data: o, error: zErr } = await db.from("shop_orders").select("id,company_id,email,profile_id,cancel_at,cancel_requested_at,status")
+        .eq("stripe_subscription_id", event.data.object.id).maybeSingle();
       if (zErr) throw new Error("bestelling zoeken: " + zErr.message);
-      if (o) {
+      if (o && o.status === "paid") {
+        const sleutel = Deno.env.get("STRIPE_SECRET_KEY");
+        const r = await fetch("https://api.stripe.com/v1/subscriptions/" + encodeURIComponent(event.data.object.id), { headers: { Authorization: "Bearer " + sleutel } });
+        if (!r.ok) throw new Error("abonnement ophalen: " + r.status);
+        const sub = await r.json();
+        const item = sub.items?.data?.[0] || {};
+        const periodeEinde = item.current_period_end || sub.current_period_end || null;
+        const stopt = sub.cancel_at || (sub.cancel_at_period_end ? periodeEinde : null);
+        const stoptIso = stopt ? new Date(stopt * 1000).toISOString() : null;
         const nu = new Date().toISOString();
-        const patch: Record<string, unknown> = { cancel_at: stopt ? new Date(stopt * 1000).toISOString() : null, updated_at: nu };
+        const patch: Record<string, unknown> = { cancel_at: stoptIso, updated_at: nu };
         if (stopt && !o.cancel_requested_at) patch.cancel_requested_at = nu;
-        if (!stopt) { patch.cancel_requested_at = null; patch.cancel_reason = null; }
+        if (!stopt) patch.cancel_requested_at = null;
         const { error } = await db.from("shop_orders").update(patch).eq("id", o.id);
         if (error) throw new Error("einddatum bijwerken: " + error.message);
+        // Opgezegd buiten de app om (door ons in Stripe): het lid krijgt ook dan een bevestiging.
+        // Via de app regelt shop-abonnement de mail zelf (metadata opgezegd_via = app).
+        if (stopt && !o.cancel_at && sub.metadata?.opgezegd_via !== "app") {
+          let naar = o.email;
+          if (o.profile_id) {
+            const { data: u } = await db.auth.admin.getUserById(o.profile_id);
+            naar = u?.user?.email || naar;
+          }
+          if (naar) {
+            const { error: mErr } = await db.from("mail_queue").insert({ company_id: o.company_id, recipient_email: naar, event: "opzegging", payload: { order_id: o.id, soort: "opgezegd", stopt_op: stoptIso, laatste_betaling: periodeEinde && periodeEinde < stopt ? new Date(periodeEinde * 1000).toISOString() : null } });
+            if (mErr) console.error("bevestigingsmail (Stripe-opzegging) niet ingepland:", mErr.message);
+          }
+        }
       }
     } else if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object;

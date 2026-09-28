@@ -360,15 +360,15 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     return "fout";
   }
 
-  // Bevestiging van een opzegging (of het intrekken ervan) aan het lid. Altijd versturen,
-  // los van meldingsvinkjes: dit is de schriftelijke bevestiging die bij opzeggen hoort.
+  // Bevestiging van opzeggen, intrekken of herroepen aan het lid. Altijd versturen, los van
+  // meldingsvinkjes: dit is de schriftelijke bevestiging die daarbij hoort.
   if (event === "opzegging") {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
     const { data: o } = await db.from("shop_orders").select("cancel_at,blog_program_id,company_id,profile_id").eq("id", payload.order_id as string).maybeSingle();
     if (!o) { await klaar({ status: "skipped", last_error: "bestelling niet gevonden" }); return "skipped"; }
-    const soort = payload.soort === "ingetrokken" ? "ingetrokken" : "opgezegd";
-    // Intussen alweer ingetrokken (of juist opgezegd)? Dan klopt deze mail niet meer.
+    const soort = ["ingetrokken", "herroepen"].includes(payload.soort as string) ? payload.soort as string : "opgezegd";
+    // Intussen alweer ingetrokken (of juist opnieuw opgezegd)? Dan klopt deze mail niet meer.
     if (soort === "opgezegd" && !o.cancel_at) { await klaar({ status: "skipped", last_error: "opzegging intussen ingetrokken" }); return "skipped"; }
     if (soort === "ingetrokken" && o.cancel_at) { await klaar({ status: "skipped", last_error: "intussen opnieuw opgezegd" }); return "skipped"; }
     const [{ data: prof }, { data: prog }, { data: bedrijfO }] = await Promise.all([
@@ -380,7 +380,12 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const en = taalO === "en";
     const programma = prog?.name || (en ? "your program" : "je programma");
     const naam = prof?.first_name || "";
-    const datum = o.cancel_at ? new Date(o.cancel_at).toLocaleDateString(en ? "en-GB" : "nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" }) : "";
+    const hoi = en ? `Hi${naam ? " " + naam : ""}` : `Hoi${naam ? " " + naam : ""}`;
+    const dat = (iso: unknown, metTijd = false) => iso ? new Date(String(iso)).toLocaleString(en ? "en-GB" : "nl-NL", {
+      day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam", ...(metTijd ? { hour: "2-digit", minute: "2-digit" } : {}),
+    }) : "";
+    const datum = dat(o.cancel_at || payload.stopt_op);
+    const laatste = dat(payload.laatste_betaling);
     const accentO = accentVan(bedrijfO?.theme);
     const afzender = bedrijfO?.name || "YourProgram";
     let onderwerp: string, html: string;
@@ -388,25 +393,46 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       onderwerp = en ? `Cancellation confirmed: ${programma}` : `Bevestiging opzegging ${programma}`;
       html = simpelHtml({
         titel: en ? "We've received your cancellation" : "Je opzegging is ontvangen",
-        intro: en ? `Hi${naam ? " " + naam : ""}, you've cancelled your subscription to ${programma}.` : `Hoi${naam ? " " + naam : ""}, je hebt je abonnement op ${programma} opgezegd.`,
+        intro: en ? `${hoi}, you've cancelled your subscription to ${programma}.` : `${hoi}, je hebt je abonnement op ${programma} opgezegd.`,
         regels: (en ? [
           `Your subscription ends on ${datum}. Until then you can keep training as usual.`,
-          `The notice period is one month. Your last payment only covers the days up to ${datum}; after that nothing more is charged.`,
+          laatste
+            ? `The notice period is one month. On ${laatste} we'll charge you one last time, only for the days up to ${datum}. After that nothing more is charged.`
+            : `The notice period is one month. After ${datum} nothing more is charged.`,
           "Changed your mind? Withdraw your cancellation in the app: Profile > My subscription.",
         ] : [
           `Je abonnement stopt op ${datum}. Tot die dag kun je gewoon trainen.`,
-          `De opzegtermijn is één maand. Je laatste betaling loopt alleen tot ${datum}; daarna schrijven we niets meer af.`,
+          laatste
+            ? `De opzegtermijn is één maand. Op ${laatste} schrijven we nog één keer af, alleen voor de dagen tot en met ${datum}. Daarna schrijven we niets meer af.`
+            : `De opzegtermijn is één maand. Na ${datum} schrijven we niets meer af.`,
           "Toch door? Trek je opzegging in via de app: Profiel > Mijn abonnement.",
         ]).map(esc),
         voet: en ? "This email is your confirmation of the cancellation. Please keep it." : "Deze mail is de bevestiging van je opzegging. Bewaar hem goed.",
+        accent: accentO,
+      });
+    } else if (soort === "herroepen") {
+      const terug = Number(payload.terug_cents || 0);
+      const bedrag = "€" + (terug / 100).toFixed(2).replace(".", ",");
+      onderwerp = en ? `Withdrawal confirmed: ${programma}` : `Bevestiging herroeping ${programma}`;
+      html = simpelHtml({
+        titel: en ? "We've received your withdrawal" : "Je herroeping is ontvangen",
+        intro: en ? `${hoi}, you've withdrawn from your subscription to ${programma} within the 14-day cooling-off period.` : `${hoi}, je hebt je abonnement op ${programma} herroepen binnen de bedenktijd van 14 dagen.`,
+        regels: (en ? [
+          `Received on ${dat(payload.ontvangen_op, true)}. Your subscription has ended right away.`,
+          terug > 0 ? `You'll get the unused part of your first payment back (${bedrag}) within 14 days, via the same payment method.` : "Nothing was charged, so there's nothing to refund.",
+        ] : [
+          `Ontvangen op ${dat(payload.ontvangen_op, true)}. Je abonnement is direct gestopt.`,
+          terug > 0 ? `Je krijgt het ongebruikte deel van je eerste betaling (${bedrag}) binnen 14 dagen terug, via dezelfde betaalmethode.` : "Er is niets afgeschreven, dus er hoeft niets terug.",
+        ]).map(esc),
+        voet: en ? "This email is your confirmation of the withdrawal. Please keep it." : "Deze mail is de bevestiging van je herroeping. Bewaar hem goed.",
         accent: accentO,
       });
     } else {
       onderwerp = en ? `Your subscription to ${programma} continues` : `Je abonnement op ${programma} loopt door`;
       html = simpelHtml({
         titel: en ? "Your subscription continues" : "Je abonnement loopt door",
-        intro: en ? `Hi${naam ? " " + naam : ""}, you've withdrawn your cancellation of ${programma}.` : `Hoi${naam ? " " + naam : ""}, je hebt je opzegging van ${programma} ingetrokken.`,
-        regels: [esc(en ? "Your subscription simply continues and is renewed every month as before." : "Je abonnement loopt gewoon door en wordt zoals altijd elke maand verlengd.")],
+        intro: en ? `${hoi}, you've withdrawn your cancellation of ${programma}.` : `${hoi}, je hebt je opzegging van ${programma} ingetrokken.`,
+        regels: [esc(en ? "Your subscription simply continues and the monthly payments carry on as before your cancellation." : "Je abonnement loopt gewoon door en de maandelijkse betalingen gaan verder zoals voor je opzegging.")],
         voet: en ? "You can cancel at any time in the app: Profile > My subscription." : "Opzeggen kan altijd in de app: Profiel > Mijn abonnement.",
         accent: accentO,
       });
