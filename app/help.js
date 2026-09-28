@@ -235,7 +235,8 @@ const helpHoofdstuk=id=>HELP_HOOFDSTUKKEN.find(h=>h.id===id)||HELP_HOOFDSTUKKEN[
 function fillHelp(){
   const cp=document.getElementById("cpage");if(!cp)return;
   cp.innerHTML='<div class="helpkop"><div><h1 style="margin-bottom:4px">Handleiding</h1>'+
-    '<div class="sm muted">Zoek een onderwerp of kies links een hoofdstuk. Bij elke stap staat een schermafbeelding met de knop erop aangewezen.</div></div>'+
+    '<div class="sm muted">Zoek een onderwerp of kies links een hoofdstuk. Bij elke stap staat een schermafbeelding met de knop erop aangewezen.</div>'+
+    helpPdfHtml()+'</div>'+
     '<div class="helpzoek"><svg class="i"><use href="#i-search"/></svg>'+
     '<input id="help-zoek" placeholder="Zoeken in de handleiding…" value="'+esc(helpZoek)+'" oninput="helpZoekIn(this.value)">'+
     '<button class="helpzoek-x" onclick="helpZoekIn(\'\');document.getElementById(\'help-zoek\').value=\'\'" style="'+(helpZoek?"":"display:none")+'">&times;</button></div></div>'+
@@ -245,6 +246,17 @@ function fillHelp(){
         (h.stappen.length?'<span class="helpnav-n">'+h.stappen.length+'</span>':'<span class="helpnav-n soon">…</span>')+'</button>').join("")+
     '</div><div class="panel helppaneel" id="help-paneel"></div></div>';
   helpPaneel();
+}
+
+// De hele handleiding als PDF (map handleiding/ in de repo). Gemaakt met
+// maak-handleiding-nl.js / maak-handleiding.js in FORGE/handleiding-screenshots;
+// na tekstwijzigingen in HELP_HOOFDSTUKKEN opnieuw draaien. Taalnamen niet vertalen.
+function helpPdfHtml(){
+  const knop=(href,taal)=>'<a class="btn ghost sm helppdf-knop" href="'+href+'" download target="_blank" rel="noopener">'+
+    '<svg class="i sm-i"><use href="#i-dl"/></svg> <span data-notr>'+taal+'</span></a>';
+  return '<div class="helppdf"><span class="sm muted">Download als PDF:</span>'+
+    knop("handleiding/coach-dashboard-handleiding-nl.pdf","Nederlands")+
+    knop("handleiding/coach-dashboard-manual-en.pdf","English")+'</div>';
 }
 
 function helpZoekIn(v){

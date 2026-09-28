@@ -908,6 +908,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .belbtn.on{color:#fff}
 .helpkop{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:18px}
 .helpkop>div:first-child{flex:1;min-width:260px}
+.helppdf{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.helppdf-knop{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .helpzoek{position:relative;display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 10px;width:320px;max-width:100%}
 .helpzoek .i{width:15px;height:15px;color:var(--muted);flex:none}
 .helpzoek input{border:none;outline:none;background:none;padding:10px 8px;font-size:13.5px;font-family:inherit;width:100%;color:var(--txt)}
@@ -1000,6 +1002,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 
 /* Taalkiezer in de bovenbalk (vlag + pijltje) */
 .taalbtn .vlag{width:22px;height:15px;border-radius:3px;display:block;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+.taalkeuze a{display:inline-flex;align-items:center;gap:5px;vertical-align:middle;margin:0 4px}
+.taalkeuze .vlag{width:16px;height:11px;border-radius:2px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
 .taalmenu{min-width:180px}
 .taalmenu .vlag{width:20px;height:14px;border-radius:2px;flex:none}
 .taalmenu .taal-check{margin-left:auto;color:#2a2e35;font-weight:700}

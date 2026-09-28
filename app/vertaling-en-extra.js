@@ -2,6 +2,8 @@
 // gegenereerd en kan overschreven worden; nieuwe teksten van na 27 sep 2026
 // komen hier). Sleutel = exacte Nederlandse tekst.
 i18nLaad({
+  // Handleiding als PDF downloaden (help.js)
+  "Download als PDF:": "Download as PDF:",
   // Zelf een omgeving starten (start_bedrijf)
   "Welkom! Hoe wil je verder?": "Welcome! How would you like to continue?",
   "Je account is nog nergens aan gekoppeld. Kies wat bij jou past.": "Your account isn't linked to anything yet. Pick what fits you.",

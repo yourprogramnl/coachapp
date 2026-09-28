@@ -128,6 +128,10 @@ const VLAG={
   en:'<svg class="vlag" viewBox="0 0 22 15" aria-hidden="true"><rect width="22" height="15" fill="#012169"/><path d="M0 0L22 15M22 0L0 15" stroke="#fff" stroke-width="3"/><path d="M0 0L22 15M22 0L0 15" stroke="#C8102E" stroke-width="1.2"/><path d="M11 0V15M0 7.5H22" stroke="#fff" stroke-width="5"/><path d="M11 0V15M0 7.5H22" stroke="#C8102E" stroke-width="3"/></svg>'
 };
 const TAALNAAM={nl:"Nederlands",en:"English"};
+// Zelfde vlaggetjes voor de taalkeuze onder het inlogkaartje (index.html).
+document.addEventListener("DOMContentLoaded",()=>TALEN.forEach(l=>{
+  const a=document.getElementById("taal-"+l);if(a&&!a.querySelector(".vlag"))a.insertAdjacentHTML("afterbegin",VLAG[l]);
+}));
 // Taalkiezer rechts in de bovenbalk: vlag + pijltje, uitklapmenu met beide talen.
 function taalMenuHtml(){
   return '<div class="avwrap taalwrap" data-notr><button class="cavbtn taalbtn" title="'+(LANG==="en"?"Language":"Taal")+'" onclick="taalMenuToggle(event)">'+VLAG[LANG]+'<svg class="i cav-caret"><use href="#i-chev"/></svg></button>'+
