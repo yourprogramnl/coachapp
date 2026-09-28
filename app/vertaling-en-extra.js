@@ -50,7 +50,7 @@ i18nLaad({
   "De klanten van deze coach": "This coach's clients",
   "{n} actieve klant": "{n} active client", "{n} actieve klanten": "{n} active clients",
   // Bedrijven-overzicht voor beheerders (klanten.js, fillCompanies)
-  "Bedrijf": "Company", "Coaches": "Coaches", "nooit": "never", "{n} actief": "{n} active",
+  "Beheer": "Admin", "Bedrijf": "Company", "Coaches": "Coaches", "nooit": "never", "{n} actief": "{n} active",
   "Workouts · 30 dagen": "Workouts · 30 days", "Scores · 30 dagen": "Scores · 30 days",
   "Workouts · 30 d": "Workouts · 30 d", "Scores · 30 d": "Scores · 30 d", "Staf laatst ingelogd": "Staff last logged in",
   "Geen eigenaar (beheerders)": "No owner (admins)",

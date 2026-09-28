@@ -82,11 +82,10 @@ function cnavItems(){
   // "Meldingen" (verzoek Stefan, 10 aug): notificaties + weekoverzicht per
   // klant op één duidelijke plek, rechts van Berichten.
   n.push(["blog","Blog"],["week",SHOWDOWN],["msgs","Berichten"],["notifs","Meldingen"],["data","Data"]);
-  // AI-coach-testpaneel: alleen platform_admin, coaches zien hem bewust nog niet.
-  if(role==="platform_admin")n.push(["ai","AI-coach"]);
-  // "Bedrijven" (platform_admin): terug sinds 28 sep, nu er een tweede bedrijf
-  // bijkomt. Toont alleen tellingen per bedrijf (AVG), zie fillCompanies.
-  if(role==="platform_admin")n.push(["companies","Bedrijven"]);
+  // Alleen voor platform_admin, samen onder één knop "Beheer" (derde element):
+  // het AI-coach-testpaneel (coaches zien het bewust nog niet) en Bedrijven
+  // (alleen tellingen per bedrijf, AVG; zie fillCompanies).
+  if(role==="platform_admin")n.push(["ai","AI-coach","beheer"],["companies","Bedrijven","beheer"]);
   return n;
 }
 // Leest de sectie uit de link (#…). Onbekend of niet toegestaan voor deze rol → dashboard.
@@ -170,7 +169,9 @@ function coachShellHtml(inner){
   // Echte links (met href) in plaats van knoppen: zo opent middenklik of
   // Ctrl+klik een sectie in een nieuw tabblad (pilotfeedback 17 aug); een
   // gewone klik blijft binnen de app via coachGo.
-  const btns=cnavItems().map(n=>'<a class="'+(n[0]===coachSection?"on":"")+'" href="#'+n[0]+'" onclick="coachGo(\''+n[0]+'\');return false">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</a>').join("");
+  const items=cnavItems();
+  const btns=items.filter(n=>!n[2]).map(n=>'<a class="'+(n[0]===coachSection?"on":"")+'" href="#'+n[0]+'" onclick="coachGo(\''+n[0]+'\');return false">'+esc(n[1])+(n[0]==="msgs"?msgBadgeHtml():"")+'</a>').join("")+
+    beheerMenuHtml(items.filter(n=>n[2]==="beheer"));
   // Avatar rechtsboven = uitklapmenu (naar CoachRx-voorbeeld, 17 juli): naam +
   // rol bovenin, Instellingen (komt nog) en Uitloggen (losse knop is weg).
   return '<div class="cwrap"><div class="cbar"><img class="cbar-logo" src="img/logo-yp-2021.png" alt="YourProgram"><div class="cnav2">'+btns+'</div>'+
@@ -183,6 +184,23 @@ function coachShellHtml(inner){
     '</div></div>'+(typeof taalMenuHtml==="function"?taalMenuHtml():"")+'</div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
 }
+// Knop "Beheer" in de balk (alleen platform_admin) met een klein uitklapmenu.
+function beheerMenuHtml(lijst){
+  if(!lijst.length)return "";
+  return '<div class="avwrap beheerwrap"><a class="'+(lijst.some(n=>n[0]===coachSection)?"on":"")+'" href="#" onclick="beheerMenuToggle(event);return false">Beheer<svg class="i cav-caret"><use href="#i-chev"/></svg></a>'+
+    '<div class="avmenu" id="beheermenu">'+lijst.map(n=>'<button class="'+(n[0]===coachSection?"on":"")+'" onclick="beheerGa(\''+n[0]+'\')">'+esc(n[1])+'</button>').join("")+'</div></div>';
+}
+function beheerMenuToggle(ev){
+  ev.stopPropagation();
+  const m=document.getElementById("beheermenu");if(m)m.classList.toggle("show");
+}
+function beheerGa(sectie){
+  const m=document.getElementById("beheermenu");if(m)m.classList.remove("show");
+  coachGo(sectie);
+}
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".beheerwrap")){const m=document.getElementById("beheermenu");if(m)m.classList.remove("show");}
+});
 function avMenuToggle(ev){
   ev.stopPropagation();
   const m=document.getElementById("avmenu");if(m)m.classList.toggle("show");

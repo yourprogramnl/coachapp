@@ -669,6 +669,14 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .cnav2 button,.cnav2 a{color:#c9cdd4;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;padding:7px 12px;border-radius:6px;background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block}
 .cnav2 button:hover,.cnav2 a:hover{color:#fff}
 .cnav2 button.on,.cnav2 a.on{background:#fff;color:var(--nav)}
+.beheerwrap>a{display:inline-flex;align-items:center;gap:4px}
+.beheerwrap .cav-caret{width:11px;height:11px}
+.cnav2 .beheerwrap .avmenu{left:0;right:auto;min-width:180px}
+.cnav2 .avmenu button{text-transform:none;letter-spacing:normal;font-weight:500;display:flex}
+.cnav2 .avmenu button.on{background:#f2f4f6;font-weight:700}
+/* Laptopbreedte: menuknoppen iets dichter op elkaar, zodat ook de balk van een
+   beheerder (Coaches + Beheer erbij) op één regel past. */
+@media (max-width:1400px){.cnav2>a,.cnav2>.beheerwrap>a{padding:7px 8px;letter-spacing:.4px}}
 .navbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:6px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800;letter-spacing:0;vertical-align:1px}
 .wcdot{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;padding:0 3px;margin-left:5px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800}
 .exdrop .hdx{float:right;cursor:pointer;color:#8a919c;font-size:12px;padding:0 2px;line-height:1.4}
