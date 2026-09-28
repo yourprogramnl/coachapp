@@ -4,6 +4,13 @@
 i18nLaad({
   // Handleiding als PDF downloaden (help.js)
   "Download als PDF:": "Download as PDF:",
+  // App installeren via TestFlight (auth.js, appInstallHtml)
+  "De app is nog in test en loopt via TestFlight van Apple. Zo zet je hem op je iPhone:": "The app is still in testing and runs through Apple's TestFlight. Here's how to get it on your iPhone:",
+  "Installeer de app TestFlight uit de App Store.": "Install the TestFlight app from the App Store.",
+  "Open de link hieronder op je iPhone en tik op Accepteren en Installeren.": "Open the link below on your iPhone and tap Accept, then Install.",
+  "Open de YourProgram-app en log in met dit e-mailadres en je wachtwoord.": "Open the YourProgram app and log in with this email address and your password.",
+  "Open de TestFlight-link": "Open the TestFlight link",
+  "Zit je nu op je computer? De link staat ook in je uitnodigingsmail.": "On your computer right now? The link is also in your invitation email.",
   // Zelf een omgeving starten (start_bedrijf)
   "Welkom! Hoe wil je verder?": "Welcome! How would you like to continue?",
   "Je account is nog nergens aan gekoppeld. Kies wat bij jou past.": "Your account isn't linked to anything yet. Pick what fits you.",
@@ -42,12 +49,20 @@ i18nLaad({
   "Deze coach heeft nog": "This coach still has",
   "De klanten van deze coach": "This coach's clients",
   "{n} actieve klant": "{n} active client", "{n} actieve klanten": "{n} active clients",
+  // Bedrijven-overzicht voor beheerders (klanten.js, fillCompanies)
+  "Bedrijf": "Company", "Coaches": "Coaches", "nooit": "never", "{n} actief": "{n} active",
+  "Workouts · 30 dagen": "Workouts · 30 days", "Scores · 30 dagen": "Scores · 30 days",
+  "Workouts · 30 d": "Workouts · 30 d", "Scores · 30 d": "Scores · 30 d", "Staf laatst ingelogd": "Staff last logged in",
+  "Geen eigenaar (beheerders)": "No owner (admins)",
+  "Het overzicht laden lukte niet. Probeer het later opnieuw.": "Loading the overview failed. Please try again later.",
+  "Per bedrijf zie je alleen cijfers, geen klantgegevens. De klanten van een ander bedrijf bekijk je alleen om de eigenaar te helpen, en dan met medeweten van de eigenaar (AVG).": "You only see figures per company, no client data. Only look at another company's clients to help its owner, and only with the owner's knowledge (GDPR).",
 });
 // Samengestelde regels (worden na het woordenboek geprobeerd)
 if (typeof i18nRegel === "function") {
   i18nRegel(/^Laatste consult: (.+)$/, "Last consultation: $1");
   i18nRegel(/^gepubliceerd (.+)$/, "published $1");
   i18nRegel(/^Jij: (.*)$/, "You: $1");
+  i18nRegel(/^Sinds (.+) · plan (.+)$/, "Since $1 · plan $2");
   i18nRegel(/^Gepland: (.+)$/, "Scheduled: $1");
   i18nRegel(/^(\d+) klanten · (.+)$/, "$1 clients · $2");
   i18nRegel(/^1 klant · (.+)$/, "1 client · $1");

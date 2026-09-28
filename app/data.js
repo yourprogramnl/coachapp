@@ -349,7 +349,10 @@ async function dtVerwijderAtleet(){
 let dtKlanten=null;
 async function dtLaadKlanten(){
   if(dtKlanten)return dtKlanten;
-  const{data}=await db.from("profiles").select("id,first_name,last_name,weight_kg,gender").eq("role","lid").order("first_name");
+  // Filter op het eigen bedrijf: een platform_admin mag via RLS alle bedrijven lezen.
+  let q=db.from("profiles").select("id,first_name,last_name,weight_kg,gender").eq("role","lid");
+  if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
+  const{data}=await q.order("first_name");
   dtKlanten=(data||[]).map(p=>({id:p.id,naam:[p.first_name,p.last_name].filter(Boolean).join(" ")||"Naamloos",weight_kg:p.weight_kg,gender:p.gender}));
   return dtKlanten;
 }

@@ -781,9 +781,39 @@ async function invAanmaken(){
   }catch(e){}
 }
 function kopieerInvLink(){const i=document.getElementById("inv-link");i.select();navigator.clipboard.writeText(i.value).then(()=>toast("Link gekopieerd"),()=>toast("Kopiëren lukte niet, selecteer de link zelf"));}
+// Bedrijven (alleen platform_admin): per bedrijf alleen tellingen en de eigenaar
+// als zakelijk contact, via rpc admin_bedrijven_overzicht. Bewust geen namen of
+// gegevens van klanten van andere bedrijven (AVG: alleen wat we nodig hebben).
 async function fillCompanies(){
-  const{data:companies}=await db.from("companies").select("*").order("created_at");
-  const rows=(companies||[]).map(co=>'<div class="row"><div class="av">'+esc((co.name||"?").slice(0,2).toUpperCase())+'</div><div style="flex:1"><div class="nm">'+esc(co.name)+'</div><div class="sub">Plan: '+esc(co.plan)+'</div></div><span class="tag">'+esc(co.status)+'</span></div>').join("");
-  const cp=document.getElementById("cpage");
-  if(cp)cp.innerHTML='<h1>Bedrijven</h1><div class="card">'+(rows||'<div class="row"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
+  const cp=document.getElementById("cpage");if(!cp)return;
+  const{data,error}=await db.rpc("admin_bedrijven_overzicht");
+  if(!document.getElementById("cpage"))return;
+  if(error){cp.innerHTML='<h1>Bedrijven</h1><div class="csoon">Het overzicht laden lukte niet. Probeer het later opnieuw.</div>';return;}
+  const lijst=data||[];
+  const som=k=>lijst.reduce((a,b)=>a+(b[k]||0),0);
+  const datum=d=>d?new Date(d).toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"}):"–";
+  const sinds=d=>{if(!d)return '<span class="muted">nooit</span>';const dagen=Math.floor((Date.now()-new Date(d))/864e5);
+    return dagen<=0?"vandaag":dagen===1?"gisteren":dagen+" dagen geleden";};
+  const rows=lijst.map(co=>'<div class="trow">'+
+    '<div style="flex:2;display:flex;gap:11px;align-items:center"><div class="cavc">'+esc((co.naam||"?").slice(0,2).toUpperCase())+'</div>'+
+      '<div><div style="font-weight:700;font-size:13px">'+esc(co.naam)+'</div><div class="sm muted">Sinds '+datum(co.aangemaakt)+' · plan '+esc(co.plan||"–")+'</div></div></div>'+
+    '<div style="flex:1.8;min-width:0">'+(co.eigenaar_email
+      ?'<div style="font-size:13px">'+esc(co.eigenaar_naam||"–")+'</div><a class="sm" href="mailto:'+esc(co.eigenaar_email)+'" data-notr>'+esc(co.eigenaar_email)+'</a>'
+      :'<span class="muted">Geen eigenaar (beheerders)</span>')+'</div>'+
+    '<div style="flex:.8">'+co.coaches+'</div>'+
+    '<div style="flex:1">'+co.klanten+(co.klanten?'<div class="sm muted">'+co.klanten_actief_30d+' actief</div>':'')+'</div>'+
+    '<div style="flex:1">'+co.workouts_30d+'</div>'+
+    '<div style="flex:1">'+co.scores_30d+'</div>'+
+    '<div style="flex:1.2">'+sinds(co.staf_laatst_ingelogd)+'</div>'+
+    '<div style="width:70px"><span class="cpill '+(co.status==="active"?"teal":"purple")+'">'+(co.status==="active"?"Actief":esc(co.status||"–"))+'</span></div></div>').join("");
+  cp.innerHTML='<div class="statbar2">'+
+      '<div><div class="n">'+lijst.length+'</div><div class="l">Bedrijven</div></div>'+
+      '<div><div class="n acc">'+som("klanten")+'</div><div class="l">Klanten totaal</div></div>'+
+      '<div><div class="n acc">'+som("workouts_30d")+'</div><div class="l">Workouts · 30 dagen</div></div>'+
+      '<div><div class="n acc">'+som("scores_30d")+'</div><div class="l">Scores · 30 dagen</div></div></div>'+
+    '<h1 style="margin:0 0 4px">Bedrijven</h1>'+
+    '<div class="sm muted" style="margin-bottom:12px;max-width:80ch">Per bedrijf zie je alleen cijfers, geen klantgegevens. De klanten van een ander bedrijf bekijk je alleen om de eigenaar te helpen, en dan met medeweten van de eigenaar (AVG).</div>'+
+    '<div class="card"><div class="thead"><div style="flex:2">Bedrijf</div><div style="flex:1.8">Eigenaar</div><div style="flex:.8">Coaches</div><div style="flex:1">Klanten</div>'+
+      '<div style="flex:1">Workouts · 30 d</div><div style="flex:1">Scores · 30 d</div><div style="flex:1.2">Staf laatst ingelogd</div><div style="width:70px"></div></div>'+
+    (rows||'<div class="trow"><span class="muted">Nog geen bedrijven.</span></div>')+'</div>';
 }

@@ -84,8 +84,9 @@ function cnavItems(){
   n.push(["blog","Blog"],["week",SHOWDOWN],["msgs","Berichten"],["notifs","Meldingen"],["data","Data"]);
   // AI-coach-testpaneel: alleen platform_admin, coaches zien hem bewust nog niet.
   if(role==="platform_admin")n.push(["ai","AI-coach"]);
-  // "Bedrijven" (platform_admin) bewust verborgen zolang er één gym is (Stefan,
-  // 17 juli); komt terug bij meerdere bedrijven. Code (fillCompanies) blijft staan.
+  // "Bedrijven" (platform_admin): terug sinds 28 sep, nu er een tweede bedrijf
+  // bijkomt. Toont alleen tellingen per bedrijf (AVG), zie fillCompanies.
+  if(role==="platform_admin")n.push(["companies","Bedrijven"]);
   return n;
 }
 // Leest de sectie uit de link (#…). Onbekend of niet toegestaan voor deze rol → dashboard.

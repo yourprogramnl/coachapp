@@ -3,6 +3,21 @@
 // Zodra de FORGE-app publiek in de App Store staat: hier de link invullen; het
 // succes-scherm voor nieuwe leden toont dan een echte downloadknop.
 const APP_STORE_URL="";
+// Tot die tijd loopt de app via de openbare TestFlight-link van de groep "Pilot"
+// (dezelfde link als in de uitnodigingsmail, zie mail-send TESTFLIGHT_URL).
+const TESTFLIGHT_URL="https://testflight.apple.com/join/JqqZHVDp";
+// Installatie-uitleg voor leden: App Store-knop zodra die er is, anders de
+// TestFlight-stappen, zodat niemand de coach om een link hoeft te vragen.
+function appInstallHtml(){
+  if(APP_STORE_URL)return '<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+APP_STORE_URL+'">Download de YourProgram-app</a>';
+  return '<div class="muted" style="text-align:left;font-size:13px;line-height:1.55;margin-bottom:12px">'+
+      '<div style="margin-bottom:6px">De app is nog in test en loopt via TestFlight van Apple. Zo zet je hem op je iPhone:</div>'+
+      '<ol style="margin:0;padding-left:20px"><li>Installeer de app TestFlight uit de App Store.</li>'+
+      '<li>Open de link hieronder op je iPhone en tik op Accepteren en Installeren.</li>'+
+      '<li>Open de YourProgram-app en log in met dit e-mailadres en je wachtwoord.</li></ol></div>'+
+    '<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+TESTFLIGHT_URL+'" target="_blank" rel="noopener">Open de TestFlight-link</a>'+
+    '<div class="muted" style="font-size:12px;line-height:1.5;margin-top:8px">Zit je nu op je computer? De link staat ook in je uitnodigingsmail.</div>';
+}
 // Wachtwoord-eis, op één plek zodat de uitleg en de controle altijd gelijk lopen.
 const PW_EIS="Minimaal 8 tekens, met minstens één letter en één cijfer.";
 function pwProbleem(pw){
@@ -133,9 +148,7 @@ function toonAccountKlaar(ingelogd){
     '<h3 style="margin:0 0 8px">Account aangemaakt!</h3>'+
     (lidNaarApp
       ?'<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Je account is klaar. Nog één stap: download de <b>YourProgram-app</b> op je telefoon en log daar in met dit e-mailadres en je wachtwoord.</div>'+
-       (APP_STORE_URL
-         ?'<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+APP_STORE_URL+'">Download de YourProgram-app</a>'
-         :'<div class="muted" style="font-size:12.5px;line-height:1.5">De app staat binnenkort in de App Store; je coach stuurt je de downloadlink zodra hij klaarstaat.</div>')+
+       appInstallHtml()+
        '<button class="lnk" style="margin-top:12px" onclick="accountDoorgaan()">Of bekijk je programma alvast in de browser</button>'
       :ingelogd
       ?'<div class="muted" style="font-size:13px;margin-bottom:16px">Je account is klaar.</div>'+
@@ -350,11 +363,8 @@ function renderAppOnly(){
     '<div style="font-size:34px;line-height:1;margin-bottom:12px">📱</div>'+
     '<h3 style="margin:0 0 10px;font-size:19px">Jouw omgeving zit in de app</h3>'+
     '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Als sporter gebruik je de YourProgram-app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is voor coaches.</div>'+
-    (APP_STORE_URL
-      ?'<a class="btn" style="width:100%;display:block;box-sizing:border-box;text-decoration:none;margin-bottom:10px" href="'+APP_STORE_URL+'">Download de YourProgram-app</a>'
-      :'')+
-    '<button class="btn" style="width:100%" onclick="lidUitloggen()">Uitloggen</button>'+
-    (APP_STORE_URL?'':'<div class="muted" style="font-size:12.5px;margin-top:14px;line-height:1.55">Heb je de app nog niet? Vraag je coach om de installatielink.</div>'));
+    appInstallHtml()+
+    '<button class="lnk" style="margin-top:12px" onclick="lidUitloggen()">Uitloggen</button>');
 }
 
 // Account zonder bedrijf (zelf aangemaakt, geen uitnodiging ingewisseld): twee
