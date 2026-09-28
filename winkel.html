@@ -28,7 +28,7 @@
   footer a{color:#9A9A9E;text-decoration:none}
   footer a:hover{color:#D9B44A}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:9}
-  .modal{background:#17171A;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:22px;max-width:520px;width:100%}
+  .modal{max-height:92vh;overflow:auto;background:#17171A;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:22px;max-width:520px;width:100%}
   .modal h2{font-size:18px;font-weight:800;margin-bottom:12px}
   .modal ul{padding-left:18px;color:#C9C8C4;font-size:14px;line-height:1.55}
   .modal li{margin-bottom:6px}
@@ -52,12 +52,12 @@
     <div class="modal">
       <h2>Voordat je afrekent</h2>
       <ul>
-        <li>Je betaalt nu de eerste periode met iDEAL of kaart; daarna wordt het bedrag automatisch per periode afgeschreven.</li>
-        <li>Opzeggen kan altijd, in de app onder Profiel. Opzegtermijn: één maand, je abonnement stopt aan het einde van de volgende betaalperiode.</li>
-        <li>Direct na het betalen kies je je wachtwoord en download je de YourProgram-app.</li>
+        <li>Je betaalt nu de eerste maand met iDEAL of kaart; daarna wordt het bedrag automatisch per maand afgeschreven.</li>
+        <li>Opzeggen kan altijd. Je abonnement stopt dan aan het einde van de lopende maand; tot die dag blijf je gewoon trainen.</li>
+        <li>Direct na het betalen kies je je wachtwoord en zet je de YourProgram-app op je iPhone. Android volgt.</li>
       </ul>
-      <label class="check"><input type="checkbox" id="akkoord-vink" onchange="document.getElementById('akkoord-go').disabled=!this.checked"> <span>Ik ga akkoord met de <a href="https://programmering.yourprogram.nl/voorwaarden" target="_blank" rel="noopener">voorwaarden</a> en de opzegtermijn van één maand.</span></label>
-      <div class="rij"><button class="knop grijs" onclick="sluitAkkoord()">Terug</button><button class="knop" id="akkoord-go" onclick="betaal()" disabled>Naar betalen</button></div>
+      <label class="check"><input type="checkbox" id="akkoord-vink" onchange="document.getElementById('akkoord-go').disabled=!this.checked"> <span>Ik ga akkoord met de <a href="https://programmering.yourprogram.nl/voorwaarden" target="_blank" rel="noopener">voorwaarden</a>. Mijn programma mag direct starten; zeg ik binnen 14 dagen af, dan betaal ik alleen voor de dagen dat ik toegang had.</span></label>
+      <div class="rij"><button class="knop grijs" type="button" onclick="sluitAkkoord()">Terug</button><button class="knop" id="akkoord-go" onclick="betaal()" disabled>Naar betalen</button></div>
     </div>
   </div>
   <footer><a href="/">Inloggen voor coaches</a></footer>
@@ -71,7 +71,7 @@ const eur = c => "€" + (c/100).toFixed(2).replace(".", ",").replace(",00","");
 const q = new URLSearchParams(location.search);
 if (q.get("besteld")) {
   document.getElementById("melding").innerHTML =
-    '<div class="melding">✅ Gelukt! Je betaling is ontvangen. Binnen een paar minuten krijg je een e-mail met de link om je account aan te maken; daarna staat je programma voor je klaar in de YourProgram-app.</div>';
+    '<div class="melding">✅ Gelukt! Je betaling is ontvangen. Binnen een kwartier krijg je een e-mail met de link om je wachtwoord te kiezen; daarna staat je programma voor je klaar in de YourProgram-app.</div>';
 } else if (q.get("geannuleerd")) {
   document.getElementById("melding").innerHTML =
     '<div class="melding grijs">De betaling is afgebroken. Je kunt het hieronder gewoon opnieuw proberen.</div>';
@@ -89,8 +89,10 @@ async function laad() {
     host.innerHTML = progs.map(p =>
       '<div class="kaart"><h2>' + esc(p.name) + '</h2>' +
       (p.description ? '<p>' + esc(p.description) + '</p>' : '') +
-      '<div class="rij"><span class="prijs">' + eur(p.price_cents) + ' <span>' + (PER[p.price_interval] || "") + '</span></span>' +
-      '<button class="knop" onclick="bestel(this,\'' + esc(p.id) + '\')">Bestellen</button></div></div>'
+      (p.free
+        ? '<div class="rij"><span class="prijs">Gratis</span>' + (p.join_url ? '<a class="knop" style="text-decoration:none" href="' + esc(p.join_url) + '">Meedoen</a>' : '') + '</div></div>'
+        : '<div class="rij"><span class="prijs">' + eur(p.price_cents) + ' <span>' + (PER[p.price_interval] || "") + '</span></span>' +
+          '<button class="knop" onclick="bestel(this,\'' + esc(p.id) + '\')">Bestellen</button></div></div>')
     ).join("");
   } catch (e) {
     host.innerHTML = '<div class="leeg">De winkel kon niet laden. Probeer het later opnieuw.</div>';
@@ -104,10 +106,14 @@ let bestelId = null;
 function bestel(knop, id) {
   bestelId = id;
   document.getElementById("akkoord-vink").checked = false;
-  document.getElementById("akkoord-go").disabled = true;
+  const go = document.getElementById("akkoord-go"); go.disabled = true; go.textContent = "Naar betalen";
   document.getElementById("akkoord").style.display = "flex";
 }
 function sluitAkkoord() { document.getElementById("akkoord").style.display = "none"; }
+const akkoordOpen = () => document.getElementById("akkoord").style.display === "flex";
+document.addEventListener("keydown", e => { if (e.key === "Escape" && akkoordOpen()) sluitAkkoord(); });
+// Terug met de Terug-knop van de browser (vanaf Stripe): geen hangende "Even geduld…".
+window.addEventListener("pageshow", e => { if (e.persisted) { sluitAkkoord(); document.getElementById("akkoord-go").textContent = "Naar betalen"; } });
 async function betaal() {
   const go = document.getElementById("akkoord-go"); go.disabled = true; go.textContent = "Even geduld…";
   try {
@@ -116,8 +122,8 @@ async function betaal() {
       body: JSON.stringify({ program_id: bestelId, site: location.origin, akkoord: true, voorwaarden_versie: VOORWAARDEN_VERSIE }),
     });
     const j = await r.json();
-    if (j.url) { location.href = j.url; return; }
-    alert(j.error || "Afrekenen kon niet gestart worden.");
+    if (j.url && akkoordOpen()) { location.href = j.url; return; }
+    if (!j.url) alert(j.error || "Afrekenen kon niet gestart worden.");
   } catch (e) {
     alert("Afrekenen kon niet gestart worden. Probeer het later opnieuw.");
   }

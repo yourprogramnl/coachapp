@@ -56,6 +56,8 @@ i18nLaad({
   "Geen eigenaar (beheerders)": "No owner (admins)",
   "Het overzicht laden lukte niet. Probeer het later opnieuw.": "Loading the overview failed. Please try again later.",
   "Per bedrijf zie je alleen cijfers, geen klantgegevens. De klanten van een ander bedrijf bekijk je alleen om de eigenaar te helpen, en dan met medeweten van de eigenaar (AVG).": "You only see figures per company, no client data. Only look at another company's clients to help its owner, and only with the owner's knowledge (GDPR).",
+  // Uitnodigingslink al gebruikt (auth.js, initInvite)
+  "Deze link is al gebruikt of verlopen. Heb je je wachtwoord al gekozen? Log dan gewoon in. Anders kun je je coach om een nieuwe uitnodiging vragen.": "This link has already been used or has expired. Already chose your password? Then just log in. Otherwise, ask your coach for a new invitation.",
 });
 // Samengestelde regels (worden na het woordenboek geprobeerd)
 if (typeof i18nRegel === "function") {

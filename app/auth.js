@@ -50,7 +50,7 @@ async function initInvite(token){
     const{data}=await db.rpc("invite_info",{p_token:token});
     const inv=(data||[])[0];
     if(!inv||!inv.email){
-      setMsg("Deze uitnodigingslink is verlopen of al gebruikt. Vraag je coach om een nieuwe uitnodiging.","err");
+      setMsg("Deze link is al gebruikt of verlopen. Heb je je wachtwoord al gekozen? Log dan gewoon in. Anders kun je je coach om een nieuwe uitnodiging vragen.","err");
       return;
     }
     inviteAccountBestaat=!!inv.account_bestaat;
