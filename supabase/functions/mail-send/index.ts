@@ -60,6 +60,8 @@ const TXT = {
     reactieIntroCoach: (naam: string, datum: string) => `${naam} heeft een reactie geplaatst op de workout-dag van ${datum}.`,
     reactieVoetLid: "Open de app om te reageren. Deze mail staat aan in je meldingsinstellingen.",
     reactieVoetCoach: "Open het dashboard om te reageren. Mail-meldingen beheer je onder Instellingen > Notificaties.",
+    knopDag: "Bekijk de sessie in het dashboard",
+    knopReactie: "Bekijk en reageer in het dashboard",
     reactieTitel: (naam: string) => `${naam} heeft gereageerd`,
     reactieWorkout: (titel: string | null, datum: string) => titel ? `Workout: ${titel} · ${datum}` : `Workout van ${datum}`,
     reactieOnderwerpLid: (datum: string) => `Nieuwe reactie op je workout van ${datum}`,
@@ -119,6 +121,8 @@ const TXT = {
     reactieIntroCoach: (naam: string, datum: string) => `${naam} commented on the workout day of ${datum}.`,
     reactieVoetLid: "Open the app to reply. This email is switched on in your notification settings.",
     reactieVoetCoach: "Open the dashboard to reply. Manage email notifications under Settings > Notifications.",
+    knopDag: "Open the session in the dashboard",
+    knopReactie: "View and reply in the dashboard",
     reactieTitel: (naam: string) => `${naam} replied`,
     reactieWorkout: (titel: string | null, datum: string) => titel ? `Workout: ${titel} · ${datum}` : `Workout of ${datum}`,
     reactieOnderwerpLid: (datum: string) => `New comment on your workout of ${datum}`,
@@ -199,7 +203,13 @@ const accentVan = (theme: unknown): string => {
   return /^#[0-9a-fA-F]{6}$/.test(kleur) ? kleur : "#D9B44A";
 };
 
-function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string; body: string; vanMij: boolean }[]; workoutTitel: string; voet: string; accent: string }): string {
+// Knop met directe link (bijv. naar de dag op de klantkalender); niets als er geen link is.
+type Knop = { url: string; tekst: string } | null | undefined;
+const knopHtml = (k: Knop, accent: string): string => k
+  ? `<div style="margin:16px 0 0"><a href="${k.url}" style="display:inline-block;background:${accent};color:#0E0E10;font-weight:700;padding:11px 20px;border-radius:10px;text-decoration:none;font-size:14px">${esc(k.tekst)}</a></div>`
+  : "";
+
+function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string; body: string; vanMij: boolean }[]; workoutTitel: string; voet: string; accent: string; knop?: Knop }): string {
   const accent = opts.accent;
   const bubbels = opts.draad.map((c) =>
     `<div style="margin:6px 0;padding:10px 12px;border-radius:10px;background:${c.vanMij ? "#26221a" : "#1d1d21"};border:1px solid #2c2c31">` +
@@ -210,6 +220,7 @@ function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string
     `<p style="margin:0 0 14px;line-height:1.5;color:#c9c9ce">${esc(opts.intro)}</p>` +
     `<div style="font-size:13px;color:#8a919c;margin-bottom:4px">${esc(opts.workoutTitel)}</div>` +
     bubbels +
+    knopHtml(opts.knop, accent) +
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
 }
 
@@ -260,7 +271,7 @@ function scoreTxt(r: { score_text?: string | null; time_seconds?: number | null;
 }
 
 // Eenvoudige mail: titel + intro + losse regels (voor bericht/workout/video/foto)
-function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet: string; accent: string }): string {
+function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet: string; accent: string; knop?: Knop }): string {
   const accent = opts.accent;
   const rijen = opts.regels.map((r) =>
     `<div style="margin:6px 0;padding:9px 11px;border-left:3px solid ${accent};background:#1a1a1e;border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${r}</div>`).join("");
@@ -268,6 +279,7 @@ function simpelHtml(opts: { titel: string; intro: string; regels: string[]; voet
     `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">${esc(opts.titel)}</h2>` +
     `<p style="margin:0 0 12px;line-height:1.5;color:#c9c9ce">${esc(opts.intro)}</p>` +
     rijen +
+    knopHtml(opts.knop, accent) +
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
 }
 
@@ -532,6 +544,10 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
   }
 
   const coachVoet = t.coachVoet;
+  // Directe link naar die dag op de klantkalender (feedbackronde 4 coach, 29 sep):
+  // #klant/<id>/dag/<datum>[/reacties/<workout-id>] opent de dag, evt. met het reactiepaneel erbij.
+  const dagLink = (aid: string, datum: string | null | undefined, reactiesWid: string | null, tekst: string): Knop =>
+    datum ? { url: `https://app.yourprogram.nl/#klant/${aid}/dag/${datum}${reactiesWid ? "/reacties/" + reactiesWid : ""}`, tekst } : null;
   const klantNaam = async (aid: string) => {
     const { data } = await db.from("profiles").select("first_name,last_name").eq("id", aid).maybeSingle();
     return naamVan(data || null, taal);
@@ -583,6 +599,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       regels,
       voet: t.workoutVoet + coachVoet,
       accent,
+      knop: dagLink(aid, workout.workout_date, null, t.knopDag),
     }));
   }
 
@@ -602,6 +619,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       regels: [],
       voet: t.videoVoet + coachVoet,
       accent,
+      knop: dagLink(aid, workout?.workout_date, null, t.knopDag),
     }));
   }
 
@@ -644,6 +662,8 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     workoutTitel: t.reactieWorkout(workout?.title || null, datum),
     voet,
     accent,
+    // De coach krijgt een knop rechtstreeks naar die dag mét het reactiepaneel open; het lid reageert in de app.
+    knop: isLid ? null : dagLink(payload.athlete_id as string, workout?.workout_date, (workout?.id as string) || (payload.workout_id as string), t.knopReactie),
   });
 
   const r = await verstuur(ontvanger.email, afzenderNaam, isLid ? t.reactieOnderwerpLid(datum) : t.reactieOnderwerpCoach(anderNaam), html);

@@ -7,18 +7,25 @@ let coachList=[],coachFilterId=null;
 // Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
 let resWid=null;
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
-async function openClient(id){
+async function openClient(id,opts){
+  opts=opts||{};
   if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return;
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
   // Staff (eigenaar/admin): standaard programmeer je de coach van deze klant.
   const p0=coachClients.find(x=>x.id===id);
   coachFilterId=(myRole()!=="coach"&&p0)?(p0.coach_id||null):null;
   kalWeken=10;kalScrollDoel="top";kalLabelMaand=null;prevScrollY=null;
+  // Rechtstreeks naar een dag (bel-melding, link in de mail): kalender op die
+  // maand, genoeg weken laden en de dag laten oplichten, net als vanuit de Historie.
+  const dag=(opts.dag&&/^\d{4}-\d{2}-\d{2}$/.test(opts.dag))?opts.dag:null;
+  if(dag){calView="maand";kalRichtOpDag(dag);}
   if(!LIB.geladen)libLaad();
-  setHash("klant/"+id);
+  setHash("klant/"+id+(dag?"/dag/"+dag+(opts.reacties?"/reacties/"+opts.reacties:""):""));
   renderClient("kalender");
   const p=coachClients.find(x=>x.id===id);
   if(p)toast("Programma van "+[p.first_name,p.last_name].filter(Boolean).join(" ")+" geopend");
+  // Bij een reactie-melding meteen het reactiepaneel van die dag erbij (feedbackronde 4, 29 sep).
+  if(opts.reacties&&typeof openDayComments==="function")openDayComments(opts.reacties,id,dag);
 }
 function renderClient(panel){
   activePanel=panel;
@@ -676,8 +683,18 @@ function blokKopieer(btn){
   blokPlakKnopToon();
   toast('Blok gekopieerd. Klik "+ Plak blok" in deze of een andere workout, ook bij een andere klant of in een ander tabblad.');
 }
-function blokPlakKnopToon(){ // knop tonen in de bouwer(s) die nu open staan
-  if(!blokKlembordLees())return;
+// Wat staat er op het blok-klembord: een blok (oefening/conditioning) of een
+// warming-up/cooldown-vak (feedbackronde 4, 29 sep)?
+function blokKlembordSoort(){const kb=blokKlembordLees();if(!kb)return null;return (kb.kind==="warmup"||kb.kind==="cooldown")?kb.kind:"blok";}
+function blokPlakKnopToon(){ // knoppen/links tonen in de bouwer(s) die nu open staan
+  const soort=blokKlembordSoort();
+  // Plak-link onder de warming-up- en cooldown-vakken: alleen als zo'n vak op het klembord staat
+  const vak=soort==="warmup"||soort==="cooldown";
+  document.querySelectorAll(".cwplak").forEach(l=>{
+    l.style.display=vak?"":"none";
+    if(vak)l.textContent="📋 Plak gekopieerde "+(soort==="warmup"?"warming-up":"cooldown");
+  });
+  if(soort!=="blok")return;
   document.querySelectorAll(".addbtns").forEach(a=>{
     if(a.querySelector(".plakblok"))return;
     const b=document.createElement("button");
@@ -689,11 +706,61 @@ function blokPlakKnopToon(){ // knop tonen in de bouwer(s) die nu open staan
 function blokPlak(){
   const kb=blokKlembordLees();
   if(!kb){toast("Nog geen blok gekopieerd (📋 op een blok)");return;}
+  if(kb.kind==="warmup"||kb.kind==="cooldown"){cwPlak(kb.kind);return;}
   const host=document.getElementById("exrows");if(!host)return;
   const o=Object.assign({},kb);o.id=null;
   host.insertAdjacentHTML("beforeend",o.kind==="conditioning"?condRow(o):exRow(o));
   relabel();groei();bouwerDirty=true;dupInBeeld();
   exNotesInject();
+}
+// ---------- Warming-up / cooldown kopiëren en plakken (feedbackronde 4, 29 sep) ----------
+// Die vakken zijn geen blokken, dus de 📋 op een blok werkte er niet ("kan
+// niet van het ene programma in het andere plakken"). Kopiëren onthoudt de
+// tekst plus demo-video's op hetzelfde klembord (ook in localStorage: andere
+// klant, ander programma, ander tabblad). Plakken zet de tekst onder wat er
+// al in het vak staat.
+function cwKopieerHtml(kind){
+  const lbl=kind==="warmup"?"warming-up":"cooldown";
+  const soort=blokKlembordSoort(),vak=soort==="warmup"||soort==="cooldown";
+  return '<div class="cwrij"><span class="demolink" title="Kopieer deze '+lbl+' om hem in een andere workout of een ander programma te plakken" onclick="cwKopieer(\''+kind+'\')">📋 '+(kind==="warmup"?"Warming-up":"Cooldown")+' kopiëren</span>'+
+    '<span class="demolink cwplak" title="Plak de gekopieerde tekst in dit vak" onclick="cwPlak(\''+kind+'\')"'+(vak?'':' style="display:none"')+'>📋 Plak gekopieerde '+(soort==="cooldown"?"cooldown":"warming-up")+'</span></div>';
+}
+function cwKopieer(kind){
+  const ta=document.getElementById("w_"+kind);if(!ta)return;
+  const tekst=(ta.value||"").trim();
+  const box=document.getElementById("wm_"+kind);
+  const oefening_id=box?cwLees(kind):null;
+  const media=(box&&typeof gmStripLees==="function")?(gmStripLees(kind)||null):null;
+  const lbl=kind==="warmup"?"warming-up":"cooldown";
+  if(!tekst&&!oefening_id&&!media){toast("Er staat nog geen "+lbl+" om te kopiëren");return;}
+  const o={kind,text:tekst,oefening_id,media};
+  BLOKKLEMBORD=o;
+  try{localStorage.setItem("forge_blokklembord",JSON.stringify(o));}catch(e){}
+  blokPlakKnopToon();
+  toast((kind==="warmup"?"Warming-up":"Cooldown")+" gekopieerd. Open een andere workout of een programma (ook bij een andere klant of in een ander tabblad) en klik daar op \"Plak gekopieerde "+lbl+"\".");
+}
+function cwPlak(kind){
+  const kb=blokKlembordLees();
+  if(!kb||!(kb.kind==="warmup"||kb.kind==="cooldown")){toast("Er staat geen warming-up of cooldown op het klembord");return;}
+  const ta=document.getElementById("w_"+kind);if(!ta)return;
+  const heeft=(ta.value||"").trim();
+  if(kb.text)ta.value=heeft?heeft+"\n\n"+kb.text:kb.text;
+  const box=document.getElementById("wm_"+kind);
+  if(box){
+    if(kb.media&&kb.media.length&&typeof gmStripVoegToe==="function")gmStripVoegToe(kind,kb.media);
+    if(kb.oefening_id&&!cwLees(kind))cwZetOef(kind,kb.oefening_id);
+  }
+  groei();bouwerDirty=true;
+  if(ta.scrollIntoView)ta.scrollIntoView({block:"nearest",behavior:"smooth"});
+  toast((kb.kind==="warmup"?"Warming-up":"Cooldown")+" geplakt");
+}
+// Demo-video-koppeling op een warming-up/cooldown-vak zetten zonder de zoeker
+// (bij plakken vanaf het klembord): zelfde uitkomst als cwKies.
+function cwZetOef(kind,oefId){
+  const box=document.getElementById("wm_"+kind);if(!box)return;
+  box.dataset.oefid=String(oefId);
+  const chip=box.querySelector(".cwchip");if(chip)chip.innerHTML=cwChipHtml(kind,cwNaamVan(oefId));
+  const dl=box.querySelector(".demolink");if(dl)dl.style.display="none";
 }
 // ---------- Techniek-notitie per oefening per klant (exercise_notes) ----------
 // Eén blijvend kaartje per oefening ("knieën naar buiten, volgende keer
@@ -762,9 +829,43 @@ async function exNoteOpslaan(btn){
 // Naam gewijzigd of oefening gekozen: kaartje onder het blok laten meebewegen.
 document.addEventListener("focusout",e=>{if(e.target&&e.target.matches&&e.target.matches("#calwrap .ib2 .exn"))exNotesInject();});
 
+// ---------- Gelogde resultaten in de bouwer (feedbackronde 4, 29 sep) ----------
+// Klik op een kaart opent de bouwer, en die liet alleen de blokken zien; wat
+// de sporter logde (score, notitie, video's, gemist) stond alleen op het
+// kleine kalenderkaartje. Nu staat het als strook onder elk blok in de bouwer,
+// zodat de coach de hele sessie mét resultaten voor zich heeft.
+function gelogdHtml(bid){
+  const r=monthResults[bid],vids=monthMedia[bid]||[];
+  if(!r&&!vids.length)return "";
+  const miss=!!(r&&r.status==="missed");
+  const padLijst=vids.map(v=>v.storage_path).join("|");
+  const tegels=vids.map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
+  const sc=r?resultScoreVol(r):"";
+  return '<div class="gelogd'+(miss?' miss':'')+'"><div class="gelogd-kop">'+(miss?'✕ Gemist':'✓ Gelogd door de sporter')+(r&&r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
+    (sc?'<div class="gelogd-score">'+esc(sc)+'</div>':(r&&!miss?'<div class="gelogd-score muted">Voltooid zonder score</div>':''))+
+    ((r&&r.note)?'<div class="gelogd-noot">💬 '+esc(r.note)+'</div>':'')+
+    (tegels?'<div class="gelogd-media">'+tegels+'<span class="sm muted">'+vids.length+(vids.length===1?' upload':' uploads')+' · klik om te bekijken</span></div>':'')+'</div>';
+}
+function gelogdInject(){
+  if(!editWid)return;
+  document.querySelectorAll("#calwrap .ib2 .exrow[data-bid]").forEach(row=>{
+    const bid=row.dataset.bid;if(!bid)return;
+    let host=row.querySelector(".gelogd-host");
+    if(!host){host=document.createElement("div");host.className="gelogd-host";const drop=row.querySelector(".exdrop");row.insertBefore(host,drop);}
+    host.innerHTML=gelogdHtml(bid);
+  });
+}
 function inlineBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   let rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
+  // Reacties- en scores-knoppen in de voet (feedbackronde 4, 29 sep): de kaart
+  // met die knoppen is verborgen zolang de bouwer open staat, en de coach wil
+  // vanuit de sessie meteen reageren of een score bijwerken.
+  const cmts=editWid?monthComments.filter(m=>m.workout_id===editWid):[];
+  const onge=cmts.filter(m=>m.author_id===m.athlete_id&&!m.read_at).length;
+  const scoreDag=!!editWid&&blocks.length>0&&(w.workout_date||"")<=todayStr();
+  const extra=editWid?'<button class="cancel" title="Reacties bij deze workout-dag" onclick="openDayComments(\''+editWid+'\',\''+esc(calClient)+'\')">💬 Reacties'+(cmts.length?' ('+cmts.length+')':'')+(onge?'<span class="wcdot">'+onge+'</span>':'')+'</button>'+
+    (scoreDag?'<button class="cancel" title="Scores van de sporter invoeren of aanpassen" onclick="openResults(\''+editWid+'\')">Scores aanpassen</button>':''):'';
   return '<div class="sec">'+
       '<div class="corner"><span title="Zichtbaar voor de sporter"><svg class="i sm-i"><use href="#i-eye"/></svg></span><span title="Video toevoegen"><svg class="i sm-i"><use href="#i-cam"/></svg></span></div>'+
       '<input id="w_title" class="row-title" placeholder="Titel" value="'+esc(w.title||"")+'">'+
@@ -773,14 +874,16 @@ function inlineBuilderHtml(w){
       '<textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
       cwMediaHtml("warmup",w.warmup_oefening_id,w.warmup_media)+
       '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div>'+
+      cwKopieerHtml("warmup")+
       '<div class="demolink" title="Herken oefeningen in de tekst en stel demo-video\'s voor" onclick="gmOpen()">🎥 Genereer media</div>'+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button>'+(blokKlembordLees()?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button>'+(blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+cwMediaHtml("cooldown",w.cooldown_oefening_id,w.cooldown_media)+
       '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div>'+
+      cwKopieerHtml("cooldown")+
     '</div>'+
-    '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+'</div>'+
+    '<div class="foot"><button class="save" id="saveW" onclick="saveWorkout()">Workout opslaan</button><button class="cancel" onclick="cancelEdit()">Annuleren</button>'+(editWid?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="delWorkout(\''+editWid+'\')">Verwijderen</button>':'')+extra+'</div>'+
     '<div class="msg" id="wmsg" style="font-size:11px;min-height:0"></div>';
 }
 // Automatisch opslaan bij het wegklikken uit de bouwer (feedback pilot-coach,
@@ -878,7 +981,7 @@ function selClear(){selWids.clear();document.querySelectorAll(".mcard.selected")
 function selKopieer(){
   const ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean);
   if(!ws.length){toast("Niets geselecteerd");return;}
-  KLEMBORD=ws.map(wTemplate);
+  klembordZet(ws.map(wTemplate));
   // Selectie meteen wissen (feedback pilot-coach, 30 juli): het klembord is nu
   // gevuld, en een blijvende selectie plakte of verwijderde later méér dan de
   // coach bedoelde.
@@ -1056,22 +1159,29 @@ function histTab(t){
   const idx={oef:0,wo:1,mx:2}[t];if(btns[idx])btns[idx].classList.add("on");
   histRender();
 }
-let histExnote=null,histLicht=null;
+let histExnote=null,histLicht=null,histLichtTot=0;
 // Klik op een treffer in de Historie: venster dicht en naar die dag op de
 // kalender springen (de dagkaart licht even op). Zo zie je het blok in zijn
 // hele sessie van toen en kun je hem zo openen (pilotmelding sept).
+// Kalender zo instellen dat een dag in beeld komt en even oplicht (Historie,
+// bel-melding, link in de mail): op die maand, genoeg weken laden, scrolldoel.
+function kalRichtOpDag(ds){
+  const doel=new Date(ds+"T12:00:00");
+  if(doel<new Date(calRef.getFullYear(),calRef.getMonth(),1))calRef=new Date(doel.getFullYear(),doel.getMonth(),1);
+  const gridStart=mondayOf(new Date(calRef.getFullYear(),calRef.getMonth(),1));
+  const nodig=Math.ceil((mondayOf(doel)-gridStart)/(7*864e5))+4; // genoeg weken laden om die dag te bereiken
+  if(kalWeken<nodig)kalWeken=nodig;
+  // Oplichten tot dit moment: een her-render (bijv. reacties op gelezen zetten)
+  // tekent de dag opnieuw en zet het oplichten dan gewoon voort.
+  histLicht=ds;histLichtTot=Date.now()+2600;kalScrollDoel="d-"+ds;
+}
 async function histGaNaar(ds){
   if(!ds)return;
   closeHist();
   if(!(await autoSaveBouwer()))return;
   editDay=null;editWid=null;bouwerDirty=false;
   calView="maand";
-  const doel=new Date(ds+"T12:00:00");
-  if(doel<new Date(calRef.getFullYear(),calRef.getMonth(),1))calRef=new Date(doel.getFullYear(),doel.getMonth(),1);
-  const gridStart=mondayOf(new Date(calRef.getFullYear(),calRef.getMonth(),1));
-  const nodig=Math.ceil((mondayOf(doel)-gridStart)/(7*864e5))+4; // genoeg weken laden om die dag te bereiken
-  if(kalWeken<nodig)kalWeken=nodig;
-  histLicht=ds;kalScrollDoel="d-"+ds;
+  kalRichtOpDag(ds);
   renderMonth();
 }
 function histRender(){
@@ -1248,9 +1358,13 @@ async function renderMonth(opts){
   if(levendeBouwer&&!(levendeBouwer.dataset.eday===editDay&&levendeBouwer.dataset.ewid===(editWid||"")))levendeBouwer=null;
   m.innerHTML=calhead+'<div class="calscroll'+(hideScores?" noscores":"")+'" id="calwrap"><div class="mhead7"'+gridStyle+'>'+head+'</div>'+weeks+'</div>';
   if(levendeBouwer){const vers=m.querySelector(".ib2");if(vers)vers.replaceWith(levendeBouwer);}
-  if(editDay){relabel();groei();exNotesInject();}
+  if(editDay){relabel();groei();gelogdInject();exNotesInject();}
   // Vanuit de Historie hierheen gesprongen? Dan die dag even laten oplichten.
-  if(histLicht){const cel=m.querySelector('.mday[data-d="'+histLicht+'"]');histLicht=null;if(cel){cel.classList.add("hist-licht");setTimeout(()=>cel.classList.remove("hist-licht"),2600);}}
+  if(histLicht){
+    const cel=m.querySelector('.mday[data-d="'+histLicht+'"]'),rest=histLichtTot-Date.now();
+    if(cel&&rest>0){cel.classList.add("hist-licht");setTimeout(()=>cel.classList.remove("hist-licht"),rest);}
+    if(rest<=0)histLicht=null;
+  }
   selBarUpdate();
   if(calView==="maand"){
     kalScrollBind();
@@ -1266,6 +1380,11 @@ async function delWorkout(wid){if(!confirm("Deze workout verwijderen?"))return;a
 
 // ---------- Dag-menu, klembord en Template invoegen (zoals het ontwerp) ----------
 let curDay=null,KLEMBORD=null,insDoel="cel",insTypeF="all",insKleur="",insBlog=[],selWids=new Set(),dragWid=null;
+// Het sessie-klembord (hele workouts) staat ook in localStorage, zodat je een
+// sessie in het ene tabblad kopieert en in een ander tabblad plakt (feedback
+// coach, 29 sep; het blok-klembord werkte al zo). De laatste kopie wint.
+function klembordZet(lijst){KLEMBORD=lijst;try{localStorage.setItem("forge_klembord",JSON.stringify(lijst));}catch(e){}}
+function klembordLees(){try{const v=localStorage.getItem("forge_klembord");if(v){const l=JSON.parse(v);if(Array.isArray(l)&&l.length)return l;}}catch(e){}return KLEMBORD;}
 function groei(){document.querySelectorAll(".ib2 textarea").forEach(t=>{t.style.height="auto";t.style.height=t.scrollHeight+"px";});}
 document.addEventListener("input",e=>{if(e.target.matches&&e.target.matches(".ib2 textarea")){e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}});
 function openDayMenu(ev,ds){
@@ -1355,12 +1474,13 @@ function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.co
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
   if(!wos.length){toast("Geen workout op deze dag om te kopiëren");return;}
-  KLEMBORD=wos.map(wTemplate);
-  toast((KLEMBORD.length>1?KLEMBORD.length+" workouts":"Workout")+" gekopieerd, ga naar een dag en kies Plakken");
+  const lijst=wos.map(wTemplate);
+  klembordZet(lijst);
+  toast((lijst.length>1?lijst.length+" workouts":"Workout")+" gekopieerd, ga naar een dag en kies Plakken");
 }
 function kopieerWorkout(wid){
   const w=monthWorkouts[wid];if(!w)return;
-  KLEMBORD=[wTemplate(w)];
+  klembordZet([wTemplate(w)]);
   toast("Workout gekopieerd, ga naar een dag en kies Plakken");
 }
 // Datum n dagen na een YYYY-MM-DD (midden op de dag, veilig voor zomertijd).
@@ -1368,18 +1488,19 @@ function ymdPlus(base,days){const d=new Date(base+"T12:00:00");d.setDate(d.getDa
 function dagenTussen(a,b){return Math.round((new Date(a+"T12:00:00")-new Date(b+"T12:00:00"))/86400000);}
 async function pickPaste(ev){
   ev.stopPropagation();
-  if(!KLEMBORD||!KLEMBORD.length){toast("Nog niets gekopieerd, gebruik het kopieer-icoon of selecteer workouts");return;}
+  const kb=klembordLees();
+  if(!kb||!kb.length){toast("Nog niets gekopieerd, gebruik het kopieer-icoon of selecteer workouts");return;}
   if(!(await autoSaveBouwer()))return; // open bouwer eerst netjes opslaan
   // Behoud de onderlinge dag-afstand: vroegste kopie op de gekozen dag, de rest met dezelfde offset.
-  const base=KLEMBORD.reduce((m,t)=>(t.date&&(m===null||t.date<m)?t.date:m),null);
-  for(const t of KLEMBORD){
+  const base=kb.reduce((m,t)=>(t.date&&(m===null||t.date<m)?t.date:m),null);
+  for(const t of kb){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const datum=off?ymdPlus(curDay,off):curDay;
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
-  toast(KLEMBORD.length>1?KLEMBORD.length+" workouts geplakt":"Workout geplakt");renderMonth();
+  toast(kb.length>1?kb.length+" workouts geplakt":"Workout geplakt");renderMonth();
 }
 async function laadInsBlog(){
   if(!ME.profile.company_id){insBlog=[];return;}
@@ -1708,7 +1829,10 @@ document.addEventListener("keydown",e=>{
   }
   // Esc sluit alles: bouwer, panelen, dag-menu, dropdowns en popups.
   if(e.key==="Escape"){
+    // In het zwevende reactiepaneel: alleen dat paneel sluiten, de bouwer blijft staan.
+    if(e.target.closest&&e.target.closest("#wcmodal")){if(typeof closeWc==="function")closeWc();return;}
     if(bouwerOpen)cancelEdit();
+    if(typeof closeWc==="function")closeWc();
     document.querySelectorAll(".sidepanel.show").forEach(p=>p.classList.remove("show"));
     document.querySelectorAll(".daymenu").forEach(x=>x.remove());
     document.querySelectorAll(".progdrop.show,.lmodal.show,.exdrop.show,.vidpop.show").forEach(x=>x.classList.remove("show"));

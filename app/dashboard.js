@@ -340,15 +340,47 @@ function wcKnopHtml(w){
 function ensureWcModal(){
   if(document.getElementById("wcmodal"))return;
   const wrap=document.createElement("div");
-  wrap.innerHTML='<div class="lmodal" id="wcmodal" style="z-index:430"><div class="box" style="width:520px;max-width:96vw">'+
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px"><div><h3 style="margin:0">Reacties</h3><div class="sm muted" id="wc-sub" style="margin-top:2px"></div></div>'+
-    '<span onclick="closeWc()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
-    '<div class="sm muted" style="margin:6px 0 8px">Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat.</div>'+
-    '<div id="wc-body" style="max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0;background:#f6f7f9;border-radius:10px;padding:10px"></div>'+
-    '<div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end"><textarea id="wc-inp" rows="1" placeholder="Schrijf een reactie… (Enter = nieuwe regel)" style="flex:1;resize:none;overflow:hidden;font-family:inherit;font-size:13px;line-height:1.5;padding:9px 12px;border:1px solid var(--line);border-radius:10px" oninput="wcGroei(this)" onkeydown="if(event.key===\'Enter\'&&(event.ctrlKey||event.metaKey)){event.preventDefault();wcStuur();}"></textarea><button class="btn" onclick="wcStuur()">Stuur</button></div>'+
-    '</div></div>';
+  // Zwevend paneel in plaats van een venster met donkere achtergrond
+  // (feedbackronde 4, 29 sep): de coach wil het reactievak verschuiven en
+  // ondertussen door de sessie scrollen om de resultaten te zien.
+  wrap.innerHTML='<div class="wcfloat" id="wcmodal">'+
+    '<div class="wchead" id="wc-head" title="Sleep om het paneel te verplaatsen"><div><h3>Reacties</h3><div class="sm muted" id="wc-sub" style="margin-top:2px"></div></div>'+
+    '<span class="wcx" onclick="closeWc()" title="Sluiten">×</span></div>'+
+    '<div class="sm muted wcuitleg">Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat. Sleep de kop om het paneel te verplaatsen; de kalender blijft scrollbaar.</div>'+
+    '<div id="wc-body"></div>'+
+    '<div class="wcinvoer"><textarea id="wc-inp" rows="1" placeholder="Schrijf een reactie… (Enter = nieuwe regel)" oninput="wcGroei(this)" onkeydown="if(event.key===\'Enter\'&&(event.ctrlKey||event.metaKey)){event.preventDefault();wcStuur();}"></textarea><button class="btn" onclick="wcStuur()">Stuur</button></div>'+
+    '</div>';
   document.body.appendChild(wrap.firstChild);
-  document.getElementById("wcmodal").addEventListener("click",e=>{if(e.target.id==="wcmodal")closeWc();});
+  wcSleepInit();
+}
+// Slepen aan de kop; de plek wordt onthouden (localStorage) en blijft binnen het scherm.
+function wcSleepInit(){
+  const box=document.getElementById("wcmodal"),kop=document.getElementById("wc-head");
+  let sx=0,sy=0,bx=0,by=0,bezig=false;
+  kop.addEventListener("pointerdown",e=>{
+    if(e.target.closest(".wcx"))return;
+    const r=box.getBoundingClientRect();
+    sx=e.clientX;sy=e.clientY;bx=r.left;by=r.top;bezig=true;
+    try{kop.setPointerCapture(e.pointerId);}catch(x){}
+    e.preventDefault();
+  });
+  kop.addEventListener("pointermove",e=>{if(bezig)wcZetPos(bx+e.clientX-sx,by+e.clientY-sy);});
+  const klaar=()=>{if(!bezig)return;bezig=false;try{localStorage.setItem("forge_wcpos",JSON.stringify({l:box.offsetLeft,t:box.offsetTop}));}catch(x){}};
+  kop.addEventListener("pointerup",klaar);kop.addEventListener("pointercancel",klaar);
+  window.addEventListener("resize",()=>{if(box.classList.contains("show")&&box.style.left)wcZetPos(box.offsetLeft,box.offsetTop);});
+}
+function wcZetPos(l,t){
+  const box=document.getElementById("wcmodal");if(!box)return;
+  const w=box.offsetWidth,h=box.offsetHeight;
+  l=Math.max(8,Math.min(l,window.innerWidth-w-8));
+  t=Math.max(8,Math.min(t,window.innerHeight-Math.min(h,140)));
+  box.style.left=l+"px";box.style.top=t+"px";box.style.right="auto";box.style.bottom="auto";
+}
+// Bewaarde plek terugzetten (anders de standaardplek rechtsonder uit de CSS).
+function wcPosHerstel(){
+  const box=document.getElementById("wcmodal");if(!box)return;
+  let p=null;try{p=JSON.parse(localStorage.getItem("forge_wcpos")||"null");}catch(x){}
+  if(p&&typeof p.l==="number"&&typeof p.t==="number")wcZetPos(p.l,p.t);
 }
 function closeWc(){const m=document.getElementById("wcmodal");if(m)m.classList.remove("show");wcWid=null;wcAid=null;WCC=[];}
 function wcRender(){
@@ -366,17 +398,21 @@ function wcVerversUI(){
   else if(DASH&&coachSection==="dash")dashRender();
 }
 // Gedeeld: opent het reacties-venster voor een workout-dag (haalt de draad vers op).
-async function openDayComments(wid,aid){
+// datum (optioneel): de dag van de workout als die nog niet geladen is (bel-melding, link).
+async function openDayComments(wid,aid,datum){
   ensureWcModal();
   wcWid=wid;wcAid=aid;
   const p=actieveKlanten().find(x=>x.id===aid)||{};
   const{data:rows}=await db.from("workout_comments").select("*").eq("workout_id",wid).eq("athlete_id",aid).order("created_at");
+  if(wcWid!==wid)return; // intussen een andere dag geopend
   WCC=rows||[];
   const w=(DASH&&(DASH.ws||[]).find(x=>x.id===wid))||(typeof monthWorkouts!=="undefined"&&monthWorkouts[wid])||{};
-  document.getElementById("wc-sub").textContent=naamVan(p)+(w.workout_date?" · "+datumNL(w.workout_date):"");
+  const dag=w.workout_date||datum||null;
+  document.getElementById("wc-sub").textContent=naamVan(p)+(dag?" · "+datumNL(dag):"");
   document.getElementById("wc-inp").value="";
   wcRender();
   document.getElementById("wcmodal").classList.add("show");
+  wcPosHerstel();
   // Bel-notificatie van deze reacties gaat ook op gelezen
   if(typeof belMarkeerSoort==="function")belMarkeerSoort(aid,"reactie");
   // Reacties van het lid op gelezen zetten (alleen de eigen coach mag dat)

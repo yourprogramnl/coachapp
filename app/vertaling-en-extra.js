@@ -66,7 +66,34 @@ i18nLaad({
   "Dit lid betaalt twee keer voor hetzelfde programma; zeg er één op in Stripe": "This member pays twice for the same program; cancel one in Stripe",
   "herroepen": "withdrawn",
   "Deze klant betaalt nog via de winkel. In het archief kan hij in de app niet meer zelf opzeggen, en de betaling loopt door. Zeg het abonnement eerst op in Stripe. Toch archiveren?": "This client still pays through the shop. Once archived they can no longer cancel in the app, and the payment continues. Cancel the subscription in Stripe first. Archive anyway?",
+  // Feedbackronde 4 coach (29 sep 2026): warming-up kopiëren, resultaten in de bouwer, zwevend reactiepaneel
+  "📋 Warming-up kopiëren": "📋 Copy warm-up",
+  "📋 Cooldown kopiëren": "📋 Copy cool-down",
+  "📋 Plak gekopieerde warming-up": "📋 Paste copied warm-up",
+  "📋 Plak gekopieerde cooldown": "📋 Paste copied cool-down",
+  "Kopieer deze warming-up om hem in een andere workout of een ander programma te plakken": "Copy this warm-up to paste it into another workout or program",
+  "Kopieer deze cooldown om hem in een andere workout of een ander programma te plakken": "Copy this cool-down to paste it into another workout or program",
+  "Plak de gekopieerde tekst in dit vak": "Paste the copied text into this field",
+  "Er staat nog geen warming-up om te kopiëren": "There is no warm-up to copy yet",
+  "Er staat nog geen cooldown om te kopiëren": "There is no cool-down to copy yet",
+  "Er staat geen warming-up of cooldown op het klembord": "There is no warm-up or cool-down on the clipboard",
+  "Warming-up geplakt": "Warm-up pasted",
+  "Cooldown geplakt": "Cool-down pasted",
+  "✓ Gelogd door de sporter": "✓ Logged by the athlete",
+  "✕ Gemist": "✕ Missed",
+  "Voltooid zonder score": "Completed without a score",
+  "Scores aanpassen": "Adjust scores",
+  "💬 Reacties": "💬 Comments",
+  "Reacties bij deze workout-dag": "Comments on this workout day",
+  "Scores van de sporter invoeren of aanpassen": "Enter or adjust the athlete's scores",
+  "Sleep om het paneel te verplaatsen": "Drag to move the panel",
+  "Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat. Sleep de kop om het paneel te verplaatsen; de kalender blijft scrollbaar.": "Feedback on this workout day. The client sees it in the app on that day, separate from the chat. Drag the header to move the panel; the calendar stays scrollable.",
 });
+if (typeof i18nRegel === "function") {
+  i18nRegel(/^(Warming-up|Cooldown) gekopieerd\. Open een andere workout of een programma \(ook bij een andere klant of in een ander tabblad\) en klik daar op "Plak gekopieerde (warming-up|cooldown)"\.$/, (m, a, b) => (a === "Warming-up" ? "Warm-up" : "Cool-down") + " copied. Open another workout or a program (also for another client or in another tab) and click \"Paste copied " + (b === "warming-up" ? "warm-up" : "cool-down") + "\" there.");
+  i18nRegel(/^💬 Reacties \((\d+)\)$/, "💬 Comments ($1)");
+  i18nRegel(/^(\d+) uploads? · klik om te bekijken$/, (m, n) => n + (n === "1" ? " upload" : " uploads") + " · click to view");
+}
 // Samengestelde regels (worden na het woordenboek geprobeerd)
 if (typeof i18nRegel === "function") {
   i18nRegel(/^Laatste consult: (.+)$/, "Last consultation: $1");

@@ -679,11 +679,11 @@ function progBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
   const rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
   return '<div class="sec"><input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
-      '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div></div>'+
+      '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("warmup"):"")+'</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof blokKlembordLees==="function"&&blokKlembordLees()?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof blokKlembordSoort==="function"&&blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+
-      '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div></div>'+
+      '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("cooldown"):"")+'</div>'+
     '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
 }
 async function progReloadWorkouts(){

@@ -156,7 +156,7 @@ function liveVervers(athleteId){
     try{
       const a=document.activeElement;
       if(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.isContentEditable))return;
-      if(document.querySelector(".coachmenu")||document.querySelector('[id$="modal"].show'))return; // menu of venster open
+      if(document.querySelector(".coachmenu")||document.querySelector('[id$="modal"].show:not(#wcmodal)'))return; // menu of venster open (het zwevende reactiepaneel telt niet)
       const klantOpen=typeof calClient!=="undefined"&&calClient&&document.querySelector(".client-layout");
       if(klantOpen){
         if(typeof editDay!=="undefined"&&editDay)return; // bouwer open: niet onder je handen verversen
@@ -249,6 +249,16 @@ function belTijd(ts){
   const dag=Math.round(uur/24);
   return dag===1?"gisteren":dag+" dagen geleden";
 }
+// Waar een klik op een bel-melding naartoe gaat: bij een reactie, afgetekende
+// workout of video meteen naar die dag op de kalender, en bij een reactie gaat
+// het reactiepaneel er ook bij open (feedbackronde 4, 29 sep: "ideaal is
+// terechtkomen bij de sessie met het feedbackblok geopend").
+function belDoel(r){
+  const o={};
+  if(r.workout_date&&["reactie","workout","video"].includes(r.soort))o.dag=r.workout_date;
+  if(r.soort==="reactie"&&r.workout_id)o.reacties=r.workout_id;
+  return o;
+}
 async function belKlik(id){
   const r=BEL.rows.find(x=>x.id===id);if(!r)return;
   if(!r.read_at){
@@ -262,7 +272,7 @@ async function belKlik(id){
   if(!r.athlete_id)return;
   const bestaat=(coachClients||[]).some(c=>c.id===r.athlete_id);
   if(!bestaat){toast("Deze klant staat niet (meer) in jouw lijst");return;}
-  openClient(r.athlete_id);
+  openClient(r.athlete_id,belDoel(r));
   if(r.soort==="pr"&&typeof openMx==="function")setTimeout(()=>{try{openMx();}catch(e){}},150);
   if(r.soort==="foto")setTimeout(()=>{try{renderClient("profiel");if(typeof pfTab!=="undefined"){pfTab="fotos";renderProfielPagina();}}catch(e){}},150);
 }

@@ -381,7 +381,7 @@ async function blogDropDay(ev,ds){
 function blogKopieerDag(datum){
   const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
   if(!wos.length){toast("Geen workout op deze dag");return;}
-  KLEMBORD=wos.map(wTemplate);
+  klembordZet(wos.map(wTemplate));
   toast(wos.length>1?wos.length+" workouts gekopieerd, ga naar een dag en kies Plakken":"Workout gekopieerd, ga naar een dag en kies Plakken");
 }
 function blogToggleSelect(cb,wid){
@@ -398,7 +398,7 @@ function blogSelClear(){
 function blogSelKopieer(){
   const ws=[...blogSel].map(id=>BLOG.workouts.find(w=>w.id===id)).filter(Boolean);
   if(!ws.length){toast("Niets geselecteerd");return;}
-  KLEMBORD=ws.map(wTemplate);
+  klembordZet(ws.map(wTemplate));
   toast(ws.length+" workout"+(ws.length>1?"s":"")+" gekopieerd, ga naar een dag en kies Plakken");
 }
 async function blogSelVerwijder(){
@@ -443,22 +443,23 @@ async function blogPickProgram(datum){
 // Plakken: zelfde klembord als de klant-kalender (kopieer daar of hier).
 async function blogPlak(datum){
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
-  if(!KLEMBORD||!KLEMBORD.length){toast("Klembord is leeg. Kopieer eerst een workout (hier of bij een klant).");return;}
-  const base=KLEMBORD.map(t=>t.date).filter(Boolean).sort()[0]||null;
-  for(const t of KLEMBORD){
+  const kb=klembordLees();
+  if(!kb||!kb.length){toast("Klembord is leeg. Kopieer eerst een workout (hier of bij een klant).");return;}
+  const base=kb.map(t=>t.date).filter(Boolean).sort()[0]||null;
+  for(const t of kb){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const dd=off?ymdPlus(datum,off):datum;
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:dd,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
-  toast(KLEMBORD.length>1?KLEMBORD.length+" workouts geplakt":"Workout geplakt");
+  toast(kb.length>1?kb.length+" workouts geplakt":"Workout geplakt");
   await blogHerlaad();
 }
 // Kopiëren vanaf een blog-kaart (zelfde klembord-formaat als de klant-kalender).
 function blogKopieer(id){
   const w=BLOG.workouts.find(x=>x.id===id);if(!w)return;
-  KLEMBORD=[wTemplate(w)];
+  klembordZet([wTemplate(w)]);
   toast("Workout gekopieerd, ga naar een dag en kies Plakken");
 }
 async function blogRustdag(datum){

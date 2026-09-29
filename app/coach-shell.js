@@ -100,7 +100,11 @@ function sectionFromHash(){
 // De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
 function parseHash(){
   const h=(location.hash||"").replace(/^#/,""),p=h.split("/");
-  if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null};
+  // #klant/<id>/dag/<datum>[/reacties/<workout-id>]: rechtstreeks naar een dag
+  // (link in de reactie-mail, bel-melding), evt. met het reactiepaneel open.
+  if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null,
+    dag:(p[2]==="dag"&&/^\d{4}-\d{2}-\d{2}$/.test(p[3]||""))?p[3]:null,
+    reacties:(p[2]==="dag"&&p[4]==="reacties"&&p[5])?p[5]:null};
   if(p[0]==="settings"){
     // Subpagina in de link (#settings/notificaties) -> juiste tab openen
     if(p[1]&&typeof INST_TABS!=="undefined"&&INST_TABS.some(t=>t[0]===p[1]))instTab=p[1];
@@ -134,7 +138,13 @@ async function routeHash(){
   if(r.type==="client"){
     await ensureClients();
     if((coachClients||[]).some(x=>x.id===r.id)){
-      if(!(typeof calClient!=="undefined"&&calClient===r.id&&document.querySelector(".client-layout")))openClient(r.id);
+      const alOpen=typeof calClient!=="undefined"&&calClient===r.id&&document.querySelector(".client-layout");
+      if(!alOpen)openClient(r.id,{dag:r.dag,reacties:r.reacties});
+      else if(r.dag&&typeof histGaNaar==="function"){
+        // Klant staat al open (bijv. link in dezelfde tab of terug/vooruit): alleen naar die dag
+        histGaNaar(r.dag);
+        if(r.reacties&&typeof openDayComments==="function")openDayComments(r.reacties,r.id,r.dag);
+      }
       if(r.metric){openMx();mxOpenDetail(r.metric);}
       return;
     }
