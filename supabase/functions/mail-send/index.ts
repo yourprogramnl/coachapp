@@ -7,6 +7,8 @@
 //   mail door naar het eerstvolgende toegestane moment (Europe/Amsterdam).
 // - Mislukt versturen: 3 pogingen met 10 min tussenruimte, daarna failed.
 // - opzegging (28 sep 2026): bevestiging van opzeggen/intrekken aan het lid, altijd (geen vinkje).
+// - bestelling (29 sep 2026): wettelijke bevestiging van een winkelbestelling aan de koper, altijd;
+//   met bedrijfsgegevens, bedenktijd, herroepingsformulier en de voorwaarden zelf.
 // - Taal (27 sep 2026): elke mail in de taal van de ontvanger (profiles.lang,
 //   nl of en). Een uitnodiging volgt de taal van wie uitnodigde (created_by).
 // - Dag-link (29 sep 2026): coach-mails over een reactie, afgetekende workout of
@@ -29,6 +31,81 @@ const PLAY_STORE_URL = Deno.env.get("PLAY_STORE_URL") || "https://play.google.co
 // bedoeld om te delen, dus hij mag hier staan. Vervangen door de App Store-link
 // zodra de app publiek is: dan APP_STORE_URL vullen, die gaat voor.
 const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "https://testflight.apple.com/join/JqqZHVDp";
+
+// ---- Bevestiging van een bestelling (winkel, 29 sep 2026) ----
+// Bij verkoop aan consumenten moet de koper een bevestiging krijgen die hij kan bewaren (een
+// mail), met de bedrijfsgegevens, wat er gekocht is, de prijs, de opzegregels, de bedenktijd,
+// het modelformulier voor herroeping en de voorwaarden zelf. De database zet de mail in de
+// wachtrij zodra een bestelling op 'paid' komt (trigger shop_orders_bestelling_mail).
+// Bedrijfsgegevens: dezelfde als in voorwaarden.html van de etalage. VÓÓR ECHTE VERKOOP INVULLEN
+// (Stefan); zolang er iets tussen [haken] staat, komt dat letterlijk zo in de mail.
+const BEDRIJF = {
+  handelsnaam: "YourProgram",
+  juridisch: "[juridische naam zoals bij de KvK]",
+  adres: "[straat en huisnummer, postcode en plaats]",
+  kvk: "[KvK-nummer]",
+  btw: "[btw-identificatienummer]",
+  email: "[e-mailadres voor vragen en herroepen]",
+  website: "https://yourprogram.nl",
+};
+const VOORWAARDEN_URL = "https://programmering.yourprogram.nl/voorwaarden.html";
+const ingevuld = (v: string) => !/^\[.*\]$/.test(v);
+
+// Einde van de bedenktijd: t/m de 14e dag na de dag van bestellen, 23:59:59 Amsterdamse tijd.
+// Zelfde rekenregel als shop-abonnement (die rekent vanaf de start van het Stripe-abonnement,
+// hooguit minuten later; de datum in deze mail is dus nooit later dan die in de app).
+const TZ = "Europe/Amsterdam";
+function amsDelen(d: Date) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric",
+  }).formatToParts(d).map((x) => [x.type, x.value]));
+  return { j: +p.year, m: +p.month, d: +p.day, u: +p.hour, mi: +p.minute, s: +p.second };
+}
+function amsNaarUtc(j: number, m: number, d: number, u: number, mi: number, s: number): Date {
+  const gok = Date.UTC(j, m - 1, d, u, mi, s);
+  const a = amsDelen(new Date(gok));
+  return new Date(gok - (Date.UTC(a.j, a.m - 1, a.d, a.u, a.mi, a.s) - gok));
+}
+export function eindeBedenktijd(start: Date): Date {
+  const a = amsDelen(start);
+  return amsNaarUtc(a.j, a.m, a.d + 14, 23, 59, 59);
+}
+
+// De voorwaarden van de etalage, opgeschoond voor in de mail: alleen koppen, alinea's, lijsten,
+// vet en links blijven over, zonder opmaak-attributen. Kort gecachet, zodat meerdere
+// bestellingen in dezelfde minuut de pagina één keer ophalen.
+let voorwaardenCache: { html: string; versie: string; tijd: number } | null = null;
+async function haalVoorwaarden(): Promise<{ html: string; versie: string } | null> {
+  if (voorwaardenCache && Date.now() - voorwaardenCache.tijd < 10 * 60_000) return voorwaardenCache;
+  try {
+    const r = await fetch(VOORWAARDEN_URL, { headers: { Accept: "text/html" } });
+    if (!r.ok) return null;
+    const m = (await r.text()).match(/<div class="wrap voorwaarden">([\s\S]*?)<\/section>/);
+    if (!m) return null;
+    let s = m[1].replace(/<!--[\s\S]*?-->/g, "").replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
+    // kop, kicker en intro eraf: de mail heeft zijn eigen aanhef
+    s = s.replace(/<div class="kicker">[\s\S]*?<\/div>/, "").replace(/<h1[\s\S]*?<\/h1>/, "").replace(/<p class="lead"[\s\S]*?<\/p>/, "");
+    const versie = (s.match(/Versie\s+([0-9]+(?:[.-][0-9]+)*)/) || [])[1] || "";
+    s = s.replace(/<p class="versie">[\s\S]*?<\/p>/, "");
+    s = s.replace(/<a\s[^>]*>/gi, (tag) => { const h = tag.match(/href="(https?:\/\/[^"]*)"/i); return h ? `<a href="${h[1]}">` : "<a>"; });
+    s = s.replace(/<(\/?)(h2|p|ul|ol|li|b|strong|em|i|br)\b[^>]*>/gi, "<$1$2>");
+    s = s.replace(/<(?!\/?(?:h2|p|ul|ol|li|b|strong|em|i|br|a)\b)[^>]*>/gi, "").trim();
+    if (s.length < 400) return null;
+    voorwaardenCache = { html: s, versie, tijd: Date.now() };
+    return voorwaardenCache;
+  } catch {
+    return null;
+  }
+}
+function voorwaardenOpmaak(html: string, accent: string): string {
+  return html
+    .replace(/<h2>/g, `<h3 style="margin:16px 0 4px;font-size:13.5px;color:#f4f4f5">`).replace(/<\/h2>/g, "</h3>")
+    .replace(/<p>/g, `<p style="margin:6px 0;line-height:1.55">`)
+    .replace(/<(ul|ol)>/g, `<$1 style="margin:6px 0;padding-left:18px">`)
+    .replace(/<li>/g, `<li style="margin:4px 0;line-height:1.55">`)
+    .replace(/<a href=/g, `<a style="color:${accent}" href=`)
+    .replace(/<b>/g, `<b style="color:#e6e6ea">`);
+}
 
 type Taal = "nl" | "en";
 const taalVan = (l: unknown): Taal => (l === "en" ? "en" : "nl");
@@ -389,11 +466,126 @@ function lanceringHtml(taal: Taal, naam: string, accent: string): string {
 }
 // ---- lancering einde ----
 
-async function verstuur(naar: string, afzenderNaam: string, onderwerp: string, html: string): Promise<Response> {
+// ---- bestellingHtml begin ----
+// De wettelijke bevestiging van een winkelbestelling. Opbouw: wat je kocht en wat het kost,
+// de bedenktijd, hoe je binnenkomt, de bedrijfsgegevens, daaronder de voorwaarden zelf en het
+// modelformulier voor herroeping. Alles wat de koper later nodig kan hebben, in één mail.
+type Bestelling = {
+  taal: Taal; accent: string; logoUrl: string | null; bedrijfsNaam: string; voornaam: string; naar: string;
+  programma: string; prijs: string | null; interval: string; besteldOp: string; bedenkTot: string; orderId: string;
+  account: string | null; voorwaardenHtml: string | null; versie: string;
+};
+function bestellingHtml(o: Bestelling): string {
+  const a = o.accent, en = o.taal === "en";
+  const kop = o.logoUrl
+    ? `<img src="${o.logoUrl}" alt="${esc(o.bedrijfsNaam)}" height="26" style="height:26px;display:block;margin-bottom:16px">`
+    : `<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#8a919c;margin-bottom:14px">${esc(o.bedrijfsNaam)}</div>`;
+  const kaart = (titel: string, inhoud: string) =>
+    `<div style="margin:12px 0;padding:13px 15px;background:#141417;border:1px solid #26262b;border-radius:12px">` +
+    `<div style="font-size:14px;font-weight:700;color:#f4f4f5;margin-bottom:6px">${esc(titel)}</div>` +
+    `<div style="font-size:13px;line-height:1.6;color:#c9c9ce">${inhoud}</div></div>`;
+  const rij = (label: string, waarde: string) => `<div style="margin:5px 0"><span style="color:#8a919c">${esc(label)}:</span> ${waarde}</div>`;
+  // Genummerde stap als tabelletje: dat werkt in alle mailprogramma's (flex en absolute niet).
+  const stap = (n: number, tekst: string) =>
+    `<table cellpadding="0" cellspacing="0" style="margin:7px 0;border-collapse:collapse"><tr>` +
+    `<td style="vertical-align:top;padding:2px 9px 0 0"><span style="display:inline-block;width:21px;height:21px;border-radius:50%;background:${a};color:#0E0E10;text-align:center;line-height:21px;font-size:12px;font-weight:800">${n}</span></td>` +
+    `<td style="font-size:13px;line-height:1.6;color:#c9c9ce">${tekst}</td></tr></table>`;
+  const wit = (s: string) => `<b style="color:#e6e6ea">${esc(s)}</b>`;
+  const mailAdres = ingevuld(BEDRIJF.email) ? `<a href="mailto:${esc(BEDRIJF.email)}" style="color:${a}">${esc(BEDRIJF.email)}</a>` : esc(BEDRIJF.email);
+  const link = `<a href="${VOORWAARDEN_URL}" style="color:${a}">${VOORWAARDEN_URL.replace(/^https?:\/\//, "")}</a>`;
+  const periode = ({ week: en ? "week" : "week", year: en ? "year" : "jaar" } as Record<string, string>)[o.interval] || (en ? "month" : "maand");
+  const appTekst = APP_STORE_URL ? T(o.taal).invAppStore(a) : (TESTFLIGHT_URL ? T(o.taal).invTestflight(a) : T(o.taal).invGeenApp);
+  const hoi = en ? `Hi${o.voornaam ? " " + esc(o.voornaam) : ""}` : `Hoi${o.voornaam ? " " + esc(o.voornaam) : ""}`;
+
+  const abonnement = en
+    ? rij("Programme", wit(o.programma)) +
+      (o.prijs ? rij("Price", `${wit(o.prijs + " per " + periode)}, including VAT`) : "") +
+      rij("Payment", `You pay the first ${periode} when ordering. After that our payment partner Stripe collects the amount automatically every ${periode}.`) +
+      rij("Term", `Per ${periode}, renews automatically. No minimum term.`) +
+      rij("Cancelling", `Any time, in the app under Profile &gt; My subscription. The notice period is one month: your subscription ends exactly one month after you cancel, and the last month is charged pro rata.`) +
+      rij("Ordered on", esc(o.besteldOp)) +
+      rij("Order number", `<span style="color:#8a919c;font-size:12px">${esc(o.orderId)}</span>`)
+    : rij("Programma", wit(o.programma)) +
+      (o.prijs ? rij("Prijs", `${wit(o.prijs + " per " + periode)}, inclusief btw`) : "") +
+      rij("Betaling", `De eerste ${periode} betaal je bij het bestellen. Daarna schrijft onze betaalpartner Stripe het bedrag elke ${periode} automatisch af.`) +
+      rij("Looptijd", `Per ${periode}, verlengt automatisch. Geen minimale looptijd.`) +
+      rij("Opzeggen", `Kan altijd, in de app onder Profiel &gt; Mijn abonnement. De opzegtermijn is één maand: je abonnement stopt precies een maand na je opzegging. De laatste maand betaal je naar rato.`) +
+      rij("Besteld op", esc(o.besteldOp)) +
+      rij("Bestelnummer", `<span style="color:#8a919c;font-size:12px">${esc(o.orderId)}</span>`);
+
+  const bedenktijd = en
+    ? `You can withdraw without giving a reason up to and including ${wit(o.bedenkTot)}. When ordering you asked us to start right away. If you withdraw, your subscription stops immediately, you only pay for the days you had access and the rest of your first payment is refunded within 14 days. Withdraw in the app under Profile &gt; My subscription (button Withdraw), or send an email to ${mailAdres}. At the bottom of this email is a form you can use for that, but a clear message is enough.`
+    : `Je kunt tot en met ${wit(o.bedenkTot)} zonder opgave van reden herroepen. Je hebt bij het bestellen gevraagd om direct te starten. Herroep je, dan stopt je abonnement meteen, betaal je alleen voor de dagen dat je toegang had en krijg je de rest van je eerste betaling binnen 14 dagen terug. Herroepen doe je in de app onder Profiel &gt; Mijn abonnement (knop Herroepen), of met een mail aan ${mailAdres}. Onderaan deze mail staat een formulier dat je daarvoor kunt gebruiken, maar een duidelijke boodschap is genoeg.`;
+
+  let binnen: string;
+  if (o.account === "ander_bedrijf") {
+    binnen = en
+      ? "Your email address already belongs to an account with another business, so we can't set up your programme automatically. We'll contact you personally to sort this out."
+      : "Je e-mailadres hoort al bij een account bij een ander bedrijf. Daardoor kunnen we je programma niet automatisch klaarzetten. We nemen persoonlijk contact met je op om dit te regelen.";
+  } else if (o.account === "bestaand") {
+    binnen = en
+      ? stap(1, `You already had an account on ${wit(o.naar)}. Log in with your existing password. Forgotten it? Choose "Forgot password" on the login screen.`) + stap(2, appTekst) + stap(3, "Your programme is waiting for you after you log in.")
+      : stap(1, `Je had al een account op ${wit(o.naar)}. Log in met je bestaande wachtwoord. Vergeten? Kies "Wachtwoord vergeten" op het inlogscherm.`) + stap(2, appTekst) + stap(3, "Na het inloggen staat je programma voor je klaar.");
+  } else {
+    binnen = en
+      ? stap(1, "Did you choose a password on the thank-you page? Then this step is done. If not, you'll get a separate email within fifteen minutes with a button to choose your password.") + stap(2, appTekst) + stap(3, `Log in with ${wit(o.naar)} and your password. Your programme is waiting for you.`)
+      : stap(1, "Heb je op de bedankpagina een wachtwoord gekozen? Dan is dit al geregeld. Zo niet, dan krijg je binnen een kwartier een aparte mail met een knop om je wachtwoord te kiezen.") + stap(2, appTekst) + stap(3, `Log in met ${wit(o.naar)} en je wachtwoord. Je programma staat klaar.`);
+  }
+
+  const bedrijf = (en
+    ? [`${esc(BEDRIJF.handelsnaam)} is a trade name of ${wit(BEDRIJF.juridisch)}`, rij("Address", esc(BEDRIJF.adres)), rij("Chamber of Commerce (KvK)", esc(BEDRIJF.kvk)), rij("VAT", esc(BEDRIJF.btw)), rij("Email", mailAdres), rij("Website", `<a href="${BEDRIJF.website}" style="color:${a}">${esc(BEDRIJF.website.replace(/^https?:\/\//, ""))}</a>`)]
+    : [`${esc(BEDRIJF.handelsnaam)} is een handelsnaam van ${wit(BEDRIJF.juridisch)}`, rij("Adres", esc(BEDRIJF.adres)), rij("KvK", esc(BEDRIJF.kvk)), rij("Btw", esc(BEDRIJF.btw)), rij("E-mail", mailAdres), rij("Website", `<a href="${BEDRIJF.website}" style="color:${a}">${esc(BEDRIJF.website.replace(/^https?:\/\//, ""))}</a>`)]
+  ).join("");
+
+  const versieTxt = o.versie ? ` (${en ? "version" : "versie"} ${esc(o.versie)})` : "";
+  const voorwaarden = `<div style="margin:22px 0 0;padding-top:14px;border-top:1px solid #26262b">` +
+    `<div style="font-size:14px;font-weight:700;color:#f4f4f5;margin-bottom:6px">${en ? "Terms and conditions" : "Algemene voorwaarden"}${versieTxt}</div>` +
+    `<p style="margin:0 0 6px;font-size:12.5px;line-height:1.55;color:#8a919c">${en
+      ? `These terms belong to your order; you accepted them at checkout. They're also at ${link}.`
+      : `Deze voorwaarden horen bij je bestelling; je bent ermee akkoord gegaan bij het afrekenen. Ze staan ook op ${link}.`}</p>` +
+    (o.voorwaardenHtml
+      ? `<div style="font-size:12.5px;color:#b5b5bb">${voorwaardenOpmaak(o.voorwaardenHtml, a)}</div>`
+      : `<p style="margin:0;font-size:12.5px;color:#b5b5bb">${en ? "The full text is at" : "De volledige tekst staat op"} ${link}.</p>`) +
+    `</div>`;
+
+  const regelF = (t: string) => `<div style="margin:4px 0">- ${t}</div>`;
+  const formulier = `<div style="margin:22px 0 0;padding-top:14px;border-top:1px solid #26262b;font-size:12.5px;line-height:1.55;color:#b5b5bb">` +
+    `<div style="font-size:14px;font-weight:700;color:#f4f4f5;margin-bottom:4px">${en ? "Model withdrawal form" : "Modelformulier voor herroeping"}</div>` +
+    `<p style="margin:0 0 8px;color:#8a919c">${en ? "(complete and return this form only if you wish to withdraw from the contract)" : "(dit formulier alleen invullen en terugsturen als je de overeenkomst wilt herroepen)"}</p>` +
+    (en
+      ? regelF(`To ${esc(BEDRIJF.juridisch)} (${esc(BEDRIJF.handelsnaam)}), ${esc(BEDRIJF.adres)}, ${esc(BEDRIJF.email)}:`) +
+        regelF(`I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service: subscription to ${esc(o.programma)}`) +
+        regelF(`Ordered on: ${esc(o.besteldOp)}`) + regelF("Name of consumer(s):") + regelF("Address of consumer(s):") +
+        regelF("Signature of consumer(s) (only if this form is notified on paper):") + regelF("Date:") +
+        `<p style="margin:8px 0 0;color:#8a919c">(*) Delete as appropriate.</p>`
+      : regelF(`Aan ${esc(BEDRIJF.juridisch)} (${esc(BEDRIJF.handelsnaam)}), ${esc(BEDRIJF.adres)}, ${esc(BEDRIJF.email)}:`) +
+        regelF(`Ik/Wij (*) deel/delen (*) u hierbij mede dat ik/wij (*) onze overeenkomst betreffende de levering van de volgende dienst herroep/herroepen (*): abonnement op ${esc(o.programma)}`) +
+        regelF(`Besteld op: ${esc(o.besteldOp)}`) + regelF("Naam/Namen consument(en):") + regelF("Adres consument(en):") +
+        regelF("Handtekening van consument(en) (alleen wanneer dit formulier op papier wordt ingediend):") + regelF("Datum:") +
+        `<p style="margin:8px 0 0;color:#8a919c">(*) Doorhalen wat niet van toepassing is.</p>`) +
+    `</div>`;
+
+  return KADER_OPEN + kop +
+    `<h2 style="color:${a};margin:0 0 8px;font-size:20px">${en ? "Thanks for your order" : "Bedankt voor je bestelling"}</h2>` +
+    `<p style="margin:0 0 14px;line-height:1.6;color:#c9c9ce">${en
+      ? `${hoi}, you've taken out a subscription to ${wit(o.programma)} with ${esc(o.bedrijfsNaam)}. This email confirms what we agreed. Please keep it.`
+      : `${hoi}, je hebt een abonnement op ${wit(o.programma)} afgesloten bij ${esc(o.bedrijfsNaam)}. Dit is de bevestiging van onze afspraken. Bewaar deze mail.`}</p>` +
+    kaart(en ? "Your subscription" : "Je abonnement", abonnement) +
+    kaart(en ? "Cooling-off period: 14 days" : "Bedenktijd: 14 dagen", bedenktijd) +
+    kaart(en ? "How to get in" : "Zo kom je binnen", binnen) +
+    kaart(en ? "Business details" : "Bedrijfsgegevens", bedrijf) +
+    voorwaarden + formulier +
+    `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${en
+      ? `This email is the confirmation of your order. Please keep it. Questions? Send a message in the app or email ${mailAdres}.`
+      : `Deze mail is de bevestiging van je bestelling. Bewaar hem goed. Vragen? Stuur een bericht in de app of mail naar ${mailAdres}.`}</p></div>`;
+}
+// ---- bestellingHtml einde ----
+
+async function verstuur(naar: string, afzenderNaam: string, onderwerp: string, html: string, replyTo?: string): Promise<Response> {
   return await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_KEY!.trim()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: `${afzenderNaam} <${AFZENDER_ADRES}>`, to: [naar], subject: onderwerp, html }),
+    body: JSON.stringify({ from: `${afzenderNaam} <${AFZENDER_ADRES}>`, to: [naar], subject: onderwerp, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
 }
 
@@ -428,6 +620,52 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const foutI = await r.text().catch(() => String(r.status));
     const pogingenI = ((rij.attempts as number) || 0) + 1;
     await klaar({ attempts: pogingenI, last_error: foutI.slice(0, 500), status: pogingenI >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+    return "fout";
+  }
+
+  // Bevestiging van een winkelbestelling aan de koper (wettelijk verplicht). Altijd versturen,
+  // naar het adres van de bestelling; geen vinkjes of werkuren.
+  if (event === "bestelling") {
+    const naar = rij.recipient_email as string;
+    if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
+    const { data: o } = await db.from("shop_orders")
+      .select("id,status,blog_program_id,company_id,profile_id,account_state,terms_version,terms_accepted_at,created_at")
+      .eq("id", payload.order_id as string).maybeSingle();
+    if (!o) { await klaar({ status: "skipped", last_error: "bestelling niet gevonden" }); return "skipped"; }
+    const pogingenB = (rij.attempts as number) || 0;
+    // Zonder de tekst van de voorwaarden is de bevestiging niet compleet: twee keer opnieuw
+    // proberen (10 min ertussen), daarna toch versturen met alleen de link. Liever dat dan niets.
+    const vw = await haalVoorwaarden();
+    if (!vw && pogingenB < 2) {
+      await klaar({ attempts: pogingenB + 1, last_error: "voorwaarden niet opgehaald", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+      return "fout";
+    }
+    const [{ data: prof }, { data: prog }, { data: bedrijfB }] = await Promise.all([
+      o.profile_id ? db.from("profiles").select("first_name,lang").eq("id", o.profile_id).maybeSingle() : Promise.resolve({ data: null }),
+      o.blog_program_id ? db.from("blog_programs").select("name,price_cents,price_interval").eq("id", o.blog_program_id).maybeSingle() : Promise.resolve({ data: null }),
+      db.from("companies").select("name,theme,logo_url").eq("id", o.company_id).maybeSingle(),
+    ]);
+    const taalB: Taal = taalVan(prof?.lang);
+    const enB = taalB === "en";
+    const programma = prog?.name || (enB ? "your programme" : "je programma");
+    const cents = Number(prog?.price_cents || 0);
+    const prijs = cents > 0 ? "€" + (cents / 100).toFixed(2).replace(".", enB ? "." : ",") : null;
+    const start = new Date(String(o.terms_accepted_at || o.created_at));
+    const locale = enB ? "en-GB" : "nl-NL";
+    const besteldOp = start.toLocaleString(locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: TZ });
+    const bedenkTot = eindeBedenktijd(start).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: TZ });
+    const bedrijfsNaamB = bedrijfB?.name || BEDRIJF.handelsnaam;
+    const html = bestellingHtml({
+      taal: taalB, accent: accentVan(bedrijfB?.theme), logoUrl: bedrijfB?.logo_url || null, bedrijfsNaam: bedrijfsNaamB,
+      voornaam: prof?.first_name || "", naar, programma, prijs, interval: prog?.price_interval || "month",
+      besteldOp, bedenkTot, orderId: o.id, account: o.account_state || null,
+      voorwaardenHtml: vw?.html || null, versie: (o.terms_version as string) || vw?.versie || "",
+    });
+    const onderwerpB = enB ? `Order confirmation: ${programma}` : `Bevestiging van je bestelling: ${programma}`;
+    const rB = await verstuur(naar, bedrijfsNaamB, onderwerpB, html, ingevuld(BEDRIJF.email) ? BEDRIJF.email : undefined);
+    if (rB.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString(), last_error: vw ? null : "verstuurd zonder de tekst van de voorwaarden (alleen de link)" }); return "sent"; }
+    const foutB = await rB.text().catch(() => String(rB.status));
+    await klaar({ attempts: pogingenB + 1, last_error: foutB.slice(0, 500), status: pogingenB + 1 >= 5 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
     return "fout";
   }
 
