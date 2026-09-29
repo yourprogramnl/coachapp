@@ -9,6 +9,8 @@
 // - opzegging (28 sep 2026): bevestiging van opzeggen/intrekken aan het lid, altijd (geen vinkje).
 // - Taal (27 sep 2026): elke mail in de taal van de ontvanger (profiles.lang,
 //   nl of en). Een uitnodiging volgt de taal van wie uitnodigde (created_by).
+// - Dag-link (29 sep 2026): coach-mails over een reactie, afgetekende workout of
+//   video krijgen een knop rechtstreeks naar die dag op de klantkalender.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);

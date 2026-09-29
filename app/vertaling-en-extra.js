@@ -87,6 +87,9 @@ i18nLaad({
   "Reacties bij deze workout-dag": "Comments on this workout day",
   "Scores van de sporter invoeren of aanpassen": "Enter or adjust the athlete's scores",
   "Sleep om het paneel te verplaatsen": "Drag to move the panel",
+  "Video van het lid": "Video from the member",
+  "Foto van het lid": "Photo from the member",
+  "Reacties ({n})": "Comments ({n})",
   "Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat. Sleep de kop om het paneel te verplaatsen; de kalender blijft scrollbaar.": "Feedback on this workout day. The client sees it in the app on that day, separate from the chat. Drag the header to move the panel; the calendar stays scrollable.",
 });
 if (typeof i18nRegel === "function") {
