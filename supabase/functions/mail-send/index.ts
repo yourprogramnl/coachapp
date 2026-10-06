@@ -11,6 +11,8 @@
 //   nl of en). Een uitnodiging volgt de taal van wie uitnodigde (created_by).
 // - Dag-link (29 sep 2026): coach-mails over een reactie, afgetekende workout of
 //   video krijgen een knop rechtstreeks naar die dag op de klantkalender.
+// - lancering (6 okt 2026): eenmalige mail aan sporters dat de app in de App Store
+//   en Google Play staat (twee knoppen); negeert vinkjes en werkuren.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -20,7 +22,9 @@ const AFZENDER_ADRES = "coach@mail.yourprogram.nl";
 // zet de publieke TestFlight-link in de Supabase-secret TESTFLIGHT_URL, dan
 // staat hij meteen in de mail. Staat de app straks in de App Store, dan
 // APP_STORE_URL vullen (zelfde naam als in app/auth.js van het dashboard).
-const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "";
+const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "https://apps.apple.com/nl/app/id6792739065";
+// Google Play-link (app live sinds oktober 2026).
+const PLAY_STORE_URL = Deno.env.get("PLAY_STORE_URL") || "https://play.google.com/store/apps/details?id=nl.yourprogram.forge";
 // Publieke TestFlight-link van de groep "Pilot" (26 juli 2026). Deze link is
 // bedoeld om te delen, dus hij mag hier staan. Vervangen door de App Store-link
 // zodra de app publiek is: dan APP_STORE_URL vullen, die gaat voor.
@@ -73,7 +77,7 @@ const TXT = {
     invOnderwerpCoach: (bedrijf: string) => `Je coach-account bij ${bedrijf} staat klaar`,
     invWelkom: (voornaam: string) => `Welkom${voornaam ? " " + voornaam : ""}!`,
     invIntro: (bedrijf: string) => `${bedrijf} heeft een account voor je klaargezet. In drie stappen ben je binnen.`,
-    invAppStore: (a: string) => `Zoek <b style="color:#e6e6ea">YourProgram</b> in de App Store, of gebruik <a href="${APP_STORE_URL}" style="color:${a}">deze link</a>.`,
+    invAppStore: (a: string) => `Zoek <b style="color:#e6e6ea">YourProgram</b> in de App Store (iPhone) of Google Play (Android), of gebruik deze link: <a href="${APP_STORE_URL}" style="color:${a}">App Store</a> / <a href="${PLAY_STORE_URL}" style="color:${a}">Google Play</a>.`,
     invTestflight: (a: string) => `De app is nog in test en loopt via TestFlight van Apple. Installeer eerst <b style="color:#e6e6ea">TestFlight</b> uit de App Store en open daarna <a href="${TESTFLIGHT_URL}" style="color:${a}">deze link</a> op je telefoon.`,
     invGeenApp: "De app staat nog niet in de App Store. Je coach stuurt je de downloadlink, dat gaat via TestFlight van Apple.",
     invStap1Kop: "Kies je wachtwoord",
@@ -133,7 +137,7 @@ const TXT = {
     invOnderwerpCoach: (bedrijf: string) => `Your coach account at ${bedrijf} is ready`,
     invWelkom: (voornaam: string) => `Welcome${voornaam ? " " + voornaam : ""}!`,
     invIntro: (bedrijf: string) => `${bedrijf} has set up an account for you. Three steps and you're in.`,
-    invAppStore: (a: string) => `Search for <b style="color:#e6e6ea">YourProgram</b> in the App Store, or use <a href="${APP_STORE_URL}" style="color:${a}">this link</a>.`,
+    invAppStore: (a: string) => `Search for <b style="color:#e6e6ea">YourProgram</b> in the App Store (iPhone) or Google Play (Android), or use these links: <a href="${APP_STORE_URL}" style="color:${a}">App Store</a> / <a href="${PLAY_STORE_URL}" style="color:${a}">Google Play</a>.`,
     invTestflight: (a: string) => `The app is still in testing and runs through Apple's TestFlight. First install <b style="color:#e6e6ea">TestFlight</b> from the App Store, then open <a href="${TESTFLIGHT_URL}" style="color:${a}">this link</a> on your phone.`,
     invGeenApp: "The app isn't in the App Store yet. Your coach will send you the download link, via Apple's TestFlight.",
     invStap1Kop: "Choose your password",
@@ -332,6 +336,59 @@ function inviteHtml(o: { bedrijfsNaam: string; voornaam: string; naar: string; l
 }
 // ---- inviteHtml einde ----
 
+
+// ---- lancering (6 okt 2026): de app staat in de App Store en Google Play ----
+// Eenmalige servicemail aan de sporters; negeert de mail-vinkjes en werkuren.
+const LANCERING = {
+  nl: {
+    onderwerp: "De YourProgram-app staat nu in de App Store en Google Play",
+    titel: "De app staat in de winkel",
+    intro: (naam: string) => `Hoi ${naam}, goed nieuws: de YourProgram-app staat nu in de App Store en in Google Play. Tot nu toe gebruikte je een testversie via TestFlight. Vanaf nu haal je de app gewoon uit de winkel, net als elke andere app.`,
+    kop1: "Wat betekent dit voor jou?",
+    punten1: ["Je inloggegevens blijven hetzelfde. Zelfde e-mailadres, zelfde wachtwoord.", "Al je gegevens blijven staan. Je workouts, scores, berichten, foto's en metingen: alles staat er nog.", "Je hoeft niets over te zetten. De nieuwe app komt over de testversie heen en je blijft ingelogd."],
+    kop2: "Zo doe je het (duurt een minuut)",
+    punten2: ["Tik op de knop hieronder, of zoek op \"YourProgram\" in de App Store of Google Play.", "Tik op Download.", "Open de app. Je bent nog ingelogd. Zo niet, log dan in met je gewone e-mailadres en wachtwoord.", "De TestFlight-app mag je daarna verwijderen. Die heb je niet meer nodig."],
+    android: "Heb je een Android-telefoon? Dan is de app nieuw voor je: installeer hem uit Google Play en log in met het e-mailadres en wachtwoord van je account.",
+    kop3: "Nieuw in deze versie",
+    punten3: ["Wat je in een logvak typt, wordt vanzelf opgeslagen. Ook als je geen bereik hebt in de gym.", "Reacties van je coach op een trainingsdag zie je nu ook in de app.", "De app is er ook in het Engels: Profiel > Taal."],
+    knopIos: "Download in de App Store", knopAndroid: "Download in Google Play",
+    voet: "Lukt het niet of heb je een vraag? Stuur een bericht in de app of mail naar info@yourprogram.nl. Groet, Team YourProgram",
+  },
+  en: {
+    onderwerp: "The YourProgram app is now in the App Store and Google Play",
+    titel: "The app is in the store",
+    intro: (naam: string) => `Hi ${naam}, good news: the YourProgram app is now in the App Store and on Google Play. Until now you used a test version through TestFlight. From now on you get the app from the store, like any other app.`,
+    kop1: "What this means for you",
+    punten1: ["Your login stays the same. Same email address, same password.", "All your data stays. Your workouts, scores, messages, photos and measurements are all still there.", "Nothing to transfer. The new app installs over the test version and you stay logged in."],
+    kop2: "How to switch (takes a minute)",
+    punten2: ["Tap the button below, or search for \"YourProgram\" in the App Store or Google Play.", "Tap Download.", "Open the app. You are still logged in. If not, log in with your usual email address and password.", "You can delete the TestFlight app afterwards. You no longer need it."],
+    android: "On Android? Then the app is new for you: install it from Google Play and log in with the email address and password of your account.",
+    kop3: "New in this version",
+    punten3: ["Whatever you type in a log box is saved automatically, even without signal in the gym.", "Your coach's comments on a training day now show in the app too.", "The app is also available in English: Profile > Language."],
+    knopIos: "Download on the App Store", knopAndroid: "Get it on Google Play",
+    voet: "Stuck or got a question? Send a message in the app or email info@yourprogram.nl. Regards, Team YourProgram",
+  },
+};
+
+function lanceringHtml(taal: Taal, naam: string, accent: string): string {
+  const L = LANCERING[taal];
+  const kop = (k: string) => `<div style="margin:18px 0 6px;font-size:15px;font-weight:700;color:#f4f4f5">${esc(k)}</div>`;
+  const lijst = (p: string[], nummers: boolean) => p.map((r, i) =>
+    `<div style="margin:6px 0;padding:9px 11px;border-left:3px solid ${accent};background:#1a1a1e;border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.5;color:#e6e6ea">${nummers ? (i + 1) + ". " : ""}${esc(r)}</div>`).join("");
+  const knop = (url: string, tekst: string) =>
+    `<a href="${url}" style="display:inline-block;background:${accent};color:#0E0E10;font-weight:700;padding:11px 20px;border-radius:10px;text-decoration:none;font-size:14px;margin:0 8px 8px 0">${esc(tekst)}</a>`;
+  return KADER_OPEN +
+    `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">${esc(L.titel)}</h2>` +
+    `<p style="margin:0 0 4px;line-height:1.5;color:#c9c9ce">${esc(L.intro(naam))}</p>` +
+    kop(L.kop1) + lijst(L.punten1, false) +
+    kop(L.kop2) + lijst(L.punten2, true) +
+    `<div style="margin:16px 0 0">${knop(APP_STORE_URL, L.knopIos)}${knop(PLAY_STORE_URL, L.knopAndroid)}</div>` +
+    `<p style="margin:12px 0 0;line-height:1.5;color:#c9c9ce;font-size:13px">${esc(L.android)}</p>` +
+    kop(L.kop3) + lijst(L.punten3, false) +
+    `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(L.voet)}</p></div>`;
+}
+// ---- lancering einde ----
+
 async function verstuur(naar: string, afzenderNaam: string, onderwerp: string, html: string): Promise<Response> {
   return await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -496,6 +553,22 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const foutM = await rM.text().catch(() => String(rM.status));
     const pogingenM = ((rij.attempts as number) || 0) + 1;
     await klaar({ attempts: pogingenM, last_error: foutM.slice(0, 500), status: pogingenM >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+    return "fout";
+  }
+
+  // Lanceringsmail (6 okt 2026): rechtstreeks naar de sporter, zonder vinkje of werkuren.
+  if (event === "lancering") {
+    const { data: sporter } = await db.from("profiles").select("id,first_name,last_name,email,lang,company_id").eq("id", rij.recipient_id).maybeSingle();
+    if (!sporter || !sporter.email) { await klaar({ status: "skipped", last_error: "geen ontvanger/e-mail" }); return "skipped"; }
+    const taalL = taalVan(sporter.lang);
+    const { data: bedrijfL } = await db.from("companies").select("name,theme").eq("id", sporter.company_id).maybeSingle();
+    const naamL = String(sporter.first_name || "").trim() || (taalL === "en" ? "athlete" : "sporter");
+    const htmlL = lanceringHtml(taalL, naamL, accentVan(bedrijfL?.theme));
+    const rL = await verstuur(sporter.email, bedrijfL?.name || "YourProgram", LANCERING[taalL].onderwerp, htmlL);
+    if (rL.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
+    const foutL = await rL.text().catch(() => String(rL.status));
+    const pogingenL = ((rij.attempts as number) || 0) + 1;
+    await klaar({ attempts: pogingenL, last_error: foutL.slice(0, 500), status: pogingenL >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
     return "fout";
   }
 
