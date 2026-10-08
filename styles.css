@@ -256,9 +256,9 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .exrow{position:relative}
 .blokkleur{display:flex;gap:6px;align-items:center}
 .blokkleur span{width:14px;height:14px;border-radius:50%;cursor:pointer;display:inline-block}
-.exdrop{position:absolute;left:6px;top:100%;margin-top:4px;z-index:80;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 16px 44px rgba(15,18,22,.16);width:262px;padding:5px 0;display:none;max-height:280px;overflow:auto}
-.exdrop.show{display:block}
-.exdrop .hd{padding:8px 14px 5px;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#8a919c}
+.exdrop,.liftdrop{position:absolute;left:6px;top:100%;margin-top:4px;z-index:80;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 16px 44px rgba(15,18,22,.16);width:262px;padding:5px 0;display:none;max-height:280px;overflow:auto}
+.exdrop.show,.liftdrop.show{display:block}
+.exdrop .hd,.liftdrop .hd{padding:8px 14px 5px;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#8a919c}
 .exopt{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer}
 .exopt:hover{background:#f2f8fb}
 .exopt .en{font-weight:700;font-size:12.5px}
@@ -680,8 +680,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 @media (max-width:1400px){.cnav2>a,.cnav2>.beheerwrap>a{padding:7px 8px;letter-spacing:.4px}}
 .navbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:6px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800;letter-spacing:0;vertical-align:1px}
 .wcdot{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;padding:0 3px;margin-left:5px;border-radius:999px;background:#e11d48;color:#fff;font-size:10px;font-weight:800}
-.exdrop .hdx{float:right;cursor:pointer;color:#8a919c;font-size:12px;padding:0 2px;line-height:1.4}
-.exdrop .hdx:hover{color:#fff}
+.exdrop .hdx,.liftdrop .hdx{float:right;cursor:pointer;color:#8a919c;font-size:12px;padding:0 2px;line-height:1.4}
+.exdrop .hdx:hover,.liftdrop .hdx:hover{color:#fff}
 .vidtile{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:#14161a;color:#fff;font-size:10px;cursor:pointer;flex:none;border:1px solid #2a2e35}
 .vidtile:hover{background:#2a2e35}
 #vidoverlay{position:fixed;inset:0;background:rgba(10,12,15,.82);display:none;align-items:center;justify-content:center;z-index:600}
