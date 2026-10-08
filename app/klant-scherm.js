@@ -462,7 +462,7 @@ function liftChipHtml(liftId,naam,geen){
 function liftRowHtml(b){
   const geen=!!(b.lift_scheme&&b.lift_scheme.geen_lift);
   const scheme=(b.lift_scheme&&b.lift_scheme.hand)?b.lift_scheme:(schemaLees(b.prescription||"")||b.lift_scheme);
-  return '<div class="liftrow">'+liftChipHtml(b.lift_id,b.lift_id?liftNaam(b.lift_id):"",geen)+'<div class="liftdrop exdrop" onclick="event.stopPropagation()"></div></div>'+
+  return '<div class="liftrow">'+liftChipHtml(b.lift_id,b.lift_id?liftNaam(b.lift_id):"",geen)+'<div class="liftdrop" onclick="event.stopPropagation()"></div></div>'+
     '<div class="schemarow"'+(b.lift_id?'':' style="display:none"')+'><span class="schemalbl">Schema</span><span class="schematxt">'+esc(schemaTekst(scheme)||"geen schema herkend")+'</span><span class="demolink" onclick="schemaBewerk(this)">aanpassen</span><span class="schemaedit" style="display:none"></span></div><div class="klcijfers" style="display:none"></div>';
 }
 function liftZet(row,l,auto,stil){
@@ -472,7 +472,7 @@ function liftZet(row,l,auto,stil){
   row.dataset.liftvoor=((row.querySelector(".exn")||{}).value||"").trim(); // naam waarbij deze lift hoort
   if(l)row.dataset.geenlift="0";
   const host=row.querySelector(".liftrow");
-  if(host)host.innerHTML=liftChipHtml(l?l.id:null,l?l.name:"",row.dataset.geenlift==="1")+'<div class="liftdrop exdrop" onclick="event.stopPropagation()"></div>';
+  if(host)host.innerHTML=liftChipHtml(l?l.id:null,l?l.name:"",row.dataset.geenlift==="1")+'<div class="liftdrop" onclick="event.stopPropagation()"></div>';
   const sr=row.querySelector(".schemarow");if(sr)sr.style.display=l?"":"none";
   if(l)schemaVernieuw(row);else cijfersVernieuw(row);
   if(!stil&&(l?l.id:"")!==was)bouwerDirty=true;
@@ -782,7 +782,7 @@ function speelAf(el,yt){
   if(pop)pop.innerHTML='Speelt niet af? <a href="https://youtu.be/'+yt+'" target="_blank" rel="noopener" style="color:#2a9fce">Bekijk op YouTube</a>';
 }
 document.addEventListener("click",e=>{
-  if(!e.target.closest(".exdrop")&&!e.target.closest(".exn")&&!e.target.closest(".cwn"))document.querySelectorAll(".exdrop.show").forEach(d=>d.classList.remove("show"));
+  if(!e.target.closest(".exdrop")&&!e.target.closest(".liftdrop")&&!e.target.closest(".exn")&&!e.target.closest(".cwn"))document.querySelectorAll(".exdrop.show,.liftdrop.show").forEach(d=>d.classList.remove("show"));
   if(!e.target.closest(".vidpop")&&!e.target.closest(".cam")&&!e.target.closest(".vidchip"))document.querySelectorAll(".vidpop.show").forEach(d=>d.classList.remove("show"));
 });
 function relabel(){
@@ -2167,7 +2167,7 @@ document.addEventListener("keydown",e=>{
     if(typeof closeWc==="function")closeWc();
     document.querySelectorAll(".sidepanel.show").forEach(p=>p.classList.remove("show"));
     document.querySelectorAll(".daymenu").forEach(x=>x.remove());
-    document.querySelectorAll(".progdrop.show,.lmodal.show,.exdrop.show,.vidpop.show").forEach(x=>x.classList.remove("show"));
+    document.querySelectorAll(".progdrop.show,.lmodal.show,.exdrop.show,.liftdrop.show,.vidpop.show").forEach(x=>x.classList.remove("show"));
     return;
   }
   if(typt)return; // vanaf hier: alleen als je niet in een veld typt
