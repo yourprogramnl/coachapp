@@ -236,3 +236,32 @@ i18nLaad({
   "Verwijderen mislukt: {naam}": "Deleting failed: {naam}",
   "Naam wijzigen mislukt: {naam}": "Renaming failed: {naam}",
 });
+
+// Data › Atleten: naamkeuze, koppeling aan een klant en het kopje Data in het
+// klantdossier (app/testdata.js, 8 okt 2026 avond).
+i18nLaad({
+  "Alle atleten": "All athletes",
+  "1 atleet": "1 athlete",
+  "Klant in de app": "Client in the app",
+  "– niet gekoppeld –": "– not linked –",
+  "{naam} (gekoppeld aan {naam})": "{naam} (linked to {naam})",
+  "(klant van een andere coach)": "(client of another coach)",
+  "Klant in de app: {naam} ›": "Client in the app: {naam} ›",
+  "Gekoppeld aan een klant van een andere coach": "Linked to another coach's client",
+  "Testdata, normen en prioriteiten van {naam}": "Test data, standards and priorities of {naam}",
+  "Bekijk in Data › Atleten": "View in Data › Athletes",
+  "Nog geen atleet gekoppeld": "No athlete linked yet",
+  "Deze klant staat nog niet in Data › Atleten. Koppel een bestaande atleet of maak een nieuwe aan.": "This client is not in Data › Athletes yet. Link an existing athlete or create a new one.",
+  "Koppel aan bestaande atleet": "Link to an existing athlete",
+  "– kies een atleet –": "– choose an athlete –",
+  "Koppelen": "Link",
+  "Er staat al een atleet met dezelfde naam; die is alvast gekozen.": "An athlete with the same name already exists; it has been preselected.",
+  "Nieuwe atleet aanmaken voor deze klant": "Create a new athlete for this client",
+  "– kies –": "– choose –",
+  "Aanmaken": "Create",
+  "Kies een atleet": "Choose an athlete",
+  "Kies het geslacht; de normen hangen ervan af": "Choose the gender; the standards depend on it",
+  "Gekoppeld": "Linked",
+  "Koppelen mislukt: {naam}": "Linking failed: {naam}",
+  "Kies een dag (trainingsdag of groep)": "Choose a day (training day or group)",
+});

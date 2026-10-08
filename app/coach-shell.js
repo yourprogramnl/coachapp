@@ -97,12 +97,12 @@ function sectionFromHash(){
   const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]); // settings/notifs/help zitten niet in de topnav
   return geldig.includes(h)?h:"dash";
 }
-// De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>]).
+// De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>][/data]).
 function parseHash(){
   const h=(location.hash||"").replace(/^#/,""),p=h.split("/");
   // #klant/<id>/dag/<datum>[/reacties/<workout-id>]: rechtstreeks naar een dag
   // (link in de reactie-mail, bel-melding), evt. met het reactiepaneel open.
-  if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null,
+  if(p[0]==="klant"&&p[1])return{type:"client",id:p[1],metric:(p[2]==="metric"&&p[3])?decodeURIComponent(p[3]):null,data:p[2]==="data",
     dag:(p[2]==="dag"&&/^\d{4}-\d{2}-\d{2}$/.test(p[3]||""))?p[3]:null,
     reacties:(p[2]==="dag"&&p[4]==="reacties"&&p[5])?p[5]:null};
   if(p[0]==="settings"){
@@ -141,7 +141,8 @@ async function routeHash(){
     await ensureClients();
     if((coachClients||[]).some(x=>x.id===r.id)){
       const alOpen=typeof calClient!=="undefined"&&calClient===r.id&&document.querySelector(".client-layout");
-      if(!alOpen)openClient(r.id,{dag:r.dag,reacties:r.reacties});
+      if(!alOpen)openClient(r.id,{dag:r.dag,reacties:r.reacties,panel:r.data?"data":null});
+      else if(r.data)renderClient("data"); // #klant/<id>/data: het kopje Data (testdata van deze klant)
       else if(r.dag&&typeof histGaNaar==="function"){
         // Klant staat al open (bijv. link in dezelfde tab of terug/vooruit): alleen naar die dag
         histGaNaar(r.dag);

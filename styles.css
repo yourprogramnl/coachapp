@@ -1247,3 +1247,14 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .td-f-acties{display:flex;gap:8px;align-items:center;margin-top:12px}
 .td-danger{color:var(--td-dev)!important;border-color:#f3b4b4!important}
 @media (max-width:600px){.td-grid{grid-template-columns:1fr}.td-cats{grid-template-columns:1fr}}
+
+/* Eén atleet: naamkeuze in Data › Atleten, of het kopje Data in het klantdossier (8 okt 2026) */
+.td-grid.td-single{grid-template-columns:minmax(0,1fr);max-width:1040px}
+.td-klant{padding:16px 20px 28px}
+.td-klant .td-toolbar{margin-bottom:10px}
+.td-klant .td-count{margin-left:0}
+.td-klantlink{margin-top:3px}
+.td-klantlink a{color:var(--td-accent-muted);text-decoration:none;font-weight:600}
+.td-klantlink a:hover{text-decoration:underline}
+.td-koppel{max-width:680px}
+.td-koppel .td-form{margin-top:12px}

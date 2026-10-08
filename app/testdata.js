@@ -7,7 +7,9 @@
 // Bewerken schrijft direct naar de database (rpc athlete_testdata_patch) en rekent de
 // kaart meteen opnieuw door.
 
-const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",nieuwOpen:false,bewerk:null,fout:""};
+const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,fout:""};
+// naam = gekozen atleet in de naamkeuze (leeg = iedereen); klant = profiel-id als de kaart
+// in het klantdossier staat (zijbalk > Data), dan tekent tdsGrid alleen die ene kaart.
 
 // Dashboard-testsleutel → sleutel in de ruwe invoer (Michels athletes_input.json).
 const TDS_INPUT_KEY={seal_row:"seal_row_8rm",strict_hspu:"strict_hspu_unbroken",weighted_pullup:"weighted_pullup_extra",clean:"squat_clean"};
@@ -21,7 +23,7 @@ const TDS_TOPICS=["Strength","Weightlifting","Gymnastics","Conditioning","CrossF
 const TDS_NIVEAUS=["Open","Quarterfinal","Semifinal","Games"];
 const TDS_TOPIC_LABEL={Strength:"Strength",Weightlifting:"Weightlifting",Gymnastics:"Gymnastics",Conditioning:"Conditioning",CrossFit:"CrossFit / mixed"};
 const TDS_TOPIC_CLS={Strength:"td-p-strength",Weightlifting:"td-p-weightlifting",Gymnastics:"td-p-gymnastics",Conditioning:"td-p-conditioning",CrossFit:"td-p-crossfit"};
-const TDS_OPEN_KEY="td_open_sections_v1";
+const TDS_OPEN_KEY="td_open_sections_v2"; // v2 (8 okt): iedereen start ingeklapt; open secties worden per atleet onthouden
 
 // ---------- laden ----------
 async function tdsLaad(){
@@ -353,6 +355,7 @@ function tdsKaart(a){
     '<div class="td-head"><div>'+
       '<p class="td-name">'+esc(a.name)+tdsSriBadge(a)+'</p>'+
       '<p class="td-meta"><span>'+(a.bw!=null?esc(a.bw)+" kg":"gewicht onbekend")+esc(ageStr)+'</span> · <span>'+genderStr+'</span>'+(a.target_level?' · <span>doel '+esc(a.target_level)+'</span>':"")+' · <span>bijgewerkt '+esc(a.updated||"–")+'</span></p>'+
+      tdsKlantLink(a)+
     '</div><div class="td-head-r"><span class="td-day">'+esc(a.day||"–")+'</span><button class="td-editbtn" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">'+(TDS.bewerk===a.name?"Sluiten":"Bewerken")+'</button></div></div>'+
     (a.kapot?'<div class="td-flags">Deze atleet kon niet doorgerekend worden (controleer de ingevoerde waarden).</div>':"")+
     bewerk+
@@ -375,6 +378,7 @@ function tdsKaart(a){
 
 // ---------- pagina ----------
 function tdsRender(h){
+  TDS.klant=null; // op de Data-pagina, niet in het klantdossier
   if(!TDS.geladen){h.innerHTML='<div class="spin">Laden…</div>';return;}
   if(TDS.fout){h.innerHTML='<div class="panel" style="padding:22px"><b>Dashboard laden mislukt.</b><div class="sm muted" style="margin-top:6px">'+esc(TDS.fout)+'</div><button class="btn sm" style="margin-top:12px" onclick="TDS.geladen=false;dataZetTab(\'atleten\')">Opnieuw proberen</button></div>';return;}
   const lijst=tdsLijst();
@@ -382,6 +386,7 @@ function tdsRender(h){
   h.innerHTML='<div class="td-wrap">'+
     '<div class="td-toolbar" id="td-dagen">'+dagen.map(d=>'<button class="td-chip'+(d===TDS.dag?" on":"")+'" data-dag="'+esc(d)+'" onclick="tdsDag(this.dataset.dag)">'+esc(d)+'</button>').join("")+'</div>'+
     '<div class="td-toolbar">'+
+      '<select class="lid-in" id="td-naam" style="width:auto;max-width:240px" onchange="tdsNaam(this.value)"></select>'+
       '<input type="search" class="lid-in" style="min-width:200px" placeholder="Zoek op naam…" value="'+esc(TDS.zoek)+'" oninput="tdsZoek(this.value)">'+
       '<select class="lid-in" style="width:auto" onchange="tdsSort(this.value)">'+
         [["name","Sorteer: naam"],["overall_desc","Sorteer: score (hoog→laag)"],["overall_asc","Sorteer: score (laag→hoog)"],["filled_desc","Sorteer: meest compleet"]].map(o=>'<option value="'+o[0]+'"'+(TDS.sort===o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+
@@ -395,7 +400,11 @@ function tdsRender(h){
     '<div class="td-grid" id="td-grid"></div><div class="td-leeg" id="td-leeg" style="display:none">Geen atleten gevonden.</div>'+
   '</div>';
   tdsGrid();
-  const grid=document.getElementById("td-grid");
+  tdsGridListeners(document.getElementById("td-grid"));
+}
+// Klik-, invoer- en uitklapgedrag van de kaarten (ook gebruikt in het klantdossier).
+function tdsGridListeners(grid){
+  if(!grid||grid.dataset.lst)return;grid.dataset.lst="1";
   grid.addEventListener("click",e=>{
     const b=e.target.closest(".td-sri-click");if(!b)return;
     const card=b.closest(".td-card");const panel=card&&card.querySelector(".td-sri-train");if(!panel)return;
@@ -409,20 +418,32 @@ function tdsRender(h){
   },true);
 }
 function tdsGrid(){
+  if(TDS.klant){tdsKlantGrid();return;} // kopje Data in het klantdossier: alleen die ene kaart
   const grid=document.getElementById("td-grid"),leeg=document.getElementById("td-leeg");if(!grid)return;
   const z=TDS.zoek.trim().toLowerCase();
-  let list=tdsLijst().filter(a=>(TDS.dag==="Alle"||a.day===TDS.dag)&&(!z||a.name.toLowerCase().includes(z)));
+  // Naamkeuze: één atleet op volle breedte; anders de dag- en zoekfilters.
+  const een=(TDS.naam&&TDS.athletes[TDS.naam])?TDS.athletes[TDS.naam]:null;
+  grid.classList.toggle("td-single",!!een);
+  let list=een?[een]:tdsLijst().filter(a=>(TDS.dag==="Alle"||a.day===TDS.dag)&&(!z||a.name.toLowerCase().includes(z)));
   if(TDS.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name));
   if(TDS.sort==="overall_desc")list.sort((a,b)=>(b.overall??-1)-(a.overall??-1));
   if(TDS.sort==="overall_asc")list.sort((a,b)=>(a.overall??999)-(b.overall??999));
   if(TDS.sort==="filled_desc")list.sort((a,b)=>b.filled-a.filled);
-  const c=document.getElementById("td-count");if(c)c.textContent=list.length+" atleten";
+  const c=document.getElementById("td-count");if(c)c.textContent=list.length===1?"1 atleet":list.length+" atleten";
   if(!list.length){grid.innerHTML="";leeg.style.display="block";}
   else{leeg.style.display="none";grid.innerHTML=list.map(tdsKaart).join("");}
-  tdsOpenToepassen();tdsAllesKnop();
+  tdsOpenToepassen();tdsAllesKnop();tdsNaamSelectVul();
 }
-function tdsDag(d){TDS.dag=d;document.querySelectorAll("#td-dagen .td-chip").forEach(b=>b.classList.toggle("on",b.dataset.dag===d));tdsGrid();}
-function tdsZoek(v){TDS.zoek=v;tdsGrid();}
+function tdsDag(d){TDS.dag=d;TDS.naam="";document.querySelectorAll("#td-dagen .td-chip").forEach(b=>b.classList.toggle("on",b.dataset.dag===d));tdsGrid();}
+function tdsZoek(v){TDS.zoek=v;TDS.naam="";tdsGrid();}
+// Naamkeuze (verzoek Stefan 8 okt): één atleet kiezen in plaats van scrollen door iedereen.
+function tdsNaam(v){TDS.naam=v||"";if(TDS.naam){TDS.zoek="";const z=document.querySelector("#data-inhoud input[type=search]");if(z)z.value="";}tdsGrid();}
+function tdsNaamSelectVul(){
+  const s=document.getElementById("td-naam");if(!s)return;
+  const namen=tdsLijst().map(a=>a.name).sort((a,b)=>a.localeCompare(b));
+  s.innerHTML='<option value="">Alle atleten</option>'+namen.map(n=>'<option value="'+esc(n)+'"'+(n===TDS.naam?" selected":"")+'>'+esc(n)+'</option>').join("");
+  if(!namen.includes(TDS.naam))s.value="";
+}
 function tdsSort(v){TDS.sort=v;tdsGrid();}
 // Open/dicht per atleet + sectie onthouden (localStorage), zoals in Michels dashboard.
 function tdsOpenLaad(){try{return JSON.parse(localStorage.getItem(TDS_OPEN_KEY)||"{}");}catch(e){return {};}}
@@ -528,6 +549,7 @@ function tdsBewerkForm(a){
       '<label>Leeftijd<input class="lid-in" id="td-f-age" value="'+esc(inp.age??"")+'"></label>'+
       '<label>Doelniveau'+sel("td-f-level",TDS_NIVEAUS.map(n=>[n,n]),inp.target_level||"Quarterfinal")+'</label>'+
       '<label style="grid-column:1/-1">Bijgewerkt (datum + bron)<input class="lid-in" id="td-f-updated" value="'+esc(inp.updated||"")+'"></label>'+
+      '<label style="grid-column:1/-1">Klant in de app'+tdsKlantSelect(a)+'</label>'+
     '</div>'+
     '<div class="td-f-h">Prioriteiten (coach-ranking, 1 = belangrijkst)</div>'+rijen+
     '<div class="td-f-h">Accessory / special strength</div>'+
@@ -549,6 +571,7 @@ async function tdsBewaar(id){
   const bw=num(v("td-f-bw")),age=num(v("td-f-age"));
   if(bw===undefined||age===undefined){toast("Gewicht en leeftijd moeten getallen zijn");return;}
   const zet=(k,val)=>{if(val===null||val===""||val===undefined)remove.push(k);else patch[k]=val;};
+  if(!v("td-f-day")){toast("Kies een dag (trainingsdag of groep)");return;} // build() eist een dag
   zet("day",v("td-f-day"));patch.gender=v("td-f-gender")||"M";zet("bw",bw);zet("age",age);zet("target_level",v("td-f-level"));zet("updated",v("td-f-updated"));
   const tp=[];for(let i=0;i<5;i++){const cat=v("td-f-tpcat"+i),focus=v("td-f-tpfocus"+i);if(cat&&focus)tp.push({cat,focus});}
   zet("top_priorities",tp.length?tp:null);
@@ -563,7 +586,12 @@ async function tdsBewaar(id){
     if(TDS.athletes[naam]){toast("Er bestaat al een atleet met deze naam");return;}
     const u=await db.from("athlete_testdata").update({name:naam}).eq("id",id);
     if(u.error){toast("Naam wijzigen mislukt: "+(u.error.message||""));return;}
-    delete TDS.athletes[row.name];row.name=naam;TDS.bewerk=naam;
+    delete TDS.athletes[row.name];if(TDS.naam===row.name)TDS.naam=naam;row.name=naam;TDS.bewerk=naam;
+  }
+  // Koppeling aan een klant in de app (kolom profile_id, los van de jsonb-invoer).
+  const klantSel=document.getElementById("td-f-klant");
+  if(klantSel&&!klantSel.disabled&&(klantSel.value||null)!==(row.profile_id||null)){
+    if(!(await tdsZetKlant(row,klantSel.value)))return;
   }
   const ok=await tdsPatch(id,patch,remove);
   if(!ok)return;
@@ -594,7 +622,8 @@ async function tdsNieuwOpslaan(){
   const name=v("td-n-name");if(!name){toast("Vul een naam in");return;}
   if(TDS.athletes[name]){toast("Er bestaat al een atleet met deze naam");return;}
   const input={gender:v("td-n-gender")||"M",updated:tdsVandaag()+" (aangemaakt in dashboard)",target_level:"Quarterfinal"};
-  if(v("td-n-day"))input.day=v("td-n-day");
+  if(!v("td-n-day")){toast("Kies een dag (trainingsdag of groep)");return;} // build() eist een dag
+  input.day=v("td-n-day");
   const bw=v("td-n-bw");if(bw){const n=Number(bw.replace(",","."));if(isNaN(n)){toast("Gewicht moet een getal zijn");return;}input.bw=n;}
   const company=ME.profile&&ME.profile.company_id;
   const q=await db.from("athlete_testdata").insert({company_id:company,name,input}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
@@ -602,4 +631,104 @@ async function tdsNieuwOpslaan(){
   TDS.rows.push(q.data);tdsZetRij(q.data);TDS.nieuwOpen=false;TDS.zoek="";TDS.dag="Alle";
   toast("Atleet toegevoegd");
   const h=document.getElementById("data-inhoud");if(h)tdsRender(h);
+}
+
+// ---------- koppeling aan een klant in de app (athlete_testdata.profile_id) ----------
+// Michels atleten staan los van de accounts in de app; de coach koppelt ze met de hand
+// (automatisch op naam lukt niet: 1 van de 43 namen komt overeen met een account).
+function tdsKlantNaam(id){
+  const c=(typeof coachClients!=="undefined"?coachClients:[]).find(x=>x.id===id);
+  return c?([c.first_name,c.last_name].filter(Boolean).join(" ")||c.email||""):"";
+}
+function tdsKlantLink(a){
+  if(!a.profile_id)return "";
+  const naam=tdsKlantNaam(a.profile_id);
+  if(!naam)return '<p class="td-meta td-klantlink">Gekoppeld aan een klant van een andere coach</p>';
+  if(TDS.klant)return ""; // in het klantdossier zelf is de link overbodig
+  return '<p class="td-meta td-klantlink"><a href="#klant/'+esc(a.profile_id)+'/data" onclick="tdsNaarKlant(event,\''+esc(a.profile_id)+'\')">Klant in de app: '+esc(naam)+' ›</a></p>';
+}
+// Keuzelijst in het bewerkformulier: klanten van dit bedrijf; wie al aan een andere atleet hangt staat grijs.
+function tdsKlantSelect(a){
+  const cl=(typeof coachClients!=="undefined"?coachClients:[]).filter(c=>!c.archived).slice().sort((x,y)=>tdsKlantNaam(x.id).localeCompare(tdsKlantNaam(y.id)));
+  const bezet=id=>{const r=TDS.rows.find(r=>r.profile_id===id&&r.id!==a.id);return r?r.name:null;};
+  let opts='<option value="">– niet gekoppeld –</option>',gevonden=false;
+  for(const c of cl){
+    const b=bezet(c.id),sel=a.profile_id===c.id;if(sel)gevonden=true;
+    opts+='<option value="'+esc(c.id)+'"'+(sel?" selected":"")+(b?" disabled":"")+'>'+esc(tdsKlantNaam(c.id))+(b?' (gekoppeld aan '+esc(b)+')':"")+'</option>';
+  }
+  if(a.profile_id&&!gevonden)return '<select class="lid-in" id="td-f-klant" disabled><option selected>(klant van een andere coach)</option></select>';
+  return '<select class="lid-in" id="td-f-klant">'+opts+'</select>';
+}
+async function tdsZetKlant(row,profileId){
+  const u=await db.from("athlete_testdata").update({profile_id:profileId||null}).eq("id",row.id);
+  if(u.error){toast("Koppelen mislukt: "+(u.error.message||""));return false;}
+  row.profile_id=profileId||null;tdsZetRij(row);return true;
+}
+async function tdsNaarKlant(ev,id){if(ev)ev.preventDefault();if(typeof openClient!=="function")return;await openClient(id,{panel:"data"});}
+function tdsNaarDashboard(name){TDS.naam=name;TDS.klant=null;if(typeof dataTab!=="undefined")dataTab="atleten";if(typeof coachGo==="function")coachGo("data");}
+
+// ---------- kopje Data in het klantdossier (zijbalk > Data): alleen de kaart van deze klant ----------
+// Verzoek Stefan 8 okt: de coach moet vanuit het dossier snel bij de testdata van die ene
+// klant kunnen, zonder langs Data › Atleten met iedereen. Zelfde kaart, zelfde bewerkfuncties.
+async function tdsKlantRender(){
+  const m=document.getElementById("cmain");if(!m)return;
+  const p=(typeof coachClients!=="undefined"?coachClients:[]).find(x=>x.id===calClient);if(!p)return;
+  TDS.klant=calClient;TDS.bewerk=null;
+  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="tdsKlantTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">Data</span><span class="sm muted" style="margin-left:auto">Testdata, normen en prioriteiten van '+naamVan(p)+'</span></div>'+
+    '<div class="td-wrap td-klant"><div class="td-toolbar" id="td-klant-bar"></div><div class="td-grid td-single" id="td-grid"><div class="spin">Laden…</div></div></div>';
+  if(!TDS.geladen)await tdsLaad();
+  if(TDS.klant!==calClient||activePanel!=="data")return; // intussen ergens anders heen geklikt
+  tdsKlantGrid();
+}
+function tdsKlantTerug(){TDS.klant=null;if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient);renderClient("kalender");}
+function tdsKlantRij(){return TDS.rows.find(r=>r.profile_id===TDS.klant)||null;}
+function tdsKlantGrid(){
+  const grid=document.getElementById("td-grid"),bar=document.getElementById("td-klant-bar");if(!grid)return;
+  const p=(typeof coachClients!=="undefined"?coachClients:[]).find(x=>x.id===TDS.klant)||{};
+  if(TDS.fout){if(bar)bar.innerHTML="";grid.innerHTML='<div class="td-card"><b>Dashboard laden mislukt.</b><div class="td-meta" style="margin-top:6px">'+esc(TDS.fout)+'</div><button class="btn sm" style="margin-top:12px" onclick="TDS.geladen=false;tdsKlantRender()">Opnieuw proberen</button></div>';return;}
+  const row=tdsKlantRij();
+  if(!row){if(bar)bar.innerHTML="";grid.innerHTML=tdsKlantKoppelHtml(p);return;}
+  const a=TDS.athletes[row.name];
+  if(bar)bar.innerHTML='<button class="td-chip" id="td-alles" onclick="tdsAlles()">Alles uitklappen</button><span class="td-count"></span><button class="btn ghost sm" onclick="tdsNaarDashboard(\''+esc(row.name).replace(/'/g,"\\'")+'\')">Bekijk in Data › Atleten</button>';
+  grid.innerHTML=tdsKaart(a);
+  tdsGridListeners(grid);tdsOpenToepassen();tdsAllesKnop();
+}
+// Nog niet gekoppeld: bestaande atleet kiezen (zelfde naam staat alvast klaar) of een nieuwe aanmaken.
+function tdsKlantKoppelHtml(p){
+  const naam=[p.first_name,p.last_name].filter(Boolean).join(" ");
+  const vrij=TDS.rows.filter(r=>!r.profile_id).map(r=>r.name).sort((a,b)=>a.localeCompare(b));
+  const sug=vrij.find(n=>n.toLowerCase()===naam.toLowerCase())||"";
+  const g=String(p.gender||"").toLowerCase(),gender=(g==="man"||g==="m")?"M":((g==="vrouw"||g==="f"||g==="v")?"F":"");
+  return '<div class="td-card td-koppel">'+
+    '<p class="td-name">Nog geen atleet gekoppeld</p>'+
+    '<p class="td-meta">Deze klant staat nog niet in Data › Atleten. Koppel een bestaande atleet of maak een nieuwe aan.</p>'+
+    (vrij.length?'<div class="td-form"><div class="td-f-h">Koppel aan bestaande atleet</div><div class="td-f-row"><select class="lid-in" id="td-k-sel" style="flex:1"><option value="">– kies een atleet –</option>'+vrij.map(n=>'<option value="'+esc(n)+'"'+(n===sug?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select><button class="btn sm" onclick="tdsKlantKoppel()">Koppelen</button></div>'+(sug?'<div class="td-hint">Er staat al een atleet met dezelfde naam; die is alvast gekozen.</div>':"")+'</div>':"")+
+    '<div class="td-form"><div class="td-f-h">Nieuwe atleet aanmaken voor deze klant</div><div class="td-f-grid">'+
+      '<label>Naam<input class="lid-in" id="td-k-name" value="'+esc(naam)+'"></label>'+
+      '<label>Geslacht<select class="lid-in" id="td-k-gender"><option value="">– kies –</option><option value="M"'+(gender==="M"?" selected":"")+'>Man</option><option value="F"'+(gender==="F"?" selected":"")+'>Vrouw</option></select></label>'+
+      '<label>Dag<select class="lid-in" id="td-k-day"><option value="">– dag –</option>'+TDS_DAGEN.map(d=>'<option>'+d+'</option>').join("")+'</select></label>'+
+      '<label>Gewicht (kg)<input class="lid-in" id="td-k-bw" placeholder="optioneel"></label>'+
+    '</div><div class="td-f-acties"><button class="btn sm" onclick="tdsKlantNieuw()">Aanmaken</button></div></div>'+
+  '</div>';
+}
+async function tdsKlantKoppel(){
+  const sel=document.getElementById("td-k-sel");const name=sel?sel.value:"";if(!name){toast("Kies een atleet");return;}
+  const row=TDS.rows.find(r=>r.name===name);if(!row)return;
+  if(!(await tdsZetKlant(row,TDS.klant)))return;
+  toast("Gekoppeld");tdsKlantGrid();
+}
+async function tdsKlantNieuw(){
+  const v=i=>{const e=document.getElementById(i);return e?e.value.trim():"";};
+  const name=v("td-k-name");if(!name){toast("Vul een naam in");return;}
+  if(TDS.athletes[name]){toast("Er bestaat al een atleet met deze naam");return;}
+  const gender=v("td-k-gender");if(!gender){toast("Kies het geslacht; de normen hangen ervan af");return;}
+  const input={gender,updated:tdsVandaag()+" (aangemaakt in dashboard)",target_level:"Quarterfinal"};
+  if(!v("td-k-day")){toast("Kies een dag (trainingsdag of groep)");return;} // build() eist een dag
+  input.day=v("td-k-day");
+  const bw=v("td-k-bw");if(bw){const n=Number(bw.replace(",","."));if(isNaN(n)){toast("Gewicht moet een getal zijn");return;}input.bw=n;}
+  const p=(typeof coachClients!=="undefined"?coachClients:[]).find(x=>x.id===TDS.klant);
+  const company=(p&&p.company_id)||(ME.profile&&ME.profile.company_id);
+  const q=await db.from("athlete_testdata").insert({company_id:company,name,profile_id:TDS.klant,input}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
+  if(q.error){toast("Toevoegen mislukt: "+(q.error.message||""));return;}
+  TDS.rows.push(q.data);tdsZetRij(q.data);toast("Atleet toegevoegd");tdsKlantGrid();
 }

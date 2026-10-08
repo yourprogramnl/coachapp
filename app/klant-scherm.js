@@ -6,7 +6,7 @@ let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid
 let coachList=[],coachFilterId=null;
 // Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
 let resWid=null;
-const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["bieb","i-book","Bibliotheek",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
+const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["data","i-chart","Data",false],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["bieb","i-book","Bibliotheek",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 async function openClient(id,opts){
   opts=opts||{};
   if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return;
@@ -20,8 +20,9 @@ async function openClient(id,opts){
   const dag=(opts.dag&&/^\d{4}-\d{2}-\d{2}$/.test(opts.dag))?opts.dag:null;
   if(dag){calView="maand";kalRichtOpDag(dag);}
   if(!LIB.geladen)libLaad();
-  setHash("klant/"+id+(dag?"/dag/"+dag+(opts.reacties?"/reacties/"+opts.reacties:""):""));
-  renderClient("kalender");
+  // opts.panel="data": meteen het kopje Data (testdata van deze klant) in plaats van de kalender.
+  setHash("klant/"+id+(opts.panel==="data"?"/data":(dag?"/dag/"+dag+(opts.reacties?"/reacties/"+opts.reacties:""):"")));
+  renderClient(opts.panel==="data"?"data":"kalender");
   const p=coachClients.find(x=>x.id===id);
   if(p)toast("Programma van "+[p.first_name,p.last_name].filter(Boolean).join(" ")+" geopend");
   // Bij een reactie-melding meteen het reactiepaneel van die dag erbij (feedbackronde 4, 29 sep).
@@ -57,6 +58,7 @@ function renderClient(panel){
   vulKlantStats(p);
   if(panel==="kalender")renderMonth();
   else if(panel==="profiel"){pfTab="profiel";renderProfielPagina();}
+  else if(panel==="data"){setHash("klant/"+calClient+"/data");if(typeof tdsKlantRender==="function")tdsKlantRender();} // Michels testdata van alleen deze klant (app/testdata.js)
   else{const lbl=(SIDE.find(s=>s[0]===panel)||[])[2]||"Onderdeel";document.getElementById("cmain").innerHTML='<div style="padding:24px"><h2>'+esc(lbl)+'</h2><div class="card" style="padding:24px;margin-top:10px;max-width:560px"><div class="muted" style="line-height:1.6">Dit onderdeel komt later. We bouwen eerst de kalender en het programmeren helemaal af. Daarna voegen we '+esc(lbl.toLowerCase())+' toe, net als in het ontwerp.</div></div></div>';}
 }
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
