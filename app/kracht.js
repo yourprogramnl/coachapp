@@ -336,6 +336,8 @@ const setsSchoon=t=>String(t||"")
   .replace(/\b(?:rir|rpe)\s*:?\s*\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?(?!\s*(?:kg|kilo|reps?|x))/gi," ") // "rpe 7,5/8" (niet "rir 110kg")
   .replace(/\b\d+\s*rm\b/gi," ")                                                               // "1 rm", "3rm"
   .replace(/\b\d+(?:e|ste|de)\b(?:\s+(?:rep|reps|set|setje|serie|ronde|poging))?/gi," ")       // rangtelwoorden: 2e set, 3de, 1e rep
+  .replace(/\b(?:video|filmpje)s?\s*:?\s+(?:van\s+)?\d+(?:[.,]\d+)?(?:\s*(?:kg|kilo))?(?=\s|$|[.,;)])/gi," ") // "Video 60": verwijst naar de set op video (vóór de set-regels, zodat "video Set 3 34kg" heel blijft)
+  .replace(/\b\d+(?:[.,]\d+)?\s*(?:kg|kilo)?\s*(?:ook\s+)?gefilmd\b/gi," ")                     // "49 ook gefilmd"
   .replace(/(?<![\d.,-]\s*)\b(?:[1-9]|1[0-2])(?=\s*(?:video|filmpje)\b(?!\s+van))/gi," ")         // "5 video" = set 5 op video (niet "71 Filmpje van")
   .replace(/\b(?:gerept|gedaan|gehaald)\s*x\s*(\d{1,2})\b/gi," $1 reps ")                       // "85kg gerept x 3" = 3 reps
   .replace(/\b(?:eerste|tweede|derde|vierde|vijfde|zesde|volgende)\b(?:\s+(?:set|setje|serie|ronde))?\s*:?(?=\s*\d)/gi," # ") // "Eerste set 10", "Tweede 12": # markeert "hier komt een gewicht"
