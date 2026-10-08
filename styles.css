@@ -1308,3 +1308,7 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .klset.fail{color:#e5484d}
 .klset.pr{font-weight:800}
 .res-gelezen{margin-top:3px;font-size:11px;color:#5b6472}
+
+/* Intake-Excel inlezen (stap 4a, 8 okt 2026) */
+.td-intake{margin-bottom:14px;border-color:var(--td-accent)}
+.td-intake .td-table td{padding:3px 6px}
