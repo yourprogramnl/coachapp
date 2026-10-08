@@ -304,7 +304,7 @@ function scoreVakHtml(b){
 function scoreSelWissel(sel){const vak=sel.closest(".scorevak").querySelector(".capvak");if(vak)vak.style.display=sel.value==="time"?"":"none";bouwerDirty=true;}
 function rowOpts(b){return '<div class="f-opts" style="align-items:center;flex-wrap:wrap;gap:8px"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div>'+scoreVakHtml(b)+'</div>';}
 function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-lift="'+esc(b.lift_id||"")+'" data-liftauto="1" data-liftvoor="'+esc(b.exercise||"")+'" data-geenlift="'+(b.lift_scheme&&b.lift_scheme.geen_lift?'1':'0')+'" data-scheme="'+esc(b.lift_scheme?JSON.stringify(b.lift_scheme):"")+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="gtitle-row" style="display:none"><span class="gtlbl">Kaarttitel</span><input class="gtitle" placeholder="bijv. Special Strength" value="'+esc(b.group_title||"")+'"></div><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onblur="liftAuto(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust" oninput="schemaVernieuw(this)">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+liftRowHtml(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
 // Demo-video's op een blok in de bouwer: kleine klikbare tegels (thumbnail +
 // play) mét verwijder-kruisje; komen uit templates of uit Genereer media.
 // Het lid krijgt dezelfde video's in de app. gmTegel/gmRowTegelWeg staan in
@@ -381,7 +381,18 @@ function rowToObj(r){
   const capsel=r.querySelector(".capsel");const cap_score_type=capsel?capsel.value:(r.dataset.capst||"reps");
   const oefening_id=r.dataset.oefid?parseInt(r.dataset.oefid,10):null;const source_blog_workout_id=r.dataset.srcww||null;const id=r.dataset.bid||null;let media=null;try{media=r.dataset.media?JSON.parse(r.dataset.media):null;}catch(e){}
   if(kind==="conditioning")return{id,kind,linked,exercise,color,score_type,timecap_seconds,cap_score_type,source_blog_workout_id,media,notes:(r.querySelector(".f-desc").value||"").trim()};
-  return{id,kind:"exercise",linked,exercise,color,score_type,timecap_seconds,cap_score_type,oefening_id,source_blog_workout_id,media,prescription:r.querySelector(".f-presc").value.trim()};
+  const prescription=r.querySelector(".f-presc").value.trim();
+  // Krachtlog: lift, schema en kaarttitel. Een door de coach aangepast schema
+  // (hand) blijft staan; anders lezen we het vers uit het voorschrift. Een
+  // bewust weggehaalde lift reist mee als geen_lift, zodat de database hem
+  // niet opnieuw invult.
+  const lift_id=r.dataset.lift||null;
+  let lift_scheme=null;try{lift_scheme=r.dataset.scheme?JSON.parse(r.dataset.scheme):null;}catch(e){lift_scheme=null;}
+  if(!(lift_scheme&&lift_scheme.hand))lift_scheme=schemaLees(prescription);
+  if(r.dataset.geenlift==="1")lift_scheme=Object.assign(lift_scheme||{},{geen_lift:true});
+  const gtr=r.querySelector(".gtitle-row"),gti=gtr?gtr.querySelector(".gtitle"):null;
+  const group_title=(gtr&&gtr.style.display!=="none"&&gti&&gti.value.trim())?gti.value.trim():null;
+  return{id,kind:"exercise",linked,exercise,color,score_type,timecap_seconds,cap_score_type,oefening_id,source_blog_workout_id,media,prescription,lift_id,lift_scheme,group_title};
 }
 // Zoeken in de bibliotheek vanuit de bouwer (zoals het ontwerp)
 function exZoek(inp){
@@ -426,6 +437,7 @@ function kiesEx(el,oefId){
   const ch=row.querySelector(".blokchips");if(ch)ch.innerHTML='<span class="vidchip">🎥 '+esc(o.naam)+' <span class="x" onclick="chipWeg(this,event)">✕</span></span>';
   row.querySelector(".f-presc").focus();
   exNotesInject(); // techniek-notitie-kaartje meteen laten meebewegen met de gekozen naam
+  liftAuto(row); // lift uit de gekozen naam (krachtlog)
   toast("Demo-video automatisch gekoppeld, de sporter ziet hem bij de workout");
 }
 function chipWeg(x,ev){
@@ -435,6 +447,125 @@ function chipWeg(x,ev){
   const ch=row.querySelector(".blokchips");if(ch)ch.innerHTML="";
   const cam=row.querySelector(".cam");if(cam)cam.classList.remove("has-video");
   const vid=row.querySelector(".vidpop");if(vid)vid.classList.remove("show");
+}
+// ---------- Lift bij een blok (krachtlog, stap 2, 8 oktober 2026) ----------
+// Elk krachtblok kent zijn lift uit gym_lifts: automatisch uit de naam (zelfde
+// regels als de database, zie app/kracht.js) of door de coach gekozen uit de
+// lijst. Een bewust weggehaalde lift (kruisje) blijft weg: het blok krijgt
+// lift_scheme.geen_lift, zodat de database hem niet opnieuw invult. Onder de
+// chip staat het schema (sets × reps @ kg) dat de app straks gebruikt om de
+// setrijen voor te vullen; de coach kan het corrigeren.
+function liftChipHtml(liftId,naam,geen){
+  if(liftId)return '<span class="vidchip liftchip" title="Lift voor records en krachtlog; klik om te wijzigen"><span class="liftnaam" onclick="liftKiesToon(this)">🏋️ '+esc(naam||"…")+'</span> <span class="x" title="Lift weghalen: dit blok telt dan niet mee voor records" onclick="liftWeg(this,event)">✕</span></span>';
+  return '<span class="demolink liftkoppel" onclick="liftKiesToon(this)">🏋️ '+(geen?"Geen lift (klik om te koppelen)":"Lift koppelen")+'</span>';
+}
+function liftRowHtml(b){
+  const geen=!!(b.lift_scheme&&b.lift_scheme.geen_lift);
+  const scheme=(b.lift_scheme&&b.lift_scheme.hand)?b.lift_scheme:(schemaLees(b.prescription||"")||b.lift_scheme);
+  return '<div class="liftrow">'+liftChipHtml(b.lift_id,b.lift_id?liftNaam(b.lift_id):"",geen)+'<div class="liftdrop exdrop" onclick="event.stopPropagation()"></div></div>'+
+    '<div class="schemarow"'+(b.lift_id?'':' style="display:none"')+'><span class="schemalbl">Schema</span><span class="schematxt">'+esc(schemaTekst(scheme)||"geen schema herkend")+'</span><span class="demolink" onclick="schemaBewerk(this)">aanpassen</span><span class="schemaedit" style="display:none"></span></div>';
+}
+function liftZet(row,l,auto,stil){
+  const was=row.dataset.lift||"";
+  row.dataset.lift=l?l.id:"";
+  row.dataset.liftauto=auto?"1":"0";
+  row.dataset.liftvoor=((row.querySelector(".exn")||{}).value||"").trim(); // naam waarbij deze lift hoort
+  if(l)row.dataset.geenlift="0";
+  const host=row.querySelector(".liftrow");
+  if(host)host.innerHTML=liftChipHtml(l?l.id:null,l?l.name:"",row.dataset.geenlift==="1")+'<div class="liftdrop exdrop" onclick="event.stopPropagation()"></div>';
+  const sr=row.querySelector(".schemarow");if(sr)sr.style.display=l?"":"none";
+  if(l)schemaVernieuw(row);
+  if(!stil&&(l?l.id:"")!==was)bouwerDirty=true;
+}
+// Automatisch koppelen op naam: bij het verlaten van het naamveld, bij kiezen
+// uit de bibliotheek en bij het openen van de bouwer (stil, zonder "vies").
+function liftAuto(el,stil){
+  const row=el&&el.closest?el.closest(".exrow"):el;if(!row||row.dataset.kind!=="exercise")return;
+  if(row.dataset.geenlift==="1")return;
+  const naam=((row.querySelector(".exn")||{}).value||"").trim();
+  if(row.dataset.lift&&(row.dataset.liftauto==="0"||row.dataset.liftvoor===naam)){
+    // Lift staat al (door de coach gekozen, of de naam is niet veranderd): nooit
+    // stilletjes overschrijven; alleen de chipnaam verversen als de lijst nog laadde.
+    const sp=row.querySelector(".liftnaam");
+    if(sp&&/…$/.test(sp.textContent))liftsLaad().then(()=>{const l=liftVan(row.dataset.lift);if(l&&document.contains(row))liftZet(row,l,row.dataset.liftauto!=="0",true);});
+    return;
+  }
+  liftsLaad().then(()=>{
+    if(!document.contains(row))return;
+    const l=liftMatch(naam);
+    if((l?l.id:"")===(row.dataset.lift||"")){row.dataset.liftvoor=naam;return;}
+    liftZet(row,l,true,stil);
+  });
+}
+function liftAutoAlle(){document.querySelectorAll("#exrows .exrow").forEach(r=>liftAuto(r,true));}
+function liftWeg(x,ev){
+  ev.stopPropagation();
+  const row=x.closest(".exrow");
+  row.dataset.geenlift="1";
+  liftZet(row,null,false,false);
+  toast("Lift weggehaald: dit blok telt niet mee voor records en de krachtlog");
+}
+function liftKiesToon(el){
+  const row=el.closest(".exrow"),drop=row.querySelector(".liftdrop");if(!drop)return;
+  drop.innerHTML='<div class="hd">Lift kiezen'+dropXHtml("liftDropWeg")+'</div><div style="padding:4px 10px 6px"><input class="liftzoek" placeholder="Zoek een lift…" oninput="liftKiesZoek(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();liftDropWeg(this);}" autocomplete="off"></div><div class="liftlijst"></div>';
+  drop.classList.add("show");
+  const inp=drop.querySelector(".liftzoek");
+  liftsLaad().then(()=>{if(document.contains(inp))liftKiesZoek(inp);});
+  if(inp)inp.focus();
+}
+function liftDropWeg(el){const d=el.closest(".liftdrop");if(d)d.classList.remove("show");}
+function liftKiesZoek(inp){
+  const drop=inp.closest(".liftdrop"),host=drop.querySelector(".liftlijst");if(!host)return;
+  const v=liftNorm(inp.value)||"";
+  const hits=LIFTS.lijst.filter(l=>!v||(liftNorm(l.name)||"").includes(v)||(l.aliases||[]).some(a=>(liftNorm(a)||"").includes(v)));
+  const groepen={};hits.forEach(l=>{const k=l.company_id?"gym":(l.category||"other");(groepen[k]=groepen[k]||[]).push(l);});
+  const volgorde=["gym","squats","deadlifts","presses","cleans","snatches","jerks","olympic","other"];
+  host.innerHTML=volgorde.filter(k=>groepen[k]).map(k=>'<div class="hd" style="text-transform:none;letter-spacing:0">'+esc(LIFT_CAT_NL[k]||k)+'</div>'+groepen[k].map(l=>'<div class="exopt" onclick="event.stopPropagation();liftKiesKies(this,\''+l.id+'\')"><div><div class="en">'+esc(l.name)+'</div>'+(l.metric_name?'<div class="ep">Metingen &amp; PR\'s: '+esc(l.metric_name)+'</div>':'')+'</div></div>').join("")).join("")||'<div class="hd" style="text-transform:none;letter-spacing:0">Geen lift gevonden</div>';
+}
+function liftKiesKies(el,id){
+  const row=el.closest(".exrow");const l=liftVan(id);if(!l)return;
+  row.dataset.geenlift="0";
+  liftZet(row,l,false,false);
+  const d=row.querySelector(".liftdrop");if(d)d.classList.remove("show");
+}
+// ---------- Schema (sets × reps @ kg) uit het voorschrift ----------
+function schemaUitRij(row){let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}return s;}
+function schemaVernieuw(el){
+  const row=el&&el.closest?el.closest(".exrow"):el;if(!row)return;
+  const huidig=schemaUitRij(row);
+  if(huidig&&huidig.hand)return; // door de coach aangepast: niet overschrijven
+  const s=schemaLees((row.querySelector(".f-presc")||{}).value||"");
+  row.dataset.scheme=s?JSON.stringify(s):"";
+  const txt=row.querySelector(".schematxt");if(txt)txt.textContent=schemaTekst(s)||"geen schema herkend";
+}
+function schemaBewerk(el){
+  const row=el.closest(".exrow"),box=row.querySelector(".schemaedit");if(!box)return;
+  if(box.style.display!=="none"){box.style.display="none";return;}
+  const s=schemaUitRij(row)||schemaLees((row.querySelector(".f-presc")||{}).value||"")||{};
+  const v=k=>s[k]==null?"":String(s[k]).replace(".",",");
+  box.innerHTML=[["sets","sets",3],["reps","reps",6],["kg","kg",5],["pct","%",3],["tempo","tempo",5],["rust","rust",7]].map(([k,l,w])=>'<label>'+l+' <input class="sch-'+k+'" size="'+w+'" value="'+esc(k==="reps"&&s.reps_lijst?s.reps_lijst.join("-"):v(k))+'" oninput="schemaInputWijzig(this)"></label>').join("")+
+    '<span class="demolink" onclick="schemaReset(this)">herken opnieuw</span>';
+  box.style.display="";
+}
+function schemaInputWijzig(inp){
+  const row=inp.closest(".exrow"),box=row.querySelector(".schemaedit");
+  const g=k=>((box.querySelector(".sch-"+k)||{}).value||"").trim();
+  const s={hand:true};
+  const sets=parseInt(g("sets"),10);if(sets>0)s.sets=sets;
+  const reps=g("reps");if(reps){if(/^\d+$/.test(reps))s.reps=parseInt(reps,10);else if(/^\d+(?:-\d+){2,}$/.test(reps))s.reps_lijst=reps.split("-").map(x=>parseInt(x,10));else s.reps=reps;}
+  const kg=parseFloat(g("kg").replace(",","."));if(!isNaN(kg)&&kg>0)s.kg=kg;
+  const pct=parseInt(g("pct"),10);if(pct>0)s.pct=pct;
+  if(g("tempo"))s.tempo=g("tempo").toUpperCase();
+  if(g("rust"))s.rust=g("rust");
+  row.dataset.scheme=JSON.stringify(s);
+  const txt=row.querySelector(".schematxt");if(txt)txt.textContent=schemaTekst(s)||"geen schema";
+  bouwerDirty=true;
+}
+function schemaReset(el){
+  const row=el.closest(".exrow");row.dataset.scheme="";
+  schemaVernieuw(row);
+  const box=row.querySelector(".schemaedit");if(box)box.style.display="none";
+  bouwerDirty=true;
 }
 // Gedeelde inhoud van de video-popover (oefening én warming-up/cooldown gebruiken dezelfde).
 function vidPopInner(naam,o){
@@ -627,6 +758,8 @@ function relabel(){
   let groups=[];
   rows.forEach((r,i)=>{if(i>0&&r.dataset.linked==="1"){groups[groups.length-1].push(r);}else{groups.push([r]);}});
   groups.forEach((g,gi)=>{const L=String.fromCharCode(65+gi);g.forEach((r,pos)=>{const bd=r.querySelector(".lbl-badge");if(bd)bd.textContent=g.length>1?L+(pos+1):L;});});
+  // Kaarttitel alleen op het eerste blok van een superset (de app toont de groep als één kaart).
+  groups.forEach(g=>{g.forEach((r,pos)=>{const gt=r.querySelector(".gtitle-row");if(gt)gt.style.display=(pos===0&&g.length>1)?"":"none";});});
   // superset-cirkels tussen de blokken (zoals het ontwerp)
   rows.forEach((r,i)=>{
     if(i===rows.length-1)return;
@@ -637,6 +770,7 @@ function relabel(){
     d.onclick=ev=>{ev.stopPropagation();const nxt=rows[i+1];const on=nxt.dataset.linked!=="1";nxt.dataset.linked=on?"1":"0";nxt.classList.toggle("linked",on);relabel();};
     r.parentNode.insertBefore(d,rows[i+1]);
   });
+  liftAutoAlle(); // liftchips en schema's bijwerken (krachtlog)
 }
 function delRow(btn){btn.closest(".exrow").remove();relabel();bouwerDirty=true;}
 // Blok omhoog/omlaag in de bouwer (pijltjes in de blok-kop). Tussen de rijen
@@ -1072,7 +1206,7 @@ async function dropBlokOpKaart(ev,wid){
       await db.from("result_media").update({workout_id:wid}).eq("block_id",o.id);
     }catch(e){}
   }else{
-    const{error}=await db.from("blocks").insert({workout_id:wid,kind:o.kind,label,linked:false,exercise:o.exercise,prescription:o.prescription||null,notes:o.notes||null,sort,color:o.color||null,score_type:o.score_type||"text",oefening_id:o.oefening_id||null,source_blog_workout_id:o.source_blog_workout_id||null,media:o.media||null});
+    const{error}=await db.from("blocks").insert({workout_id:wid,kind:o.kind,label,linked:false,exercise:o.exercise,prescription:o.prescription||null,notes:o.notes||null,sort,color:o.color||null,score_type:o.score_type||"text",oefening_id:o.oefening_id||null,source_blog_workout_id:o.source_blog_workout_id||null,media:o.media||null,lift_id:o.lift_id||null,lift_scheme:o.lift_scheme||null,group_title:o.group_title||null});
     if(error){toast(error.message||"Verplaatsen mislukt");return;}
   }
   row.remove();relabel();bouwerDirty=true;
@@ -1104,16 +1238,29 @@ async function dropDay(ev,ds){
 function biebDragItem(ev){try{const t=ev.dataTransfer&&ev.dataTransfer.types;return !!(t&&Array.from(t).includes(BIEB_MIME));}catch(e){return false;}}
 function biebLees(ev){try{const s=ev.dataTransfer.getData(BIEB_MIME);return s?JSON.parse(s):null;}catch(e){return null;}}
 // Van een kaart naar de velden van een blok (zelfde vorm als insInvoegen).
-function biebBlokVan(item){
-  if(item.soort==="oefening")return {kind:"exercise",exercise:item.naam,prescription:null,color:null,score_type:"text",oefening_id:item.id||null,media:null};
+// Bibliotheek-item -> blokken. Alleen een echte template (bron "tpl") mag
+// gesplitst worden in een superset; een wedstrijdworkout of benchmark komt
+// altijd als één blok (wel met liftherkenning op de naam, die vindt daar niets).
+function itemBlokken(o){
+  if(o.bron&&o.bron!=="tpl"){
+    const kleur=(typeof TPLKLEUREN!=="undefined"&&TPLKLEUREN.includes(o.kleur))?o.kleur:null;
+    const l=liftMatch(o.naam);
+    return [{kind:"exercise",exercise:o.naam,prescription:o.instructies||null,color:kleur,score_type:"text",media:(o.media&&o.media.length)?o.media:null,linked:false,lift_id:l?l.id:null,lift_scheme:schemaLees(o.instructies||""),group_title:null}];
+  }
+  return tplBlokken(o);
+}
+// Geeft een lijst blokken terug: één blok, of twee gekoppelde bij een superset-
+// template (krachtlog: de app toont die als één kaart met twee invulbalken).
+function biebBlokkenVan(item){
+  if(item.soort==="oefening"){const l=liftMatch(item.naam);return [{kind:"exercise",exercise:item.naam,prescription:null,color:null,score_type:"text",oefening_id:item.id||null,media:null,linked:false,lift_id:l?l.id:null,lift_scheme:null,group_title:null}];}
   // Weekworkout als één blok: via source_blog_workout_id logt het lid hem met
   // Rx/Scaled en komt hij op het gedeelde leaderboard (zelfde als insWeekwod in de bouwer).
-  if(item.soort==="weekworkout")return {kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:"blue",score_type:item.score_type||"text",source_blog_workout_id:item.id,media:(item.media&&item.media.length)?item.media:null};
-  return {kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:TPLKLEUREN.includes(item.kleur)?item.kleur:null,score_type:"text",media:(item.media&&item.media.length)?item.media:null};
+  if(item.soort==="weekworkout")return [{kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:"blue",score_type:item.score_type||"text",source_blog_workout_id:item.id,media:(item.media&&item.media.length)?item.media:null,linked:false,lift_id:null,lift_scheme:null,group_title:null}];
+  return itemBlokken({naam:item.naam,instructies:item.tekst||"",kleur:item.kleur,media:item.media,onderdelen:item.onderdelen||null,bron:item.bron||"tpl"});
 }
 function biebInBouwer(item){
   const host=document.getElementById("exrows");if(!host)return false;
-  host.insertAdjacentHTML("beforeend",exRow(biebBlokVan(item)));relabel();groei();bouwerDirty=true;
+  host.insertAdjacentHTML("beforeend",biebBlokkenVan(item).map(exRow).join(""));relabel();groei();bouwerDirty=true;
   toast('"'+item.naam+'" onderaan in de bouwer gezet; sla de workout op als je klaar bent');
   return true;
 }
@@ -1137,7 +1284,8 @@ async function biebDropOpDag(item,ds){
   // Lege dag: nieuwe workout met de naam van de kaart en dit als blok A.
   const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:ds,title:item.naam}).select().single();
   if(error){toast(error.message||"Toevoegen mislukt");return;}
-  const{error:be}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:"A",sort:1,linked:false},biebBlokVan(item)));
+  await liftsLaad();
+  const{error:be}=await db.from("blocks").insert(blokkenMetLabels(biebBlokkenVan(item),"A",1).map(b=>Object.assign({workout_id:w.id},b)));
   if(be){toast(be.message||"Toevoegen mislukt");return;}
   toast('"'+item.naam+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');
   renderMonth();
@@ -1148,7 +1296,8 @@ async function biebDropOpWorkout(item,wid){
   const blokken=w.blocks||[];
   const sort=blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1;
   const label=String.fromCharCode(65+Math.min(blokken.length,25));
-  const{error}=await db.from("blocks").insert(Object.assign({workout_id:wid,label,sort,linked:false},biebBlokVan(item)));
+  await liftsLaad();
+  const{error}=await db.from("blocks").insert(blokkenMetLabels(biebBlokkenVan(item),label,sort).map(b=>Object.assign({workout_id:wid},b)));
   if(error){toast(error.message||"Toevoegen mislukt");return;}
   toast('"'+item.naam+'" als blok '+label+' onder "'+(w.title||"workout")+'" gezet');
   renderMonth();
@@ -1585,7 +1734,7 @@ async function pickRest(ev){
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
 function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
-  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null}))};}
+  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
   if(!wos.length){toast("Geen workout op deze dag om te kopiëren");return;}
@@ -1713,19 +1862,21 @@ async function insInvoegen(id){
   }
   if(insDoel==="bouwer"){
     const host=document.getElementById("exrows");
-    if(host){host.insertAdjacentHTML("beforeend",exRow({exercise:o.naam,prescription:o.instructies,color:kleur,media}));relabel();groei();}
+    if(host){await liftsLaad();const blokken=itemBlokken(o);host.insertAdjacentHTML("beforeend",blokken.map(exRow).join(""));relabel();groei();}
     closeIns();toast("Template als blok toegevoegd, pas gerust aan");return;
   }
   if(insDoel==="blogcel"){ // invoegen op de blog-kalender (Blog-sectie)
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:o.naam}).select().single();
     if(error){toast(error.message||"Invoegen mislukt");return;}
-    const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text",media});
+    await liftsLaad();
+    const{error:be}=await db.from("blocks").insert(blokkenMetLabels(itemBlokken(o),"A",1).map(b=>Object.assign({workout_id:w.id},b)));
     if(be){toast(be.message);return;}
     closeIns();toast("Template ingevoegd");await blogHerlaad();return;
   }
   const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:o.naam}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
-  const{error:be}=await db.from("blocks").insert({workout_id:w.id,kind:"exercise",label:"A",exercise:o.naam,prescription:o.instructies||null,sort:1,color:kleur,score_type:"text",media});
+  await liftsLaad();
+  const{error:be}=await db.from("blocks").insert(blokkenMetLabels(itemBlokken(o),"A",1).map(b=>Object.assign({workout_id:w.id},b)));
   if(be){toast(be.message);return;}
   closeIns();toast("Template ingevoegd");renderMonth();
 }
@@ -1744,7 +1895,7 @@ async function insWeekwod(id){
     const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:insBlogDatum,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,source_blog_workout_id:w.id}).select().single();
     if(error){toast(error.message||"Invoegen mislukt");return;}
     if(blocks.length){
-      const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null})));
+      const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null})));
       if(be){toast(be.message);return;}
     }
     closeIns();toast("Weekworkout ingevoegd in het programma");await blogHerlaad();return;
@@ -1752,7 +1903,7 @@ async function insWeekwod(id){
   const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:w.title,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,source_blog_workout_id:w.id}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   if(blocks.length){
-    const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null})));
+    const{error:be}=await db.from("blocks").insert(blocks.map(b=>({workout_id:nw.id,kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null})));
     if(be){toast(be.message);return;}
   }
   closeIns();toast("Weekworkout ingevoegd als eigen kopie; voor het leaderboard logt het lid de weekworkout zelf in de app");renderMonth();
@@ -1764,7 +1915,7 @@ async function insWeekwod(id){
 // Voorheen was dit delete-alles + insert, waardoor elke bewerking door de
 // coach alle resultaten van het lid op die workout wiste.
 async function syncBlocks(wid,rows){
-  const velden=b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null});
+  const velden=b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null});
   const{data:oud,error:oe}=await db.from("blocks").select("id").eq("workout_id",wid);if(oe)throw oe;
   const oudIds=new Set((oud||[]).map(x=>x.id));
   const weg=[...oudIds].filter(id=>!rows.some(b=>b.id===id));
@@ -1783,7 +1934,7 @@ async function saveWorkout(){
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   g("saveW").disabled=true;
   const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown"),warmup_media:gmStripLees("warmup"),cooldown_media:gmStripLees("cooldown")};
-  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null}));
+  const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
   try{
     if(editWid){
       const{error:ue}=await db.from("workouts").update(wf).eq("id",editWid);if(ue)throw ue;

@@ -62,11 +62,12 @@ function ensureLibModals(){
       '<div style="display:flex;gap:8px"><button class="btn" onclick="exOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="exmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="exmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="tplmodal"><div class="box">'+kop("tplmodal-titel","Template bewerken")+
-      '<div class="field"><label>Naam</label><input id="tpl-naam"></div>'+
+      '<div class="field"><label>Naam</label><input id="tpl-naam" oninput="if(!LIB.tplOd)tplOdTeken()"></div>'+
       '<div class="field"><label>Soort</label><select id="tpl-type"><option value="warmup">Warming-up</option><option value="other">Workout</option><option value="cooldown">Cooldown</option></select></div>'+
       '<div class="field"><label>Kleur</label><div class="kleurdots" id="tpl-kleuren"></div></div>'+
-      '<div class="field"><label>Instructies</label><textarea id="tpl-instr" style="min-height:140px"></textarea></div>'+
+      '<div class="field"><label>Instructies</label><textarea id="tpl-instr" style="min-height:140px" oninput="if(!LIB.tplOd)tplOdTeken()"></textarea></div>'+
       '<div id="tpl-media"></div>'+
+      '<div id="tpl-onderdelen" class="field"></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="tplOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="tplmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="tplmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="bmmodal"><div class="box">'+kop("bmmodal-titel","Benchmark toevoegen (Custom)")+
@@ -126,9 +127,10 @@ function libLaad(){
     // pagina's oefeningen tegelijk. Was negen aanroepen na elkaar.
     const KOL="id,naam,youtube_id,video_url,tags,bron";
     const mislukt=()=>{LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';};
+    liftsLaad(); // liftenlijst voor de liftchips in de bouwer (krachtlog)
     const[eerste,tplq,bmq,progq,asgq,compq]=await Promise.all([
       db.from("oefeningen").select(KOL,{count:"exact"}).order("naam").range(0,999),
-      db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media").order("naam"),
+      db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media,onderdelen").order("naam"),
       db.from("benchmarks").select("*").order("naam"),
       db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name"),
       db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks"),
@@ -167,7 +169,7 @@ function tplGroep(naam){
 // dezelfde vorm {bron,id,key,naam,instructies,kleur,type,tags,media,groep,info}.
 // type=null geeft alles (voor het invoegvenster "Alles"); warmup/cooldown alleen templates.
 function libItems(type){
-  const tpl=LIB.tpl.filter(o=>!type||o.type===type).map(o=>({bron:"tpl",id:o.id,key:"tpl:"+o.id,naam:o.naam,instructies:o.instructies||"",kleur:o.kleur,type:o.type,tags:o.tags||[],media:(o.media||[]).filter(m=>m&&m.youtube_id),groep:null,info:""}));
+  const tpl=LIB.tpl.filter(o=>!type||o.type===type).map(o=>({bron:"tpl",id:o.id,key:"tpl:"+o.id,naam:o.naam,instructies:o.instructies||"",kleur:o.kleur,type:o.type,tags:o.tags||[],media:(o.media||[]).filter(m=>m&&m.youtube_id),onderdelen:o.onderdelen||null,groep:null,info:""}));
   if(type&&type!=="other")return tpl;
   // Wedstrijdworkouts: de tabel heeft een rij per divisie (Rx (M), Rx (V), Elite, Masters…).
   // In de lijst wordt dat één kaart per workout: de hoofdversie als tekst, de andere
@@ -310,7 +312,7 @@ function libLijst(behoudKop){
       const klik=o.bron==="tpl"?"tplBewerk("+o.id+")":(o.bron==="bench"?(o.eigen?"bmBewerk('"+o.id+"')":"toast('Deze benchmark staat vast; eigen benchmarks beheer je onder de tab Benchmarks')"):"toast('Wedstrijdworkouts beheer je onder Data › Wedstrijden')");
       return '<div class="trow" style="align-items:flex-start;cursor:pointer" onclick="'+klik+'">'+
         '<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+kleurHex(o.kleur)+'"></span></div>'+
-        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b>'+((o.media||[]).length?' <span class="sm muted" title="'+(o.media||[]).length+' demo-video\'s">🎥 '+(o.media||[]).length+'</span>':'')+(o.info?'<div class="sm muted" style="font-size:11px;margin-top:3px">'+esc(itemSoort(o)+" · "+o.info)+'</div>':'')+'</div>'+
+        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b>'+((o.media||[]).length?' <span class="sm muted" title="'+(o.media||[]).length+' demo-video\'s">🎥 '+(o.media||[]).length+'</span>':'')+(o.bron==="tpl"?tplSplitsBadge(o):"")+(o.info?'<div class="sm muted" style="font-size:11px;margin-top:3px">'+esc(itemSoort(o)+" · "+o.info)+'</div>':'')+'</div>'+
         '<div style="flex:2.6" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
         '<div style="flex:1.2">'+tg+'</div></div>';
     }).join("")||'<div class="cempty">Niets gevonden.</div>';
@@ -567,7 +569,7 @@ async function assignDoen(){
       const datum=ymdPlus(start,(pw.week-1)*7+(pw.day-1));
       const{data:nw,error:we}=await db.from("workouts").insert({company_id:client.company_id||ME.profile.company_id,coach_id:client.coach_id||ME.user.id,client_id:cid,workout_date:datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,audience:"client",assignment_id:asg.id}).select("id").single();
       if(we)throw we;
-      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",oefening_id:b.oefening_id,media:b.media||null}));
+      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
     }
     if(blocksAll.length){const{error:be}=await db.from("blocks").insert(blocksAll);if(be)throw be;}
     closeAssign();toast("Programma toegewezen aan "+naamVan(client)+", staat nu op zijn kalender");
@@ -802,7 +804,7 @@ async function progSaveWorkout(){
   const title=(g("w_title").value||"").trim();
   const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
   const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progEditDay.week,day:progEditDay.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
-  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,media:b.media||null}));
+  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
   try{
     if(progEditWid){
       const{error:ue}=await db.from("program_workouts").update(wf).eq("id",progEditWid);if(ue)throw ue;
@@ -966,6 +968,7 @@ function tplBewerk(id){
   // Werkkopie van de video's (niet het origineel muteren tot Opslaan)
   LIB.tplMedia=(o&&Array.isArray(o.media)?o.media:[]).filter(m=>m&&m.youtube_id).map(m=>({youtube_id:m.youtube_id,titel:m.titel||"Video"}));
   tplMediaRender();
+  tplOnderdelenRender(o);
   const del=document.getElementById("tplmodal-del");
   del.innerHTML=(o&&myRole()==="platform_admin")?'<button class="btn ghost sm" onclick="tplVerwijder()">Verwijderen</button>':"";
   document.getElementById("tplmodal").classList.add("show");
@@ -974,7 +977,7 @@ async function tplOpslaan(){
   const naam=document.getElementById("tpl-naam").value.trim();
   const msg=document.getElementById("tplmodal-msg");
   if(!naam){msg.textContent="Vul een naam in.";msg.className="msg err";return;}
-  const velden={naam,instructies:document.getElementById("tpl-instr").value,type:document.getElementById("tpl-type").value,kleur:LIB.tplKleur,media:(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id)};
+  const velden={naam,instructies:document.getElementById("tpl-instr").value,type:document.getElementById("tpl-type").value,kleur:LIB.tplKleur,media:(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id),onderdelen:tplOnderdelenLees()};
   const wasEdit=!!LIB.editTpl;
   let fout=null;
   if(wasEdit){const{error}=await db.from("templates").update(velden).eq("id",LIB.editTpl);fout=error;}
@@ -983,6 +986,59 @@ async function tplOpslaan(){
   LIB.geladen=false;libModalDicht();toast(wasEdit?"Template bijgewerkt":"Template toegevoegd");
   await libLaad();
   const im=document.getElementById("insmodal");if(im&&im.classList.contains("show"))insRender();
+}
+// ---------- Onderdelen van een superset-template (krachtlog, stap 2) ----------
+// Een template met "(A / B)" in de naam wordt bij invoegen gesplitst in twee
+// gekoppelde blokken (zie tplBlokken in app/kracht.js); de app toont die als
+// één kaart met per oefening een invulbalk. Hier ziet de coach wat de lezer
+// herkent en kan hij de onderdelen zelf instellen als dat misgaat.
+function tplSplitsBadge(o){
+  if(ssNamen(o.naam).length<2&&!(o.onderdelen||[]).length)return "";
+  const bl=tplBlokken(o),n=bl.length;
+  if(n>=2)return ' <span class="sm" style="color:#2a9fce" title="Bij invoegen: één kaart met '+n+' invulbalken (superset)">⇅ '+n+' balken</span>';
+  if(bl[0].group_title)return ' <span class="sm muted" title="Alleen het onderdeel met reps krijgt een invulbalk; een carry of hold blijft tekst">⇅ 1 balk</span>';
+  if(ssOnderdelen(o.naam,o.instructies))return ' <span class="sm muted" title="Alleen carries of holds: geen aparte invulbalk, de sporter logt de kaart als tekst">alleen tekst</span>';
+  return ' <span class="sm" style="color:#e5484d" title="De onderdelen zijn niet herkend uit de tekst; stel ze in via de template-editor">⚠ niet gesplitst</span>';
+}
+function tplOnderdelenRender(o){
+  LIB.tplOd=(o&&Array.isArray(o.onderdelen)&&o.onderdelen.length)?o.onderdelen.map(x=>({naam:x.naam||"",reps:x.reps==null?"":String(x.reps),sets:x.sets||"",tempo:x.tempo||"",rust:x.rust||""})):null;
+  tplOdTeken();
+}
+function tplOdAuto(){return ssOnderdelen(document.getElementById("tpl-naam").value,document.getElementById("tpl-instr").value);}
+function tplOdTeken(){
+  const host=document.getElementById("tpl-onderdelen");if(!host)return;
+  const naam=document.getElementById("tpl-naam").value;
+  const titelOk=ssNamen(naam).length>=2;
+  if(!LIB.tplOd){
+    const auto=titelOk?tplOdAuto():null;
+    let txt;
+    if(!titelOk)txt='<div class="sm muted">Een superset herken je aan de naam, bijv. "Special Strength (Back Squat / Push-ups)". De sporter krijgt dan per oefening een eigen invulbalk op één kaart.</div>';
+    else if(auto)txt='<div class="sm">Automatisch herkend: '+auto.map(x=>'<b>'+esc(x.naam)+'</b>'+(x.maat?' <span class="muted">('+esc(x.maat)+', geen balk)</span>':(x.reps!=null?' <span class="muted">'+esc(String(x.reps))+' reps</span>':''))).join(" · ")+'</div>';
+    else txt='<div class="sm" style="color:#e5484d">Niet herkend uit de tekst. Stel de onderdelen hieronder zelf in.</div>';
+    host.innerHTML='<label>Onderdelen (superset)</label>'+txt+(titelOk?'<div class="demolink" onclick="tplOdZelf()">Zelf instellen</div>':'');
+    return;
+  }
+  host.innerHTML='<label>Onderdelen (superset), handmatig</label>'+LIB.tplOd.map((x,i)=>'<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><input placeholder="Oefening" value="'+esc(x.naam)+'" oninput="tplOdZet('+i+',\'naam\',this.value)" style="flex:2"><input placeholder="reps" value="'+esc(x.reps)+'" oninput="tplOdZet('+i+',\'reps\',this.value)" style="width:58px;flex:none"><input placeholder="sets" value="'+esc(x.sets)+'" oninput="tplOdZet('+i+',\'sets\',this.value)" style="width:48px;flex:none"><input placeholder="tempo" value="'+esc(x.tempo)+'" oninput="tplOdZet('+i+',\'tempo\',this.value)" style="width:58px;flex:none"><input placeholder="rust" value="'+esc(x.rust)+'" oninput="tplOdZet('+i+',\'rust\',this.value)" style="width:64px;flex:none"><span style="cursor:pointer;color:#b3b9c2" title="Onderdeel weghalen" onclick="tplOdWeg('+i+')">✕</span></div>').join("")+
+    '<div style="display:flex;gap:14px"><div class="demolink" onclick="tplOdPlus()">+ Onderdeel</div><div class="demolink" onclick="tplOdAutoTerug()">Terug naar automatisch</div></div>';
+}
+function tplOdZelf(){LIB.tplOd=(tplOdAuto()||[{naam:""},{naam:""}]).map(x=>({naam:x.naam||"",reps:x.reps==null?"":String(x.reps),sets:x.sets||"",tempo:x.tempo||"",rust:x.rust||""}));tplOdTeken();}
+function tplOdZet(i,k,v){if(LIB.tplOd&&LIB.tplOd[i])LIB.tplOd[i][k]=v;}
+function tplOdWeg(i){if(!LIB.tplOd)return;LIB.tplOd.splice(i,1);tplOdTeken();}
+function tplOdPlus(){if(!LIB.tplOd)LIB.tplOd=[];LIB.tplOd.push({naam:"",reps:"",sets:"",tempo:"",rust:""});tplOdTeken();}
+function tplOdAutoTerug(){LIB.tplOd=null;tplOdTeken();}
+// Naar de database: alleen rijen met een naam, minimaal twee; anders automatisch (null).
+function tplOnderdelenLees(){
+  if(!LIB.tplOd)return null;
+  const rijen=LIB.tplOd.filter(x=>(x.naam||"").trim()).map(x=>{
+    const r={naam:x.naam.trim()};
+    const reps=String(x.reps||"").trim();if(reps)r.reps=/^\d+$/.test(reps)?parseInt(reps,10):reps;
+    const sets=parseInt(x.sets,10);if(sets>0)r.sets=sets;
+    if((x.tempo||"").trim())r.tempo=x.tempo.trim().toUpperCase();
+    if((x.rust||"").trim())r.rust=x.rust.trim();
+    r.regel=[reps,r.naam,r.tempo?"@"+r.tempo:""].filter(Boolean).join(" ");
+    return r;
+  });
+  return rijen.length>=2?rijen:null;
 }
 async function tplVerwijder(){
   if(!LIB.editTpl||!confirm("Deze template verwijderen?"))return;
