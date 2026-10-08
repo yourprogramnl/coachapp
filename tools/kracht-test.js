@@ -128,6 +128,7 @@ check("tekst: 17,5 kilo: 12/9",rows(K.setsUitTekst("17,5 kilo: 12/9",{sets:3,rep
 check("tekst: alleen 95 bij 5 sets = 5 rijen",rows(K.setsUitTekst("95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
 check("tekst: tijd en tempo zijn geen gewicht (één gewicht bij 5 sets = 5 rijen)",rows(K.setsUitTekst("3:45 @3010 80 kg",S5)),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["80","5",false]]);
 check("tekst: niets",rows(K.setsUitTekst("ging lekker",S5)),[]);
+check("tekst: reps voor de kilo (10 reps: 57.50 kilo)",rows(K.setsUitTekst("10 reps: 57.50 kilo 8 reps: 67.50 kilo 6 reps: 72.50 kilo 4 reps: 75 kilo",{sets:4,reps_lijst:[10,8,6,4]})),[["57,5","10",false],["67,5","8",false],["72,5","6",false],["75","4",false]]);
 check("setsTekst",K.setsTekst([{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]),"95×5 · 102,5×1 ✗");
 check("setsNaarRec",K.setsNaarRec([{kg:"95",reps:"5",fail:false},{kg:"",reps:"",fail:false},{kg:"102,5",reps:"1",fail:true}]),[{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]);
 check("besteSet slaat mislukt over",K.besteSet([{kg:100,reps:5},{kg:110,reps:1,fail:true},{kg:105,reps:3}]),{kg:105,reps:3});

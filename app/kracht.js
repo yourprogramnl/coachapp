@@ -306,7 +306,7 @@ function besteSet(sets){let b=null;(sets||[]).forEach(s=>{if(s.fail||s.kg==null)
 const SETS_FAIL="ging niet|lukte niet|niet gelukt|niet gehaald|mislukt|gefaald|failed|fail|✗|❌";
 const SETS_TOKEN=new RegExp(
   "(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)?\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)?(?!\\s*%)"+ // A x B
-  "|(\\d+)\\s*(?:reps?|herhalingen)\\s*(?:@|op|met|at)\\s*(\\d+(?:[.,]\\d+)?)"+                  // N reps @ kg
+  "|(\\d+)\\s*(?:reps?|herhalingen)\\s*(?:@|op|met|at|:|=)\\s*(\\d+(?:[.,]\\d+)?)"+                  // N reps @ kg
   "|(\\d+(?:[.,]\\d+)?)\\s*@\\s*(\\d+(?:[.,]\\d+)?)"+                                           // 3@88
   "|(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                      // 95 kg
   "|(\\d+)\\s*(?:reps?|herhalingen)\\b"+                                                        // 10 reps
