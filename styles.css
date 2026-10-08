@@ -1043,3 +1043,31 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 
 /* Warming-up/cooldown kopiëren en plakken: twee links naast elkaar onder het vak */
 .cwrij{display:flex;gap:14px;flex-wrap:wrap}
+
+/* ---------- Bibliotheek in een los venster (app/bieb-venster.js) ---------- */
+body.biebvenster #content{padding:18px 22px 60px}
+.bieb-kop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.bieb-kolknop{display:flex;border:1px solid #e7e9ec;border-radius:8px;overflow:hidden;flex:none}
+.bieb-kolknop button{background:#fff;border:none;padding:7px 12px;font-size:12px;font-weight:600;color:#5d6570;cursor:pointer;font-family:inherit}
+.bieb-kolknop button+button{border-left:1px solid #e7e9ec}
+.bieb-kolknop button.on{background:#171719;color:#fff}
+.bieb-balk{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.bieb-tabs{display:flex;flex-wrap:wrap;gap:4px;background:#eef1f4;border-radius:9px;padding:3px}
+.bieb-tabs button{background:none;border:none;padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:600;color:#5d6570;cursor:pointer;font-family:inherit}
+.bieb-tabs button.on{background:#fff;color:#1d2129;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.bieb-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.bieb-filters .rij{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.bieb-subveld{border:1px solid #e7e9ec;border-radius:999px;padding:4px 12px;font-size:11.5px;font-weight:500;width:150px;outline:none;background:#fff;color:#171719;font-family:inherit}
+.bieb-subveld.aan,.bieb-subveld:focus{border-color:#171719}
+.bieb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;align-items:start}
+.bieb-grid.een{grid-template-columns:1fr}
+.bieb-grid .cempty{grid-column:1/-1}
+.bieb-card{background:#fff;border:1px solid #e7e9ec;border-radius:10px;padding:12px 14px;cursor:grab;user-select:none;transition:box-shadow .12s,transform .12s}
+.bieb-card:hover{box-shadow:0 6px 18px rgba(15,18,22,.08);border-color:#d5d9de}
+.bieb-card:active{cursor:grabbing}
+.bieb-card.dragging{opacity:.55;transform:scale(.98)}
+.bk-kop{display:flex;align-items:flex-start;gap:8px;font-size:13px}
+.bk-dot{width:12px;height:12px;border-radius:50%;flex:none;margin-top:3px}
+.bk-grip{color:#c4c9d0;font-size:13px;letter-spacing:-2px;flex:none;cursor:grab}
+.bk-tekst{margin-top:8px;font-size:12px;line-height:1.45;color:#5d6570;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;padding-right:4px}
+.bk-thumb{width:100%;max-height:150px;object-fit:cover;border-radius:7px;margin-top:8px;display:block;pointer-events:none}

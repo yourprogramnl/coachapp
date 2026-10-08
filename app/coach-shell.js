@@ -116,6 +116,7 @@ function parseHash(){
     return{type:"section",section:"help"};
   }
   if(p[0]==="companies"&&p[1])return{type:"section",section:"companies"}; // fillCompanies leest het id uit de link
+  if(p[0]==="bieb")return{type:"bieb"}; // de bibliotheek in een los venster (app/bieb-venster.js)
   const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
@@ -135,6 +136,7 @@ async function ensureClients(){
 async function routeHash(){
   if(myRole()==="lid")return;
   const r=parseHash();
+  if(r.type==="bieb"){renderBiebVenster();return;}
   if(r.type==="client"){
     await ensureClients();
     if((coachClients||[]).some(x=>x.id===r.id)){

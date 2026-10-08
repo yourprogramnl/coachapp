@@ -6,7 +6,7 @@ let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid
 let coachList=[],coachFilterId=null;
 // Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
 let resWid=null;
-const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
+const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["bieb","i-book","Bibliotheek",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 async function openClient(id,opts){
   opts=opts||{};
   if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return;
@@ -35,7 +35,7 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",coachrx:"openCoachRx()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()"};
+    const acties={assessment:"openAssess()",metrics:"openMx()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",coachrx:"openCoachRx()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()",bieb:"openBiebVenster()"};
     const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
     const later=acties[s[0]]?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
@@ -1043,10 +1043,16 @@ function blokDragStart(ev,el){
   try{if(ev.dataTransfer.setDragImage)ev.dataTransfer.setDragImage(row,20,16);}catch(e){}
 }
 function blokDragEnd(){dragBlokRow=null;document.querySelectorAll(".mcard.dragover").forEach(c=>c.classList.remove("dragover"));}
-function blokDragOver(ev,card){if(!dragBlokRow)return;ev.preventDefault();ev.stopPropagation();card.classList.add("dragover");}
+function blokDragOver(ev,card){if(!dragBlokRow&&!biebDragItem(ev))return;ev.preventDefault();ev.stopPropagation();card.classList.add("dragover");}
 function blokDragLeave(card){card.classList.remove("dragover");}
 async function dropBlokOpKaart(ev,wid){
-  if(!dragBlokRow)return;
+  if(!dragBlokRow){
+    // Kaart uit het bibliotheek-venster losgelaten op een workout-kaart: blok eronder.
+    const item=biebLees(ev);if(!item)return;
+    ev.preventDefault();ev.stopPropagation();
+    document.querySelectorAll(".mcard.dragover").forEach(c=>c.classList.remove("dragover"));
+    await biebDropOpWorkout(item,wid);return;
+  }
   ev.preventDefault();ev.stopPropagation();
   document.querySelectorAll(".mcard.dragover").forEach(c=>c.classList.remove("dragover"));
   const row=dragBlokRow;dragBlokRow=null;
@@ -1071,19 +1077,67 @@ async function dropBlokOpKaart(ev,wid){
   toast('Blok verplaatst naar "'+(target.title||"workout")+'"');
   renderMonth(); // doel-kaart bijwerken; de open bouwer blijft staan (levend element)
 }
-function dragOver(ev,cell){if(!dragWid)return;ev.preventDefault();cell.classList.add("dragover");}
+function dragOver(ev,cell){if(!dragWid&&!biebDragItem(ev))return;ev.preventDefault();cell.classList.add("dragover");}
 function dragLeave(cell){cell.classList.remove("dragover");}
 async function dropDay(ev,ds){
   ev.preventDefault();
   document.querySelectorAll(".mday.dragover").forEach(c=>c.classList.remove("dragover"));
   const wid=dragWid;dragWid=null;
-  if(!wid)return;
+  if(!wid){
+    // Kaart uit het bibliotheek-venster losgelaten op een dag
+    const item=biebLees(ev);if(item)await biebDropOpDag(item,ds);
+    return;
+  }
   const w=monthWorkouts[wid];
   if(!w||w.workout_date===ds)return; // niks te doen als je op dezelfde dag loslaat
   const{error}=await db.from("workouts").update({workout_date:ds}).eq("id",wid);
   if(error){toast(error.message||"Verplaatsen mislukt");return;}
   if(editWid===wid){editWid=null;editDay=null;}
   toast("Workout verplaatst");renderMonth();
+}
+// ---------- Slepen vanuit het bibliotheek-venster (app/bieb-venster.js, 8 okt) ----------
+// Een kaart (template, benchmark of oefening) komt uit het andere venster binnen
+// via dataTransfer met type BIEB_MIME. Tijdens het slepen is alleen de lijst met
+// types te zien (biebDragItem), de inhoud pas bij het loslaten (biebLees).
+function biebDragItem(ev){try{const t=ev.dataTransfer&&ev.dataTransfer.types;return !!(t&&Array.from(t).includes(BIEB_MIME));}catch(e){return false;}}
+function biebLees(ev){try{const s=ev.dataTransfer.getData(BIEB_MIME);return s?JSON.parse(s):null;}catch(e){return null;}}
+// Van een kaart naar de velden van een blok (zelfde vorm als insInvoegen).
+function biebBlokVan(item){
+  if(item.soort==="oefening")return {kind:"exercise",exercise:item.naam,prescription:null,color:null,score_type:"text",oefening_id:item.id||null,media:null};
+  return {kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:TPLKLEUREN.includes(item.kleur)?item.kleur:null,score_type:"text",media:(item.media&&item.media.length)?item.media:null};
+}
+function biebInBouwer(item){
+  const host=document.getElementById("exrows");if(!host)return false;
+  host.insertAdjacentHTML("beforeend",exRow(biebBlokVan(item)));relabel();groei();bouwerDirty=true;
+  toast('"'+item.naam+'" onderaan in de bouwer gezet; sla de workout op als je klaar bent');
+  return true;
+}
+async function biebDropOpDag(item,ds){
+  if(!calClient){toast("Open eerst een klant");return;}
+  // Bouwer open op deze dag? Dan als nieuwe regel onderaan in de bouwer.
+  const bouwerDag=editDay||(editWid&&monthWorkouts[editWid]?monthWorkouts[editWid].workout_date:null);
+  if(bouwerDag===ds&&biebInBouwer(item))return;
+  // Staat er al een workout (geen rustdag)? Dan eronder als volgend blok.
+  const dag=Object.values(monthWorkouts).filter(w=>w.workout_date===ds&&!/^rest ?day$/i.test((w.title||"").trim())).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  if(dag.length){await biebDropOpWorkout(item,dag[dag.length-1].id);return;}
+  // Lege dag: nieuwe workout met de naam van de kaart en dit als blok A.
+  const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:ds,title:item.naam}).select().single();
+  if(error){toast(error.message||"Toevoegen mislukt");return;}
+  const{error:be}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:"A",sort:1,linked:false},biebBlokVan(item)));
+  if(be){toast(be.message||"Toevoegen mislukt");return;}
+  toast('"'+item.naam+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');
+  renderMonth();
+}
+async function biebDropOpWorkout(item,wid){
+  const w=monthWorkouts[wid];if(!w){toast("Workout niet gevonden");return;}
+  if(editWid===wid&&biebInBouwer(item))return; // deze workout staat open in de bouwer
+  const blokken=w.blocks||[];
+  const sort=blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1;
+  const label=String.fromCharCode(65+Math.min(blokken.length,25));
+  const{error}=await db.from("blocks").insert(Object.assign({workout_id:wid,label,sort,linked:false},biebBlokVan(item)));
+  if(error){toast(error.message||"Toevoegen mislukt");return;}
+  toast('"'+item.naam+'" als blok '+label+' onder "'+(w.title||"workout")+'" gezet');
+  renderMonth();
 }
 // ---------- GESCHIEDENIS-ZOeker (History-knop): wat deed dit lid eerder? ----------
 let histTabF="oef",histTimer=null,histData={oef:[],wo:[],mx:[]};
