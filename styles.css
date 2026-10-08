@@ -1323,3 +1323,10 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .ikk-kind{display:inline-block;font-size:10px;font-weight:700;color:var(--td-accent-muted);text-transform:uppercase;margin-right:3px}
 .ikk-kind.ikk-vraag{color:#21618c}.ikk-kind.ikk-actie{color:#c2621a}.ikk-kind.ikk-check{color:#1e8449}
 .ikk-fase{margin:6px 0}.ikk-fase-kop{font-size:12px;font-weight:700;margin-bottom:2px}
+
+/* Intake-formulier in de app (stap 4c, 8 okt 2026) */
+.if-form .if-table td{padding:3px 6px;vertical-align:middle}
+.if-form .if-table input.lid-in{padding:4px 6px;font-size:12px}
+.if-form .if-score{width:58px;padding:4px 6px}
+.if-form td.if-doel{font-weight:700;color:var(--td-accent-muted);background:#fbf6e6}
+.if-form .td-ce{margin-bottom:8px}

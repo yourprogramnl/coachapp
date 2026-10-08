@@ -408,3 +408,28 @@ i18nLaad({
   "Draaiboek consult ({n} min)": "Consult playbook ({n} min)",
   "Intake-kaart naar Michels onboarding_card.py (Kyle-model) · {n} ingevulde velden · berekend {naam}": "Intake card after Michel's onboarding_card.py (Kyle model) · {n} completed fields · calculated {naam}",
 });
+
+// Intake-formulier in de app (app/intake-formulier.js, stap 4c, 8 okt 2026 avond). De veldteksten
+// zijn Michels Nederlandse template en blijven Nederlands; dit zijn de knoppen en kopjes eromheen.
+i18nLaad({
+  "Intake invullen": "Fill in intake", "Intake bewerken": "Edit intake",
+  "Intake invullen of bewerken in de app (zelfde velden als Michels NL-onboarding)": "Fill in or edit the intake in the app (same fields as Michel's NL onboarding)",
+  "Intake-gegevens (self-assessment, mentaal, sport-referentie, doelen, praktisch) bewerk je via Intake invullen of lees je in uit de Excel.": "Intake data (self-assessment, mental, sport reference, goals, practical) is edited via Fill in intake or read from the Excel.",
+  "Intake-formulier: {naam}": "Intake form: {naam}",
+  "(dezelfde velden als Michels NL-onboarding; leeg = niet ingevuld)": "(the same fields as Michel's NL onboarding; empty = not filled in)",
+  "Opslaan bewaart alle tabbladen tegelijk.": "Save stores all tabs at once.",
+  "Basis": "Basics", "Max lifts & benchmarks": "Max lifts & benchmarks", "Mentale prestatie": "Mental performance", "Doelen": "Goals", "Praktisch": "Practical",
+  "Lichaamsgewicht (kg)": "Bodyweight (kg)", "Doelniveau": "Target level", "Geslacht (uit de kaart)": "Gender (from the card)",
+  "Het doelniveau stuurt de kolom Doel bij Max lifts & benchmarks en de intake-kaart. Geslacht pas je aan via Bewerken op de kaart; het bepaalt welke referentietabel geldt.": "The target level drives the Target column in Max lifts & benchmarks and the intake card. Gender is changed via Edit on the card; it decides which reference table applies.",
+  "Beweging": "Movement", "Context": "Context", "Score": "Score", "Toelichting (optioneel)": "Notes (optional)", "Open vragen": "Open questions",
+  "Lift": "Lift", "Jouw max": "Your max", "Datum getest": "Date tested", "Benchmark": "Benchmark", "Jouw score": "Your score", "Conditioning benchmarks": "Conditioning benchmarks",
+  "Vraag": "Question",
+  "01 — Kernwaarden": "01 — Core values", "02 — Resultaatdoelen en obstakels": "02 — Outcome goals and obstacles", "04 — Procesdoelen": "04 — Process goals",
+  "Waarom belangrijk": "Why it matters", "Wanneer (tijdlijn)": "When (timeline)", "Verbinding met je waarden": "Link to your values",
+  "Welk obstakel pak je aan?": "Which obstacle does this address?", "Hoe meet / volg je dit?": "How will you measure / track this?", "Frequentie": "Frequency",
+  "Trainingsdagen": "Training days", "Dag": "Day", "Beschikbaar": "Available", "Minuten": "Minutes", "Tweede sessie mogelijk": "Second session possible", "Tijdstip": "Time", "Notitie": "Note",
+  "Waar train je": "Where you train", "Materiaal": "Equipment", "Aanwezig": "Available", "Ontbreekt": "Missing", "Opmerking": "Remark",
+  "Blessures": "Injuries", "Herstel en werk": "Recovery and work", "Wearable": "Wearable", "Hartslagband": "Heart rate strap", "Slaap (uur per nacht)": "Sleep (hours per night)", "Werk": "Work",
+  "nee": "no", "ja": "yes",
+  "Intake opgeslagen": "Intake saved", "Atleet niet gevonden": "Athlete not found",
+});

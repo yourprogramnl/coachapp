@@ -611,8 +611,8 @@ function tdsBewerkForm(a){
     rij("Strivee","td-f-rstrivee",rec.strivee||"","Wat er deze week in Strivee gebeurde",3)+
     rij("WhatsApp","td-f-rwhatsapp",rec.whatsapp||"","Wat er via WhatsApp binnenkwam",3)+
     rij("Actiepunten","td-f-ractions",lijst(rec.actions).join("\n"),"Eén actiepunt per regel",2)+
-    '<div class="td-f-acties"><button class="btn sm" onclick="tdsBewaar(\''+esc(a.id)+'\')">Opslaan</button><button class="btn ghost sm" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button><button class="btn ghost sm" onclick="ikKies(\''+esc(a.id)+'\')" title="Ingevulde intake-Excel inlezen voor deze atleet">Intake-Excel inlezen</button><span style="flex:1"></span><button class="btn ghost sm td-danger" onclick="tdsVerwijder(\''+esc(a.id)+'\')">Verwijder atleet</button></div>'+
-    '<div class="td-hint">Intake-gegevens (self-assessment, mentaal, sport-referentie) zijn in deze versie alleen te bekijken.</div>'+
+    '<div class="td-f-acties"><button class="btn sm" onclick="tdsBewaar(\''+esc(a.id)+'\')">Opslaan</button><button class="btn ghost sm" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button><button class="btn ghost sm" onclick="ifOpen(\''+esc(a.id)+'\')" title="Intake invullen of bewerken in de app (zelfde velden als Michels NL-onboarding)">'+((a.input&&(a.input.self_assessment_detail||a.input.sport_reference||a.input.mental_performance))?"Intake bewerken":"Intake invullen")+'</button><button class="btn ghost sm" onclick="ikKies(\''+esc(a.id)+'\')" title="Ingevulde intake-Excel inlezen voor deze atleet">Intake-Excel inlezen</button><span style="flex:1"></span><button class="btn ghost sm td-danger" onclick="tdsVerwijder(\''+esc(a.id)+'\')">Verwijder atleet</button></div>'+
+    '<div class="td-hint">Intake-gegevens (self-assessment, mentaal, sport-referentie, doelen, praktisch) bewerk je via Intake invullen of lees je in uit de Excel.</div>'+
   '</div>';
 }
 async function tdsBewaar(id){
