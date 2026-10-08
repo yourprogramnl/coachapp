@@ -147,9 +147,12 @@ function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra){
   return '<div class="bieb-card" draggable="true" ondragstart="biebDragStart(event,\''+soort+'\',\''+esc(String(id))+'\')" ondragend="biebDragEnd(event)" ondblclick="biebDubbel(event,\''+soort+'\',\''+esc(String(id))+'\')" title="Sleep naar een dag op de kalender, of dubbelklik voor de doeldag">'+
     '<div class="bk-kop"><span class="bk-dot" style="background:'+kleurHex+'"></span><div style="flex:1;min-width:0"><b>'+kop+'</b>'+(sub?'<div class="sm muted" style="margin-top:2px">'+sub+'</div>':'')+'</div><span class="bk-grip" title="Slepen">⋮⋮</span></div>'+
     (extra||"")+
-    (tekst?'<div class="bk-tekst">'+esc(tekst)+'</div>':'<div class="bk-tekst muted" style="font-style:italic">Geen tekst</div>')+
+    (tekst?'<div class="bk-tekst">'+esc(tekst)+'</div>'+(biebLang(tekst)?'<span class="bk-meer" onclick="event.stopPropagation();biebMeer(this)">Meer</span>':''):'<div class="bk-tekst muted" style="font-style:italic">Geen tekst</div>')+
     '</div>';
 }
+// Lange tekst: eerst 9 regels, met Meer/Minder (kaarten blijven dan ongeveer even hoog).
+function biebLang(t){return (String(t).match(/\n/g)||[]).length>=9||String(t).length>420;}
+function biebMeer(el){const k=el.closest(".bieb-card");if(!k)return;k.classList.toggle("open");el.textContent=k.classList.contains("open")?"Minder":"Meer";}
 function biebKaartTpl(o){
   const soort=o.type==="warmup"?"warm-up":(o.type==="cooldown"?"cooldown":"workout");
   const vids=(o.media||[]).filter(m=>m&&m.youtube_id).length;
