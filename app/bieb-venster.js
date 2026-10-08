@@ -34,6 +34,7 @@ async function renderBiebVenster(){
         '<button class="'+(BIEB.kolommen==="1"?"on":"")+'" onclick="biebKolommen(\'1\')">1 kolom</button>'+
       '</div>'+
     '</div>'+
+    '<div class="bieb-doel" id="bieb-doel">Dubbelklik op een kaart zet hem op de doeldag. Open een klant in het hoofdvenster en klik daar het speldje 📌 op een dag.</div>'+
     '<div class="bieb-balk">'+
       '<div class="bieb-tabs" id="bieb-tabs"></div>'+
       '<div class="search2" style="flex:1;min-width:200px"><input id="bieb-zoek" placeholder="Zoek op naam, tekst of tag…" oninput="biebZoek(this.value)"></div>'+
@@ -43,8 +44,36 @@ async function renderBiebVenster(){
     '<div id="bieb-grid" class="bieb-grid'+(BIEB.kolommen==="1"?" een":"")+'"><div class="cempty">Bibliotheek laden…</div></div>'+
   '</div>';
   biebTabsRender();
+  biebKanaalStart();
   if(!LIB.geladen)await libLaad();
   biebRender();
+}
+// Verbinding met het hoofdvenster (zie "doeldag" in app/klant-scherm.js).
+function biebKanaalStart(){
+  if(typeof BroadcastChannel==="undefined"){const d=document.getElementById("bieb-doel");if(d)d.textContent="Dubbelklik werkt niet in deze browser; slepen wel.";return;}
+  if(BIEB.kanaal)return;
+  BIEB.kanaal=new BroadcastChannel("yp_bieb");
+  BIEB.kanaal.onmessage=(ev)=>{
+    const m=ev.data||{};
+    if(m.type==="doel"){BIEB.bron=m.van;BIEB.doel=m;biebDoelToon();}
+    else if(m.type==="melding"&&m.tekst)toast(m.tekst);
+  };
+  BIEB.kanaal.postMessage({type:"vraag"});
+}
+function biebDoelToon(){
+  const d=document.getElementById("bieb-doel");if(!d)return;
+  const m=BIEB.doel;
+  if(!m||!m.klant){d.className="bieb-doel";d.textContent="Dubbelklik op een kaart zet hem op de doeldag. Open een klant in het hoofdvenster en klik daar het speldje 📌 op een dag.";return;}
+  if(!m.dag){d.className="bieb-doel";d.innerHTML="<b>"+esc(m.klant)+"</b> · nog geen doeldag: klik het speldje 📌 op een dag in de kalender, dan zet dubbelklik een kaart daar neer.";return;}
+  d.className="bieb-doel aan";
+  d.innerHTML="Dubbelklik zet een kaart bij <b>"+esc(m.klant)+"</b> op <b>"+esc(m.dagLabel||m.dag)+"</b>"+(m.bouwer?" (in de open bouwer)":"")+".";
+}
+function biebDubbel(ev,soort,id){
+  ev.preventDefault();
+  const p=biebPayload(soort,id);if(!p)return;
+  if(!BIEB.kanaal||!BIEB.bron){toast("Open eerst een klant in het hoofdvenster");return;}
+  if(!(BIEB.doel&&BIEB.doel.dag)){toast("Kies eerst een dag: klik het speldje 📌 op een dag in de kalender");return;}
+  BIEB.kanaal.postMessage({type:"plaats",voor:BIEB.bron,item:p});
 }
 function biebTabsRender(){
   const h=document.getElementById("bieb-tabs");if(!h)return;
@@ -115,7 +144,7 @@ function biebRender(behoudFilters){
   g.innerHTML=hint+(kaarten.join("")||'<div class="cempty">Niets gevonden.</div>');
 }
 function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra){
-  return '<div class="bieb-card" draggable="true" ondragstart="biebDragStart(event,\''+soort+'\',\''+esc(String(id))+'\')" ondragend="biebDragEnd(event)" title="Sleep naar een dag op de kalender">'+
+  return '<div class="bieb-card" draggable="true" ondragstart="biebDragStart(event,\''+soort+'\',\''+esc(String(id))+'\')" ondragend="biebDragEnd(event)" ondblclick="biebDubbel(event,\''+soort+'\',\''+esc(String(id))+'\')" title="Sleep naar een dag op de kalender, of dubbelklik voor de doeldag">'+
     '<div class="bk-kop"><span class="bk-dot" style="background:'+kleurHex+'"></span><div style="flex:1;min-width:0"><b>'+kop+'</b>'+(sub?'<div class="sm muted" style="margin-top:2px">'+sub+'</div>':'')+'</div><span class="bk-grip" title="Slepen">⋮⋮</span></div>'+
     (extra||"")+
     (tekst?'<div class="bk-tekst">'+esc(tekst)+'</div>':'<div class="bk-tekst muted" style="font-style:italic">Geen tekst</div>')+

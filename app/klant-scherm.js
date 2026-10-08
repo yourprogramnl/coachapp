@@ -1139,6 +1139,50 @@ async function biebDropOpWorkout(item,wid){
   toast('"'+item.naam+'" als blok '+label+' onder "'+(w.title||"workout")+'" gezet');
   renderMonth();
 }
+// ---------- Dubbelklik in het bibliotheek-venster: de "doeldag" ----------
+// Het losse venster weet niet op welke dag je bezig bent. Daarom: speldje op een
+// dag = doeldag (oranje rand). Staat de bouwer open, dan is díe dag de doeldag.
+// De twee vensters praten via een BroadcastChannel (zelfde browser, zelfde site):
+// het hoofdvenster stuurt "doel" (klant + dag), het bibliotheek-venster stuurt
+// "plaats" (kaart) terug. Meerdere hoofdvensters open? Het venster dat het laatst
+// de doeldag stuurde (BIEB_ID) voert de plaatsing uit, de andere negeren hem.
+let doelDag=null;
+const BIEB_ID=Math.random().toString(36).slice(2);
+let biebKanaalObj=null;
+function biebKanaal(){
+  if(biebKanaalObj||typeof BroadcastChannel==="undefined")return biebKanaalObj;
+  biebKanaalObj=new BroadcastChannel("yp_bieb");
+  biebKanaalObj.onmessage=async(ev)=>{
+    const m=ev.data||{};
+    if(m.type==="vraag"){biebDoelZend();return;}
+    if(m.type==="plaats"&&m.voor===BIEB_ID&&m.item){
+      const ds=biebDoelHuidig();
+      if(!ds||!calClient){biebKanaalObj.postMessage({type:"melding",tekst:"Kies eerst een dag: klik het speldje 📌 op een dag in de kalender (of open de bouwer)."});return;}
+      await biebDropOpDag(m.item,ds);
+      biebKanaalObj.postMessage({type:"melding",tekst:'"'+m.item.naam+'" op '+biebDagLabel(ds)+' gezet'});
+    }
+  };
+  window.addEventListener("focus",()=>biebDoelZend());
+  return biebKanaalObj;
+}
+function biebDagLabel(ds){const d=new Date(ds+"T12:00:00");return ["zo","ma","di","wo","do","vr","za"][d.getDay()]+" "+d.getDate()+" "+MAANDKORT[d.getMonth()];}
+function biebDoelHuidig(){
+  if(editDay)return editDay;
+  if(editWid&&monthWorkouts[editWid])return monthWorkouts[editWid].workout_date;
+  return doelDag;
+}
+function zetDoelDag(ds){
+  doelDag=doelDag===ds?null:ds;
+  document.querySelectorAll(".mday").forEach(c=>{const aan=c.dataset.d===doelDag;c.classList.toggle("doeldag",aan);const p=c.querySelector(".dagpin");if(p)p.classList.toggle("aan",aan);});
+  toast(doelDag?"Doeldag: "+biebDagLabel(doelDag)+". Dubbelklik in het bibliotheek-venster zet een kaart hier.":"Doeldag weggehaald");
+  biebDoelZend();
+}
+function biebDoelZend(){
+  const k=biebKanaal();if(!k||!calClient)return;
+  const p=(coachClients||[]).find(x=>x.id===calClient);
+  const ds=biebDoelHuidig();
+  k.postMessage({type:"doel",van:BIEB_ID,klant:p?[p.first_name,p.last_name].filter(Boolean).join(" "):"",dag:ds,dagLabel:ds?biebDagLabel(ds):"",bouwer:!!(editDay||editWid)});
+}
 // ---------- GESCHIEDENIS-ZOeker (History-knop): wat deed dit lid eerder? ----------
 let histTabF="oef",histTimer=null,histData={oef:[],wo:[],mx:[]};
 function ensureHistModal(){
@@ -1362,7 +1406,9 @@ async function renderMonth(opts){
       // 30 juli): het deed niets en wekte verwarring; een rustdag plan je via
       // het dag-menu (knop Rustdag, sneltoets R).
       const dagNoot=monthNotes[ds];
-      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();openDayNote(\''+ds+'\')" style="cursor:pointer'+(dagNoot?';color:#e7a44a':'')+'"><use href="#i-doc"/></svg><span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>'+
+      let inner='<div class="mday-top"><svg class="i" onclick="event.stopPropagation();openDayNote(\''+ds+'\')" style="cursor:pointer'+(dagNoot?';color:#e7a44a':'')+'"><use href="#i-doc"/></svg>'+
+        '<span class="dagpin'+(ds===doelDag?' aan':'')+'" title="Doeldag voor het bibliotheek-venster: dubbelklik daar op een kaart en hij komt hier" onclick="event.stopPropagation();zetDoelDag(\''+ds+'\')">📌</span>'+
+        '<span class="dnum2'+(isToday?' today':'')+'">'+dnum+'</span></div>'+
         (dagNoot?'<div class="daynoot" onclick="event.stopPropagation();openDayNote(\''+ds+'\')">'+esc(dagNoot.body)+'</div>':'');
       let selectable=false;
       if(editing){
@@ -1377,7 +1423,7 @@ async function renderMonth(opts){
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
       }
-      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+'" data-d="'+ds+'" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
+      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+(ds===doelDag?' doeldag':'')+'" data-d="'+ds+'" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
     }
     // maand-scheidingsbalk vóór de week waarin een nieuwe maand begint (zoals CoachRx)
     if(calView==="maand"&&wk>0){
@@ -1420,6 +1466,7 @@ async function renderMonth(opts){
     if(rest<=0)histLicht=null;
   }
   selBarUpdate();
+  biebDoelZend(); // bibliotheek-venster laten weten bij wie en op welke dag we zitten
   if(calView==="maand"){
     kalScrollBind();
     // dagenbalk plakt onder de (variabele) kalenderkop
