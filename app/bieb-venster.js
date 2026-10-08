@@ -9,7 +9,8 @@
 // loslaten gebeurt in app/klant-scherm.js (biebDropOpDag / biebDropOpWorkout).
 const BIEB_MIME="application/x-yp-item";
 let BIEB={tab:"workout",zoek:"",kleur:"",sub:"",subTekst:"",bmCat:"",kolommen:"auto",win:null};
-const BIEB_TABS=[["workout","Workouts"],["warmup","Warm-ups"],["cooldown","Cooldowns"],["week","Weekworkouts"],["benchmarks","Benchmarks"],["oef","Oefeningen"]];
+// Geen tab Oefeningen (video's) hier: die blijven in de gewone bibliotheek (keuze Stefan, 8 okt).
+const BIEB_TABS=[["workout","Workouts"],["warmup","Warm-ups"],["cooldown","Cooldowns"],["week","Weekworkouts"],["benchmarks","Benchmarks"]];
 // Weekworkouts (de blogworkouts met gedeeld leaderboard) staan niet in LIB;
 // die halen we hier zelf op, nieuwste eerst.
 BIEB.week=null;
