@@ -1673,9 +1673,16 @@ function insRender(){
   let vast="";
   if(insTypeF==="all"&&insBlog.length&&!insKleur&&(!v||(insBlog[0].title||"").toLowerCase().includes(v)))vast=weekRij(insBlog[0]);
   host.innerHTML=vast+hits.map(o=>{
+    // Wedstrijdworkout met meerdere divisies: andere versies uitklapbaar, elk met eigen Invoegen-knop.
+    let varianten="";
+    if(o.varianten&&o.varianten.length>1){
+      varianten='<div class="bk-var"><span class="bk-meer" onclick="event.stopPropagation();biebVarToggle(this)">'+o.varianten.length+' divisies ▸</span><div class="bk-varlijst" style="display:none">'+
+        o.varianten.map(v=>'<div class="bk-varrij" style="cursor:default;display:flex;gap:8px;align-items:flex-start"><div style="flex:1;min-width:0"><b>'+esc(v.divisie||"Alle divisies")+'</b>'+(v.id===o.id?' <span class="muted">(hoofdversie)</span>':'')+'<div class="bk-vartekst">'+esc(v.tekst)+'</div></div>'+
+          '<button class="btn sm" style="flex:none" onclick="insInvoegen(\'comp:'+esc(String(v.id))+'\')">Invoegen</button></div>').join("")+'</div></div>';
+    }
     return '<div class="trow" style="align-items:flex-start"><div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+kleurHex(o.kleur)+'"></span></div>'+
       '<div style="flex:1.6"><b>'+esc(o.naam)+'</b><div class="sm muted" style="margin-top:2px">'+esc(itemSoort(o)+' · '+(o.info||kleurNaam(o.kleur)))+'</div></div>'+
-      '<div style="flex:2.4" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
+      '<div style="flex:2.4" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+varianten+'</div>'+
       '<button class="btn sm" style="width:86px;justify-content:center" onclick="insInvoegen(\''+o.key+'\')">Invoegen</button></div>';
   }).join("")||'<div class="cempty">Niets gevonden.</div>';
 }
