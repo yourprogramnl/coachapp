@@ -412,6 +412,7 @@ function tdsRender(h){
       '<button class="td-chip" id="td-alles" onclick="tdsAlles()">Alles uitklappen</button>'+
       '<span class="td-count" id="td-count"></span>'+
       (TDS.magAlles?'<button class="btn ghost sm" onclick="tdsNieuwToggle()">+ Atleet</button>':"")+
+      '<button class="btn ghost sm" onclick="ikKies()" title="Ingevulde intake-Excel (onboarding) inlezen voor een atleet">Intake-Excel</button>'+
       '<button class="btn ghost sm" onclick="tdsExport()" title="Alle atleten als JSON in Michels formaat (athletes_input.json)">Export JSON</button>'+
       (TDS.magAlles?'<button class="btn ghost sm" onclick="document.getElementById(\'td-import\').click()" title="Verse export van Michel inlezen (athletes_input.json)">Import JSON</button>'+
       '<input type="file" id="td-import" accept=".json,application/json" style="display:none" onchange="tdsImportBestand(this)">':"")+
@@ -419,6 +420,7 @@ function tdsRender(h){
     tdsNieuwForm()+
     (TDS.magAlles?"":'<div class="td-hint" style="margin:0 0 10px">Je ziet alleen de atleten van je eigen klanten. Een beheerder kan je via Coaches › Rechten alle atleten laten zien.</div>')+
     '<div class="td-legend"><span><span class="dot" style="background:var(--td-dev)"></span>&lt;50% Developing</span><span><span class="dot" style="background:var(--td-close)"></span>50–79% Approaching</span><span><span class="dot" style="background:var(--td-norm)"></span>≥80% At standard</span></div>'+
+    '<div id="td-intake-paneel"></div>'+
     '<div class="td-grid" id="td-grid"></div><div class="td-leeg" id="td-leeg" style="display:none">Geen atleten gevonden.</div>'+
   '</div>';
   tdsGrid();
@@ -608,7 +610,7 @@ function tdsBewerkForm(a){
     rij("Strivee","td-f-rstrivee",rec.strivee||"","Wat er deze week in Strivee gebeurde",3)+
     rij("WhatsApp","td-f-rwhatsapp",rec.whatsapp||"","Wat er via WhatsApp binnenkwam",3)+
     rij("Actiepunten","td-f-ractions",lijst(rec.actions).join("\n"),"Eén actiepunt per regel",2)+
-    '<div class="td-f-acties"><button class="btn sm" onclick="tdsBewaar(\''+esc(a.id)+'\')">Opslaan</button><button class="btn ghost sm" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button><span style="flex:1"></span><button class="btn ghost sm td-danger" onclick="tdsVerwijder(\''+esc(a.id)+'\')">Verwijder atleet</button></div>'+
+    '<div class="td-f-acties"><button class="btn sm" onclick="tdsBewaar(\''+esc(a.id)+'\')">Opslaan</button><button class="btn ghost sm" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button><button class="btn ghost sm" onclick="ikKies(\''+esc(a.id)+'\')" title="Ingevulde intake-Excel inlezen voor deze atleet">Intake-Excel inlezen</button><span style="flex:1"></span><button class="btn ghost sm td-danger" onclick="tdsVerwijder(\''+esc(a.id)+'\')">Verwijder atleet</button></div>'+
     '<div class="td-hint">Intake-gegevens (self-assessment, mentaal, sport-referentie) zijn in deze versie alleen te bekijken.</div>'+
   '</div>';
 }
