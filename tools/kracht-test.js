@@ -60,7 +60,7 @@ check("schema: regel begint met aantal (8-12 Back Squats @3010)",S("8-12 Back Sq
 check("schema: 8-12RM bench press",S("8-12RM bench press @ 30X0 @ 1-2 RIR (reps in reserve)"+NL+"rest 2 min x 4 sets"),{tempo:"30X0",rust:"2 min",sets:4,reps:"8-12"});
 check("schema: 4 x 30 sec is geen reps",S("4 x 30 sec tegen de muur; rust 60 sec."),{rust:"60 sec"});
 check("schema: 75 seconds is geen reps",S("75 seconds; rest 2 min. x 4 sets."),{rust:"2 min",sets:4});
-check("schema: EMOM zonder reps-woord",S("EMOM10:"+NL+"- 2 Power Cleans."+NL+NL+"Startgewicht = 35 kilo."),{kg:35,reps:2});
+check("schema: EMOM zonder reps-woord",S("EMOM10:"+NL+"- 2 Power Cleans."+NL+NL+"Startgewicht = 35 kilo."),{kg:35,sets:10,reps:2});
 check("schema: metcon = niets",S("3 rounds for time:"+NL+"400 m run"+NL+"21 kettlebell swings"),null);
 check("schema: leeg = niets",S(""),null);
 check("schema: 5x5",S("5x5"),{sets:5,reps:5});
@@ -128,6 +128,14 @@ check("tekst: 17,5 kilo: 12/9",rows(K.setsUitTekst("17,5 kilo: 12/9",{sets:3,rep
 check("tekst: alleen 95 bij 5 sets = 5 rijen",rows(K.setsUitTekst("95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
 check("tekst: tijd en tempo zijn geen gewicht (één gewicht bij 5 sets = 5 rijen)",rows(K.setsUitTekst("3:45 @3010 80 kg",S5)),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["80","5",false]]);
 check("tekst: niets",rows(K.setsUitTekst("ging lekker",S5)),[]);
+check("tekst: 11: 70 kilo met herkansing na mislukt (11-9-7-5)",rows(K.setsUitTekst("11: 70 kilo 9: 80 kilo 7: 90 kilo ❌ 86 kilo ✅ 5: 88.50 kilo ✅",{sets:4,reps_lijst:[11,9,7,5]})),[["70","11",false],["80","9",false],["90","7",true],["86","7",false],["88,5","5",false]]);
+check("tekst: Set 1: 2 kilo (lichte dumbbells)",rows(K.setsUitTekst("Set 1: 2 kilo ✅ Set 2: 2.5 kilo ✅ Set 3: 3 kilo ✅",{sets:3,reps:12})),[["2","12",false],["2,5","12",false],["3","12",false]]);
+check("tekst: samenvatting met lichte gewichten (2×12) blijft kg×reps",rows(K.setsUitTekst("2×12 · 2,5×12 · 3×12",{sets:3,reps:12})),[["2","12",false],["2,5","12",false],["3","12",false]]);
+check("tekst: 2 kg x 12 en 12 x 2 kg",rows(K.setsUitTekst("2 kg x 12, 12 x 2 kg",{reps:12})),[["2","12",false],["2","12",false]]);
+check("tekst: gewichten met streepjes en reps uit het schema",rows(K.setsUitTekst("40-45-45-45-50-50-50-50-55-55",{sets:10,reps:2})).length,10);
+check("tekst: reps-lijst per set zonder expliciete reps",rows(K.setsUitTekst("70, 80, 90, 88.5",{sets:4,reps_lijst:[11,9,7,5]})),[["70","11",false],["80","9",false],["90","7",false],["88,5","5",false]]);
+check("schema: EMOM10: 2 Power Cleans @ 70%",K.schemaLees("EMOM10: 2 Power Cleans @ 70%"),{pct:70,sets:10,reps:2});
+check("schema: EMOM 10 min met 2 x Power Clean op een regel",K.schemaLees("EMOM 10 min"+String.fromCharCode(10)+"2 x Power Clean @ 60 kg"),{kg:60,sets:10,reps:2});
 check("tekst: reps voor de kilo (10 reps: 57.50 kilo)",rows(K.setsUitTekst("10 reps: 57.50 kilo 8 reps: 67.50 kilo 6 reps: 72.50 kilo 4 reps: 75 kilo",{sets:4,reps_lijst:[10,8,6,4]})),[["57,5","10",false],["67,5","8",false],["72,5","6",false],["75","4",false]]);
 check("setsTekst",K.setsTekst([{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]),"95×5 · 102,5×1 ✗");
 check("setsNaarRec",K.setsNaarRec([{kg:"95",reps:"5",fail:false},{kg:"",reps:"",fail:false},{kg:"102,5",reps:"1",fail:true}]),[{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]);
