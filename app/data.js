@@ -4,7 +4,7 @@
 // kleurgrenzen zijn 1-op-1 overgenomen; de data komt uit Supabase
 // (data_athletes + data_scores) en bewerken schrijft direct naar de database.
 // Kopje Wedstrijden: invulling volgt.
-let dataTab="atleten"; // atleten | wedstrijden
+let dataTab="atleten"; // atleten (Athlete Testdata Dashboard, app/testdata.js) | wedstrijden | open | oud (het oude YP-atletenrapport hieronder)
 
 // ---------- vaste definities (YP-standaard, uit het originele dashboard) ----------
 const DT_CATS={"Lower Strength":["back_squat","front_squat","ohs","deadlift","bulgarian"],
@@ -167,26 +167,25 @@ const dtTeamRadar=()=>Object.keys(DT_CATS).map(c=>{const v=dtTeamCat(c);return v
 // ---------- pagina ----------
 async function fillData(){
   const cp=document.getElementById("cpage");if(!cp)return;
-  if(dataTab==="atleten"&&!DT.geladen)await dtLaad();
+  if(dataTab==="oud"&&!DT.geladen)await dtLaad();
+  if(dataTab==="atleten"&&!TDS.geladen)await tdsLaad();
   cp.innerHTML='<div class="hrow"><h1>Data</h1></div>'+
     '<div class="ctabs" style="margin-bottom:14px">'+
-      '<button class="'+(dataTab==="atleten"?"on":"")+'" onclick="dataZetTab(\'atleten\')">Atleten</button>'+
-      '<button class="'+(dataTab==="wedstrijden"?"on":"")+'" onclick="dataZetTab(\'wedstrijden\')">Wedstrijden</button>'+
-      '<button class="'+(dataTab==="open"?"on":"")+'" onclick="dataZetTab(\'open\')">CrossFit Open</button>'+
+      [["atleten","Atleten"],["wedstrijden","Wedstrijden"],["open","CrossFit Open"],["oud","Oud rapport"]].map(t=>'<button data-tab="'+t[0]+'" class="'+(dataTab===t[0]?"on":"")+'" onclick="dataZetTab(this.dataset.tab)">'+t[1]+'</button>').join("")+
     '</div>'+
     '<div id="data-inhoud"></div>';
   dataRender();
 }
 async function dataZetTab(t){
   dataTab=t;
-  if(t==="atleten"&&!DT.geladen)await dtLaad();
-  const lbl={atleten:"atleten",wedstrijden:"wedstrijden",open:"crossfit"};
-  const tabs=document.querySelectorAll("#cpage .ctabs button");
-  tabs.forEach(b=>b.classList.toggle("on",(b.textContent||"").toLowerCase().indexOf(lbl[t]||t)===0));
+  document.querySelectorAll("#cpage .ctabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  if(t==="oud"&&!DT.geladen)await dtLaad();
+  if(t==="atleten"&&!TDS.geladen){const h=document.getElementById("data-inhoud");if(h)h.innerHTML='<div class="spin">Laden…</div>';await tdsLaad();}
   dataRender();
 }
 function dataRender(){
   const h=document.getElementById("data-inhoud");if(!h)return;
+  if(dataTab==="atleten"){tdsRender(h);return;}
   if(dataTab==="wedstrijden"){wdRender(h);return;}
   if(dataTab==="open"){osRender(h);return;}
   const sub=[["team","Team"],["atleet","Atleet"],["vergelijk","Vergelijk"],["ranking","Ranking"]]
