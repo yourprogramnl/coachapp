@@ -128,6 +128,14 @@ check("tekst: 17,5 kilo: 12/9",rows(K.setsUitTekst("17,5 kilo: 12/9",{sets:3,rep
 check("tekst: alleen 95 bij 5 sets = 5 rijen",rows(K.setsUitTekst("95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
 check("tekst: tijd en tempo zijn geen gewicht (één gewicht bij 5 sets = 5 rijen)",rows(K.setsUitTekst("3:45 @3010 80 kg",S5)),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["80","5",false]]);
 check("tekst: niets",rows(K.setsUitTekst("ging lekker",S5)),[]);
+check("tekst: opbouwen + 'Dus 3×2 sets gedaan met 70 kilo'",rows(K.setsUitTekst("65 ✅ 75 kilo ✅ 80 kilo ✅ 82.50 kilo ✅ Dus 3×2 sets gedaan met 70 kilo",{reps:2})),[["65","2",false],["75","2",false],["80","2",false],["82,5","2",false],["70","2",false],["70","2",false],["70","2",false]]);
+check("tekst: mislukt met (3 herhalingen) + '3x reps met 26 kilo'",rows(K.setsUitTekst("25 kilo ✅ 30 kilo ✅ 31 kilo ✅ 32 kilo ❌ (3 herhalingen) 3x reps met 26 kilo gedaan.",{reps:5})),[["25","5",false],["30","5",false],["31","5",false],["32","3",true],["26","5",false],["26","5",false],["26","5",false]]);
+check("tekst: 'maximaal haalbaar' + 'de 3 sets gedaan met 25 kilo'",rows(K.setsUitTekst("30 kilo was maximaal haalbaar vandaag. Dus de 3 sets gedaan met 25 kilo",{reps:6})),[["30","6",false],["25","6",false],["25","6",false],["25","6",false]]);
+check("tekst: '6 reps was 65 kilo' + '3× 6 reps gedaan met 55 kilo'",rows(K.setsUitTekst("Maximale gewicht 6 reps was 65 kilo zie video Daarna 3× 6 reps gedaan met 55 kilo",{reps:6})),[["65","6",false],["55","6",false],["55","6",false],["55","6",false]]);
+check("tekst: '3 sets van 5 met 60 kilo'",rows(K.setsUitTekst("3 sets van 5 met 60 kilo",null)),[["60","5",false],["60","5",false],["60","5",false]]);
+check("tekst: 4x8 @ 24",rows(K.setsUitTekst("4x8 @ 24",null)),[["24","8",false],["24","8",false],["24","8",false],["24","8",false]]);
+check("schema: heavy but technical 3",K.schemaLees("Work to a heavy but technical 3 for the day"),{reps:3});
+check("schema: Every 2:00 × 8 sets met 2 Power Snatch",K.schemaLees("Every 2:00 × 8 sets:"+String.fromCharCode(10)+"2 Power Snatch @ 70%"),{pct:70,sets:8,reps:2});
 check("tekst: 11: 70 kilo met herkansing na mislukt (11-9-7-5)",rows(K.setsUitTekst("11: 70 kilo 9: 80 kilo 7: 90 kilo ❌ 86 kilo ✅ 5: 88.50 kilo ✅",{sets:4,reps_lijst:[11,9,7,5]})),[["70","11",false],["80","9",false],["90","7",true],["86","7",false],["88,5","5",false]]);
 check("tekst: Set 1: 2 kilo (lichte dumbbells)",rows(K.setsUitTekst("Set 1: 2 kilo ✅ Set 2: 2.5 kilo ✅ Set 3: 3 kilo ✅",{sets:3,reps:12})),[["2","12",false],["2,5","12",false],["3","12",false]]);
 check("tekst: samenvatting met lichte gewichten (2×12) blijft kg×reps",rows(K.setsUitTekst("2×12 · 2,5×12 · 3×12",{sets:3,reps:12})),[["2","12",false],["2,5","12",false],["3","12",false]]);

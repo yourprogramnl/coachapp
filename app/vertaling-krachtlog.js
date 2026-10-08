@@ -97,3 +97,8 @@ i18nLaad({
   "Vink eerst één of meer regels aan": "Tick one or more rows first",
   "bijv. 60x5 65x5": "e.g. 60x5 65x5",
 });
+i18nLaad({
+  "↻ Oranje opnieuw lezen": "↻ Re-read orange rows",
+  "Oranje regels opnieuw door de AI laten lezen (na een verbetering van de leesregels)": "Let the AI re-read the orange rows (after the reading rules improved)",
+  "Geen oranje regels om opnieuw te lezen": "No orange rows to re-read",
+});

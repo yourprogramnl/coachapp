@@ -70,7 +70,8 @@ function ensureOlModal(){
       '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap"><input type="checkbox" id="ol-alles" style="width:auto;margin:0" onchange="olAlles(this.checked)"> Alle groene aanvinken</label>'+
       '<select id="ol-filter" onchange="olFilterZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="alle">Alles</option><option value="eens">✓ eens</option><option value="nakijken">⚠ nakijken</option><option value="lezer">tekstlezer</option><option value="geen">geen sets</option></select>'+
       '<span class="sm muted" id="ol-teller"></span>'+
-      '<button class="btn ghost sm" id="ol-ai" onclick="olLeesAi()" style="margin-left:auto">🤖 Lees met AI</button></div>'+
+      '<button class="btn ghost sm" id="ol-ai" onclick="olLeesAi()" style="margin-left:auto">🤖 Lees met AI</button>'+
+      '<button class="btn ghost sm" id="ol-opnieuw" onclick="olOpnieuw()" title="Oranje regels opnieuw door de AI laten lezen (na een verbetering van de leesregels)">↻ Oranje opnieuw lezen</button></div>'+
     '<div class="sm muted" id="ol-status" style="margin-bottom:8px;min-height:16px"></div>'+
     '<div class="ol-kop"><span></span><span>Datum · blok · gelogde tekst</span><span>Sets (aanpasbaar)</span><span>Status</span></div>'+
     '<div style="max-height:56vh;overflow:auto;border:1px solid var(--line);border-radius:0 0 10px 10px;border-top:none"><div id="ol-lijst"></div></div>'+
@@ -172,6 +173,15 @@ async function olLeesAi(){
   stat.textContent=fout
     ?"Gestopt: "+fout+" · "+klaar+" van "+todo.length+" gelezen (nog een keer klikken gaat verder waar het bleef)"
     :"AI klaar: "+klaar+" regels gelezen · kosten ≈ $"+kosten.toFixed(2)+". Kijk de oranje regels na en sla op.";
+}
+// Oranje regels opnieuw laten lezen: de bewaarde AI-lezing weg en de AI nog een keer vragen
+// (handig nadat de leesregels of de AI-instructie zijn verbeterd; kost alleen die regels).
+function olOpnieuw(){
+  if(OL.bezig)return;
+  const oranje=OL.rows.filter(r=>r.status==="nakijken"&&!r.klaar);
+  if(!oranje.length){toast("Geen oranje regels om opnieuw te lezen");return;}
+  oranje.forEach(r=>{r.ai=null;r.bewerkt=null;try{localStorage.removeItem(OL_SLEUTEL(r.id));}catch(e){}olBepaal(r);});
+  olLeesAi();
 }
 // Aangevinkte regels opslaan: sets (met bron "oud") bij het bestaande resultaat; oudste eerst zodat de
 // 1RM-geschiedenis zich in de juiste volgorde opbouwt. De tekst van het resultaat blijft onaangeroerd.

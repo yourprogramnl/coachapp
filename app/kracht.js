@@ -93,8 +93,8 @@ function schemaLees(tekst){
     let m=t.match(/\b(\d+(?:\s*-\s*\d+)?)\s*(?:\/\s*(\d+(?:\s*-\s*\d+)?))?\s*(?:reps?|herhalingen)\b/i);
     if(m){reps=m[1];if(m[2])perKant=true;}
     // "5 x 3" = sets x reps; een tempo-code achter een @ ("@ 30X0") telt niet mee.
-    if(reps===null){m=t.match(/(?<!@\s{0,3})\b(\d{1,2})\s*[x×]\s*(\d{1,3})\b(?!\s*(?:kg|kilo|%|min|sec|m\b))/i);if(m&&parseInt(m[2],10)>0){reps=m[2];if(!s.sets)s.sets=parseInt(m[1],10);}}
-    if(reps===null){m=t.match(/\bheavy\s+(\d+|single|double|triple)\b/i);if(m)reps=({single:"1",double:"2",triple:"3"})[m[1].toLowerCase()]||m[1];}
+    if(reps===null){m=t.replace(/\b\d+:\d+(?::\d+)?\b/g," ").match(/(?<!@\s{0,3})\b(\d{1,2})\s*[x×]\s*(\d{1,3})\b(?!\s*(?:kg|kilo|%|min|sec|m\b))/i);if(m&&parseInt(m[2],10)>0){reps=m[2];if(!s.sets)s.sets=parseInt(m[1],10);}}
+    if(reps===null){m=t.match(/\bheavy(?:\s+\w+){0,3}?\s+(\d{1,2}|single|double|triple)\b/i);if(m)reps=({single:"1",double:"2",triple:"3"})[m[1].toLowerCase()]||m[1];}
     if(reps===null){m=t.match(/\bemom\s*\d{1,2}\b[^\n]*?:\s*(\d{1,2})\s+(?=[A-Za-z])/i);if(m)reps=m[1];} // "EMOM10: 2 Power Cleans"
     if(reps===null&&/\bbuild\s+to\s+a\s+(?:1\s*rm|heavy\s+single|1rm)\b/i.test(t))reps="1";
     if(reps===null&&!metcon){
@@ -308,13 +308,14 @@ function besteSet(sets){let b=null;(sets||[]).forEach(s=>{if(s.fail||s.kg==null)
 // percentages, minuten/seconden en tempo-codes zijn nooit gewicht.
 const SETS_FAIL="ging niet|lukte niet|niet gelukt|niet gehaald|mislukt|gefaald|failed|fail|✗|❌";
 const SETS_TOKEN=new RegExp(
-  "(\\d+(?:[.,]\\d+)?)\\s*(kg|kilo)?\\s*([x×])\\s*(\\d+(?:[.,]\\d+)?)\\s*(kg|kilo)?(?!\\s*%)"+ // A x B (× is altijd kg×reps)
-  "|(\\d+)\\s*(?:reps?|herhalingen)\\s*(?:@|op|met|at|:|=)\\s*(\\d+(?:[.,]\\d+)?)"+               // N reps @ kg, "10 reps: 57.50"
-  "|(\\d{1,2})\\s*:\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                      // "11: 70 kilo" (reps: kg)
-  "|(\\d+(?:[.,]\\d+)?)\\s*@\\s*(\\d+(?:[.,]\\d+)?)"+                                               // 3@88
-  "|(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                          // 95 kg
-  "|(\\d+)\\s*(?:reps?|herhalingen)\\b"+                                                            // 10 reps
-  "|(\\d+(?:[.,]\\d+)?)"+                                                                            // los getal
+  "(\\d+(?:[.,]\\d+)?)\\s*(kg|kilo)?\\s*([x×])\\s*(\\d+(?:[.,]\\d+)?)\\s*(kg|kilo)?(?!\\s*%)(\\s*(?:sets?|reps?|series)\\b)?"+ // A x B (× is kg×reps; met "sets"/"reps" erachter een directief)
+  "|(\\d{1,2})\\s*(?:[x×]\\s*(?:reps?|sets?|series)|sets?|series)\\b(?:\\s*(?:van|of)\\s*(\\d{1,2})\\b)?"+  // "3x reps", "3 sets", "3 sets van 5": aantal sets
+  "|(\\d+)\\s*(?:reps?|herhalingen)\\s*(?:@|op|met|at|:|=|was|is)\\s*(\\d+(?:[.,]\\d+)?)"+                   // N reps @ kg, "10 reps: 57.50", "6 reps was 65"
+  "|(\\d{1,2})\\s*:\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                   // "11: 70 kilo" (reps: kg)
+  "|(\\d+(?:[.,]\\d+)?)\\s*@\\s*(\\d+(?:[.,]\\d+)?)"+                                                            // 3@88
+  "|(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                                       // 95 kg
+  "|(\\d+)\\s*(?:reps?|herhalingen)\\b"+                                                                         // 10 reps
+  "|(\\d+(?:[.,]\\d+)?)"+                                                                                         // los getal
   "|("+SETS_FAIL+")","gi");
 const setsSchoon=t=>String(t||"")
   .replace(/\b\d+:\d+(?::\d+)?\b/g," ")                                           // tijden
@@ -327,48 +328,60 @@ const setsIsInt=s=>/^\d+$/.test(String(s));
 function setsUitTekst(tekst,schema){
   const t=setsSchoon(tekst);
   const rows=[];
-  let defSets=null,defReps=(schema&&typeof schema.reps==="number")?schema.reps:null;
   let laatste=null,laatsteKg=null,explicietReps=false;
+  let pend=null,laatsteDir=null; // "3×2 sets" of "3 sets": geldt voor het eerstvolgende gewicht
   const rij=(kg,reps)=>{
     const r={kg:kg==null?"":kgTxt(kg),reps:reps==null?"":String(reps),fail:false};
     // Herkansing na een mislukte set ("90 kilo ❌ 86 kilo"): zelfde reps als de mislukte poging
-    if(reps==null&&laatste&&laatste.fail&&laatste.reps){r.reps=laatste.reps;r.herkansing=true;}
+    if(reps==null&&!pend&&laatste&&laatste.fail&&laatste.reps){r.reps=laatste.reps;r.herkansing=true;}
     rows.push(r);laatste=r;return r;
   };
+  // Gewicht na een directief ("3 sets gedaan met 25 kilo"): reps uit het directief, zoveel rijen als sets
+  const plaats=(r)=>{
+    if(!pend)return false;
+    if(!r.reps&&pend.reps!=null)r.reps=String(pend.reps);
+    for(let i=1;i<Math.min(pend.sets,12);i++)rows.push(Object.assign({},r));
+    pend=null;laatsteKg=null;return true;
+  };
+  const dir=(sets,reps)=>{pend={sets,reps};laatsteDir=pend;laatsteKg=null;};
   const zwaarGelogd=()=>rows.some(r=>(leesKg(r.kg)||0)>15);
   let m;SETS_TOKEN.lastIndex=0;
   while((m=SETS_TOKEN.exec(t))){
     if(m[1]!=null){ // A x B
-      const a=setsNum(m[1]),b=setsNum(m[4]),kgVoor=!!m[2],kgNa=!!m[5],kruis=m[3]==="×";
+      const a=setsNum(m[1]),b=setsNum(m[4]),kgVoor=!!m[2],kgNa=!!m[5],kruis=m[3]==="×",woord=!!m[6];
+      if(woord&&setsIsInt(m[1])&&setsIsInt(m[4])&&a<=15&&b<=30){dir(a,b);continue;}                 // "3×2 sets", "3x 6 reps" = aantal sets × reps
       if(kruis||kgVoor){rij(a,setsIsInt(m[4])?b:null);explicietReps=true;laatsteKg=null;continue;} // "2×12", "2 kg x 12" = kg × reps
       if(kgNa){rij(b,setsIsInt(m[1])?a:null);explicietReps=true;laatsteKg=null;continue;}           // "12 x 2 kg" = reps × kg
-      if(setsIsInt(m[1])&&setsIsInt(m[4])&&a<=15&&b<=15){defSets=a;defReps=b;laatsteKg=null;continue;} // "5x5" = sets x reps
+      if(setsIsInt(m[1])&&setsIsInt(m[4])&&a<=15&&b<=15){dir(a,b);continue;}                        // "5x5" = sets x reps
       if(a<=15&&setsIsInt(m[1])&&b>15){rij(b,a);explicietReps=true;}   // "5x120" = reps x kg
       else{rij(a,setsIsInt(m[4])?b:null);explicietReps=true;}           // "120x5" = kg x reps
       laatsteKg=null;continue;
     }
-    if(m[6]!=null){rij(setsNum(m[7]),parseInt(m[6],10));explicietReps=true;laatsteKg=null;continue;} // "5 reps @ 100", "10 reps: 57.50"
-    if(m[8]!=null){rij(setsNum(m[9]),parseInt(m[8],10));explicietReps=true;laatsteKg=null;continue;} // "11: 70 kilo"
-    if(m[10]!=null){ // "3@88" (reps@kg) of "88@3" (kg@reps)
-      const a=setsNum(m[10]),b=setsNum(m[11]);
-      if(setsIsInt(m[10])&&a<=15&&b>15)rij(b,a);else rij(a,setsIsInt(m[11])?b:null);
+    if(m[7]!=null){dir(parseInt(m[7],10),m[8]!=null?parseInt(m[8],10):null);continue;} // "3x reps", "3 sets", "3 sets van 5"
+    if(m[9]!=null){rij(setsNum(m[10]),parseInt(m[9],10));explicietReps=true;laatsteKg=null;continue;} // "5 reps @ 100", "6 reps was 65"
+    if(m[11]!=null){rij(setsNum(m[12]),parseInt(m[11],10));explicietReps=true;laatsteKg=null;continue;} // "11: 70 kilo"
+    if(m[13]!=null){ // "3@88" (reps@kg) of "88@3" (kg@reps)
+      const a=setsNum(m[13]),b=setsNum(m[14]);
+      if(setsIsInt(m[13])&&a<=15&&b>15)rij(b,a);else rij(a,setsIsInt(m[14])?b:null);
       explicietReps=true;laatsteKg=null;continue;
     }
-    if(m[12]!=null){const r=rij(setsNum(m[12]),null);laatsteKg=r.reps?null:r;continue;} // "95 kg"
-    if(m[13]!=null){ // "10 reps": bij de laatste rij zonder reps, anders een rij zonder gewicht
-      const reps=parseInt(m[13],10);
+    if(m[15]!=null){const r=rij(setsNum(m[15]),null);if(!plaats(r))laatsteKg=r.reps?null:r;continue;} // "95 kg"
+    if(m[16]!=null){ // "10 reps": bij de laatste rij zonder reps, anders een rij zonder gewicht
+      const reps=parseInt(m[16],10);
       if(laatste&&!laatste.reps)laatste.reps=String(reps);else rij(null,reps);
       laatsteKg=null;explicietReps=true;continue;
     }
-    if(m[14]!=null){ // los getal: reps bij een "N kg"-rij zonder reps, anders een gewicht
-      const v=setsNum(m[14]);
-      if(laatsteKg&&setsIsInt(m[14])&&v<=30){laatsteKg.reps=String(v);laatsteKg=null;explicietReps=true;continue;}
+    if(m[17]!=null){ // los getal: reps bij een "N kg"-rij zonder reps, anders een gewicht
+      const v=setsNum(m[17]);
+      if(laatsteKg&&setsIsInt(m[17])&&v<=30){laatsteKg.reps=String(v);laatsteKg=null;explicietReps=true;continue;}
       laatsteKg=null;
-      if(setsIsInt(m[14])&&v<=15&&zwaarGelogd())continue; // "in plaats van 5": geen set
-      rij(v,null);continue;
+      if(setsIsInt(m[17])&&v<=15&&zwaarGelogd())continue; // "in plaats van 5": geen set
+      plaats(rij(v,null));continue;
     }
-    if(m[15]!=null&&rows.length)rows[rows.length-1].fail=true; // "ging niet"
+    if(m[18]!=null&&rows.length)rows[rows.length-1].fail=true; // "ging niet"
   }
+  // Reps voor rijen zonder reps: uit het voorschrift, anders uit het laatste directief ("5x5")
+  const defReps=(schema&&typeof schema.reps==="number")?schema.reps:(laatsteDir&&laatsteDir.reps!=null?laatsteDir.reps:null);
   rows.forEach(r=>{if(!r.reps&&defReps!=null)r.reps=String(defReps);});
   // Reps-lijst uit het schema (11-9-7-5): per set op volgorde; een herkansing telt niet als nieuwe set
   if(schema&&Array.isArray(schema.reps_lijst)&&schema.reps_lijst.length){
@@ -376,7 +389,8 @@ function setsUitTekst(tekst,schema){
     rows.forEach(r=>{if(r.herkansing)return;if(!r.reps)r.reps=String(schema.reps_lijst[Math.min(k,schema.reps_lijst.length-1)]);k++;});
   }
   rows.forEach(r=>{delete r.herkansing;});
-  const n=defSets||(schema&&schema.sets)||0;
+  // Eén gewicht voor N sets: N rijen ter bevestiging
+  const n=(laatsteDir&&laatsteDir.sets)||(schema&&schema.sets)||0;
   if(rows.length===1&&n>1&&!explicietReps){const basis=rows[0];for(let i=1;i<Math.min(n,12);i++)rows.push(Object.assign({},basis));}
   return {rows,gelezen:setsSamenvatting(rows)};
 }
