@@ -8,7 +8,7 @@ const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 // op aangeven van coach Vissenberg via Stefan).
 const LEGNAAM={yellow:"Accessory / Special Strength",blue:"Conditioning",purple:"Workout met Leaderboard",red:"Weightlifting / Primers",green:"Gymnastics",orange:"Overig"};
 const LIB_PER=50;
-let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",bmJaar:"",bmMove:"",bmFormat:"",bmDiv:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
+let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",bmJaar:"",bmMove:"",bmFormat:"",bmDiv:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",sub:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
 // Benchmark-categorieën (zelfde indeling als Strivee's Add Benchmark)
 const BM_CATS=[["girls","Girls"],["heroes","Heroes"],["open","Open"],["quarterfinal","Quarterfinal"],["notable","Notable"],["custom","Custom"]];
 const BM_CATNAAM=Object.fromEntries(BM_CATS);
@@ -136,10 +136,26 @@ function libLaad(){
   })();
   return LIB.laadPromise;
 }
-function libZetMode(m){LIB.mode=m;LIB.zoek="";LIB.pag=0;LIB.kleur="";const z=document.getElementById("lib-zoek");if(z)z.value="";coachRenderSection();}
+function libZetMode(m){LIB.mode=m;LIB.zoek="";LIB.pag=0;LIB.kleur="";LIB.sub="";const z=document.getElementById("lib-zoek");if(z)z.value="";coachRenderSection();}
 function libFilter(v){LIB.zoek=(v||"").toLowerCase();LIB.pag=0;libLijst();}
 function libGa(p){LIB.pag=p;libLijst();}
-function libKleurFilter(k){LIB.kleur=LIB.kleur===k?"":k;LIB.pag=0;libLijst();}
+function libKleurFilter(k){LIB.kleur=LIB.kleur===k?"":k;LIB.sub="";LIB.pag=0;libLijst();}
+function libSubFilter(k){LIB.sub=LIB.sub===k?"":k;LIB.pag=0;libLijst();}
+// Zoekwoord-groep van een template: het stuk vóór het haakje, zonder
+// week-/datumaanduiding. "Special Strength (Goblet Squat / RDL)" → "special strength",
+// "YP showdown 9 oktober 2026" → "yp showdown", "Murph prep 2" → "murph prep".
+function tplGroep(naam){
+  let s=String(naam||"").split("(")[0].replace(/\s+-\s+.*$/,"").replace(/\s+\d.*$/,"").replace(/\s+/g," ").trim().toLowerCase();
+  if(!s)s=String(naam||"").replace(/\s+/g," ").trim().toLowerCase();
+  return s;
+}
+// Zoekwoord-chips voor de gekozen kleur: alle groepen met minstens 2 templates,
+// grootste eerst. Teruggegeven als [[groep, aantal], …].
+function tplGroepen(type,kleur){
+  const tel={};
+  LIB.tpl.forEach(o=>{if(o.type!==type||o.kleur!==kleur)return;const g=tplGroep(o.naam);tel[g]=(tel[g]||0)+1;});
+  return Object.entries(tel).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+}
 function libKop(){
   const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",benchmarks:"Benchmarks",programs:"Programma's"};
   const t=document.getElementById("lib-titel");if(t)t.textContent=titels[LIB.mode];
@@ -181,8 +197,22 @@ function libKop(){
       }
     }
     else{
-      leg.style.display="flex";leg.style.flexDirection="row";leg.style.alignItems="center";
-      leg.innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
+      leg.style.display="flex";
+      const kleurChips=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
+      // Tweede regel: zoekwoorden binnen de gekozen kleur (bijv. onder Accessory:
+      // Special strength, Core work, Arms, Grip work…). Alleen groepen met 2+ templates.
+      const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
+      const groepen=LIB.kleur?tplGroepen(type,LIB.kleur):[];
+      if(groepen.length){
+        const naam=g=>esc(g.charAt(0).toUpperCase()+g.slice(1));
+        const subChips=groepen.map(([g,n])=>'<span class="legchip'+(LIB.sub===g?" aan":"")+'" style="font-weight:500" onclick="libSubFilter('+JSON.stringify(g).replace(/"/g,"&quot;")+')">'+naam(g)+' <span style="opacity:.6">'+n+'</span></span>').join("");
+        leg.style.flexDirection="column";leg.style.alignItems="stretch";
+        leg.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+kleurChips+'</div>'+
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="sm muted" style="font-size:11.5px;margin-right:2px">Zoekwoord:</span>'+subChips+'</div>';
+      }else{
+        leg.style.flexDirection="row";leg.style.alignItems="center";
+        leg.innerHTML=kleurChips;
+      }
     }
   }
 }
@@ -198,7 +228,7 @@ function libLijst(){
   if(LIB.mode!=="oef"){
     if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div>';
     const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
-    const hits=LIB.tpl.filter(o=>o.type===type&&(!LIB.kleur||o.kleur===LIB.kleur)&&(!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.instructies||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)));
+    const hits=LIB.tpl.filter(o=>o.type===type&&(!LIB.kleur||o.kleur===LIB.kleur)&&(!LIB.sub||tplGroep(o.naam)===LIB.sub)&&(!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.instructies||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)));
     if(cnt)cnt.textContent=hits.length+" templates";
     host.innerHTML=hits.map(o=>{
       const tg=(o.tags||[]).slice(0,2).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
