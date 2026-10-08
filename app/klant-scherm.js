@@ -1104,6 +1104,9 @@ function biebLees(ev){try{const s=ev.dataTransfer.getData(BIEB_MIME);return s?JS
 // Van een kaart naar de velden van een blok (zelfde vorm als insInvoegen).
 function biebBlokVan(item){
   if(item.soort==="oefening")return {kind:"exercise",exercise:item.naam,prescription:null,color:null,score_type:"text",oefening_id:item.id||null,media:null};
+  // Weekworkout als één blok: via source_blog_workout_id logt het lid hem met
+  // Rx/Scaled en komt hij op het gedeelde leaderboard (zelfde als insWeekwod in de bouwer).
+  if(item.soort==="weekworkout")return {kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:"blue",score_type:item.score_type||"text",source_blog_workout_id:item.id,media:(item.media&&item.media.length)?item.media:null};
   return {kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:TPLKLEUREN.includes(item.kleur)?item.kleur:null,score_type:"text",media:(item.media&&item.media.length)?item.media:null};
 }
 function biebInBouwer(item){
@@ -1120,6 +1123,15 @@ async function biebDropOpDag(item,ds){
   // Staat er al een workout (geen rustdag)? Dan eronder als volgend blok.
   const dag=Object.values(monthWorkouts).filter(w=>w.workout_date===ds&&!/^rest ?day$/i.test((w.title||"").trim())).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
   if(dag.length){await biebDropOpWorkout(item,dag[dag.length-1].id);return;}
+  // Lege dag + weekworkout: volledige eigen kopie (warming-up, alle blokken, cooldown),
+  // precies zoals Invoegen bij + Programma dat doet.
+  if(item.soort==="weekworkout"&&item.blocks){
+    const{data:nw,error:we}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:ds,title:item.naam,warmup:item.warmup,cooldown:item.cooldown,warmup_oefening_id:item.warmup_oefening_id,cooldown_oefening_id:item.cooldown_oefening_id,warmup_media:item.warmup_media||null,cooldown_media:item.cooldown_media||null,source_blog_workout_id:item.id}).select().single();
+    if(we){toast(we.message||"Toevoegen mislukt");return;}
+    if(item.blocks.length){const{error:be}=await db.from("blocks").insert(item.blocks.map(b=>Object.assign({},b,{workout_id:nw.id})));if(be){toast(be.message||"Toevoegen mislukt");return;}}
+    toast('Weekworkout "'+item.naam+'" als eigen kopie op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');
+    renderMonth();return;
+  }
   // Lege dag: nieuwe workout met de naam van de kaart en dit als blok A.
   const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:ds,title:item.naam}).select().single();
   if(error){toast(error.message||"Toevoegen mislukt");return;}
