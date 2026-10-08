@@ -3,8 +3,8 @@
 //   node kracht-test.js            (alleen vaste gevallen)
 //   node kracht-test.js --alle     (ook alle Special Strength-templates ophalen)
 const fs=require("fs");
-const src=fs.readFileSync(__dirname+"/../app/kracht.js","utf8");
-const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL};")(null,["yellow","blue","purple","red","green","orange"]);
+const src=fs.readFileSync(__dirname+"/../app/kracht.js","utf8")+String.fromCharCode(10)+fs.readFileSync(__dirname+"/../app/oude-logs.js","utf8");
+const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL,olBepaal};")(null,["yellow","blue","purple","red","green","orange"]);
 let fouten=0;
 const gelijk=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function check(naam,kreeg,verwacht){
@@ -150,6 +150,18 @@ check("1RM: zonder meting en zonder single niets (geen schatting)",K.klEenRm("fs
 check("vorige keer back squat",K.klVorige("bs").tekst,"100×5 · 105×5 ✗");
 check("vorige keer vóór 5 okt",K.klVorige("bs","2026-10-05").tekst,"95×5 · 120×1");
 check("vorige keer onbekende lift",K.klVorige("dl"),null);
+}
+
+
+// ---- stap 5: status van een oude log (AI en tekstlezer eens / nakijken / geen) ----
+{
+const S5={sets:5,reps:5,kg:95};
+const rij=(tekst,ai)=>{const r={tekst,schema:S5,lezer:K.setsUitTekst(tekst,S5).rows,ai,voorstel:"",status:"",reden:"",aan:false};K.olBepaal(r);return [r.status,r.voorstel,r.aan];};
+check("oude log: zonder AI = tekstlezer",rij("60, 65 ging goed",null),["lezer","60×5 · 65×5",false]);
+check("oude log: AI eens = groen en aangevinkt",rij("60, 65 ging goed",{sets:[{kg:"60",reps:"5",fail:false},{kg:"65",reps:"5",fail:false}],reden:""}),["eens","60×5 · 65×5",true]);
+check("oude log: AI anders = nakijken",rij("140 lukte niet, 130 wel",{sets:[{kg:"130",reps:"5",fail:false}],reden:""}),["nakijken","130×5",false]);
+check("oude log: AI leeg maar lezer vindt iets = nakijken",rij("60, 65",{sets:[],reden:"onduidelijk"}),["nakijken","60×5 · 65×5",false]);
+check("oude log: niets = geen",rij("gedaan, voelde zwaar",{sets:[],reden:"alleen tekst"}),["geen","",false]);
 }
 
 console.log(fouten?"\n"+fouten+" FOUT(EN)":"\nalles ok");

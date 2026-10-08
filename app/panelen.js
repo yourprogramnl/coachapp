@@ -287,9 +287,11 @@ async function openMx(){
   sp.innerHTML='<div class="sp-head"><h3>Metrics</h3><span class="sp-x" onclick="document.getElementById(\'sp-mx\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">'+
     '<button class="sp-btn" style="width:auto;padding:9px 14px" onclick="metricsView()">Bekijk structural balance</button>'+
-    '<button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal(\'\')">+ Toevoegen</button></div>'+
+    '<button class="sp-btn ghost" id="ol-knop" style="width:auto;padding:9px 14px;margin-left:auto;display:none" title="Gelogde tekst van krachtblokken omzetten naar sets (krachtlog)" onclick="olOpen()">Oude logs omzetten</button>'+
+    '<button class="sp-btn ghost" style="width:auto;padding:9px 14px" onclick="openMxModal(\x27\x27)">+ Toevoegen</button></div>'+
     '<div id="kl-groep"></div><div id="mx-groepen"></div>';
   mxRender();
+  if(typeof olKnopVernieuw==="function")olKnopVernieuw();
 }
 function mxToggle(g){mxOpen[g]=!mxOpen[g];mxRender();}
 function mxRender(){
