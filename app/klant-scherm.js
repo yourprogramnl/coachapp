@@ -463,7 +463,7 @@ function liftRowHtml(b){
   const geen=!!(b.lift_scheme&&b.lift_scheme.geen_lift);
   const scheme=(b.lift_scheme&&b.lift_scheme.hand)?b.lift_scheme:(schemaLees(b.prescription||"")||b.lift_scheme);
   return '<div class="liftrow">'+liftChipHtml(b.lift_id,b.lift_id?liftNaam(b.lift_id):"",geen)+'<div class="liftdrop exdrop" onclick="event.stopPropagation()"></div></div>'+
-    '<div class="schemarow"'+(b.lift_id?'':' style="display:none"')+'><span class="schemalbl">Schema</span><span class="schematxt">'+esc(schemaTekst(scheme)||"geen schema herkend")+'</span><span class="demolink" onclick="schemaBewerk(this)">aanpassen</span><span class="schemaedit" style="display:none"></span></div>';
+    '<div class="schemarow"'+(b.lift_id?'':' style="display:none"')+'><span class="schemalbl">Schema</span><span class="schematxt">'+esc(schemaTekst(scheme)||"geen schema herkend")+'</span><span class="demolink" onclick="schemaBewerk(this)">aanpassen</span><span class="schemaedit" style="display:none"></span></div><div class="klcijfers" style="display:none"></div>';
 }
 function liftZet(row,l,auto,stil){
   const was=row.dataset.lift||"";
@@ -474,7 +474,7 @@ function liftZet(row,l,auto,stil){
   const host=row.querySelector(".liftrow");
   if(host)host.innerHTML=liftChipHtml(l?l.id:null,l?l.name:"",row.dataset.geenlift==="1")+'<div class="liftdrop exdrop" onclick="event.stopPropagation()"></div>';
   const sr=row.querySelector(".schemarow");if(sr)sr.style.display=l?"":"none";
-  if(l)schemaVernieuw(row);
+  if(l)schemaVernieuw(row);else cijfersVernieuw(row);
   if(!stil&&(l?l.id:"")!==was)bouwerDirty=true;
 }
 // Automatisch koppelen op naam: bij het verlaten van het naamveld, bij kiezen
@@ -488,6 +488,7 @@ function liftAuto(el,stil){
     // stilletjes overschrijven; alleen de chipnaam verversen als de lijst nog laadde.
     const sp=row.querySelector(".liftnaam");
     if(sp&&/…$/.test(sp.textContent))liftsLaad().then(()=>{const l=liftVan(row.dataset.lift);if(l&&document.contains(row))liftZet(row,l,row.dataset.liftauto!=="0",true);});
+    else cijfersVernieuw(row);
     return;
   }
   liftsLaad().then(()=>{
@@ -537,6 +538,7 @@ function schemaVernieuw(el){
   const s=schemaLees((row.querySelector(".f-presc")||{}).value||"");
   row.dataset.scheme=s?JSON.stringify(s):"";
   const txt=row.querySelector(".schematxt");if(txt)txt.textContent=schemaTekst(s)||"geen schema herkend";
+  cijfersVernieuw(row);
 }
 function schemaBewerk(el){
   const row=el.closest(".exrow"),box=row.querySelector(".schemaedit");if(!box)return;
@@ -559,6 +561,7 @@ function schemaInputWijzig(inp){
   if(g("rust"))s.rust=g("rust");
   row.dataset.scheme=JSON.stringify(s);
   const txt=row.querySelector(".schematxt");if(txt)txt.textContent=schemaTekst(s)||"geen schema";
+  cijfersVernieuw(row);
   bouwerDirty=true;
 }
 function schemaReset(el){
@@ -566,6 +569,38 @@ function schemaReset(el){
   schemaVernieuw(row);
   const box=row.querySelector(".schemaedit");if(box)box.style.display="none";
   bouwerDirty=true;
+}
+// ---------- Cijfers van de klant onder een lift in de bouwer (krachtlog, stap 4) ----------
+// Echte 1RM, beste set op de reps van het schema, vorige keer; bij een
+// percentage de kilo's die daaruit volgen. Alleen in de klantkalender (niet in
+// de programma-editor, daar is geen klant). Data: klLaad in app/kracht.js.
+function cijfersVernieuw(row){
+  const box=row.querySelector(".klcijfers");if(!box)return;
+  const liftId=row.dataset.lift||"";
+  const klant=(typeof calClient!=="undefined"&&calClient&&row.closest("#calwrap"))?calClient:null;
+  if(!liftId||!klant||row.dataset.geenlift==="1"){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="";
+  if(!(KL.client===klant&&KL.geladen))box.innerHTML='<span class="muted">Cijfers laden…</span>';
+  klLaad(klant).then(()=>{
+    if(!document.contains(row)||(row.dataset.lift||"")!==liftId)return;
+    const s=schemaUitRij(row)||schemaLees((row.querySelector(".f-presc")||{}).value||"");
+    box.innerHTML=cijfersHtml(liftId,s,typeof editDay!=="undefined"?editDay:null);
+  });
+}
+function cijfersHtml(liftId,s,voorDatum){
+  const kg=v=>kgTxt(v)+" kg";
+  const rm=klEenRm(liftId),delen=[];
+  if(rm)delen.push('<b>1RM '+kg(rm.kg)+'</b> <span class="muted">('+klDatum(rm.date)+(rm.bron==="log"?", uit de log":"")+')</span>');
+  const reps=s&&typeof s.reps==="number"?s.reps:null;
+  if(reps&&reps!==1){const b=klBeste(liftId,reps);if(b)delen.push('beste '+reps+'×: <b>'+kg(b.kg)+'</b> <span class="muted">('+klDatum(b.date)+')</span>');}
+  const v=klVorige(liftId,voorDatum);
+  if(v)delen.push('vorige keer: <b>'+esc(v.tekst)+'</b> <span class="muted">('+klDatum(v.date)+')</span>');
+  if(s&&s.pct!=null){
+    if(rm){const w=Math.round(rm.kg*s.pct/100*2)/2;delen.push('<b>'+s.pct+'% = '+kg(w)+'</b>'+(s.pct_tot!=null?' <span class="muted">tot '+kg(Math.round(rm.kg*s.pct_tot/100*2)/2)+'</span>':''));}
+    else delen.push('<span class="muted">'+s.pct+'%: nog geen 1RM bekend</span>');
+  }
+  if(!delen.length)return '<span class="klcijfers-lbl">Klant</span><span class="muted">Nog geen krachtlog voor deze lift</span>';
+  return '<span class="klcijfers-lbl">Klant</span>'+delen.join(' <span class="muted">·</span> ');
 }
 // Gedeelde inhoud van de video-popover (oefening én warming-up/cooldown gebruiken dezelfde).
 function vidPopInner(naam,o){
@@ -1985,10 +2020,15 @@ function openResults(wid){
     const missed=!!(r&&r.status==="missed");
     const val=(r&&!missed)?(r.score_text||resultScoreTxt(r)):"";
     const pr=composePresc(b);
-    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'">'+
+    // Krachtblok (lift): de tekst wordt ook als sets gelezen voor de krachtlog, net als in de app
+    const lift=!!b.lift_id&&!(b.lift_scheme&&b.lift_scheme.geen_lift);
+    const scheme=lift?((b.lift_scheme&&b.lift_scheme.hand)?b.lift_scheme:(schemaLees(b.prescription||"")||b.lift_scheme||null)):null;
+    const gelezen=lift?resSetsHtml(val,(r&&!missed)?r.sets:null,scheme):"";
+    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'" data-lift="'+(lift?"1":"0")+'" data-scheme="'+esc(scheme?JSON.stringify(scheme):"")+'">'+
       '<div class="resblok"><span class="reslabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
         (pr?'<div class="respr">'+esc(pr)+'</div>':'')+'</div>'+
-      '<div class="resinvoer"><input class="resval" placeholder="Resultaat…" value="'+esc(val)+'"'+(missed?' disabled':'')+'>'+
+      '<div class="resinvoer"><div style="flex:1;min-width:0"><input class="resval" style="width:100%" placeholder="'+(lift?"Sets, bijv. 95x5 100x5 105x1":"Resultaat…")+'" value="'+esc(val)+'"'+(missed?' disabled':'')+(lift?' oninput="resSetsLees(this)"':'')+'>'+
+        (lift?'<div class="res-gelezen">'+gelezen+'</div>':'')+'</div>'+
         '<button class="resmiss'+(missed?' on':'')+'" title="Gemist" onclick="resToggleMissed(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></div>'+
       '</div>';
   }).join("");
@@ -2000,7 +2040,21 @@ function resToggleMissed(btn){
   const nu=!row.classList.contains("missed");
   row.classList.toggle("missed",nu);btn.classList.toggle("on",nu);
   const inp=row.querySelector(".resval");
-  if(nu){inp.value="";inp.disabled=true;}else{inp.disabled=false;inp.focus();}
+  if(nu){inp.value="";inp.disabled=true;const g=row.querySelector(".res-gelezen");if(g)g.innerHTML="";}else{inp.disabled=false;inp.focus();}
+}
+// Krachtblok in het scores-venster: laat zien hoe de tekst als sets wordt gelezen (krachtlog).
+// Opgeslagen sets uit de app staan als samenvatting in de tekst; de coach kan ze
+// gewoon in de tekst corrigeren ("95x5 100x4"), de sets volgen de tekst.
+function resSetsHtml(val,sets,scheme){
+  if(!String(val||"").trim())return "";
+  if(Array.isArray(sets)&&sets.length&&val===setsTekst(sets))return 'Sets: <b>'+esc(setsTekst(sets))+'</b>';
+  const g=setsUitTekst(val,scheme);
+  return g.rows.length?'Sets: <b>'+esc(g.gelezen)+'</b>':'<span style="color:#b57614">Geen sets herkend: wordt als tekst bewaard, telt niet mee voor records</span>';
+}
+function resSetsLees(inp){
+  const row=inp.closest(".resrow"),box=row&&row.querySelector(".res-gelezen");if(!box)return;
+  let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}
+  box.innerHTML=resSetsHtml((inp.value||"").trim(),null,s);
 }
 async function saveResults(){
   const wid=resWid;if(!wid){closeResults();return;}
@@ -2011,15 +2065,21 @@ async function saveResults(){
     const missed=row.classList.contains("missed");
     const val=(row.querySelector(".resval").value||"").trim();
     const base={block_id:blockId,workout_id:wid,athlete_id:calClient,company_id:ME.profile.company_id,time_seconds:null,load_kg:null,reps:null,rounds:null};
+    const lift=row.dataset.lift==="1";
+    if(lift)base.sets=null; // krachtblok: de sets volgen de tekst (of worden gewist)
     if(missed)upserts.push(Object.assign({},base,{status:"missed",score_text:null}));
-    else if(val)upserts.push(Object.assign({},base,{status:"completed",score_text:val}));
+    else if(val){
+      const rec=Object.assign({},base,{status:"completed",score_text:val});
+      if(lift){let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}const sets=setsNaarRec(setsUitTekst(val,s).rows);if(sets.length)rec.sets=sets;}
+      upserts.push(rec);
+    }
     else if(monthResults[blockId])deletes.push(blockId); // leeggemaakt: bestaande logging verwijderen
   });
   const sb=document.getElementById("res-save");sb.disabled=true;
   try{
     if(upserts.length){const{error}=await db.from("results").upsert(upserts,{onConflict:"block_id,athlete_id"});if(error)throw error;}
     if(deletes.length){const{error}=await db.from("results").delete().eq("athlete_id",calClient).in("block_id",deletes);if(error)throw error;}
-    closeResults();toast("Scores opgeslagen");renderMonth();
+    closeResults();toast("Scores opgeslagen");if(typeof klOngeldig==="function")klOngeldig(calClient);renderMonth();
   }catch(e){msg.textContent=e.message||"Opslaan mislukt.";msg.className="msg err";sb.disabled=false;}
 }
 

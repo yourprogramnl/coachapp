@@ -265,3 +265,161 @@ function tplBlokken(o){
 function blokkenMetLabels(blokken,letter,sortStart){
   return blokken.map((b,i)=>Object.assign({},b,{label:blokken.length>1?letter+(i+1):letter,sort:(sortStart||1)+i}));
 }
+
+// ---------- Sets: tekst naar sets en terug (kopie van src/kracht.js in de sporter-app; gelijk houden) ----------
+// results.sets is [{set,kg,reps,fail}]; de leesbare vorm is "95×5 · 100×5 · 105×1 ✗".
+// Alleen echte data: een set van 5 is een set van 5 en wordt nooit omgerekend
+// naar een 1RM (keuze Stefan, 8 oktober 2026).
+const kgTxt=v=>String(v).replace(".",",");
+function leesKg(s){const v=parseFloat(String(s==null?"":s).trim().replace(",","."));return isNaN(v)||v<0?null:v;}
+function leesReps(s){const m=String(s==null?"":s).trim().match(/^\d+$/);return m?parseInt(m[0],10):null;}
+// Invulrijen ({kg,reps,fail} als tekst) naar de database-vorm; lege rijen vallen af.
+function setsNaarRec(rows){
+  const uit=[];
+  (rows||[]).forEach(r=>{
+    const kg=leesKg(r.kg),reps=leesReps(r.reps);
+    if(kg==null&&reps==null)return;
+    const s={set:uit.length+1};
+    if(kg!=null)s.kg=kg;if(reps!=null)s.reps=reps;if(r.fail)s.fail=true;
+    uit.push(s);
+  });
+  return uit;
+}
+// Database-vorm terug naar invulrijen.
+function setsNaarRijen(sets){return (Array.isArray(sets)?sets:[]).map(x=>({kg:x.kg!=null?kgTxt(x.kg):"",reps:x.reps!=null?String(x.reps):"",fail:!!x.fail}));}
+function setsSamenvatting(rows){
+  return (rows||[]).map(r=>{
+    const kg=leesKg(r.kg),reps=leesReps(r.reps);
+    if(kg==null&&reps==null)return null;
+    let t=kg!=null&&reps!=null?kgTxt(kg)+"×"+reps:kg!=null?kgTxt(kg)+" kg":reps+" reps";
+    if(r.fail)t+=" ✗";
+    return t;
+  }).filter(Boolean).join(" · ");
+}
+const setsTekst=sets=>setsSamenvatting(setsNaarRijen(sets));
+// Beste set: zwaarste gelukte set (bij gelijk gewicht de meeste reps).
+function besteSet(sets){let b=null;(sets||[]).forEach(s=>{if(s.fail||s.kg==null)return;if(!b||s.kg>b.kg||(s.kg===b.kg&&(s.reps||0)>(b.reps||0)))b=s;});return b;}
+// Vrije tekst naar sets: "60, 65 ging goed" = 60 en 65 met de reps uit het
+// schema; "5x5 met 95" = vijf sets van 5 op 95; "3@88 2@95" = twee sets;
+// "65 ging niet" = mislukte set; "17,5 kilo: 12/9" = 17,5 kg × 12. Tijden,
+// percentages, minuten/seconden en tempo-codes zijn nooit gewicht.
+const SETS_FAIL="ging niet|lukte niet|niet gelukt|niet gehaald|mislukt|gefaald|failed|fail|✗|❌";
+const SETS_TOKEN=new RegExp(
+  "(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)?\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)?(?!\\s*%)"+ // A x B
+  "|(\\d+)\\s*(?:reps?|herhalingen)\\s*(?:@|op|met|at)\\s*(\\d+(?:[.,]\\d+)?)"+                  // N reps @ kg
+  "|(\\d+(?:[.,]\\d+)?)\\s*@\\s*(\\d+(?:[.,]\\d+)?)"+                                           // 3@88
+  "|(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                      // 95 kg
+  "|(\\d+)\\s*(?:reps?|herhalingen)\\b"+                                                        // 10 reps
+  "|(\\d+(?:[.,]\\d+)?)"+                                                                        // los getal
+  "|("+SETS_FAIL+")","gi");
+const setsSchoon=t=>String(t||"").replace(/\b\d+:\d+(?::\d+)?\b/g," ").replace(/\d+(?:[.,]\d+)?\s*%/g," ").replace(/@\s*\d[\dxX]{2}\d\b/g," ").replace(/\b\d+(?:[.,]\d+)?\s*(?:min|sec|seconden|minuten|m|meter|cal|kcal)\b/gi," ");
+const setsNum=s=>parseFloat(String(s).replace(",","."));
+const setsIsInt=s=>/^\d+$/.test(String(s));
+function setsUitTekst(tekst,schema){
+  const t=setsSchoon(tekst);
+  const rows=[];
+  let defSets=null,defReps=(schema&&typeof schema.reps==="number")?schema.reps:null;
+  let laatste=null,laatsteKg=null,explicietReps=false;
+  const rij=(kg,reps)=>{const r={kg:kg==null?"":kgTxt(kg),reps:reps==null?"":String(reps),fail:false};rows.push(r);laatste=r;return r;};
+  const zwaarGelogd=()=>rows.some(r=>(leesKg(r.kg)||0)>15);
+  let m;SETS_TOKEN.lastIndex=0;
+  while((m=SETS_TOKEN.exec(t))){
+    if(m[1]!=null){ // A x B
+      const a=setsNum(m[1]),b=setsNum(m[2]);
+      if(setsIsInt(m[1])&&setsIsInt(m[2])&&a<=15&&b<=15){defSets=a;defReps=b;laatsteKg=null;continue;} // "5x5" = sets x reps
+      if(a<=15&&setsIsInt(m[1])&&b>15){rij(b,a);explicietReps=true;}   // "5x120" = reps x kg
+      else{rij(a,setsIsInt(m[2])?b:null);explicietReps=true;}           // "120x5" = kg x reps
+      laatsteKg=null;continue;
+    }
+    if(m[3]!=null){rij(setsNum(m[4]),parseInt(m[3],10));explicietReps=true;laatsteKg=null;continue;} // "5 reps @ 100"
+    if(m[5]!=null){ // "3@88" (reps@kg) of "88@3" (kg@reps)
+      const a=setsNum(m[5]),b=setsNum(m[6]);
+      if(setsIsInt(m[5])&&a<=15&&b>15)rij(b,a);else rij(a,setsIsInt(m[6])?b:null);
+      explicietReps=true;laatsteKg=null;continue;
+    }
+    if(m[7]!=null){laatsteKg=rij(setsNum(m[7]),null);continue;} // "95 kg"
+    if(m[8]!=null){ // "10 reps": bij de laatste rij zonder reps, anders een rij zonder gewicht
+      const reps=parseInt(m[8],10);
+      if(laatste&&!laatste.reps)laatste.reps=String(reps);else rij(null,reps);
+      laatsteKg=null;explicietReps=true;continue;
+    }
+    if(m[9]!=null){ // los getal: reps bij een "N kg"-rij zonder reps, anders een gewicht
+      const v=setsNum(m[9]);
+      if(laatsteKg&&setsIsInt(m[9])&&v<=30){laatsteKg.reps=String(v);laatsteKg=null;explicietReps=true;continue;}
+      laatsteKg=null;
+      if(setsIsInt(m[9])&&v<=15&&zwaarGelogd())continue; // "in plaats van 5": geen set
+      rij(v,null);continue;
+    }
+    if(m[10]!=null&&rows.length)rows[rows.length-1].fail=true; // "ging niet"
+  }
+  rows.forEach(r=>{if(!r.reps&&defReps!=null)r.reps=String(defReps);});
+  const n=defSets||(schema&&schema.sets)||0;
+  if(rows.length===1&&n>1&&!explicietReps){const basis=rows[0];for(let i=1;i<Math.min(n,12);i++)rows.push(Object.assign({},basis));}
+  return {rows,gelezen:setsSamenvatting(rows)};
+}
+
+// ---------- Krachtcijfers van een klant (dashboard): log, records, echte 1RM ----------
+// Eén lading per klant: de hele krachtlog (lift_log: elke set met PR-merkje) en
+// de metingen die bij een lift horen (metric_name). Daaruit komen de records
+// per lift en per aantal reps, de cijfers onder een lift in de bouwer en het
+// lift-scherm bij Metingen & PR's. Wordt ongeldig bij een nieuwe score (live).
+const KL={client:null,log:[],metrics:[],geladen:false,bezig:null};
+const KL_MND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+function klDatum(ds){
+  if(!ds)return "";
+  const d=new Date(String(ds).slice(0,10)+"T12:00:00");if(isNaN(d))return String(ds);
+  return d.getDate()+" "+KL_MND[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():"");
+}
+async function klLaad(clientId,vers){
+  if(!clientId)return KL;
+  if(KL.client===clientId&&KL.geladen&&!vers)return KL;
+  if(KL.client===clientId&&KL.bezig)return KL.bezig;
+  KL.client=clientId;KL.geladen=false;
+  KL.bezig=(async()=>{
+    try{
+      await liftsLaad();
+      const namen=[...new Set(LIFTS.lijst.map(l=>l.metric_name).filter(Boolean))];
+      const[log,mx]=await Promise.all([
+        db.rpc("lift_log",{p_athlete:clientId}),
+        namen.length?db.from("metrics").select("metric,value,measured_at,result_id").eq("athlete_id",clientId).in("metric",namen):Promise.resolve({data:[]})
+      ]);
+      if(KL.client!==clientId)return KL;
+      KL.log=(log&&log.data)||[];KL.metrics=(mx&&mx.data)||[];
+    }catch(e){KL.log=[];KL.metrics=[];}
+    KL.geladen=true;KL.bezig=null;return KL;
+  })();
+  return KL.bezig;
+}
+// Na een live wijziging (score uit de app, correctie door de coach): opnieuw laden bij de volgende vraag.
+function klOngeldig(clientId){if(!clientId||KL.client===clientId)KL.geladen=false;}
+// Records per lift en per aantal reps: {lift_id:{lift_id,lift,category,reps:{5:{kg,date,result_id}}}}
+function klRecords(){
+  const uit={};
+  KL.log.forEach(g=>{
+    if(g.kg==null||g.reps==null||g.fail)return;
+    const kg=+g.kg;
+    const l=uit[g.lift_id]||(uit[g.lift_id]={lift_id:g.lift_id,lift:g.lift,category:g.category,reps:{}});
+    const r=l.reps[g.reps];
+    if(!r||kg>r.kg||(kg===r.kg&&g.workout_date<r.date))l.reps[g.reps]={kg,date:g.workout_date,result_id:g.result_id};
+  });
+  return uit;
+}
+function klBeste(liftId,reps){const l=klRecords()[liftId];return l&&l.reps[reps]?l.reps[reps]:null;}
+// Echte 1RM van een lift: de hoogste meting op de metric van die lift (Metingen
+// & PR's, handmatig of automatisch uit een gelogde single), anders de beste
+// gelukte single uit de log. Nooit een schatting.
+function klEenRm(liftId){
+  const l=liftVan(liftId);let best=null;
+  if(l&&l.metric_name)KL.metrics.forEach(m=>{if(m.metric===l.metric_name&&m.value!=null&&(!best||+m.value>best.kg))best={kg:+m.value,date:m.measured_at,bron:"meting"};});
+  const s=klBeste(liftId,1);
+  if(s&&(!best||s.kg>best.kg))best={kg:s.kg,date:s.date,bron:"log"};
+  return best;
+}
+// Vorige keer: de sets van de laatste trainingsdag met deze lift (vóór een datum, als die er is).
+function klVorige(liftId,voorDatum){
+  const rows=KL.log.filter(g=>g.lift_id===liftId&&(!voorDatum||g.workout_date<voorDatum));
+  if(!rows.length)return null;
+  const d=rows[0].workout_date; // lift_log is nieuwste eerst
+  const sets=rows.filter(g=>g.workout_date===d).slice().sort((a,b)=>(a.set_nr||0)-(b.set_nr||0));
+  return {date:d,sets,tekst:setsTekst(sets)};
+}

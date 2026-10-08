@@ -4,7 +4,7 @@
 //   node kracht-test.js --alle     (ook alle Special Strength-templates ophalen)
 const fs=require("fs");
 const src=fs.readFileSync(__dirname+"/../app/kracht.js","utf8");
-const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS};")(null,["yellow","blue","purple","red","green","orange"]);
+const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL};")(null,["yellow","blue","purple","red","green","orange"]);
 let fouten=0;
 const gelijk=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function check(naam,kreeg,verwacht){
@@ -112,6 +112,45 @@ const carry=K.tplBlokken({naam:"special strength (barbell hip thruster / sandbag
 check("tplBlokken: carry krijgt geen eigen blok",[carry.length,carry[0].exercise,carry[0].group_title,carry[0].prescription.includes("sandbag carry")],[1,"barbell hip thruster","special strength",true]);
 const hold=K.tplBlokken({naam:"Special Strength (Alternating Lunge / Sorenson Hold)",kleur:"yellow",instructies:"24 alternating Lunges;"+NL+"15-30 seconds Sorenson Hold;"+NL+"Rest 2 min. x 3 sets."});
 check("tplBlokken: hold krijgt geen eigen blok",[hold.length,hold[0].exercise,hold[0].lift_scheme],[1,"Alternating Lunge",{sets:3,reps:24,rust:"2 min"}]);
+
+
+// ---- stap 4: sets uit tekst (zelfde regels als src/kracht.js in de app) en de krachtcijfers van een klant ----
+{
+const S5={sets:5,reps:5,kg:95,rust:"2 min"};
+const rows=r=>r.rows.map(x=>[x.kg,x.reps,x.fail]);
+check("tekst: 60, 65 ging goed",rows(K.setsUitTekst("60, 65 ging goed deze week",S5)),[["60","5",false],["65","5",false]]);
+check("tekst: 65 ging niet",rows(K.setsUitTekst("60 ging goed, 65 ging niet",S5)),[["60","5",false],["65","5",true]]);
+check("tekst: 65 lukte 3 reps in plaats van 5",rows(K.setsUitTekst("60, 65 lukte 3 reps in plaats van 5",S5)),[["60","5",false],["65","3",false]]);
+check("tekst: 5x5 met 95",rows(K.setsUitTekst("5x5 met 95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
+check("tekst: 3@88 2@95 1@103",rows(K.setsUitTekst("3@88 2@95 1@103",S5)),[["88","3",false],["95","2",false],["103","1",false]]);
+check("tekst: samenvatting uit de app terug naar sets",rows(K.setsUitTekst("95×5 · 100×5 · 105×1 ✗",S5)),[["95","5",false],["100","5",false],["105","1",true]]);
+check("tekst: 17,5 kilo: 12/9",rows(K.setsUitTekst("17,5 kilo: 12/9",{sets:3,reps:"8-12"})),[["17,5","12",false]]);
+check("tekst: alleen 95 bij 5 sets = 5 rijen",rows(K.setsUitTekst("95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
+check("tekst: tijd en tempo zijn geen gewicht (één gewicht bij 5 sets = 5 rijen)",rows(K.setsUitTekst("3:45 @3010 80 kg",S5)),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["80","5",false]]);
+check("tekst: niets",rows(K.setsUitTekst("ging lekker",S5)),[]);
+check("setsTekst",K.setsTekst([{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]),"95×5 · 102,5×1 ✗");
+check("setsNaarRec",K.setsNaarRec([{kg:"95",reps:"5",fail:false},{kg:"",reps:"",fail:false},{kg:"102,5",reps:"1",fail:true}]),[{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]);
+check("besteSet slaat mislukt over",K.besteSet([{kg:100,reps:5},{kg:110,reps:1,fail:true},{kg:105,reps:3}]),{kg:105,reps:3});
+// krachtcijfers van een klant (KL) uit een nep-log in de volgorde van lift_log (nieuwste eerst)
+K.KL.client="k1";K.KL.geladen=true;
+K.KL.log=[
+  {result_id:"r3",workout_date:"2026-10-05",lift_id:"bs",lift:"Back Squat",exercise:"Back Squat",set_nr:1,kg:100,reps:5,fail:false,is_pr:true},
+  {result_id:"r3",workout_date:"2026-10-05",lift_id:"bs",lift:"Back Squat",exercise:"Back Squat",set_nr:2,kg:105,reps:5,fail:true,is_pr:false},
+  {result_id:"r2",workout_date:"2026-09-28",lift_id:"bs",lift:"Back Squat",exercise:"Back Squat",set_nr:1,kg:95,reps:5,fail:false,is_pr:true},
+  {result_id:"r2",workout_date:"2026-09-28",lift_id:"bs",lift:"Back Squat",exercise:"Back Squat",set_nr:2,kg:120,reps:1,fail:false,is_pr:true},
+  {result_id:"r1",workout_date:"2026-09-21",lift_id:"fs",lift:"Front Squat",exercise:"Front Squat",set_nr:1,kg:80,reps:3,fail:false,is_pr:true},
+];
+K.KL.metrics=[{metric:"Back Squat 1RM",value:"125",measured_at:"2026-08-01",result_id:null}];
+K.LIFTS.lijst.find(l=>l.id==="bs").metric_name="Back Squat 1RM";
+check("records: beste 5 back squat (mislukte 105 telt niet)",K.klBeste("bs",5),{kg:100,date:"2026-10-05",result_id:"r3"});
+check("records: beste single uit de log",K.klBeste("bs",1),{kg:120,date:"2026-09-28",result_id:"r2"});
+check("records: front squat alleen 3 reps",Object.keys(K.klRecords().fs.reps),["3"]);
+check("1RM: meting wint als die hoger is",K.klEenRm("bs"),{kg:125,date:"2026-08-01",bron:"meting"});
+check("1RM: zonder meting en zonder single niets (geen schatting)",K.klEenRm("fs"),null);
+check("vorige keer back squat",K.klVorige("bs").tekst,"100×5 · 105×5 ✗");
+check("vorige keer vóór 5 okt",K.klVorige("bs","2026-10-05").tekst,"95×5 · 120×1");
+check("vorige keer onbekende lift",K.klVorige("dl"),null);
+}
 
 console.log(fouten?"\n"+fouten+" FOUT(EN)":"\nalles ok");
 

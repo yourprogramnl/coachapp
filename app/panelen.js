@@ -232,24 +232,14 @@ function mxGroepen(){
   if(eigen.length)uit["Eigen metrics"]=eigen;
   return uit;
 }
-// Geschatte 1RM's (uit een zware set of de CoachRx-import) zijn herkenbaar aan
-// "geschat" in de notitie; ze tellen anders mee dan echte metingen (zie mxWaarde).
-const mxGeschat=(m)=>/\bgeschat/i.test(m.note||"");
+// Alleen echte metingen: geschatte 1RM's bestaan sinds de krachtlog (8 oktober) niet meer.
 function mxWaarde(naam){
   const h=mxHist(naam);
   if(!h.length)return null;
   const laatste=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
   // Voor kg-liften is "Huidig" je beste ooit (PR), niet je laatste meting.
-  // Een GESCHATTE 1RM telt alleen mee zolang er geen nieuwere échte meting is:
-  // test iemand daarna een echte 1RM, dan is die leidend, ook als hij lager is.
   let cur=laatste;
-  if(mxType(naam)==="kg"){
-    const echt=h.filter(m=>!mxGeschat(m));
-    const grens=echt.length?echt[echt.length-1].measured_at:null;
-    const geldig=h.filter(m=>!mxGeschat(m)||grens==null||(m.measured_at||"")>grens);
-    const pool=geldig.length?geldig:h;
-    cur=pool.reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),pool[0]);
-  }
+  if(mxType(naam)==="kg")cur=h.reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),h[0]);
   return{cur,vorig,laatste,unit:cur.unit||""};
 }
 // Invoertype per metric bij het toevoegen van een resultaat.
@@ -293,16 +283,17 @@ async function openMx(){
   sp=document.createElement("div");sp.id="sp-mx";sp.className="sidepanel show";
   sp.innerHTML='<div class="sp-head"><h3>Metrics</h3></div><div class="sp-info">Laden…</div>';
   lay.insertBefore(sp,lay.querySelector(".cmain"));
-  await mxLaad();
+  await Promise.all([mxLaad(),klLaad(calClient)]);
   sp.innerHTML='<div class="sp-head"><h3>Metrics</h3><span class="sp-x" onclick="document.getElementById(\'sp-mx\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">'+
     '<button class="sp-btn" style="width:auto;padding:9px 14px" onclick="metricsView()">Bekijk structural balance</button>'+
     '<button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal(\'\')">+ Toevoegen</button></div>'+
-    '<div id="mx-groepen"></div>';
+    '<div id="kl-groep"></div><div id="mx-groepen"></div>';
   mxRender();
 }
 function mxToggle(g){mxOpen[g]=!mxOpen[g];mxRender();}
 function mxRender(){
+  klRender();
   const host=document.getElementById("mx-groepen");if(!host)return;
   const groepen=mxGroepen();let html="";
   for(const g in groepen){
@@ -317,7 +308,7 @@ function mxRender(){
           if(pts&&pts.length)curTxt=esc(String(pts[pts.length-1].v));
         }else{
           const w=mxWaarde(naam),t=mxType(naam);
-          if(w){curTxt=esc(mxFmtRij(w.cur,naam))+(t==="kg"&&mxGeschat(w.cur)?' <span style="color:#8b919b;font-size:10px">(geschat)</span>':"");
+          if(w){curTxt=esc(mxFmtRij(w.cur,naam));
             // +/- alleen voor getalswaarden (kg/vrij), niet voor pass/fail of tijd.
             // Vergelijkt de láátste meting met die ervoor (voortgang), los van de PR.
             if((t==="kg"||t==="vrij")&&w.vorig&&w.laatste.value!=null&&w.vorig.value!=null&&w.laatste.value!==w.vorig.value){
@@ -370,7 +361,7 @@ async function mxOpenDetail(naam){
   mxDetailNaam=naam;mxDetailForm=false;activePanel="metric-detail";
   if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient+"/metric/"+encodeURIComponent(naam));
   const m=document.getElementById("cmain");if(m)m.innerHTML='<div class="spin">Laden…</div>';
-  await mxLaad();
+  await Promise.all([mxLaad(),klLaad(calClient)]);
   mxDetailRender();
 }
 async function mxAanpassenInAss(){
@@ -390,8 +381,8 @@ function mxDetailRender(){
     actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment ('+blok+'), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="mxAanpassenInAss()">Aanpassen in Assessment</button>';
   }else{
     const hist=mxHist(naam),w=mxWaarde(naam),t=mxType(naam);
-    if(w)curTxt=esc(mxFmtRij(w.cur,naam))+(t==="kg"&&mxGeschat(w.cur)?' <span style="color:#8b919b;font-size:13px;font-weight:600">(geschat)</span>':"");
-    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&mxGeschat(mm)?' <span class="sm muted">(geschat)</span>':'')+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
+    if(w)curTxt=esc(mxFmtRij(w.cur,naam));
+    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
     if(mxDetailForm){
       // Invoerveld afhankelijk van het type: kg (getal), tijd (mm:ss) of pass/fail
       let invoer;
@@ -415,10 +406,13 @@ function mxDetailRender(){
     }
   }
   const dTip=MX_TIP[naam]?' <span class="ass-help" data-tip="'+esc(MX_TIP[naam])+'">?</span>':'';
+  // Lift met dezelfde meting: link naar de krachtlog (records per aantal reps, grafiek, alle sets)
+  const klLift=(typeof LIFTS!=="undefined"?LIFTS.lijst:[]).find(l=>l.metric_name===naam);
+  const klLink=(klLift&&KL.log.some(g=>g.lift_id===klLift.id))?'<div class="sm" style="margin:-12px 0 16px"><span class="demolink" onclick="klOpenDetail(\''+klLift.id+'\')">Krachtlog van deze lift →</span></div>':'';
   m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="mxDetailTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+dTip+'</span></div>'+
     '<div style="padding:22px 24px;max-width:820px;overflow:auto">'+
     '<div style="margin-bottom:20px"><div class="sm muted">Huidig</div><div style="font-size:26px;font-weight:800;color:var(--accent)">'+curTxt+'</div></div>'+
-    actie+
+    klLink+actie+
     '<h3 style="margin-top:26px">Geschiedenis</h3><div class="mh-head"><span class="mh-v">Resultaat</span><span class="mh-d">Datum</span><span class="mh-n">Notitie</span><span class="mh-x"></span></div>'+histRows+
     '</div>';
 }
@@ -1328,4 +1322,92 @@ async function progressVerwijder(id){
   if(error){toast(error.message);return;}
   await db.storage.from("progress").remove([x.storage_path]);
   pfRenderProgress(coachClients.find(y=>y.id===calClient));
+}
+
+// ---------- Krachtlog in het Metrics-paneel: records per lift, lift-scherm met grafiek en alle sets ----------
+// Data uit app/kracht.js (KL: lift_log + metingen van de klant). Records gelden
+// per exact aantal reps; mislukte sets tellen nergens mee; nooit een schatting.
+let klDetailLift=null;
+function klRender(){
+  const host=document.getElementById("kl-groep");if(!host)return;
+  if(mxOpen.__kl===undefined)mxOpen.__kl=true; // standaard open
+  const liften=Object.values(klRecords()).sort((a,b)=>a.lift.localeCompare(b.lift));
+  let html='<div class="mx-hd" onclick="mxToggle(\'__kl\')"><span>Records uit de krachtlog</span><span style="font-weight:600;color:#c9cdd4">'+liften.length+'</span></div>';
+  if(mxOpen.__kl){
+    if(!liften.length)html+='<div class="sp-info">Nog geen sets gelogd. Zodra de sporter in de app kilo\'s en reps per set logt, staan de records hier per lift en per aantal reps.</div>';
+    else{
+      html+='<div class="mx-cols"><div style="flex:1">Lift</div><div style="flex:1.5">Beste per reps</div></div>';
+      liften.forEach(l=>{
+        const reps=Object.keys(l.reps).map(Number).sort((a,b)=>a-b);
+        const chips=reps.map(r=>'<span class="klchip" title="beste set van '+r+' reps">'+r+'× <b>'+kgTxt(l.reps[r].kg)+'</b></span>').join("");
+        html+='<div class="mx-row" onclick="klOpenDetail(\''+l.lift_id+'\')"><div style="flex:1;font-weight:700">'+esc(l.lift)+'</div><div style="flex:1.5;display:flex;flex-wrap:wrap;gap:4px">'+chips+'</div></div>';
+      });
+    }
+  }
+  host.innerHTML=html;
+}
+async function klOpenDetail(liftId){
+  klDetailLift=liftId;activePanel="kl-detail";
+  if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient+"/lift/"+liftId);
+  const m=document.getElementById("cmain");if(m)m.innerHTML='<div class="spin">Laden…</div>';
+  await klLaad(calClient);
+  klDetailRender();
+}
+function klDetailTerug(){klDetailLift=null;if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient);renderClient("kalender");}
+// Klik op een sessie in de log: naar die dag op de kalender (licht even op).
+function klNaarDag(ds){klDetailTerug();if(typeof histGaNaar==="function")histGaNaar(ds);}
+function klDetailRender(){
+  const m=document.getElementById("cmain");if(!m||activePanel!=="kl-detail"||!klDetailLift)return;
+  const rows=KL.log.filter(g=>g.lift_id===klDetailLift);
+  const lift=liftVan(klDetailLift)||{id:klDetailLift,name:(rows[0]||{}).lift||"Lift",metric_name:null};
+  const rec=klRecords()[klDetailLift]||{reps:{}};
+  const rm=klEenRm(klDetailLift);
+  const vast=[1,2,3,5,8,10,12],aanwezig=Object.keys(rec.reps).map(Number);
+  const alle=[...new Set(vast.concat(aanwezig))].sort((a,b)=>a-b);
+  const recHtml='<div class="klrec">'+alle.map(r=>{const b=rec.reps[r];return '<div class="klrec-cel'+(b?'':' leeg')+'"><div class="klrec-reps">'+r+' rep'+(r===1?'':'s')+'</div><div class="klrec-kg">'+(b?kgTxt(b.kg)+' kg':'–')+'</div><div class="klrec-d">'+(b?klDatum(b.date):'&nbsp;')+'</div></div>';}).join("")+'</div>';
+  // Log per sessie (resultaat), nieuwste eerst
+  const sessies=[],per={};
+  rows.forEach(g=>{const k=g.result_id||(g.workout_date+"|"+g.block_id);if(!per[k]){per[k]={date:g.workout_date,exercise:g.exercise,sets:[]};sessies.push(per[k]);}per[k].sets.push(g);});
+  const logHtml=sessies.map(d=>'<div class="mh-row" style="cursor:pointer" title="Naar deze dag op de kalender" onclick="klNaarDag(\''+esc(d.date)+'\')"><div class="mh-v" style="flex:2">'+
+      d.sets.slice().sort((a,b)=>(a.set_nr||0)-(b.set_nr||0)).map(s=>'<span class="klset'+(s.fail?' fail':'')+(s.is_pr?' pr':'')+'">'+(s.kg!=null?kgTxt(s.kg):'?')+'×'+(s.reps!=null?s.reps:'?')+(s.fail?' ✗':'')+(s.is_pr?'<span class="prbadge">PR</span>':'')+'</span>').join("")+
+      '</div><div class="mh-d">'+esc(assDatumNL(d.date))+'</div><div class="mh-n">'+esc(d.exercise||"")+'</div></div>').join("")
+    ||'<div class="sm muted" style="padding:12px 0">Nog geen sets gelogd voor deze lift.</div>';
+  const metingLink=lift.metric_name?' <span class="demolink" onclick="mxOpenDetail(\''+String(lift.metric_name).replace(/'/g,"\\'")+'\')">Meting '+esc(lift.metric_name)+' →</span>':'';
+  m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="klDetailTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(lift.name)+'</span></div>'+
+    '<div style="padding:22px 24px;max-width:820px;overflow:auto">'+
+    '<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px">'+
+      '<div><div class="sm muted">Echte 1RM</div><div style="font-size:26px;font-weight:800;color:var(--accent)">'+(rm?kgTxt(rm.kg)+' kg':'–')+'</div><div class="sm muted">'+(rm?klDatum(rm.date)+(rm.bron==="meting"?" · uit Metingen & PR\'s":" · uit de log"):"Nog geen echte single gelogd of gemeten")+'</div></div>'+
+      '<div style="flex:1;min-width:280px"><div class="sm muted" style="margin-bottom:6px">Beste per aantal reps</div>'+recHtml+'</div></div>'+
+    '<div class="sm muted" style="margin-bottom:14px">Alleen echte sets tellen: een gewicht op 5 reps is een record voor 5 reps en wordt nooit omgerekend naar een 1RM. Mislukte sets (✗) staan in de log maar tellen nergens mee.'+metingLink+'</div>'+
+    klGrafiek(rows)+
+    '<h3 style="margin-top:22px">Krachtlog</h3><div class="mh-head"><span class="mh-v" style="flex:2">Sets</span><span class="mh-d">Datum</span><span class="mh-n">Blok</span></div>'+logHtml+
+    '</div>';
+}
+// Grafiek: beste gelukte set per dag, één lijn per aantal reps (alleen reps die op twee of meer dagen voorkomen).
+const KL_KLEUR=["#d9b44a","#38bdf8","#f472b6","#34d399","#a78bfa","#fb923c","#e5484d"];
+function klGrafiek(rows){
+  const per={};
+  rows.forEach(g=>{if(g.kg==null||g.reps==null||g.fail)return;const s=per[g.reps]||(per[g.reps]={});if(s[g.workout_date]==null||+g.kg>s[g.workout_date])s[g.workout_date]=+g.kg;});
+  const series=Object.keys(per).map(Number).sort((a,b)=>a-b).map(r=>({reps:r,pts:Object.keys(per[r]).sort().map(d=>({d,kg:per[r][d]}))})).filter(s=>s.pts.length>=2);
+  if(!series.length)return '<div class="sm muted" style="margin:6px 0 10px">Grafiek verschijnt zodra een aantal reps op twee of meer dagen is gelogd.</div>';
+  const alleD=[...new Set(series.flatMap(s=>s.pts.map(p=>p.d)))].sort();
+  const tijd=d=>new Date(d+"T12:00:00").getTime();
+  const t0=tijd(alleD[0]),t1=tijd(alleD[alleD.length-1]);
+  const kgs=series.flatMap(s=>s.pts.map(p=>p.kg));
+  let kmin=Math.min.apply(null,kgs),kmax=Math.max.apply(null,kgs);if(kmax===kmin){kmin-=5;kmax+=5;}
+  const pad=(kmax-kmin)*.12;kmin-=pad;kmax+=pad;
+  const W=720,H=220,L=44,R=14,T=12,B=28;
+  const X=d=>t1===t0?(L+W-R)/2:L+(tijd(d)-t0)/(t1-t0)*(W-L-R);
+  const Y=k=>T+(kmax-k)/(kmax-kmin)*(H-T-B);
+  let g="";
+  for(let i=0;i<=4;i++){const k=kmin+(kmax-kmin)*i/4,y=Y(k);g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#e7e9ec"/><text x="'+(L-6)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#8a919c">'+Math.round(k)+'</text>';}
+  const xl=[alleD[0],alleD[Math.floor((alleD.length-1)/2)],alleD[alleD.length-1]].filter((d,i,a)=>a.indexOf(d)===i);
+  xl.forEach(d=>{g+='<text x="'+X(d).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="#8a919c">'+esc(klDatum(d))+'</text>';});
+  series.forEach((s,i)=>{
+    const c=KL_KLEUR[i%KL_KLEUR.length];
+    g+='<polyline fill="none" stroke="'+c+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="'+s.pts.map(p=>X(p.d).toFixed(1)+","+Y(p.kg).toFixed(1)).join(" ")+'"/>';
+    s.pts.forEach(p=>{g+='<circle cx="'+X(p.d).toFixed(1)+'" cy="'+Y(p.kg).toFixed(1)+'" r="4" fill="'+c+'" stroke="#fff" stroke-width="1.5"><title>'+esc(klDatum(p.d))+': '+kgTxt(p.kg)+' kg × '+s.reps+'</title></circle>';});
+  });
+  const legenda=series.map((s,i)=>'<span class="klleg"><span class="klleg-bol" style="background:'+KL_KLEUR[i%KL_KLEUR.length]+'"></span>'+s.reps+' rep'+(s.reps===1?'':'s')+'</span>').join("");
+  return '<div class="klgraf"><div class="sm muted" style="margin-bottom:4px">Beste set per dag, per aantal reps</div><svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;max-height:240px">'+g+'</svg><div class="klleg-rij">'+legenda+'</div></div>';
 }
