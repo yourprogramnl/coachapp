@@ -96,6 +96,7 @@ function schemaLees(tekst){
     if(reps===null){m=t.replace(/\b\d+:\d+(?::\d+)?\b/g," ").match(/(?<!@\s{0,3})\b(\d{1,2})\s*[x×]\s*(\d{1,3})\b(?!\s*(?:kg|kilo|%|min|sec|m\b))/i);if(m&&parseInt(m[2],10)>0){reps=m[2];if(!s.sets)s.sets=parseInt(m[1],10);}}
     if(reps===null){m=t.match(/\bheavy(?:\s+\w+){0,3}?\s+(\d{1,2}|single|double|triple)\b/i);if(m)reps=({single:"1",double:"2",triple:"3"})[m[1].toLowerCase()]||m[1];}
     if(reps===null){m=t.match(/\bemom\s*\d{1,2}\b[^\n]*?:\s*(\d{1,2})\s+(?=[A-Za-z])/i);if(m)reps=m[1];} // "EMOM10: 2 Power Cleans"
+    if(reps===null&&/(?:^|\n)\s*1(?:\.1)+\b/.test(t))reps="1"; // "1.1.1. Power Snatch": clusters tellen als 1 rep per set (keuze Stefan)
     if(reps===null&&/\bbuild\s+to\s+a\s+(?:1\s*rm|heavy\s+single|1rm)\b/i.test(t))reps="1";
     if(reps===null){m=t.match(/(?<!\d\s*-\s*)\b(\d{1,2})\s*rm\b/i);if(m)reps=m[1];} // "Find your 1RM", "3RM @32X0", "6RM @2010"
     if(reps===null&&!metcon){
@@ -335,6 +336,8 @@ const setsSchoon=t=>String(t||"")
   .replace(/\b\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?\s*(?:rir|rpe)\b/gi," ")              // "2 rir", "1/2 rir"
   .replace(/\b(?:rir|rpe)\s*:?\s*\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?(?!\s*(?:kg|kilo|reps?|x))/gi," ") // "rpe 7,5/8" (niet "rir 110kg")
   .replace(/\b\d+\s*rm\b/gi," ")                                                               // "1 rm", "3rm"
+  .replace(/(\d{1,2}\s*reps?\b\s*,?\s*)(?:\d+e|eerste|tweede|derde|vierde|vijfde|zesde)\s*(?:rep|herhaling)?\s*(?:gefaald|mislukt|fail(?:ed)?|niet gehaald|ging niet)\b/gi,"$1") // "2 reps, 3e gefaald" = set van 2 (keuze Stefan)
+  .replace(/\b(?:gefaald|mislukt|fail(?:ed)?)\s+(?:op|bij)\s+(?:de\s+)?(?:\d+e|eerste|tweede|derde|vierde|vijfde|zesde|laatste)\s*(?:rep|herhaling)\b/gi," ") // "fail op 3e rep": de gelogde reps tellen
   .replace(/\b\d+(?:e|ste|de)\b(?:\s+(?:rep|reps|set|setje|serie|ronde|poging))?/gi," ")       // rangtelwoorden: 2e set, 3de, 1e rep
   .replace(/\b(?:video|filmpje)s?\s*:?\s+(?:van\s+)?\d+(?:[.,]\d+)?(?:\s*(?:kg|kilo))?(?=\s|$|[.,;)])/gi," ") // "Video 60": verwijst naar de set op video (vóór de set-regels, zodat "video Set 3 34kg" heel blijft)
   .replace(/\b\d+(?:[.,]\d+)?\s*(?:kg|kilo)?\s*(?:ook\s+)?gefilmd\b/gi," ")                     // "49 ook gefilmd"
@@ -461,7 +464,7 @@ function setsUitTekst(tekst,schema){
     if(SETS_LAATSTE.test(voorTekst)&&rows.length){rows[rows.length-1].reps=String(reps);return;}
     if(laatste&&!laatste.reps){laatste.reps=String(reps);return;}
     if(laatste&&laatste.repsBron==="dash"&&laatste.reps){laatste.reps=String(reps);delete laatste.repsBron;return;} // "8 - 95KG 7 reps"
-    if(laatste&&laatste.fail&&laatste.kg){const r=rij(leesKg(laatste.kg),reps);r.herkansing=true;return;}      // "fail ... 3 rep gelukt"
+    if(laatste&&laatste.kg&&(laatste.fail||/\b(?:redo|opnieuw|herkansing|nog een keer|nogmaals)\b/i.test(voorTekst))){const r=rij(leesKg(laatste.kg),reps);r.herkansing=true;return;} // "fail ... 3 rep gelukt", "redo: 3 rep"
     rij(null,reps);
   };
   let m;SETS_TOKEN.lastIndex=0;

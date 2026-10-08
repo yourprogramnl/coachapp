@@ -128,6 +128,10 @@ check("tekst: 17,5 kilo: 12/9",rows(K.setsUitTekst("17,5 kilo: 12/9",{sets:3,rep
 check("tekst: alleen 95 bij 5 sets = 5 rijen",rows(K.setsUitTekst("95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
 check("tekst: tijd en tempo zijn geen gewicht (één gewicht bij 5 sets = 5 rijen)",rows(K.setsUitTekst("3:45 @3010 80 kg",S5)),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["80","5",false]]);
 check("tekst: niets",rows(K.setsUitTekst("ging lekker",S5)),[]);
+check("keuze 3: 95(2reps, 3e gefaald) = set van 2",rows(K.setsUitTekst("90-93-95(2reps, 3e gefaald)",{reps:3})),[["90","3",false],["93","3",false],["95","2",false]]);
+check("keuze 3: fail op 3e rep + redo",rows(K.setsUitTekst("65x 2 reps(fail op 3e rep) - redo: 3 rep gelukt maar wel billen van bankje",{reps:3})),[["65","2",false],["65","3",false]]);
+check("keuze 3: echte fail blijft fail",rows(K.setsUitTekst("25-35-37-40-43 (45 niet gelukt)",{reps:3})),[["25","3",false],["35","3",false],["37","3",false],["40","3",false],["43","3",false],["45","3",true]]);
+check("keuze 4: 1.1.1 clusters = 1 rep per set",K.schemaLees("1.1.1. Power Snatch @pijnvrij gewicht, max. 45 kg x 6 sets;"),{sets:6,reps:1});
 check("bulk: setnummers vooraan (1-90 2-95 3- 100 4 - 105)",rows(K.setsUitTekst("1-90 2-95 3- 100 4 - 105 Eerste keer met belt",{sets:4,reps:4,kg_start:90})),[["90","4",false],["95","4",false],["100","4",false],["105","4",false]]);
 check("bulk: setnummer aan het gewicht geplakt (587.5)",rows(K.setsUitTekst("1-60 2-80 3 82.5 4 -85 587.5 Was maximaal vandaag",{sets:5,reps:5})),[["60","5",false],["80","5",false],["82,5","5",false],["85","5",false],["87,5","5",false]]);
 check("bulk: reps - kg met rir (12 - 80KG 1/2 rir)",rows(K.setsUitTekst("12 - 80KG 1/2 rir 10 -87,5KG 1 rir 8 - 95KG 7 reps, zat te kloten 6- 102,5KG 5 reps",{sets:2})),[["80","12",false],["87,5","10",false],["95","7",false],["102,5","5",false]]);
