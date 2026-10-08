@@ -1083,3 +1083,20 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .mday.doeldag{box-shadow:inset 0 0 0 2px #e7a44a}
 .bieb-doel{background:#f4f5f7;border:1px dashed #d5d9de;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#5d6570;margin-bottom:12px}
 .bieb-doel.aan{background:#fff7e8;border:1px solid #f1c784;color:#1d2129}
+
+/* ---------- Krachtlog (stap 2, 8 okt 2026): liftchip, schema-regel en kaarttitel in de bouwer ---------- */
+.liftrow{margin-top:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative}
+.liftchip{background:#fff4d6;border:1px solid #f1dfa8}
+.liftchip .liftnaam{cursor:pointer}
+.liftrow .demolink{margin-top:0}
+.liftdrop .liftzoek{width:100%;font-size:12px;padding:6px 8px;box-sizing:border-box}
+.liftdrop .liftlijst{max-height:260px;overflow:auto}
+.schemarow{margin-top:5px;font-size:11.5px;color:#5b6472;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.schemarow .schemalbl{font-weight:800;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8a919c}
+.schemarow .demolink{margin-top:0}
+.schemaedit{display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%}
+.schemaedit label{font-size:11px;color:#5b6472;display:inline-flex;align-items:center;gap:3px}
+.schemaedit input{width:auto;font-size:11.5px;padding:3px 5px}
+.gtitle-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.gtitle-row .gtlbl{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#2a9fce;flex:none}
+.gtitle-row .gtitle{flex:1;font-size:12.5px;padding:6px 8px}

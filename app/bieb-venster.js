@@ -195,7 +195,7 @@ function biebKaartOef(o){
 // Wat er met de kaart meereist naar het andere venster.
 function biebPayload(soort,id){
   if(soort==="template"){const o=LIB.tpl.find(x=>String(x.id)===String(id));if(!o)return null;
-    return {soort,id:o.id,naam:o.naam,tekst:o.instructies||"",kleur:TPLKLEUREN.includes(o.kleur)?o.kleur:null,type:o.type,media:(o.media||[]).filter(m=>m&&m.youtube_id)};}
+    return {soort,id:o.id,naam:o.naam,tekst:o.instructies||"",kleur:TPLKLEUREN.includes(o.kleur)?o.kleur:null,type:o.type,media:(o.media||[]).filter(m=>m&&m.youtube_id),onderdelen:o.onderdelen||null};}
   if(soort==="benchmark"){const b=LIB.bm.find(x=>String(x.id)===String(id));if(!b)return null;
     const regels=[b.format,b.time_cap?"Time cap: "+b.time_cap:null,b.rx_men?("Rx: "+(b.rx_men===b.rx_women?b.rx_men:b.rx_men+" / "+b.rx_women)):null].filter(Boolean);
     return {soort,id:b.id,naam:b.naam,tekst:[(b.tekst||"").trim(),regels.join("\n")].filter(Boolean).join("\n\n"),kleur:"purple"};}
@@ -206,7 +206,7 @@ function biebPayload(soort,id){
     return {soort,id:w.id,naam:w.title||"Weekworkout",tekst:biebWeekTekst(w),kleur:"blue",score_type:(blocks[0]&&blocks[0].score_type)||"text",
       media:blocks.flatMap(b=>(b.media||[]).filter(m=>m&&m.youtube_id)),
       warmup:w.warmup||null,cooldown:w.cooldown||null,warmup_oefening_id:w.warmup_oefening_id||null,cooldown_oefening_id:w.cooldown_oefening_id||null,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
-      blocks:blocks.map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null}))};}
+      blocks:blocks.map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
   if(soort==="oefening"){const o=LIB.oef.find(x=>String(x.id)===String(id));if(!o)return null;
     return {soort,id:o.id,naam:o.naam,tekst:"",kleur:null,youtube_id:o.youtube_id||null};}
   return null;
