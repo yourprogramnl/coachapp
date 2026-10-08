@@ -162,12 +162,26 @@ function biebRender(behoudFilters){
   if(cnt)cnt.textContent=totaal+(BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?" weekworkouts":(BIEB.tab==="workout"?" workouts":" templates"))));
   g.innerHTML=hint+(kaarten.join("")||'<div class="cempty">Niets gevonden.</div>');
 }
-function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra){
+function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra,onder){
   return '<div class="bieb-card" draggable="true" ondragstart="biebDragStart(event,\''+soort+'\',\''+esc(String(id))+'\')" ondragend="biebDragEnd(event)" ondblclick="biebDubbel(event,\''+soort+'\',\''+esc(String(id))+'\')" title="Sleep naar een dag op de kalender, of dubbelklik voor de doeldag">'+
     '<div class="bk-kop"><span class="bk-dot" style="background:'+kleurHex+'"></span><div style="flex:1;min-width:0"><b>'+kop+'</b>'+(sub?'<div class="sm muted" style="margin-top:2px">'+sub+'</div>':'')+'</div><span class="bk-grip" title="Slepen">⋮⋮</span></div>'+
     (extra||"")+
     (tekst?'<div class="bk-tekst">'+esc(tekst)+'</div>'+(biebLang(tekst)?'<span class="bk-meer" onclick="event.stopPropagation();biebMeer(this)">Meer</span>':''):'<div class="bk-tekst muted" style="font-style:italic">Geen tekst</div>')+
+    (onder||"")+
     '</div>';
+}
+// Wedstrijdworkout met meerdere divisies: de andere versies uitklapbaar onder de
+// kaart; elke versie is zelf te slepen of dubbel te klikken (eigen sleutel comp:<id>).
+function biebVariantenHtml(o){
+  if(!o.varianten||o.varianten.length<2)return "";
+  const rijen=o.varianten.map(v=>'<div class="bk-varrij" draggable="true" ondragstart="event.stopPropagation();biebDragStart(event,\'item\',\'comp:'+esc(String(v.id))+'\')" ondragend="biebDragEnd(event)" ondblclick="event.stopPropagation();biebDubbel(event,\'item\',\'comp:'+esc(String(v.id))+'\')" title="Sleep of dubbelklik: deze divisie">'+
+    '<b>'+esc(v.divisie||"Alle divisies")+'</b>'+(v.id===o.id?' <span class="muted">(hoofdversie)</span>':'')+'<div class="bk-vartekst">'+esc(v.tekst)+'</div></div>').join("");
+  return '<div class="bk-var"><span class="bk-meer" onclick="event.stopPropagation();biebVarToggle(this)">'+o.varianten.length+' divisies ▸</span><div class="bk-varlijst" style="display:none">'+rijen+'</div></div>';
+}
+function biebVarToggle(el){
+  const lijst=el.parentElement.querySelector(".bk-varlijst");if(!lijst)return;
+  const open=lijst.style.display==="none";lijst.style.display=open?"block":"none";
+  el.textContent=el.textContent.replace(/[▸▾]$/,open?"▾":"▸");
 }
 // Lange tekst: eerst 9 regels, met Meer/Minder (kaarten blijven dan ongeveer even hoog).
 function biebLang(t){return (String(t).match(/\n/g)||[]).length>=9||String(t).length>420;}
@@ -175,7 +189,7 @@ function biebMeer(el){const k=el.closest(".bieb-card");if(!k)return;k.classList.
 // Kaart voor een item uit libItems (template, wedstrijdworkout of benchmark).
 function biebKaartItem(o){
   const vids=(o.media||[]).filter(m=>m&&m.youtube_id).length;
-  return biebKaart("item",o.key,kleurHex(o.kleur),esc(o.naam),esc(itemSoort(o)+" · "+(o.info||kleurNaam(o.kleur)))+(vids?" · 🎥 "+vids:""),o.instructies||"");
+  return biebKaart("item",o.key,kleurHex(o.kleur),esc(o.naam),esc(itemSoort(o)+" · "+(o.info||kleurNaam(o.kleur)))+(vids?" · 🎥 "+vids:""),o.instructies||"",null,biebVariantenHtml(o));
 }
 function biebKaartBm(b){
   const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;

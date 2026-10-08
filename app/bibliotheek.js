@@ -169,10 +169,16 @@ function tplGroep(naam){
 function libItems(type){
   const tpl=LIB.tpl.filter(o=>!type||o.type===type).map(o=>({bron:"tpl",id:o.id,key:"tpl:"+o.id,naam:o.naam,instructies:o.instructies||"",kleur:o.kleur,type:o.type,tags:o.tags||[],media:(o.media||[]).filter(m=>m&&m.youtube_id),groep:null,info:""}));
   if(type&&type!=="other")return tpl;
-  const comp=(LIB.comp||[]).map(c=>{
-    const kop=[c.event,c.jaar].filter(Boolean).join(" ");
-    const regels=[c.format,c.tijd,(c.divisie&&c.divisie!=="Alle divisies")?c.divisie:null].filter(Boolean).join(" · ");
-    return {bron:"comp",id:c.id,key:"comp:"+c.id,naam:(c.naam||"")+(kop?" · "+kop:""),instructies:c.tekst||"",kleur:"comp",type:"other",tags:Array.isArray(c.movements)?c.movements:[],media:[],groep:c.event||"Overig",info:[kop,c.fase,regels].filter(Boolean).join(" · ")};
+  // Wedstrijdworkouts: de tabel heeft een rij per divisie (Rx (M), Rx (V), Elite, Masters…).
+  // In de lijst wordt dat één kaart per workout: de hoofdversie als tekst, de andere
+  // divisies als varianten (uitklapbaar, apart te slepen in het bibliotheek-venster).
+  const groepen={};
+  (LIB.comp||[]).forEach(c=>{const k=[c.event,c.jaar,c.fase,c.naam].join("|");(groepen[k]=groepen[k]||[]).push(c);});
+  const comp=Object.values(groepen).map(rijen=>{
+    rijen.sort((a,b)=>compRang(a)-compRang(b)||String(a.divisie||"").localeCompare(String(b.divisie||"")));
+    const o=compItemVanRij(rijen[0],rijen.length>1);
+    if(rijen.length>1){o.varianten=rijen.map(r=>({id:r.id,divisie:r.divisie||"",tekst:r.tekst||""}));o.info+=" · "+rijen.length+" divisies";}
+    return o;
   });
   const bench=(LIB.bm||[]).map(b=>{
     const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;
@@ -183,8 +189,32 @@ function libItems(type){
   return tpl.concat(comp,bench);
 }
 const itemGroep=o=>o.groep||tplGroep(o.naam);
+// Welke divisie is de "hoofdversie" van een wedstrijdworkout: alle divisies, dan Rx mannen, Rx, Elite…
+function compRang(c){
+  const d=String(c.divisie||"").toLowerCase().trim();
+  if(!d||d==="alle divisies"||d.indexOf("alle divisies")===0)return 0;
+  if(d.indexOf("rx (m)")===0)return 1;
+  if(d==="rx")return 2;
+  if(d.indexOf("rx")===0)return 3;
+  if(d.indexOf("elite (m)")===0)return 4;
+  if(d.indexOf("elite")===0)return 5;
+  if(d.indexOf("individueel")===0)return 6;
+  if(d.indexOf("rx")>=0)return 7;
+  return 9;
+}
+// Eén wedstrijdrij als item. zonderDivisie=true bij de hoofdkaart van een groep.
+function compItemVanRij(c,zonderDivisie){
+  const kop=[c.event,c.jaar].filter(Boolean).join(" ");
+  const div=(c.divisie&&c.divisie!=="Alle divisies"&&!zonderDivisie)?c.divisie:null;
+  return {bron:"comp",id:c.id,key:"comp:"+c.id,naam:(c.naam||"")+(kop?" · "+kop:"")+(div?" · "+div:""),instructies:c.tekst||"",kleur:"comp",type:"other",tags:Array.isArray(c.movements)?c.movements:[],media:[],groep:c.event||"Overig",info:[kop,c.fase,c.format,c.tijd,div].filter(Boolean).join(" · ")};
+}
 // Item terugvinden op sleutel ("tpl:12", "comp:<uuid>", "bench:<uuid>"; een kaal getal = template).
-function libItemVind(key){key=String(key);if(key.indexOf(":")<0)key="tpl:"+key;return libItems(null).find(o=>o.key===key)||null;}
+// Een wedstrijdsleutel mag ook een variant (andere divisie) zijn: dan die ene rij.
+function libItemVind(key){
+  key=String(key);if(key.indexOf(":")<0)key="tpl:"+key;
+  if(key.indexOf("comp:")===0){const c=(LIB.comp||[]).find(x=>"comp:"+x.id===key);return c?compItemVanRij(c,false):null;}
+  return libItems(null).find(o=>o.key===key)||null;
+}
 // Blokkleur bij invoegen: templates houden hun kleur, wedstrijd = blauw (conditie), benchmark = paars.
 const itemBlokKleur=o=>TPLKLEUREN.includes(o.kleur)?o.kleur:(o.kleur==="comp"?"blue":(o.kleur==="bench"?"purple":null));
 const itemSoort=o=>o.bron==="comp"?"wedstrijd":(o.bron==="bench"?"benchmark":(o.type==="warmup"?"warm-up":(o.type==="cooldown"?"cooldown":"workout")));
