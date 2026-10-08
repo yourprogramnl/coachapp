@@ -385,6 +385,7 @@ function tdsKaart(a){
     prio+
     tdsSec("flags","Let op",(a.flags&&a.flags.length>1)?a.flags.length+" punten":"",flagsHtml,"td-sec-warn")+
     tdsSec("notes","Notities (coach)",notesArr.length>1?notesArr.length+" notities":"",notesHtml,"td-sec-notes")+
+    (typeof ikkSectie==="function"?ikkSectie(a):"")+ // intake-kaart voor het consult (app/intake-kaart.js), alleen met intake-data
     tdsTestTabel(a.testbatterij_full,a)+
     tdsSelfAssessment(a.self_assessment_detail)+
     tdsReflectie(a.self_reflection)+

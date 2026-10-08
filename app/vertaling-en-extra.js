@@ -388,3 +388,23 @@ i18nLaad({
   "Excel-lezer (SheetJS) kon niet geladen worden": "The Excel reader (SheetJS) could not be loaded",
   "Self-assessment: {n} bewegingen · Zelfreflectie: {n} antwoorden · Mentale prestatie: {n} vragen · Sport-referentie: {n} eigen waarden · Doelen: {n} regels · Testbatterij (volledig): {n} rijen": "Self-assessment: {n} movements · Self-reflection: {n} answers · Mental performance: {n} questions · Sport reference: {n} own values · Goals: {n} lines · Test battery (full): {n} rows",
 });
+
+// Intake-kaart voor het consult (app/intake-kaart.js, stap 4b, 8 okt 2026 avond). De inhoud
+// (inzichten, vragen, draaiboek) is Michels Nederlandse tekst en blijft Nederlands.
+i18nLaad({
+  "Intake-kaart (consult)": "Intake card (consult)",
+  "{naam} · {n} velden": "{naam} · {n} fields", "{n} velden": "{n} fields",
+  "Nog te weinig intake-gegevens voor een samenvatting.": "Not enough intake data for a summary yet.",
+  "Haalbaarheid van het doel": "Feasibility of the goal", "Inzichten": "Insights", "Blessures en beperkingen": "Injuries and limitations",
+  "Benchmarks tegenover het doelniveau": "Benchmarks against the target level", "Onderdeel": "Item", "Eigen": "Own", "Niveau": "Level", "Gat": "Gap", "Getest": "Tested",
+  "Zelfbeeld tegenover de cijfers": "Self-image against the numbers", "Lift": "Lift", "Verwacht": "Expected", "Oordeel": "Verdict",
+  "Krachtverhoudingen": "Strength ratios", "Verhouding": "Ratio", "Waarde": "Value", "Band": "Band",
+  "Zelfinschatting per categorie": "Self-assessment per category", "Gem.": "Avg.", "Toelichting": "Notes",
+  "Mentaal per categorie": "Mental per category", "Laag": "Low",
+  "Testplan eerste cyclus": "Test plan first cycle", "Week 1:": "Week 1:", "In de cyclus:": "In the cycle:", "Lifts:": "Lifts:",
+  "Praktisch": "Practical", "In eigen woorden": "In their own words", "Beperking:": "Limiter:", "Kracht:": "Strength:",
+  "Doelen": "Goals", "Waarden:": "Values:", "Verbinding met waarden:": "Link to values:",
+  "Gespreksvragen": "Conversation questions",
+  "Draaiboek consult ({n} min)": "Consult playbook ({n} min)",
+  "Intake-kaart naar Michels onboarding_card.py (Kyle-model) · {n} ingevulde velden · berekend {naam}": "Intake card after Michel's onboarding_card.py (Kyle model) · {n} completed fields · calculated {naam}",
+});

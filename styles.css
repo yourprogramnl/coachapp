@@ -1312,3 +1312,14 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 /* Intake-Excel inlezen (stap 4a, 8 okt 2026) */
 .td-intake{margin-bottom:14px;border-color:var(--td-accent)}
 .td-intake .td-table td{padding:3px 6px}
+
+/* Intake-kaart voor het consult (stap 4b, 8 okt 2026) */
+.td-card>details.td-sec-intake>summary{border-color:#6c3483;color:#6c3483}
+.ikk{font-size:12px}
+.ikk-snapshot{line-height:1.5;background:#f7f2fb;border:1px solid #d9c7e8;border-radius:8px;padding:8px 10px}
+.ikk-blok{margin-top:8px}
+.ikk-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#6c3483;margin:8px 0 4px}
+.ikk-lijst{margin:2px 0;padding-left:16px}.ikk-lijst li{margin-bottom:3px;line-height:1.4}
+.ikk-kind{display:inline-block;font-size:10px;font-weight:700;color:var(--td-accent-muted);text-transform:uppercase;margin-right:3px}
+.ikk-kind.ikk-vraag{color:#21618c}.ikk-kind.ikk-actie{color:#c2621a}.ikk-kind.ikk-check{color:#1e8449}
+.ikk-fase{margin:6px 0}.ikk-fase-kop{font-size:12px;font-weight:700;margin-bottom:2px}

@@ -109,7 +109,14 @@ function ikT2s(cell){const [s]=ikTijd(cell);return ikFmt(s);} // tijdcel → "m:
 // _stringify: tijdcellen (opmaak met uren/minuten) → "m:ss"; gewone getallen en tekst blijven.
 function ikStringify(cell){
   if(!cell)return null;
-  if(cell.t==="n"&&typeof cell.v==="number"){const z=String(cell.z||"");if(z.includes("[")||(z.includes(":")&&/[hms]/i.test(z)))return ikT2s(cell);return cell.v;}
+  if(cell.t==="n"&&typeof cell.v==="number"){
+    const z=String(cell.z||"");
+    if(z.includes("[")||(z.includes(":")&&/[hms]/i.test(z)))return ikT2s(cell);
+    // Datumcel (bijv. "Datum getest" op het referentieblad): als jjjj-mm-dd, zodat de intake-kaart
+    // er een testdatum van kan maken (Michels _stringify zou er "0:00" van maken; bewuste afwijking).
+    if(z&&XLSX.SSF&&XLSX.SSF.is_date&&XLSX.SSF.is_date(z)){const d=XLSX.SSF.parse_date_code(cell.v);if(d&&d.y)return d.y+"-"+String(d.m).padStart(2,"0")+"-"+String(d.d).padStart(2,"0");}
+    return cell.v;
+  }
   if(cell.v instanceof Date)return ikT2s(cell);
   return (cell.v===""?null:cell.v);
 }
@@ -241,6 +248,24 @@ function ikSportRef(ws){
   };
   return {max_lifts:sectie(6,17),conditioning:sectie(22,29)};
 }
+// Optioneel tabblad Praktisch (nieuwe NL-template): trainingsdagen, materiaal, blessures, wearable,
+// slaap, werk. Zelfde cellen als read_practical in Michels onboarding_card.py; leeg = null.
+function ikWaar(v){if(v===true)return true;return ["TRUE","WAAR","JA","X","\u2713","\u2611","1"].includes(String(v==null?"":v).trim().toUpperCase());}
+function ikGetal(v){if(v===null||v===undefined||v==="")return null;const t=String(v).split("+").join("").split(",").join(".").trim();if(!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t))return null;const f=parseFloat(t);return isFinite(f)?f:null;}
+function ikPraktisch(ws){
+  if(!ws)return null;
+  const sv=a=>{const v=ikV(ws,a);return v===null?"":String(v).trim();};
+  const days=[];
+  for(let r=7;r<=13;r++){if(ikWaar(ikV(ws,"B"+r)))days.push({day:sv("A"+r),min:ikGetal(ikV(ws,"C"+r)),double:ikWaar(ikV(ws,"D"+r)),time:sv("E"+r),note:sv("F"+r)});}
+  const have=[],missing=[];
+  for(let r=20;r<=27;r++){for(const [lc,bc] of [["A","B"],["D","E"]]){const item=sv(lc+r);if(item)(ikWaar(ikV(ws,bc+r))?have:missing).push(item);}}
+  const injuries=[];
+  for(let r=33;r<=35;r++){const what=sv("A"+r);if(what)injuries.push({what,since:sv("B"+r),status:sv("C"+r),treated:sv("D"+r),note:sv("E"+r)});}
+  const minWeek=Math.trunc(tdSum(days.map(d=>d.min||0)));
+  const out={days,n_days:days.length,min_week:minWeek||null,doubles:days.filter(d=>d.double).map(d=>d.day),where:sv("B18"),equipment:have,equipment_missing:have.length?missing:[],equipment_note:sv("B28"),injuries,wearable:sv("B38"),hr_strap:ikWaar(ikV(ws,"B39")),sleep:ikGetal(ikV(ws,"B40")),work:sv("B41")};
+  const filled=days.length||out.where||have.length||injuries.length||out.wearable||out.sleep||out.work;
+  return filled?out:null;
+}
 // Geslacht uit de titel van het referentieblad ("(Men)", "(mannen)", "(Women)", "(vrouwen)"); alleen een voorzet.
 function ikGeslachtUit(wb){
   const ws=ikWs(wb,"Sport-specifieke referentie");const t=ws?String(ikV(ws,"A1")||""):"";
@@ -264,6 +289,7 @@ function ikParse(wb){
   const wsMp=ikWs(wb,"Mental performance");if(wsMp)out.mental_performance=ikMental(wsMp);
   if(wsRef)out.sport_reference=ikSportRef(wsRef);
   const wsGs=ikWs(wb,"Goal Setting");if(wsGs){const g=ikGoals(wsGs);if(g)out.goal_setting=g;}
+  const pr=ikPraktisch(wb.Sheets["Praktisch"]);if(pr)out.practical=pr;
   out._template=template;out._gender_hint=ikGeslachtUit(wb);
   return out;
 }
@@ -281,6 +307,7 @@ function ikPatch(data,huidig,overschrijven,bestandsnaam,vandaag){
   for(const k of ["self_assessment_detail","self_reflection","mental_performance"])if(Array.isArray(data[k])&&data[k].length)patch[k]=data[k];
   if(data.sport_reference&&((data.sport_reference.max_lifts||[]).length||(data.sport_reference.conditioning||[]).length))patch.sport_reference=data.sport_reference;
   if(data.goal_setting)patch.goal_setting=data.goal_setting;
+  if(data.practical)patch.practical=data.practical;
   if(Array.isArray(data.testbatterij_full)&&data.testbatterij_full.length)patch.testbatterij_full=data.testbatterij_full;
   if(data.template)patch.template=data.template;
   patch.intake_source="Onboarding intake - "+bestandsnaam+" ("+(data._template==="onboarding-kyle"?"NL Kyle-template":"template met testbatterij")+", ingelezen "+vandaag+" via dashboard)";
@@ -334,7 +361,7 @@ function ikPaneelTeken(){
   const gevonden=["bw","target_level"].concat(IK_TEST_KEYS).filter(k=>d[k]!==null&&d[k]!==undefined&&d[k]!=="");
   const tekstWaarden=gevonden.filter(k=>k!=="target_level"&&typeof d[k]==="string"&&!/^\d{1,3}:[0-5]\d$/.test(d[k]));
   const rijen=gevonden.map(k=>'<tr><td>'+esc(IK_LABEL[k]||k)+'</td><td><b>'+esc(String(d[k]))+'</b>'+(tekstWaarden.includes(k)?' <span class="td-pct td-pct-orange">tekst, geen getal</span>':"")+'</td></tr>').join("");
-  const tel=[["Self-assessment",(d.self_assessment_detail||[]).length,"bewegingen"],["Zelfreflectie",(d.self_reflection||[]).length,"antwoorden"],["Mentale prestatie",(d.mental_performance||[]).length,"vragen"],["Sport-referentie",d.sport_reference?(d.sport_reference.max_lifts||[]).filter(x=>x.jouw_waarde!=null).length+(d.sport_reference.conditioning||[]).filter(x=>x.jouw_waarde!=null).length:0,"eigen waarden"],["Doelen",d.goal_setting?((d.goal_setting.values||[]).length+(d.goal_setting.outcome_goals||[]).length+(d.goal_setting.process_goals||[]).length):0,"regels"],["Testbatterij (volledig)",(d.testbatterij_full||[]).length,"rijen"]];
+  const tel=[["Self-assessment",(d.self_assessment_detail||[]).length,"bewegingen"],["Zelfreflectie",(d.self_reflection||[]).length,"antwoorden"],["Mentale prestatie",(d.mental_performance||[]).length,"vragen"],["Sport-referentie",d.sport_reference?(d.sport_reference.max_lifts||[]).filter(x=>x.jouw_waarde!=null).length+(d.sport_reference.conditioning||[]).filter(x=>x.jouw_waarde!=null).length:0,"eigen waarden"],["Doelen",d.goal_setting?((d.goal_setting.values||[]).length+(d.goal_setting.outcome_goals||[]).length+(d.goal_setting.process_goals||[]).length):0,"regels"],["Praktisch",d.practical?1:0,"tabblad"],["Testbatterij (volledig)",(d.testbatterij_full||[]).length,"rijen"]];
   const waarsch=(d.time_warnings||[]).map(w=>'<li>'+esc(w)+'</li>').join("");
   h.innerHTML='<div class="td-form td-intake">'+
     '<div class="td-f-h">Intake-Excel inlezen: '+esc(IK.bestand)+' <span class="td-norm-basis">('+(d._template==="onboarding-kyle"?"NL Kyle-template, zonder testbatterij":"template met testbatterij")+(d.name_in_sheet?' · naam in het blad: '+esc(d.name_in_sheet):"")+')</span></div>'+
