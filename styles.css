@@ -1275,3 +1275,10 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .gtitle-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .gtitle-row .gtlbl{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#2a9fce;flex:none}
 .gtitle-row .gtitle{flex:1;font-size:12.5px;padding:6px 8px}
+/* Coach-notities, wedstrijduitslagen-editor (stap 2, 8 okt 2026) */
+.td-notes{margin:2px 0 0;padding-left:16px;font-size:12px}.td-notes li{margin-bottom:3px;line-height:1.4}
+.td-card>details.td-sec-notes>summary{border-color:#b9c2d1;color:var(--td-muted)}
+.td-ce{border:1px solid var(--td-line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fff}
+.td-ce-ev{display:flex;gap:6px;align-items:center;margin-bottom:5px}
+.td-ce-x{border:1px solid var(--td-line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--td-muted);font-size:15px;line-height:1;flex:none;font-family:inherit}
+.td-ce-x:hover{color:var(--td-dev);border-color:#f3b4b4}

@@ -7,7 +7,7 @@
 // Bewerken schrijft direct naar de database (rpc athlete_testdata_patch) en rekent de
 // kaart meteen opnieuw door.
 
-const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,fout:""};
+const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,compWerk:null,fout:""};
 // naam = gekozen atleet in de naamkeuze (leeg = iedereen); klant = profiel-id als de kaart
 // in het klantdossier staat (zijbalk > Data), dan tekent tdsGrid alleen die ene kaart.
 
@@ -346,6 +346,9 @@ function tdsKaart(a){
     prio+=tdsSec("perception","Zelfbeeld vs. getest","",'<div class="td-p td-p-perception">'+p+'</div>',"td-sec-perception");
   }
   const flagsHtml=(a.flags&&a.flags.length)?'<div class="td-flags">'+a.flags.map(esc).join("<br>")+'</div>':"";
+  // Coach-notities (Michels `notes`, één zin per notitie); nooit richting atleten.
+  const notesArr=Array.isArray(a.notes)?a.notes:(a.notes?[String(a.notes)]:[]);
+  const notesHtml=notesArr.length?'<ul class="td-notes">'+notesArr.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>':"";
   const todayNote=a.recent?a.recent.date:"";
   const compNote=(a.comp&&a.comp.length)?(a.comp.length>1?a.comp.length+" bronnen":String(a.comp[0].bron).split(" (")[0]):"";
   const ageStr=a.age?", "+a.age+" jr":"";
@@ -367,6 +370,7 @@ function tdsKaart(a){
     '<div class="td-cats">'+catsHtml+'</div>'+
     prio+
     tdsSec("flags","Let op",(a.flags&&a.flags.length>1)?a.flags.length+" punten":"",flagsHtml,"td-sec-warn")+
+    tdsSec("notes","Notities (coach)",notesArr.length>1?notesArr.length+" notities":"",notesHtml,"td-sec-notes")+
     tdsTestTabel(a.testbatterij_full,a)+
     tdsSelfAssessment(a.self_assessment_detail)+
     tdsReflectie(a.self_reflection)+
@@ -394,6 +398,9 @@ function tdsRender(h){
       '<button class="td-chip" id="td-alles" onclick="tdsAlles()">Alles uitklappen</button>'+
       '<span class="td-count" id="td-count"></span>'+
       '<button class="btn ghost sm" onclick="tdsNieuwToggle()">+ Atleet</button>'+
+      '<button class="btn ghost sm" onclick="tdsExport()" title="Alle atleten als JSON in Michels formaat (athletes_input.json)">Export JSON</button>'+
+      '<button class="btn ghost sm" onclick="document.getElementById(\'td-import\').click()" title="Verse export van Michel inlezen (athletes_input.json)">Import JSON</button>'+
+      '<input type="file" id="td-import" accept=".json,application/json" style="display:none" onchange="tdsImportBestand(this)">'+
     '</div>'+
     tdsNieuwForm()+
     '<div class="td-legend"><span><span class="dot" style="background:var(--td-dev)"></span>&lt;50% Developing</span><span><span class="dot" style="background:var(--td-close)"></span>50–79% Approaching</span><span><span class="dot" style="background:var(--td-norm)"></span>≥80% At standard</span></div>'+
@@ -466,6 +473,7 @@ function tdsAlles(){
 // Eén kaart opnieuw tekenen zonder de open secties, de scrollpositie en de focus te verliezen.
 function tdsHerteken(name){
   const a=TDS.athletes[name];if(!a)return;
+  if(TDS.bewerk===name&&document.getElementById("td-f-comp"))TDS.compWerk=tdsCompLees();
   const el=document.querySelector('#td-grid .td-card[data-name="'+CSS.escape(name)+'"]');
   if(!el){tdsGrid();return;}
   const openIdx=[...el.querySelectorAll("details")].map((d,i)=>d.open?i:-1).filter(i=>i>=0);
@@ -529,7 +537,12 @@ async function tdsEditChange(inp){
 }
 
 // ---------- bewerken: gegevens, prioriteiten en onderbouwing ----------
-function tdsBewerk(name){TDS.bewerk=TDS.bewerk===name?null:name;tdsHerteken(name);}
+function tdsBewerk(name){
+  const open=TDS.bewerk!==name;TDS.bewerk=open?name:null;
+  const a=TDS.athletes[name];
+  TDS.compWerk=open?JSON.parse(JSON.stringify((a&&a.input&&a.input.comp)||[])):null;
+  tdsHerteken(name);
+}
 function tdsBewerkForm(a){
   const inp=a.input||{};
   const sel=(id,opts,cur,leeg)=>'<select class="lid-in" id="'+id+'">'+(leeg?'<option value="">'+leeg+'</option>':"")+opts.map(o=>'<option value="'+esc(o[0])+'"'+(String(cur)===String(o[0])?" selected":"")+'>'+esc(o[1])+'</option>').join("")+'</select>';
@@ -539,6 +552,9 @@ function tdsBewerkForm(a){
   const ctx=inp.priority_context||{},cpn=inp.comp_priority_notes||{};
   const topics=[["Strength","Strength"],["Weightlifting","Weightlifting"],["Gymnastics","Gymnastics"],["Conditioning","Conditioning"],["Profile","CrossFit / profiel"]];
   const ta=(pref,obj)=>topics.map(t=>'<div class="td-f-row"><label style="width:130px;flex:none">'+esc(t[1])+'</label><textarea class="lid-in" id="'+pref+t[0]+'" rows="2" style="flex:1">'+esc(obj[t[0]]||"")+'</textarea></div>').join("");
+  const rec=(inp.recent&&typeof inp.recent==="object")?inp.recent:{};
+  const lijst=x=>Array.isArray(x)?x:(x?[String(x)]:[]);
+  const rij=(label,id,val,ph,rows)=>'<div class="td-f-row"><label style="width:130px;flex:none">'+label+'</label><textarea class="lid-in" id="'+id+'" rows="'+rows+'" style="flex:1" placeholder="'+esc(ph)+'">'+esc(val)+'</textarea></div>';
   return '<div class="td-form" id="td-form-'+esc(a.id)+'">'+
     '<div class="td-f-h">Gegevens</div>'+
     '<div class="td-f-grid">'+
@@ -557,8 +573,17 @@ function tdsBewerkForm(a){
     '<div class="td-f-row"><label style="width:130px;flex:none">Bovenlichaam</label><textarea class="lid-in" id="td-f-afupper" rows="2" style="flex:1">'+esc(af.upper||"")+'</textarea></div>'+
     '<div class="td-f-h">Onderbouwing per topic (Why)</div>'+ta("td-f-ctx-",ctx)+
     '<div class="td-f-h">Wedstrijdnotities per topic</div>'+ta("td-f-cpn-",cpn)+
+    '<div class="td-f-h">Wedstrijduitslagen</div><div id="td-f-comp">'+tdsCompEditorHtml(TDS.compWerk||[])+'</div>'+
+    '<div class="td-f-h">Coach-only (nooit richting atleten)</div>'+
+    rij("Notities","td-f-notes",lijst(inp.notes).join("\n"),"Eén notitie per regel",3)+
+    rij("Let op (flags)","td-f-flags",lijst(inp.flags).join("\n"),"Eén punt per regel, bijv. twijfel over een testwaarde",2)+
+    '<div class="td-f-h">Vandaag: Strivee + WhatsApp (weekstatus)</div>'+
+    '<div class="td-f-row"><label style="width:130px;flex:none">Datum</label><input class="lid-in" id="td-f-rdate" style="flex:1" placeholder="bijv. Ma 6 okt" value="'+esc(rec.date||"")+'"></div>'+
+    rij("Strivee","td-f-rstrivee",rec.strivee||"","Wat er deze week in Strivee gebeurde",3)+
+    rij("WhatsApp","td-f-rwhatsapp",rec.whatsapp||"","Wat er via WhatsApp binnenkwam",3)+
+    rij("Actiepunten","td-f-ractions",lijst(rec.actions).join("\n"),"Eén actiepunt per regel",2)+
     '<div class="td-f-acties"><button class="btn sm" onclick="tdsBewaar(\''+esc(a.id)+'\')">Opslaan</button><button class="btn ghost sm" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button><span style="flex:1"></span><button class="btn ghost sm td-danger" onclick="tdsVerwijder(\''+esc(a.id)+'\')">Verwijder atleet</button></div>'+
-    '<div class="td-hint">Wedstrijduitslagen en intake-gegevens (self-assessment, mentaal, sport-referentie) zijn in deze versie alleen te bekijken.</div>'+
+    '<div class="td-hint">Intake-gegevens (self-assessment, mentaal, sport-referentie) zijn in deze versie alleen te bekijken.</div>'+
   '</div>';
 }
 async function tdsBewaar(id){
@@ -582,6 +607,15 @@ async function tdsBewaar(id){
   topics.forEach(t=>{if(v("td-f-ctx-"+t))ctx[t]=v("td-f-ctx-"+t);if(v("td-f-cpn-"+t))cpn[t]=v("td-f-cpn-"+t);});
   zet("priority_context",Object.keys(ctx).length?ctx:null);
   zet("comp_priority_notes",Object.keys(cpn).length?cpn:null);
+  // Wedstrijduitslagen, coach-only velden en weekstatus (zelfde vorm als Michels invoer).
+  const comp=tdsCompSchoon(tdsCompLees());zet("comp",comp.length?comp:null);
+  const regels=id=>v(id).split("\n").map(s=>s.trim()).filter(Boolean);
+  const notes=regels("td-f-notes"),flags=regels("td-f-flags");
+  zet("notes",notes.length?notes:null);zet("flags",flags.length?flags:null);
+  const rec={};
+  if(v("td-f-rdate"))rec.date=v("td-f-rdate");if(v("td-f-rstrivee"))rec.strivee=v("td-f-rstrivee");if(v("td-f-rwhatsapp"))rec.whatsapp=v("td-f-rwhatsapp");
+  const acts=regels("td-f-ractions");if(acts.length)rec.actions=acts;
+  zet("recent",Object.keys(rec).length?rec:null);
   if(naam!==row.name){
     if(TDS.athletes[naam]){toast("Er bestaat al een atleet met deze naam");return;}
     const u=await db.from("athlete_testdata").update({name:naam}).eq("id",id);
@@ -595,7 +629,7 @@ async function tdsBewaar(id){
   }
   const ok=await tdsPatch(id,patch,remove);
   if(!ok)return;
-  TDS.bewerk=null;toast("Opgeslagen");tdsGrid();
+  TDS.bewerk=null;TDS.compWerk=null;toast("Opgeslagen");tdsGrid();
 }
 async function tdsVerwijder(id){
   const row=TDS.rows.find(r=>r.id===id);if(!row)return;
@@ -731,4 +765,112 @@ async function tdsKlantNieuw(){
   const q=await db.from("athlete_testdata").insert({company_id:company,name,profile_id:TDS.klant,input}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
   if(q.error){toast("Toevoegen mislukt: "+(q.error.message||""));return;}
   TDS.rows.push(q.data);tdsZetRij(q.data);toast("Atleet toegevoegd");tdsKlantGrid();
+}
+
+// ---------- wedstrijduitslagen bewerken (Michels `comp`: bron, overall, events, signaal) ----------
+// Werkkopie TDS.compWerk tijdens het bewerken. "+ Wedstrijd", "+ Event" en verwijderen lezen
+// eerst de velden uit het formulier (zodat getypte tekst blijft) en tekenen alleen de editor opnieuw.
+function tdsCompEditorHtml(list){
+  list=list||[];
+  const ta=(id,val,ph)=>'<textarea class="lid-in" id="'+id+'" rows="2" placeholder="'+esc(ph||"")+'" style="flex:1">'+esc(val||"")+'</textarea>';
+  const html=list.map((c,i)=>{
+    const ev=(c.events||[]).map((e,j)=>'<div class="td-ce-ev"><input class="lid-in" id="td-ce-'+i+'-ev-'+j+'-naam" placeholder="Event (bijv. 26.1)" value="'+esc(e.naam||"")+'" style="width:120px"><input class="lid-in" id="td-ce-'+i+'-ev-'+j+'-rank" placeholder="Plaats (bijv. 439th)" value="'+esc(e.rank||"")+'" style="width:130px"><input class="lid-in" id="td-ce-'+i+'-ev-'+j+'-detail" placeholder="Detail (reps, tijd, wat opviel)" value="'+esc(e.detail||"")+'" style="flex:1"><button type="button" class="td-ce-x" title="Event verwijderen" onclick="tdsCompEventWeg('+i+','+j+')">\u00d7</button></div>').join("");
+    return '<div class="td-ce" data-i="'+i+'">'+
+      '<div class="td-f-row"><label style="width:70px;flex:none">Bron</label><input class="lid-in" id="td-ce-'+i+'-bron" placeholder="Wedstrijd + bron, bijv. CrossFit Open 2026 (official leaderboard)" value="'+esc(c.bron||"")+'" style="flex:1"><button type="button" class="btn ghost sm td-danger" onclick="tdsCompWeg('+i+')">Verwijder wedstrijd</button></div>'+
+      '<div class="td-f-row"><label style="width:70px;flex:none">Eindstand</label>'+ta("td-ce-"+i+"-overall",c.overall,"bijv. 508th worldwide / 8th Netherlands in Men 40-44 (2472 points)")+'</div>'+
+      '<div class="td-ce-evs"><div class="td-f-h" style="margin:4px 0">Events</div>'+ev+'<button type="button" class="btn ghost sm" onclick="tdsCompEventBij('+i+')">+ Event</button></div>'+
+      '<div class="td-f-row"><label style="width:70px;flex:none">Signaal</label>'+ta("td-ce-"+i+"-signaal",c.signaal,"Wat de uitslag zegt over sterk en zwak")+'</div>'+
+    '</div>';
+  }).join("");
+  return html+'<button type="button" class="btn ghost sm" onclick="tdsCompBij()">+ Wedstrijd</button>';
+}
+function tdsCompLees(){
+  const host=document.getElementById("td-f-comp");if(!host)return TDS.compWerk||[];
+  const v=id=>{const e=document.getElementById(id);return e?e.value.trim():"";};
+  return [...host.querySelectorAll(".td-ce")].map(el=>{
+    const i=el.dataset.i;
+    const events=[...el.querySelectorAll(".td-ce-ev")].map((_,j)=>({naam:v("td-ce-"+i+"-ev-"+j+"-naam"),rank:v("td-ce-"+i+"-ev-"+j+"-rank"),detail:v("td-ce-"+i+"-ev-"+j+"-detail")}));
+    return {bron:v("td-ce-"+i+"-bron"),overall:v("td-ce-"+i+"-overall"),events,signaal:v("td-ce-"+i+"-signaal")};
+  });
+}
+function tdsCompTeken(){const host=document.getElementById("td-f-comp");if(host)host.innerHTML=tdsCompEditorHtml(TDS.compWerk||[]);}
+function tdsCompBij(){TDS.compWerk=tdsCompLees();TDS.compWerk.push({bron:"",overall:"",events:[{naam:"",rank:"",detail:""}],signaal:""});tdsCompTeken();}
+function tdsCompWeg(i){
+  TDS.compWerk=tdsCompLees();const c=TDS.compWerk[i];if(!c)return;
+  const gevuld=c.bron||c.overall||c.signaal||(c.events||[]).some(e=>e.naam||e.rank||e.detail);
+  if(gevuld&&!confirm("Deze wedstrijd uit de lijst halen? Dit wordt pas definitief bij Opslaan."))return;
+  TDS.compWerk.splice(i,1);tdsCompTeken();
+}
+function tdsCompEventBij(i){TDS.compWerk=tdsCompLees();if(!TDS.compWerk[i])return;(TDS.compWerk[i].events=TDS.compWerk[i].events||[]).push({naam:"",rank:"",detail:""});tdsCompTeken();}
+function tdsCompEventWeg(i,j){TDS.compWerk=tdsCompLees();if(!TDS.compWerk[i])return;TDS.compWerk[i].events.splice(j,1);tdsCompTeken();}
+// Opschonen voor het opslaan: lege events en lege wedstrijden vallen weg; de vier sleutels blijven.
+function tdsCompSchoon(list){
+  return (list||[]).map(c=>({bron:c.bron||"",overall:c.overall||"",events:(c.events||[]).filter(e=>e.naam||e.rank||e.detail).map(e=>({naam:e.naam||"",rank:e.rank||"",detail:e.detail||""})),signaal:c.signaal||""}))
+    .filter(c=>c.bron||c.overall||c.events.length||c.signaal);
+}
+
+// ---------- export en import in Michels formaat (athletes_input.json: {naam: invoer}) ----------
+// Zolang Michel zijn Python naast de app gebruikt: export = alles wat in de app staat (ook
+// notes/flags/recent), import = een verse export van hem inlezen. Bij import vervangt het
+// bestand de invoer van bestaande atleten; notes/flags/recent uit de app blijven staan als het
+// bestand ze niet heeft (zijn export laat die bewust weg). Atleten buiten het bestand blijven staan.
+function tdsExportData(){
+  const out={};
+  TDS.rows.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(r=>{out[r.name]=r.input||{};});
+  return out;
+}
+function tdsExport(){
+  if(!TDS.rows.length){toast("Geen atleten om te exporteren");return;}
+  const txt=JSON.stringify(tdsExportData(),null,2);
+  const blob=new Blob([txt],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="athletes_input_"+tdsVandaag()+".json";
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  toast(TDS.rows.length+" atleten geëxporteerd");
+}
+function tdsImportBestand(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=async()=>{
+    let obj;try{obj=JSON.parse(String(rd.result));}catch(e){toast("Dit is geen geldig JSON-bestand");inp.value="";return;}
+    await tdsImportVerwerk(obj);inp.value="";
+  };
+  rd.readAsText(f);
+}
+function tdsImportControle(obj){
+  if(!obj||typeof obj!=="object"||Array.isArray(obj))return "verwacht een object met atleetnamen als sleutels (athletes_input.json)";
+  const namen=Object.keys(obj);if(!namen.length)return "het bestand bevat geen atleten";
+  for(const n of namen){
+    const d=obj[n];
+    if(!d||typeof d!=="object"||Array.isArray(d))return "atleet "+n+" heeft geen invoer-object";
+    if(d.tests||d.cat_scores)return "dit lijkt athletes_dashboard.json (berekende data); gebruik athletes_input.json";
+    if(d.gender!=="M"&&d.gender!=="F")return "atleet "+n+": gender moet M of F zijn";
+    if(!d.day)return "atleet "+n+": geen trainingsdag (day)";
+  }
+  return "";
+}
+async function tdsImportVerwerk(obj){
+  const fout=tdsImportControle(obj);if(fout){toast("Import afgebroken: "+fout);return false;}
+  const namen=Object.keys(obj);
+  const bestaand=namen.filter(n=>TDS.rows.some(r=>r.name===n)),nieuw=namen.filter(n=>!TDS.rows.some(r=>r.name===n));
+  if(!confirm("Import: "+nieuw.length+" nieuwe atleten, "+bestaand.length+" bijgewerkt.\n\nHet bestand vervangt de testwaarden en teksten van bestaande atleten. Notities, flags en Vandaag uit de app blijven staan als het bestand ze niet heeft. Atleten die niet in het bestand staan blijven ongewijzigd.\n\nDoorgaan?"))return false;
+  const company=ME.profile&&ME.profile.company_id;
+  let klaar=0,fail="";
+  for(const n of namen){
+    const d=obj[n],row=TDS.rows.find(r=>r.name===n);
+    if(row){
+      const merged=Object.assign({},d);
+      ["notes","flags","recent"].forEach(k=>{if(!(k in merged)&&row.input&&row.input[k]!=null)merged[k]=row.input[k];});
+      const u=await db.from("athlete_testdata").update({input:merged}).eq("id",row.id);
+      if(u.error){fail=n+": "+(u.error.message||"");break;}
+      row.input=merged;tdsZetRij(row);
+    }else{
+      const q=await db.from("athlete_testdata").insert({company_id:company,name:n,input:d}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
+      if(q.error){fail=n+": "+(q.error.message||"");break;}
+      TDS.rows.push(q.data);tdsZetRij(q.data);
+    }
+    klaar++;
+  }
+  toast(fail?"Import gestopt bij "+fail+" ("+klaar+" van "+namen.length+" verwerkt)":klaar+" van "+namen.length+" atleten verwerkt");
+  const h=document.getElementById("data-inhoud");if(h&&!TDS.klant)tdsRender(h);else tdsGrid();
+  return !fail;
 }
