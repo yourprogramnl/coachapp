@@ -139,7 +139,7 @@ function startNotifs(){
   });
   // Live meeverversen: scores en workout-aanpassingen (bijv. uit de sporter-app)
   // verschijnen vanzelf op het dashboard en de open klantkalender.
-  const liveCb=p=>{const r=(p.new||p.old||{});liveVervers(r.athlete_id||r.client_id||null);};
+  const liveCb=p=>{const r=(p.new||p.old||{});if(typeof klOngeldig==="function")klOngeldig(r.athlete_id||r.client_id||null);liveVervers(r.athlete_id||r.client_id||null);};
   ["INSERT","UPDATE","DELETE"].forEach(ev=>{
     kan("lv-res-"+ev,"results",ev,liveCb);
     kan("lv-wo-"+ev,"workouts",ev,liveCb);
@@ -194,6 +194,8 @@ function belStart(){
       BEL.kanaal=db.channel("bel").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},p=>{
         const r=p.new;if(!r||r.recipient_id!==ME.user.id)return;
         BEL.rows.unshift(r);belBadge();belPanelVernieuw();
+        if(r.soort==="pr")notifToon("pr","🏆 "+belTekst(r),"n"+r.id); // nieuw record (krachtlog): ook meteen in beeld
+        if(r.soort==="pr")notifToon("pr","🏆 "+belTekst(r),"n"+r.id); // nieuw record (krachtlog): ook meteen in beeld
       }).subscribe();
     }catch(e){}
   }
@@ -333,20 +335,25 @@ async function ncWeek(){
   // Gekozen week: van maandag tot de maandag erna (deze week, vorige week, …)
   const mon=addDays(mondayOf(new Date()),-7*ncWeekTerug);
   const monISO=ymd(mon),eindISO=ymd(addDays(mon,7));
-  let rs=[],wc=[],msgs=[],mets=[];
+  let rs=[],wc=[],msgs=[],mets=[],prs=[];
   if(ids.length){
     rs=(await db.from("results").select("*, blocks(exercise,kind), workouts(workout_date)").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
     wc=(await db.from("workout_comments").select("*").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
     msgs=(await db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
-    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
+    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at,result_id").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
+    // Records uit de krachtlog in deze week (per exact aantal reps; mislukte sets tellen niet)
+    prs=(await db.rpc("lift_prs",{p_athletes:ids,p_from:monISO,p_to:ymd(addDays(mon,6))})).data||[];
   }
   const DAGK=["zo","ma","di","wo","do","vr","za"];
   const wkDag=ts=>{const d=new Date(ts);return isNaN(d)?"":DAGK[d.getDay()];};
   const wkKlanten=[];
   klanten.forEach(p=>{
     const regels=[];let alarm=false;
-    mets.filter(m=>m.athlete_id===p.id).forEach(m=>
+    // Metingen die uit een gelogde single komen (result_id) staan al bij de records hieronder
+    mets.filter(m=>m.athlete_id===p.id&&!m.result_id).forEach(m=>
       regels.push('🏆 Nieuwe meting/PR: <b>'+esc(m.metric)+'</b> · '+esc(String(m.value==null?"":m.value).replace(".",","))+' '+esc(m.unit||"kg")));
+    prs.filter(x=>x.athlete_id===p.id).forEach(x=>
+      regels.push('🏆 Nieuw record: <b>'+esc(x.lift)+'</b> · '+esc(kgTxt(x.kg))+' kg × '+esc(String(x.reps))+' <span class="muted">('+wkDag(x.workout_date+"T12:00:00")+')</span>'));
     const gemist=rs.filter(r=>r.athlete_id===p.id&&r.status==="missed");
     if(gemist.length)regels.push('✗ <b>'+gemist.length+'</b> onderdeel'+(gemist.length===1?"":"en")+' gemist');
     const bron=r=>r.blocks?(r.blocks.exercise||(r.blocks.kind==="conditioning"?"conditioning":"workout")):"workout";

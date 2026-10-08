@@ -292,29 +292,29 @@ function openCrxPr(){
   // geen echte test en staat verborgen achter een knopje (verzoek Stefan 23 juli).
   const rij=(p,i,extraKlasse)=>{
     const meting=crxMetingVoor(p.naam);
-    // Bij een repsschema (5x5, heavy 3) vullen we de geschatte 1RM alvast in.
-    const kgVoorstel=p.reps?crxGeschat1Rm(crxKgUit(p.resultaat),p.reps):crxKgUit(p.resultaat);
+    const kgVoorstel=crxKgUit(p.resultaat);
     return '<div class="crxpr-rij'+(extraKlasse||"")+'">'+
       '<input type="checkbox" class="crx-pr" data-i="'+i+'" onchange="crxPrTel()">'+
-      '<div style="min-width:0"><div style="font-weight:700;font-size:13px">'+esc(p.naam)+(p.reps?' <span class="sm" style="color:#9a7b1f;font-weight:700">≈ 1RM uit '+p.reps+' reps</span>':'')+'</div>'+
+      '<div style="min-width:0"><div style="font-weight:700;font-size:13px">'+esc(p.naam)+'</div>'+
         '<div class="sm muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(datumNL(p.datum))+(p.resultaat?' · '+esc(p.resultaat.split("\n").slice(0,2).join(" · ")).slice(0,110):'')+'</div></div>'+
       '<input class="crx-pr-m" data-i="'+i+'" list="crx-metingen" value="'+esc(meting)+'" placeholder="meting…">'+
       '<div style="display:flex;align-items:center;gap:5px"><input class="crx-pr-kg" data-i="'+i+'" value="'+esc(kgVoorstel)+'" placeholder="–" style="width:64px;text-align:center"><span class="sm muted">kg</span></div>'+
       '</div>';
   };
-  const herkend=[],schatting=[],overig=[];
+  // Blokken met een repsschema (5x5, heavy 3) zijn geen 1RM-test en worden niet
+  // meer als geschatte 1RM aangeboden (krachtlog, 8 oktober: alleen echte data).
+  // Die sets komen via het omzetten van de oude logs in de krachtlog, per exact aantal reps.
+  const herkend=[],overig=[];let repsschema=0;
   prs.forEach((p,i)=>{
-    if(p.reps)schatting.push([p,i]);
-    else (crxMetingVoor(p.naam)?herkend:overig).push([p,i]);
+    if(p.reps){repsschema++;return;}
+    (crxMetingVoor(p.naam)?herkend:overig).push([p,i]);
   });
-  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+herkend.length+
-    (schatting.length?" + "+schatting.length+" geschat":"")+(overig.length?" + "+overig.length+" overig":"")+")";
+  document.getElementById("crxpr-titel").textContent="PR-kandidaten ("+herkend.length+(overig.length?" + "+overig.length+" overig":"")+")";
   document.getElementById("crxpr-lijst").innerHTML=(
     herkend.map(([p,i])=>rij(p,i,"")).join("")+
-    (schatting.length
-      ?'<div class="crxpr-scheiding"><button class="btn ghost sm" onclick="crxPrOverigToggle(this,\'crxpr-schat\')">Toon '+schatting.length+' geschatte 1RM-kandidaten (5x5, heavy 3…)</button></div>'+
-       schatting.map(([p,i])=>rij(p,i," crxpr-overig crxpr-schat")).join("")
-      :"")+
+    (repsschema?'<div class="crxpr-scheiding sm muted">'+(repsschema===1
+      ?'1 blok met een repsschema (5x5, heavy 3…) staat hier niet: dat is geen 1RM-test. Die sets komen bij het omzetten van de oude logs in de krachtlog.'
+      :repsschema+' blokken met een repsschema (5x5, heavy 3…) staan hier niet: dat zijn geen 1RM-tests. Die sets komen bij het omzetten van de oude logs in de krachtlog.')+'</div>':"")+
     (overig.length
       ?'<div class="crxpr-scheiding"><button class="btn ghost sm" onclick="crxPrOverigToggle(this,\'crxpr-los\')">Toon '+overig.length+' overige testblokken (geen herkende lift)</button></div>'+
        overig.map(([p,i])=>rij(p,i," crxpr-overig crxpr-los")).join("")
@@ -330,15 +330,7 @@ function openCrxPr(){
   document.getElementById("crxprmodal").classList.add("show");
 }
 function closeCrxPr(){const m=document.getElementById("crxprmodal");if(m)m.classList.remove("show");}
-// Geschatte 1RM uit een zware set: gewicht x (1 + reps/30), afgerond op 0,5 kg
-// (zelfde rekenregel als het PR-voorstel in de sporter-app).
-function crxGeschat1Rm(kgTekst,reps){
-  const kg=parseFloat(String(kgTekst||"").replace(",","."));
-  if(isNaN(kg)||kg<=0)return"";
-  if(reps<=1)return String(kg).replace(".",",");
-  return String(Math.round(kg*(1+reps/30)*2)/2).replace(".",",");
-}
-// Verborgen groep (geschatte 1RM's of overige testblokken) tonen/verbergen
+// Verborgen groep (overige testblokken) tonen/verbergen
 function crxPrOverigToggle(knop,klasse){
   const aan=knop.dataset.aan==="1";
   document.querySelectorAll("."+klasse).forEach(r=>{r.style.display=aan?"none":"grid";});
@@ -353,7 +345,7 @@ async function crxAiVul(){
   if(!prs.length)return;
   const knop=document.getElementById("crxpr-ai"),stat=document.getElementById("crxpr-ai-status");
   knop.disabled=true;stat.style.display="";stat.textContent="AI leest de logteksten… (een paar seconden)";
-  const rijen=prs.map((p,i)=>({i,naam:p.naam,resultaat:p.resultaat}));
+  const rijen=prs.map((p,i)=>({i,naam:p.naam,resultaat:p.resultaat})).filter(r=>!prs[r.i].reps); // repsschema's staan niet in het venster
   const{data,error}=await db.functions.invoke("pr-gewichten",{body:{rijen}});
   knop.disabled=false;
   if(error||(data&&data.error)){
@@ -368,15 +360,8 @@ async function crxAiVul(){
     const rij=kEl.closest(".crxpr-rij");
     const oude=rij&&rij.querySelector(".airden");if(oude)oude.remove();
     if(r.kg!=null){
-      const p=crxData.prs[r.i];
-      if(p&&p.reps){
-        // Repsschema: de AI leest de beste set, wij rekenen de geschatte 1RM.
-        kEl.value=crxGeschat1Rm(String(r.kg),p.reps);
-        kEl.title="AI las beste set "+r.kg+" kg · geschat 1RM uit "+p.reps+" reps";
-      }else{
-        kEl.value=String(r.kg).replace(".",",");
-        kEl.title="Door AI ingevuld";
-      }
+      kEl.value=String(r.kg).replace(".",",");
+      kEl.title="Door AI ingevuld";
       kEl.style.borderColor="#27b376";gevuld++;
     }else{
       kEl.value="";kEl.style.borderColor="#e5a13d";kEl.title="AI: "+(r.reden||"geen bruikbaar gewicht");
@@ -421,8 +406,7 @@ async function crxPrsBoeken(){
     // Notitie mét het blok en de gelogde tekst, zodat je later kunt terugzien
     // waar het getal vandaan komt (verzoek Stefan 22 juli).
     const log=String(p.resultaat||"").split("\n").slice(0,2).join(" · ").slice(0,120);
-    const schatting=p.reps?" · geschat 1RM uit "+p.reps+" reps":"";
-    rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK+schatting+" · "+p.naam+(log?": "+log:"")});
+    rows.push({athlete_id:calClient,company_id:ME.profile.company_id,metric:meting,value:kg,unit:"kg",measured_at:p.datum,created_by:ME.user.id,note:CRX_MERK+" · "+p.naam+(log?": "+log:"")});
     geboekt.push(v);
   }
   if(!rows.length){toast("Vul bij de aangevinkte regels een meting en een gewicht in (rood gemarkeerd)");return;}
