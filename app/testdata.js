@@ -31,6 +31,11 @@ async function tdsLaad(){
   const q=await db.from("athlete_testdata").select("id,name,profile_id,input,comp_overlay,updated_at").order("name");
   if(q.error){TDS.fout=q.error.message||"fout";TDS.rows=[];TDS.athletes={};TDS.geladen=true;return;}
   TDS.rows=q.data||[];
+  // Een coach ziet door de rechtenregel (RLS) alleen de atleten van zijn eigen klanten, tenzij hij het
+  // recht "alle atleten" heeft (Coaches › ⋮ › Rechten). Zonder dat recht geen + Atleet en geen import.
+  TDS.magAlles=true;
+  if(typeof myRole==="function"&&myRole()==="coach"){const v=await db.from("athlete_testdata_viewers").select("profile_id").eq("profile_id",ME.user.id);TDS.magAlles=!!(v.data&&v.data.length);}
+  if(typeof waLaad==="function"&&WA.rows===null)await waLaad(); // wedstrijdanalyses: doelwedstrijd-keuzelijst en live overlay
   TDS.athletes={};
   TDS.rows.forEach(r=>tdsZetRij(r));
   TDS.geladen=true;
@@ -246,8 +251,17 @@ function tdsComp(a){
       '</div>';
   }).join("");
 }
+// Live overlay uit de gekozen analyse (input.comp_target) of, zonder doelwedstrijd, Michels vaste kopie.
+function tdsOverlayVan(a){
+  const ct=a.input&&a.input.comp_target;
+  if(ct&&ct.demands_id&&typeof waOverlay==="function"&&WA.rows){
+    const r=WA.rows.find(x=>x.id===ct.demands_id);
+    if(r){try{return waOverlay(a,r,ct,tdsVandaag());}catch(e){console.error("waOverlay",a.name,e);}}
+  }
+  return a.comp_overlay||null;
+}
 function tdsOverlay(a){
-  const o=a.comp_overlay;
+  const o=tdsOverlayVan(a);
   if(!o||!o.buckets||!o.buckets.length)return {html:"",title:"",note:""};
   const E=x=>esc(String(x==null?"":x).replace(/\*\*/g,""));
   const lbl=l=>{const k=String(l||"").split(" ")[0].toUpperCase();return '<span class="td-ovl-lbl td-ovl-'+esc(k)+'">'+esc(String(l||"").split(" ")[0])+'</span>';};
@@ -280,7 +294,7 @@ function tdsOverlay(a){
     '<details class="td-comp-src"><summary>Detail: alle buckets (tier × intake)</summary><table class="td-table td-ovl-table"><thead><tr><th>Label</th><th>Bucket</th><th>Eigen data</th></tr></thead><tbody>'+detailRows+'</tbody></table><div class="td-ovl-meta">PRIORITEIT = T1 × laag · BESCHERMEND = T1 × hoog · EXPOSURE = T2 × laag / T1 × midden · ONDERHOUD = T3 · TESTEN = geen data</div></details>'+
     (cutoffRows?'<details class="td-comp-src"><summary>Detail: cutoff per event (laatste editie)</summary><table class="td-table td-ovl-table"><thead><tr><th>Event</th><th>Top 5</th><th>15e</th><th>Gecapt</th><th>Eigen / gat</th></tr></thead><tbody>'+cutoffRows+'</tbody></table></details>':"")+
     ((o.current_priorities||[]).length?'<details class="td-comp-src"><summary>Huidige prio\'s in het dashboard</summary><ul class="td-comp-list">'+o.current_priorities.map(x=>'<li>'+E(x)+'</li>').join("")+'</ul></details>':"")+
-    '<div class="td-ovl-meta">Bron: '+E(o.demands_file)+' × intake · '+E(o.generated)+'</div>'+
+    '<div class="td-ovl-meta">Bron: '+E(o.demands_file)+' × intake · '+E(o.generated)+(o.live?' · live berekend':' · vaste kopie uit Michels export')+'</div>'+
     '</div>';
   return {html,title,note};
 }
@@ -397,12 +411,13 @@ function tdsRender(h){
       '</select>'+
       '<button class="td-chip" id="td-alles" onclick="tdsAlles()">Alles uitklappen</button>'+
       '<span class="td-count" id="td-count"></span>'+
-      '<button class="btn ghost sm" onclick="tdsNieuwToggle()">+ Atleet</button>'+
+      (TDS.magAlles?'<button class="btn ghost sm" onclick="tdsNieuwToggle()">+ Atleet</button>':"")+
       '<button class="btn ghost sm" onclick="tdsExport()" title="Alle atleten als JSON in Michels formaat (athletes_input.json)">Export JSON</button>'+
-      '<button class="btn ghost sm" onclick="document.getElementById(\'td-import\').click()" title="Verse export van Michel inlezen (athletes_input.json)">Import JSON</button>'+
-      '<input type="file" id="td-import" accept=".json,application/json" style="display:none" onchange="tdsImportBestand(this)">'+
+      (TDS.magAlles?'<button class="btn ghost sm" onclick="document.getElementById(\'td-import\').click()" title="Verse export van Michel inlezen (athletes_input.json)">Import JSON</button>'+
+      '<input type="file" id="td-import" accept=".json,application/json" style="display:none" onchange="tdsImportBestand(this)">':"")+
     '</div>'+
     tdsNieuwForm()+
+    (TDS.magAlles?"":'<div class="td-hint" style="margin:0 0 10px">Je ziet alleen de atleten van je eigen klanten. Een beheerder kan je via Coaches › Rechten alle atleten laten zien.</div>')+
     '<div class="td-legend"><span><span class="dot" style="background:var(--td-dev)"></span>&lt;50% Developing</span><span><span class="dot" style="background:var(--td-close)"></span>50–79% Approaching</span><span><span class="dot" style="background:var(--td-norm)"></span>≥80% At standard</span></div>'+
     '<div class="td-grid" id="td-grid"></div><div class="td-leeg" id="td-leeg" style="display:none">Geen atleten gevonden.</div>'+
   '</div>';
@@ -553,6 +568,7 @@ function tdsBewerkForm(a){
   const topics=[["Strength","Strength"],["Weightlifting","Weightlifting"],["Gymnastics","Gymnastics"],["Conditioning","Conditioning"],["Profile","CrossFit / profiel"]];
   const ta=(pref,obj)=>topics.map(t=>'<div class="td-f-row"><label style="width:130px;flex:none">'+esc(t[1])+'</label><textarea class="lid-in" id="'+pref+t[0]+'" rows="2" style="flex:1">'+esc(obj[t[0]]||"")+'</textarea></div>').join("");
   const rec=(inp.recent&&typeof inp.recent==="object")?inp.recent:{};
+  const ct=(inp.comp_target&&typeof inp.comp_target==="object")?inp.comp_target:{};
   const lijst=x=>Array.isArray(x)?x:(x?[String(x)]:[]);
   const rij=(label,id,val,ph,rows)=>'<div class="td-f-row"><label style="width:130px;flex:none">'+label+'</label><textarea class="lid-in" id="'+id+'" rows="'+rows+'" style="flex:1" placeholder="'+esc(ph)+'">'+esc(val)+'</textarea></div>';
   return '<div class="td-form" id="td-form-'+esc(a.id)+'">'+
@@ -573,6 +589,16 @@ function tdsBewerkForm(a){
     '<div class="td-f-row"><label style="width:130px;flex:none">Bovenlichaam</label><textarea class="lid-in" id="td-f-afupper" rows="2" style="flex:1">'+esc(af.upper||"")+'</textarea></div>'+
     '<div class="td-f-h">Onderbouwing per topic (Why)</div>'+ta("td-f-ctx-",ctx)+
     '<div class="td-f-h">Wedstrijdnotities per topic</div>'+ta("td-f-cpn-",cpn)+
+    '<div class="td-f-h">Doelwedstrijd (wedstrijd-overlay)</div>'+
+    '<div class="td-f-grid">'+
+      '<label style="grid-column:1/-1">Analyse'+sel("td-f-ct-id",((typeof WA!=="undefined"&&WA.rows)||[]).map(r=>[r.id,waTitel(r)]),ct.demands_id||"","– geen (de vaste kopie uit Michels export blijft zichtbaar als die er is) –")+'</label>'+
+      '<label>Divisie van de atleet<input class="lid-in" id="td-f-ct-div" value="'+esc(ct.division||"")+'" placeholder="leeg = zoals de analyse"></label>'+
+      '<label>Datum<input class="lid-in" id="td-f-ct-date" type="date" value="'+esc(ct.date||"")+'"></label>'+
+      '<label>Rol<input class="lid-in" id="td-f-ct-role" value="'+esc(ct.role||"doel")+'" placeholder="doel"></label>'+
+      '<label>Daarna<input class="lid-in" id="td-f-ct-next" value="'+esc(ct.next||"")+'" placeholder="bijv. Amsterdam Throwdown 5-6 dec"></label>'+
+      '<label style="grid-column:1/-1">Kanttekening<textarea class="lid-in" id="td-f-ct-note" rows="2">'+esc(ct.note||"")+'</textarea></label>'+
+    '</div>'+
+    '<div class="td-hint" style="margin:0 0 4px">De overlay wordt live berekend uit de analyse (Data › Wedstrijdanalyses) en de testwaarden van deze atleet: T1 × laag = PRIORITEIT, T1 × hoog = BESCHERMEND VOLUME, T1 × midden en T2 × laag = EXPOSURE, rest ONDERHOUD, geen data = TESTEN.</div>'+
     '<div class="td-f-h">Wedstrijduitslagen</div><div id="td-f-comp">'+tdsCompEditorHtml(TDS.compWerk||[])+'</div>'+
     '<div class="td-f-h">Coach-only (nooit richting atleten)</div>'+
     rij("Notities","td-f-notes",lijst(inp.notes).join("\n"),"Eén notitie per regel",3)+
@@ -616,6 +642,14 @@ async function tdsBewaar(id){
   if(v("td-f-rdate"))rec.date=v("td-f-rdate");if(v("td-f-rstrivee"))rec.strivee=v("td-f-rstrivee");if(v("td-f-rwhatsapp"))rec.whatsapp=v("td-f-rwhatsapp");
   const acts=regels("td-f-ractions");if(acts.length)rec.actions=acts;
   zet("recent",Object.keys(rec).length?rec:null);
+  // Doelwedstrijd voor de live overlay (input.comp_target; eigen sleutel, Michels build() negeert hem).
+  const ctId=v("td-f-ct-id");
+  if(ctId){
+    const ct={demands_id:ctId};
+    if(v("td-f-ct-div"))ct.division=v("td-f-ct-div");if(v("td-f-ct-date"))ct.date=v("td-f-ct-date");
+    ct.role=v("td-f-ct-role")||"doel";if(v("td-f-ct-next"))ct.next=v("td-f-ct-next");if(v("td-f-ct-note"))ct.note=v("td-f-ct-note");
+    patch.comp_target=ct;
+  }else remove.push("comp_target");
   if(naam!==row.name){
     if(TDS.athletes[naam]){toast("Er bestaat al een atleet met deze naam");return;}
     const u=await db.from("athlete_testdata").update({name:naam}).eq("id",id);

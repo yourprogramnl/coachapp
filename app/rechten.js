@@ -3,6 +3,9 @@
 //   1. Beheerder: mag alles, inclusief rechten uitdelen en iemand anders
 //      beheerder maken. Dit is de bestaande rol 'eigenaar' in de database.
 //   2. Programma's: welke programma's mag deze coach aanpassen.
+//   3. Data › Atleten: alle atleten zien, of alleen die van de eigen klanten
+//      (tabel athlete_testdata_viewers + RLS; verzoek Stefan 8 okt 2026, zodat
+//      coach-notities en WhatsApp-samenvattingen persoonlijk blijven).
 // Kijken mag altijd en voor iedereen; wijzigen alleen wat hier is aangevinkt.
 // De database dwingt dit af (tabel program_editors + RLS), dus dit venster is
 // alleen de bediening, niet de beveiliging.
@@ -29,14 +32,15 @@ async function rechtenOpen(coachId){
   body.innerHTML='<div class="sm muted">Laden…</div>';
   document.getElementById("recht-msg").textContent="";
   document.getElementById("rechtenmodal").classList.add("show");
-  const[rp,re,rc]=await Promise.all([
+  const[rp,re,rc,rv]=await Promise.all([
     db.from("program_templates").select("id,name,created_by").order("name"),
     db.from("program_editors").select("program_id").eq("profile_id",coachId),
-    db.from("profiles").select("id,first_name,last_name,email,role").eq("id",coachId).single()
+    db.from("profiles").select("id,first_name,last_name,email,role").eq("id",coachId).single(),
+    db.from("athlete_testdata_viewers").select("profile_id").eq("profile_id",coachId)
   ]);
   const coach=rc.data;
   if(!coach){body.innerHTML='<div class="msg err">Coach niet gevonden.</div>';return;}
-  RECHTEN={id:coachId,rol:coach.role,huidig:new Set((re.data||[]).map(r=>r.program_id)),programs:rp.data||[]};
+  RECHTEN={id:coachId,rol:coach.role,huidig:new Set((re.data||[]).map(r=>r.program_id)),programs:rp.data||[],testdata:!!(rv.data&&rv.data.length)};
   document.getElementById("recht-titel").textContent="Rechten van "+naamVan(coach);
   rechtenRender();
 }
@@ -57,6 +61,10 @@ function rechtenRender(){
       '<span><b style="font-size:13.5px">Beheerder</b>'+
       '<div class="sm muted" style="margin-top:2px">Mag alles: in elk programma werken, rechten uitdelen en iemand anders beheerder maken.'+
       (RECHTEN.rol==="platform_admin"?' Dit is een platform-beheerder, die kun je hier niet wijzigen.':'')+'</div></span></label>'+
+    '<label style="display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid var(--line);border-radius:11px;cursor:pointer;margin-bottom:14px">'+
+      '<input type="checkbox" id="recht-testdata" style="width:auto;margin:2px 0 0"'+(isBeheerder||RECHTEN.testdata?" checked":"")+(isBeheerder?" disabled":"")+'>'+
+      '<span><b style="font-size:13.5px">Data › Atleten: alle atleten zien</b>'+
+      '<div class="sm muted" style="margin-top:2px">Zonder dit vinkje ziet deze coach alleen de atleten die aan zijn eigen klanten gekoppeld zijn, zodat notities en WhatsApp-samenvattingen persoonlijk blijven. Een beheerder ziet altijd alles.</div></span></label>'+
     '<div class="field" style="margin-bottom:4px"><label>Programma\'s die deze coach mag aanpassen</label>'+
       (isBeheerder?'<div class="sm muted" style="margin-bottom:6px">Een beheerder mag alle programma\'s aanpassen, dus hier valt niks te kiezen.</div>'
                   :'<div style="display:flex;gap:8px;margin-bottom:6px"><button type="button" class="btn ghost sm" onclick="rechtenAlle(true)">Alles aanvinken</button><button type="button" class="btn ghost sm" onclick="rechtenAlle(false)">Alles uitzetten</button></div>')+
@@ -82,6 +90,12 @@ async function rechtenOpslaan(){
     if(nu&&nu.role!=="platform_admin"&&nu.role!==RECHTEN.rol){
       const{error}=await db.from("profiles").update({role:RECHTEN.rol}).eq("id",RECHTEN.id);
       if(error)throw error;
+    }
+    // 1b. Data › Atleten: alle atleten zien (alleen voor coaches; een beheerder ziet altijd alles).
+    const wil=document.getElementById("recht-testdata");
+    if(wil&&!wil.disabled&&wil.checked!==RECHTEN.testdata){
+      if(wil.checked){const{error}=await db.from("athlete_testdata_viewers").insert({profile_id:RECHTEN.id,company_id:ME.profile.company_id,granted_by:ME.user.id});if(error)throw error;}
+      else{const{error}=await db.from("athlete_testdata_viewers").delete().eq("profile_id",RECHTEN.id);if(error)throw error;}
     }
     // 2. Programma-rechten bijwerken (alleen het verschil, zodat we niks
     //    onnodig weggooien en weer terugzetten).

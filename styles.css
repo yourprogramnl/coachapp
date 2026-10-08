@@ -1282,3 +1282,10 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .td-ce-ev{display:flex;gap:6px;align-items:center;margin-bottom:5px}
 .td-ce-x{border:1px solid var(--td-line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--td-muted);font-size:15px;line-height:1;flex:none;font-family:inherit}
 .td-ce-x:hover{color:var(--td-dev);border-color:#f3b4b4}
+
+/* Data › Wedstrijdanalyses (stap 3, 8 okt 2026) */
+.wa-lijst{display:grid;gap:10px;max-width:900px}
+.wa-rij{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.wa-b{border:1px solid var(--td-line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fff}
+.wa-b .td-f-row{margin-bottom:5px}
+#wa-form{max-width:1040px}

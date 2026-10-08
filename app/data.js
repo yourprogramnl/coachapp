@@ -169,9 +169,10 @@ async function fillData(){
   const cp=document.getElementById("cpage");if(!cp)return;
   if(dataTab==="oud"&&!DT.geladen)await dtLaad();
   if(dataTab==="atleten"&&!TDS.geladen)await tdsLaad();
+  if(dataTab==="analyses"&&WA.rows===null)await waLaad();
   cp.innerHTML='<div class="hrow"><h1>Data</h1></div>'+
     '<div class="ctabs" style="margin-bottom:14px">'+
-      [["atleten","Atleten"],["wedstrijden","Wedstrijden"],["open","CrossFit Open"],["oud","Oud rapport"]].map(t=>'<button data-tab="'+t[0]+'" class="'+(dataTab===t[0]?"on":"")+'" onclick="dataZetTab(this.dataset.tab)">'+t[1]+'</button>').join("")+
+      [["atleten","Atleten"],["analyses","Wedstrijdanalyses"],["wedstrijden","Wedstrijden"],["open","CrossFit Open"],["oud","Oud rapport"]].map(t=>'<button data-tab="'+t[0]+'" class="'+(dataTab===t[0]?"on":"")+'" onclick="dataZetTab(this.dataset.tab)">'+t[1]+'</button>').join("")+
     '</div>'+
     '<div id="data-inhoud"></div>';
   dataRender();
@@ -181,11 +182,13 @@ async function dataZetTab(t){
   document.querySelectorAll("#cpage .ctabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   if(t==="oud"&&!DT.geladen)await dtLaad();
   if(t==="atleten"&&!TDS.geladen){const h=document.getElementById("data-inhoud");if(h)h.innerHTML='<div class="spin">Laden…</div>';await tdsLaad();}
+  if(t==="analyses"&&WA.rows===null){const h=document.getElementById("data-inhoud");if(h)h.innerHTML='<div class="spin">Laden…</div>';await waLaad();}
   dataRender();
 }
 function dataRender(){
   const h=document.getElementById("data-inhoud");if(!h)return;
   if(dataTab==="atleten"){tdsRender(h);return;}
+  if(dataTab==="analyses"){waRender(h);return;}
   if(dataTab==="wedstrijden"){wdRender(h);return;}
   if(dataTab==="open"){osRender(h);return;}
   const sub=[["team","Team"],["atleet","Atleet"],["vergelijk","Vergelijk"],["ranking","Ranking"]]
