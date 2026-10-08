@@ -7,8 +7,16 @@ const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 // Legenda-namen zoals de coaches de kleuren echt gebruiken (aangepast 17 aug
 // op aangeven van coach Vissenberg via Stefan).
 const LEGNAAM={yellow:"Accessory / Special Strength",blue:"Conditioning",purple:"Workout met Leaderboard",red:"Weightlifting / Primers",green:"Gymnastics",orange:"Overig"};
+// Twee "virtuele" kleuren voor de Workouts-lijst: wedstrijdworkouts (Data › Wedstrijden)
+// en benchmarks staan daar ook tussen, zodat je op één plek zoekt (verzoek Stefan, 8 okt).
+// Ze blijven in hun eigen tabel staan; de lijst voegt ze alleen samen (zie libItems).
+const EXTRA_KLEUR={comp:"#14b8a6",bench:"#ec4899"};
+const EXTRA_NAAM={comp:"Competities",bench:"Benchmarks"};
+const kleurHex=k=>TPLKLEUR[k]||EXTRA_KLEUR[k]||TPLKLEUR.yellow;
+const kleurNaam=k=>LEGNAAM[k]||EXTRA_NAAM[k]||"";
+function libKleuren(type){return (!type||type==="other")?TPLKLEUREN.concat(["comp","bench"]):TPLKLEUREN;}
 const LIB_PER=50;
-let LIB={oef:[],tpl:[],programs:[],programAsgs:[],bm:[],bmCat:"",bmJaar:"",bmMove:"",bmFormat:"",bmDiv:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",sub:"",subTekst:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
+let LIB={oef:[],tpl:[],comp:[],programs:[],programAsgs:[],bm:[],bmCat:"",bmJaar:"",bmMove:"",bmFormat:"",bmDiv:"",editBm:null,mode:"oef",zoek:"",pag:0,kleur:"",sub:"",subTekst:"",busy:false,geladen:false,editOef:null,editTpl:null,editProgram:null,tplKleur:"yellow"};
 // Benchmark-categorieën (zelfde indeling als Strivee's Add Benchmark)
 const BM_CATS=[["girls","Girls"],["heroes","Heroes"],["open","Open"],["quarterfinal","Quarterfinal"],["notable","Notable"],["custom","Custom"]];
 const BM_CATNAAM=Object.fromEntries(BM_CATS);
@@ -118,13 +126,16 @@ function libLaad(){
     // pagina's oefeningen tegelijk. Was negen aanroepen na elkaar.
     const KOL="id,naam,youtube_id,video_url,tags,bron";
     const mislukt=()=>{LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';};
-    const[eerste,tplq,bmq,progq,asgq]=await Promise.all([
+    const[eerste,tplq,bmq,progq,asgq,compq]=await Promise.all([
       db.from("oefeningen").select(KOL,{count:"exact"}).order("naam").range(0,999),
       db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media").order("naam"),
       db.from("benchmarks").select("*").order("naam"),
       db.from("program_templates").select("*, creator:created_by(id,first_name,last_name,avatar_url)").order("name"),
-      db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks")
+      db.from("program_assignments").select("id,program_id,athlete_id,start_date,weeks"),
+      // wedstrijdworkouts (Data › Wedstrijden) staan ook in de Workouts-lijst
+      db.from("competition_workouts").select("id,event,jaar,fase,naam,divisie,tekst,format,tijd,movements").order("jaar",{ascending:false}).order("naam")
     ]);
+    LIB.comp=compq.data||[];
     if(eerste.error){mislukt();return;}
     let alles=eerste.data||[];
     const totaal=eerste.count!=null?eerste.count:alles.length;
@@ -152,12 +163,38 @@ function tplGroep(naam){
   if(!s)s=String(naam||"").replace(/\s+/g," ").trim().toLowerCase();
   return s;
 }
-// Zoekwoord-chips voor de gekozen kleur: alle groepen met minstens 2 templates,
-// grootste eerst. Teruggegeven als [[groep, aantal], …].
+// Eén lijst voor de Workouts: templates + wedstrijdworkouts + benchmarks, allemaal in
+// dezelfde vorm {bron,id,key,naam,instructies,kleur,type,tags,media,groep,info}.
+// type=null geeft alles (voor het invoegvenster "Alles"); warmup/cooldown alleen templates.
+function libItems(type){
+  const tpl=LIB.tpl.filter(o=>!type||o.type===type).map(o=>({bron:"tpl",id:o.id,key:"tpl:"+o.id,naam:o.naam,instructies:o.instructies||"",kleur:o.kleur,type:o.type,tags:o.tags||[],media:(o.media||[]).filter(m=>m&&m.youtube_id),groep:null,info:""}));
+  if(type&&type!=="other")return tpl;
+  const comp=(LIB.comp||[]).map(c=>{
+    const kop=[c.event,c.jaar].filter(Boolean).join(" ");
+    const regels=[c.format,c.tijd,(c.divisie&&c.divisie!=="Alle divisies")?c.divisie:null].filter(Boolean).join(" · ");
+    return {bron:"comp",id:c.id,key:"comp:"+c.id,naam:(c.naam||"")+(kop?" · "+kop:""),instructies:c.tekst||"",kleur:"comp",type:"other",tags:Array.isArray(c.movements)?c.movements:[],media:[],groep:c.event||"Overig",info:[kop,c.fase,regels].filter(Boolean).join(" · ")};
+  });
+  const bench=(LIB.bm||[]).map(b=>{
+    const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;
+    const extra=[b.format,b.time_cap?"Time cap: "+b.time_cap:null,rx?"Rx: "+rx:null].filter(Boolean).join("\n");
+    const cat=BM_CATNAAM[b.categorie]||b.categorie||"overig";
+    return {bron:"bench",id:b.id,key:"bench:"+b.id,naam:b.naam,instructies:[(b.tekst||"").trim(),extra].filter(Boolean).join("\n\n"),kleur:"bench",type:"other",eigen:b.categorie==="custom",tags:b.tags||[],media:[],groep:String(cat),info:[cat,b.jaar,b.format,b.time_cap?"cap "+b.time_cap:null].filter(Boolean).join(" · ")};
+  });
+  return tpl.concat(comp,bench);
+}
+const itemGroep=o=>o.groep||tplGroep(o.naam);
+// Item terugvinden op sleutel ("tpl:12", "comp:<uuid>", "bench:<uuid>"; een kaal getal = template).
+function libItemVind(key){key=String(key);if(key.indexOf(":")<0)key="tpl:"+key;return libItems(null).find(o=>o.key===key)||null;}
+// Blokkleur bij invoegen: templates houden hun kleur, wedstrijd = blauw (conditie), benchmark = paars.
+const itemBlokKleur=o=>TPLKLEUREN.includes(o.kleur)?o.kleur:(o.kleur==="comp"?"blue":(o.kleur==="bench"?"purple":null));
+const itemSoort=o=>o.bron==="comp"?"wedstrijd":(o.bron==="bench"?"benchmark":(o.type==="warmup"?"warm-up":(o.type==="cooldown"?"cooldown":"workout")));
+// Zoekwoord-chips voor de gekozen kleur: alle groepen met minstens 2 templates
+// (bij Competities en Benchmarks elke groep), grootste eerst. [[groep, aantal], …].
 function tplGroepen(type,kleur){
   const tel={};
-  LIB.tpl.forEach(o=>{if(o.type!==type||o.kleur!==kleur)return;const g=tplGroep(o.naam);tel[g]=(tel[g]||0)+1;});
-  return Object.entries(tel).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+  libItems(type).forEach(o=>{if(o.kleur!==kleur)return;const g=itemGroep(o);tel[g]=(tel[g]||0)+1;});
+  const min=(kleur==="comp"||kleur==="bench")?1:2;
+  return Object.entries(tel).filter(([,n])=>n>=min).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
 }
 function libKop(){
   const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",benchmarks:"Benchmarks",programs:"Programma's"};
@@ -201,10 +238,10 @@ function libKop(){
     }
     else{
       leg.style.display="flex";
-      const kleurChips=TPLKLEUREN.map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
+      const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
+      const kleurChips=libKleuren(type).map(k=>'<span class="legchip'+(LIB.kleur===k?" aan":"")+'" onclick="libKleurFilter(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+kleurHex(k)+';flex:none"></span>'+kleurNaam(k)+'</span>').join("")+'<span class="sm muted" style="font-size:11.5px">klik op een kleur om te filteren</span>';
       // Tweede regel: zoekwoorden binnen de gekozen kleur (bijv. onder Accessory:
       // Special strength, Core work, Arms, Grip work…). Alleen groepen met 2+ templates.
-      const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
       const groepen=LIB.kleur?tplGroepen(type,LIB.kleur):[];
       if(LIB.kleur){
         const naam=g=>esc(g.charAt(0).toUpperCase()+g.slice(1));
@@ -234,16 +271,19 @@ function libLijst(behoudKop){
   if(LIB.mode!=="oef"){
     if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div>';
     const type=LIB.mode==="warmup"?"warmup":(LIB.mode==="cooldown"?"cooldown":"other");
-    const hits=LIB.tpl.filter(o=>o.type===type&&(!LIB.kleur||o.kleur===LIB.kleur)&&(!LIB.sub||tplGroep(o.naam)===LIB.sub)&&(!LIB.subTekst||(o.naam||"").toLowerCase().includes(LIB.subTekst)||(o.instructies||"").toLowerCase().includes(LIB.subTekst)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.subTekst))&&(!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.instructies||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek)));
-    if(cnt)cnt.textContent=hits.length+" templates";
+    const past=(o,v)=>!v||(o.naam||"").toLowerCase().includes(v)||(o.instructies||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v)||(o.info||"").toLowerCase().includes(v);
+    const hits=libItems(type).filter(o=>(!LIB.kleur||o.kleur===LIB.kleur)&&(!LIB.sub||itemGroep(o)===LIB.sub)&&past(o,LIB.subTekst)&&past(o,LIB.zoek));
+    if(cnt)cnt.textContent=hits.length+(type==="other"?" workouts":" templates");
     host.innerHTML=hits.map(o=>{
       const tg=(o.tags||[]).slice(0,2).map(t=>'<span class="tag">'+esc(t)+'</span>').join(" ");
-      return '<div class="trow" style="align-items:flex-start;cursor:pointer" onclick="tplBewerk('+o.id+')">'+
-        '<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'+
-        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b>'+((o.media||[]).length?' <span class="sm muted" title="'+(o.media||[]).length+' demo-video\'s">🎥 '+(o.media||[]).length+'</span>':'')+'</div>'+
+      // Klik: template bewerken; eigen benchmark bewerken; wedstrijdworkout = beheer onder Data.
+      const klik=o.bron==="tpl"?"tplBewerk("+o.id+")":(o.bron==="bench"?(o.eigen?"bmBewerk('"+o.id+"')":"toast('Deze benchmark staat vast; eigen benchmarks beheer je onder de tab Benchmarks')"):"toast('Wedstrijdworkouts beheer je onder Data › Wedstrijden')");
+      return '<div class="trow" style="align-items:flex-start;cursor:pointer" onclick="'+klik+'">'+
+        '<div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+kleurHex(o.kleur)+'"></span></div>'+
+        '<div style="flex:1.7"><b>'+esc(o.naam)+'</b>'+((o.media||[]).length?' <span class="sm muted" title="'+(o.media||[]).length+' demo-video\'s">🎥 '+(o.media||[]).length+'</span>':'')+(o.info?'<div class="sm muted" style="font-size:11px;margin-top:3px">'+esc(itemSoort(o)+" · "+o.info)+'</div>':'')+'</div>'+
         '<div style="flex:2.6" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
         '<div style="flex:1.2">'+tg+'</div></div>';
-    }).join("")||'<div class="cempty">Geen templates gevonden.</div>';
+    }).join("")||'<div class="cempty">Niets gevonden.</div>';
     if(pag)pag.innerHTML="";
     return;
   }

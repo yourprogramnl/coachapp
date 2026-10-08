@@ -117,7 +117,7 @@ function biebFiltersRender(){
       BM_CATS.map(([k,n])=>'<span class="legchip'+(BIEB.bmCat===k?" aan":"")+'" onclick="biebBmCat(\''+k+'\')">'+n+'</span>').join("")+'</div>';
     return;
   }
-  const kleurChips=TPLKLEUREN.map(k=>'<span class="legchip'+(BIEB.kleur===k?" aan":"")+'" onclick="biebKleur(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("");
+  const kleurChips=libKleuren(biebTplType()).map(k=>'<span class="legchip'+(BIEB.kleur===k?" aan":"")+'" onclick="biebKleur(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+kleurHex(k)+';flex:none"></span>'+kleurNaam(k)+'</span>').join("");
   let sub="";
   if(BIEB.kleur){
     const groepen=tplGroepen(biebTplType(),BIEB.kleur);
@@ -153,12 +153,13 @@ function biebRender(behoudFilters){
     totaal=hits.length;
     kaarten=hits.map(b=>biebKaartBm(b));
   }else{
+    // Workouts = templates + wedstrijdworkouts + benchmarks (libItems); warm-ups/cooldowns alleen templates.
     const type=biebTplType();
-    const hits=LIB.tpl.filter(o=>o.type===type&&(!BIEB.kleur||o.kleur===BIEB.kleur)&&(!BIEB.sub||tplGroep(o.naam)===BIEB.sub)&&biebBevat(o,BIEB.subTekst,["naam","instructies","tags"])&&biebBevat(o,v,["naam","instructies","tags"]));
+    const hits=libItems(type).filter(o=>(!BIEB.kleur||o.kleur===BIEB.kleur)&&(!BIEB.sub||itemGroep(o)===BIEB.sub)&&biebBevat(o,BIEB.subTekst,["naam","instructies","tags","info"])&&biebBevat(o,v,["naam","instructies","tags","info"]));
     totaal=hits.length;
-    kaarten=hits.map(o=>biebKaartTpl(o));
+    kaarten=hits.map(o=>biebKaartItem(o));
   }
-  if(cnt)cnt.textContent=totaal+(BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?" weekworkouts":" templates")));
+  if(cnt)cnt.textContent=totaal+(BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?" weekworkouts":(BIEB.tab==="workout"?" workouts":" templates"))));
   g.innerHTML=hint+(kaarten.join("")||'<div class="cempty">Niets gevonden.</div>');
 }
 function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra){
@@ -171,10 +172,10 @@ function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra){
 // Lange tekst: eerst 9 regels, met Meer/Minder (kaarten blijven dan ongeveer even hoog).
 function biebLang(t){return (String(t).match(/\n/g)||[]).length>=9||String(t).length>420;}
 function biebMeer(el){const k=el.closest(".bieb-card");if(!k)return;k.classList.toggle("open");el.textContent=k.classList.contains("open")?"Minder":"Meer";}
-function biebKaartTpl(o){
-  const soort=o.type==="warmup"?"warm-up":(o.type==="cooldown"?"cooldown":"workout");
+// Kaart voor een item uit libItems (template, wedstrijdworkout of benchmark).
+function biebKaartItem(o){
   const vids=(o.media||[]).filter(m=>m&&m.youtube_id).length;
-  return biebKaart("template",o.id,TPLKLEUR[o.kleur]||TPLKLEUR.yellow,esc(o.naam),esc(soort+" · "+(LEGNAAM[o.kleur]||""))+(vids?" · 🎥 "+vids:""),o.instructies||"");
+  return biebKaart("item",o.key,kleurHex(o.kleur),esc(o.naam),esc(itemSoort(o)+" · "+(o.info||kleurNaam(o.kleur)))+(vids?" · 🎥 "+vids:""),o.instructies||"");
 }
 function biebKaartBm(b){
   const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;
@@ -194,8 +195,9 @@ function biebKaartOef(o){
 }
 // Wat er met de kaart meereist naar het andere venster.
 function biebPayload(soort,id){
-  if(soort==="template"){const o=LIB.tpl.find(x=>String(x.id)===String(id));if(!o)return null;
-    return {soort,id:o.id,naam:o.naam,tekst:o.instructies||"",kleur:TPLKLEUREN.includes(o.kleur)?o.kleur:null,type:o.type,media:(o.media||[]).filter(m=>m&&m.youtube_id)};}
+  if(soort==="item"||soort==="template"){const o=libItemVind(id);if(!o)return null;
+    // Wedstrijdworkouts en benchmarks komen als gewoon blok mee (blauw / paars), templates houden hun kleur.
+    return {soort:"template",id:o.key,naam:o.naam,tekst:o.instructies||"",kleur:itemBlokKleur(o),type:o.type,media:o.media||[]};}
   if(soort==="benchmark"){const b=LIB.bm.find(x=>String(x.id)===String(id));if(!b)return null;
     const regels=[b.format,b.time_cap?"Time cap: "+b.time_cap:null,b.rx_men?("Rx: "+(b.rx_men===b.rx_women?b.rx_men:b.rx_men+" / "+b.rx_women)):null].filter(Boolean);
     return {soort,id:b.id,naam:b.naam,tekst:[(b.tekst||"").trim(),regels.join("\n")].filter(Boolean).join("\n\n"),kleur:"purple"};}

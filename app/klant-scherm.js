@@ -1647,7 +1647,7 @@ async function openInsModal(lbl){
 }
 function closeIns(){const m=document.getElementById("insmodal");if(m)m.classList.remove("show");}
 function insType(t,btn){insTypeF=t;document.querySelectorAll("#ins-types button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");insRender();}
-function insKleurenRender(){document.getElementById("ins-kleuren").innerHTML=TPLKLEUREN.map(k=>'<span class="legchip'+(insKleur===k?" aan":"")+'" onclick="insKleurF(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+TPLKLEUR[k]+';flex:none"></span>'+LEGNAAM[k]+'</span>').join("");}
+function insKleurenRender(){document.getElementById("ins-kleuren").innerHTML=libKleuren("other").map(k=>'<span class="legchip'+(insKleur===k?" aan":"")+'" onclick="insKleurF(\''+k+'\')"><span style="width:12px;height:12px;border-radius:50%;background:'+kleurHex(k)+';flex:none"></span>'+kleurNaam(k)+'</span>').join("");}
 function insKleurF(k){insKleur=insKleur===k?"":k;insKleurenRender();insRender();}
 function insRender(){
   const host=document.getElementById("ins-lijst");if(!host)return;
@@ -1664,25 +1664,24 @@ function insRender(){
     host.innerHTML=insBlog.filter(w=>!v||(w.title||"").toLowerCase().includes(v)).map(weekRij).join("")||'<div class="cempty">Nog geen weekworkouts in de database.</div>';
     return;
   }
-  const hits=LIB.tpl.filter(o=>{
-    if(insTypeF!=="all"&&o.type!==insTypeF)return false;
+  // Templates + wedstrijdworkouts + benchmarks in één lijst (libItems in bibliotheek.js).
+  const hits=libItems(insTypeF==="all"?null:insTypeF).filter(o=>{
     if(insKleur&&o.kleur!==insKleur)return false;
     if(!v)return true;
-    return (o.naam||"").toLowerCase().includes(v)||(o.instructies||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v)||(LEGNAAM[o.kleur]||"").toLowerCase().includes(v);
+    return (o.naam||"").toLowerCase().includes(v)||(o.instructies||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v)||(o.info||"").toLowerCase().includes(v)||kleurNaam(o.kleur).toLowerCase().includes(v);
   });
   let vast="";
   if(insTypeF==="all"&&insBlog.length&&!insKleur&&(!v||(insBlog[0].title||"").toLowerCase().includes(v)))vast=weekRij(insBlog[0]);
   host.innerHTML=vast+hits.map(o=>{
-    const soort=o.type==="warmup"?"warm-up":(o.type==="cooldown"?"cooldown":"workout");
-    return '<div class="trow" style="align-items:flex-start"><div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(TPLKLEUR[o.kleur]||TPLKLEUR.yellow)+'"></span></div>'+
-      '<div style="flex:1.6"><b>'+esc(o.naam)+'</b><div class="sm muted" style="margin-top:2px">'+soort+' · '+esc(LEGNAAM[o.kleur]||"")+'</div></div>'+
+    return '<div class="trow" style="align-items:flex-start"><div style="width:20px;padding-top:4px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+kleurHex(o.kleur)+'"></span></div>'+
+      '<div style="flex:1.6"><b>'+esc(o.naam)+'</b><div class="sm muted" style="margin-top:2px">'+esc(itemSoort(o)+' · '+(o.info||kleurNaam(o.kleur)))+'</div></div>'+
       '<div style="flex:2.4" class="sm muted">'+esc(o.instructies||"").replace(/\n/g,"<br>")+'</div>'+
-      '<button class="btn sm" style="width:86px;justify-content:center" onclick="insInvoegen('+o.id+')">Invoegen</button></div>';
-  }).join("")||'<div class="cempty">Geen templates gevonden.</div>';
+      '<button class="btn sm" style="width:86px;justify-content:center" onclick="insInvoegen(\''+o.key+'\')">Invoegen</button></div>';
+  }).join("")||'<div class="cempty">Niets gevonden.</div>';
 }
 async function insInvoegen(id){
-  const o=LIB.tpl.find(x=>x.id===id);if(!o)return;
-  const kleur=TPLKLEUREN.includes(o.kleur)?o.kleur:null;
+  const o=libItemVind(id);if(!o)return;
+  const kleur=itemBlokKleur(o);
   // Demo-video's van de template reizen mee naar het blok (blocks.media),
   // zodat het lid ze in de app bij dit onderdeel kan afspelen.
   const media=(o.media&&o.media.length)?o.media:null;
