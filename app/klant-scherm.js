@@ -2023,8 +2023,8 @@ function openResults(wid){
     // Krachtblok (lift): de tekst wordt ook als sets gelezen voor de krachtlog, net als in de app
     const lift=!!b.lift_id&&!(b.lift_scheme&&b.lift_scheme.geen_lift);
     const scheme=lift?((b.lift_scheme&&b.lift_scheme.hand)?b.lift_scheme:(schemaLees(b.prescription||"")||b.lift_scheme||null)):null;
-    const gelezen=lift?resSetsHtml(val,(r&&!missed)?r.sets:null,scheme):"";
-    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'" data-lift="'+(lift?"1":"0")+'" data-scheme="'+esc(scheme?JSON.stringify(scheme):"")+'">'+
+    const gelezen=lift?resSetsHtml(val,(r&&!missed)?r.sets:null,scheme,{stang:resOpties().stang,oefening:b.exercise||""}):"";
+    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'" data-lift="'+(lift?"1":"0")+'" data-oefening="'+esc(b.exercise||"")+'" data-scheme="'+esc(scheme?JSON.stringify(scheme):"")+'">'+
       '<div class="resblok"><span class="reslabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
         (pr?'<div class="respr">'+esc(pr)+'</div>':'')+'</div>'+
       '<div class="resinvoer"><div style="flex:1;min-width:0"><input class="resval" style="width:100%" placeholder="'+(lift?"Sets, bijv. 95x5 100x5 105x1":"Resultaat…")+'" value="'+esc(val)+'"'+(missed?' disabled':'')+(lift?' oninput="resSetsLees(this)"':'')+'>'+
@@ -2045,16 +2045,18 @@ function resToggleMissed(btn){
 // Krachtblok in het scores-venster: laat zien hoe de tekst als sets wordt gelezen (krachtlog).
 // Opgeslagen sets uit de app staan als samenvatting in de tekst; de coach kan ze
 // gewoon in de tekst corrigeren ("95x5 100x4"), de sets volgen de tekst.
-function resSetsHtml(val,sets,scheme){
+// Stang van de open klant voor "per kant"/"leeg" (vrouwen 15 kg, mannen 20 kg)
+function resOpties(row){const p=(coachClients||[]).find(x=>x.id===calClient)||{};return {stang:p.gender==="vrouw"?15:20,oefening:row?row.dataset.oefening||"":""};}
+function resSetsHtml(val,sets,scheme,opties){
   if(!String(val||"").trim())return "";
   if(Array.isArray(sets)&&sets.length&&val===setsTekst(sets))return 'Sets: <b>'+esc(setsTekst(sets))+'</b>';
-  const g=setsUitTekst(val,scheme);
+  const g=setsUitTekst(val,scheme,opties);
   return g.rows.length?'Sets: <b>'+esc(g.gelezen)+'</b>':'<span style="color:#b57614">Geen sets herkend: wordt als tekst bewaard, telt niet mee voor records</span>';
 }
 function resSetsLees(inp){
   const row=inp.closest(".resrow"),box=row&&row.querySelector(".res-gelezen");if(!box)return;
   let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}
-  box.innerHTML=resSetsHtml((inp.value||"").trim(),null,s);
+  box.innerHTML=resSetsHtml((inp.value||"").trim(),null,s,resOpties(row));
 }
 async function saveResults(){
   const wid=resWid;if(!wid){closeResults();return;}
@@ -2070,7 +2072,7 @@ async function saveResults(){
     if(missed)upserts.push(Object.assign({},base,{status:"missed",score_text:null}));
     else if(val){
       const rec=Object.assign({},base,{status:"completed",score_text:val});
-      if(lift){let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}const sets=setsNaarRec(setsUitTekst(val,s).rows);if(sets.length)rec.sets=sets;}
+      if(lift){let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}const sets=setsNaarRec(setsUitTekst(val,s,resOpties(row)).rows);if(sets.length)rec.sets=sets;}
       upserts.push(rec);
     }
     else if(monthResults[blockId])deletes.push(blockId); // leeggemaakt: bestaande logging verwijderen

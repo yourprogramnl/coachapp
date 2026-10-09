@@ -318,7 +318,7 @@ const SETS_TOKEN=new RegExp(
   "|(\\d{1,2})(?:\\s*\\/\\s*\\d{1,2})?\\s*(?:reps?|herhalingen)\\s*(?:@|op|met|at|:|=|was|is)\\s*(\\d+(?:[.,]\\d+)?)"+ // 15-16 "5 reps @ 100", "12/12 reps@15kg"
   "|(\\d{1,2})\\s*:\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                  // 17-18 "11: 70 kilo" (reps: kg)
   "|(?<![\\d.,]\\s*-\\s*)(\\d{1,2})(?!\\d|[.,]\\d)\\s*-\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+              // 19-20 "12 - 80KG" (reps - kg), niet "75-75 kg" in een reeks
-  "|(?<![\\d.,]\\s*-\\s*)(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)?\\s*-\\s*(\\d{1,2})(?!\\d|[.,]\\d)(?!\\s*(?:-|\\/)\\s*\\d)(?!\\s*(?:kg|kilo|%|reps?|sets?|min|sec))"+ // 21-22 "35-12" (kg - reps)
+  "|(?<![\\d.,]\\s*-\\s*)(?<!(?:kg|kilo)\\s*-\\s*)(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)?\\s*-\\s*(\\d{1,2})(?!\\d|[.,]\\d)(?!\\s*(?:-|\\/)\\s*\\d)(?!\\s*(?:kg|kilo|%|reps?|sets?|min|sec))"+ // 21-22 "35-12" (kg - reps), niet in een reeks
   "|(\\d+(?:[.,]\\d+)?)\\s*@\\s*(\\d+(?:[.,]\\d+)?)"+                                                           // 23-24 "3@88", "14@12,5"
   "|(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kilo)\\b"+                                                                      // 25 "95 kg"
   "|(\\d{1,2})(?:[.,]5)?(?:\\s*\\/\\s*\\d{1,2})?\\s*(?:reps?|herhalingen)\\b"+                                  // 26 "10 reps", "12/12 reps", "5,5 reps", "110 - 6 reps"
@@ -405,8 +405,32 @@ function setsRepsLijst(t,schema){
   }
   return uit;
 }
-function setsUitTekst(tekst,schema){
-  const ruw=String(tekst||"");
+// Stang en schijven (besluiten Stefan, 9 oktober): vrouwen 15 kg stang, mannen 20 kg, safety bar 20 kg.
+// "7,5 per kant" bij een barbell-oefening = stang + 2 × schijf; bij dumbbells/machines is het het gewicht zelf.
+// "leeg"/"stang" = de stang; "zonder gewicht" bij pull-up/dip = 0 kg.
+const SETS_GEEN_BARBELL=/dumbbell|dumbell|\bdbs?\b|machine|leg press|pulldown|pull down|cable|kabel|kettlebell|\bkb\b|goblet|arnold|seal row|z press|bulgarian|split squat|lunge|extension|curl|belt squat|landmine|band|ring|pull-?up|pullup|chin|\bdips?\b|push-?up|sled|trap bar|hex bar/i;
+const setsIsBarbell=naam=>!!naam&&!SETS_GEEN_BARBELL.test(naam);
+const setsIsBodyweight=naam=>/pull-?up|pullup|chin|\bdips?\b|push-?up/i.test(naam||"");
+function setsStangSchijven(t,opties){
+  const naam=(opties&&(opties.oefening||opties.lift))||"";
+  const stang=opties&&opties.stang?opties.stang:null;
+  const bar=/safety/i.test(naam)?20:stang;
+  const kgTekst=v=>String(Math.round(v*4)/4).replace(".",",")+" kg";
+  if(/belt squat/i.test(naam)){ // schijven aan weerskanten van de pin, geen stang
+    t=t.replace(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*(?:per\s*(?:kant|zijde|side)|aan\s+elke\s+kant|elke\s+kant)\b/gi,(m,x)=>kgTekst(2*setsNum(x)));
+  }else if(bar&&setsIsBarbell(naam)){
+    t=t.replace(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*(?:per\s*(?:kant|zijde|side)|aan\s+elke\s+kant|elke\s+kant)\b/gi,(m,x)=>kgTekst(bar+2*setsNum(x)));
+    t=t.replace(/\bper\s*(?:kant|zijde|side)\s*:\s*((?:\d+(?:[.,]\d+)?\s*(?:kg|kilo)?\s*[-\/,]?\s*)+)/gi,(m,lijst)=>lijst.replace(/\d+(?:[.,]\d+)?/g,x=>kgTekst(bar+2*setsNum(x)).replace(" kg","")).replace(/\s*$/," kg "));
+    t=t.replace(/\bstang\s*(\d+)\s*\+\s*((?:\d+(?:[.,]\d+)?\s*[-\/,]?\s*)+)/gi,(m,s,lijst)=>lijst.replace(/\d+(?:[.,]\d+)?/g,x=>kgTekst(setsNum(s)+2*setsNum(x)).replace(" kg","")));
+    t=t.replace(/\b(?:de\s+)?(?:stang|bar)\s+(?:van|is)\s+(\d+(?:[.,]\d+)?)\b/gi,(m,x)=>kgTekst(setsNum(x)));
+    t=t.replace(/\b(?:lege\s+stang|lege\s+bar|empty\s+bar|leeg|stang)\b/gi," "+String(bar)+" "); // alleen het getal, zodat "Leeg-leeg-25-25" een gewone reeks blijft
+  }
+  if(setsIsBodyweight(naam))t=t.replace(/\b(?:zonder\s+gewicht|bodyweight|body\s*weight|eigen\s+gewicht|\bbw\b)\b/gi,"0 kg");
+  return t;
+}
+function setsUitTekst(tekst,schema,opties){
+  const ruw=setsStangSchijven(String(tekst||""),opties);
+  const naam=(opties&&(opties.oefening||opties.lift))||"";
   const lijst=setsRepsLijst(ruw,schema);
   let t=setsSchoon(ruw);
   if(lijst.bron==="komma")t=t.replace(/^\s*\d(?:\s\d){2,}\s*(?:reps?)?/,""); // de kommalijst is al gelezen
@@ -426,7 +450,9 @@ function setsUitTekst(tekst,schema){
   let laatste=null,laatsteKg=null,explicietReps=false;
   let pend=null,laatsteDir=null,dirGebruikt=false; // "3×2 sets" of "3 sets": geldt voor het eerstvolgende gewicht
   const schemaKg=schema&&(schema.kg!=null?schema.kg:(schema.kg_start!=null?schema.kg_start:null));
-  const schemaReps=schema&&typeof schema.reps==="number"?schema.reps:null;
+  // Olympische lift zonder reps in het voorschrift: 1 rep per set (besluit Stefan, 9 oktober)
+  const olympisch=/snatch|clean|jerk/i.test(naam);
+  const schemaReps=schema&&typeof schema.reps==="number"?schema.reps:((!schema||(schema.reps==null&&!schema.reps_lijst))&&olympisch?1:null);
   const rij=(kg,reps,opts)=>{
     const r={kg:kg==null?"":kgTxt(kg),reps:reps==null?"":String(reps),fail:false};
     // Herkansing na een mislukte set ("90 kilo ❌ 86 kilo"): zelfde reps als de mislukte poging
@@ -445,7 +471,9 @@ function setsUitTekst(tekst,schema){
   const zwaarGelogd=()=>rows.some(r=>(leesKg(r.kg)||0)>15);
   // "Alles gelukt / allemaal gehaald" bij een vast gewicht: het hele schema is gedaan; de tekst kan daarna nog iets aanpassen
   const grootGetal=/(?<![\d.,])(?:1[6-9]|[2-9]\d|\d{3})(?:[.,]\d+)?(?!\s*(?:reps?|rir|rpe|min|sec|%|e\b))/i.test(t);
-  if(!grootGetal&&/\b(?:alles|allemaal|alle\s+sets)\s+(?:gelukt|gehaald|gedaan)\b/i.test(ruw)&&schemaKg!=null&&schema&&schema.sets>1&&(schemaReps!=null||Array.isArray(schema.reps_lijst))){
+  // "Alles gelukt", of een log zonder cijfers met "gedaan/gehaald/gelukt/✅", bij een vast gewicht: het schema is gedaan (besluit Stefan, 9 oktober)
+  const gedaanWoord=/\b(?:alles|allemaal|alle\s+sets)\s+(?:gelukt|gehaald|gedaan)\b/i.test(ruw)||(!/\d/.test(ruw)&&/\b(?:gedaan|gehaald|gelukt|done|klaar)\b|✅|✔/i.test(ruw));
+  if(!grootGetal&&gedaanWoord&&schemaKg!=null&&schema&&schema.sets>1&&(schemaReps!=null||Array.isArray(schema.reps_lijst))){
     for(let i=0;i<Math.min(schema.sets,12);i++)rij(schemaKg,schemaReps!=null?schemaReps:schema.reps_lijst[Math.min(i,schema.reps_lijst.length-1)]);
     explicietReps=true;
   }
@@ -515,7 +543,8 @@ function setsUitTekst(tekst,schema){
       const v=setsNum(m[27]);
       const naSet=/#\s*$/.test(voor); // "Eerste set 10": na het setwoord komt het gewicht
       const direct=laatsteKg&&!/[A-Za-zÀ-ÿ]/.test(t.slice(laatsteKgEind,m.index)); // "17,5 kilo: 12", niet "40 kg Opgebouwd: 25"
-      if(!naSet&&direct&&(setsIsInt(m[27])||/^\d{1,2}[.,]5$/.test(m[27]))&&v<=30){laatsteKg.reps=String(Math.floor(v));laatsteKg=null;explicietReps=true;continue;}
+      const halveRep=/^\d{1,2},5$/.test(m[27])&&(leesKg(laatsteKg&&laatsteKg.kg)||0)>=15; // "18kg 10,5" = 10 reps; "5 kg 7.5" is een gewicht
+      if(!naSet&&direct&&(setsIsInt(m[27])||halveRep)&&v<=30){laatsteKg.reps=String(Math.floor(v));laatsteKg=null;explicietReps=true;continue;}
       laatsteKg=null;
       const inReeks=/[-–]\s*$/.test(voor)||/^\s*[-–]\s*\d/.test(t.slice(m.index+m[0].length)); // "7,5-10-11": deel van een reeks
       if(!naSet&&!inReeks&&setsIsInt(m[27])&&v<=15&&zwaarGelogd())continue; // "in plaats van 5": geen set
@@ -527,7 +556,8 @@ function setsUitTekst(tekst,schema){
     if(m[28]!=null&&rows.length)rows[rows.length-1].fail=true; // "ging niet"
   }
   // Opschonen vóór het koppelen: onmogelijke gewichten en kleine getallen bij een zware oefening
-  const junk=r=>{const kg=leesKg(r.kg);if(kg==null)return false;if(kg>320||kg<2)return true;return schemaKg!=null&&schemaKg>=20&&kg<schemaKg/3&&kg<=15;};
+  const bodyweight=setsIsBodyweight(naam);
+  const junk=r=>{const kg=leesKg(r.kg);if(kg==null)return false;if(bodyweight&&kg===0)return false;if(kg>320||kg<2)return true;return schemaKg!=null&&schemaKg>=20&&kg<schemaKg/3&&kg<=15;};
   for(let i=rows.length-1;i>=0;i--)if(junk(rows[i]))rows.splice(i,1);
   if(laatste&&!rows.includes(laatste))laatste=rows[rows.length-1]||null;
   // Directief zonder gewicht erna ("5x5", "3 sets gedaan") met een vast gewicht in het voorschrift
@@ -552,6 +582,10 @@ function setsUitTekst(tekst,schema){
   }
   // Rijen met reps maar zonder kilo's: het vaste gewicht uit het voorschrift
   if(schemaKg!=null)rows.forEach(r=>{if(!r.kg&&r.reps)r.kg=kgTxt(schemaKg);});
+  // Reps-bereik (6-8) en een set zonder reps: dezelfde reps als de eerstvolgende set mét reps, anders de vorige (besluit Stefan, 9 oktober)
+  if(repsBereik&&rows.some(r=>r.reps)){
+    rows.forEach((r,i)=>{if(r.reps)return;const na=rows.slice(i+1).find(x=>x.reps),voor=rows.slice(0,i).reverse().find(x=>x.reps);const bron=na||voor;if(bron)r.reps=bron.reps;});
+  }
   // Reps voor rijen zonder reps: uit het voorschrift, anders uit het laatste directief ("5x5")
   const defReps=schemaReps!=null?schemaReps:(laatsteDir&&laatsteDir.reps!=null?laatsteDir.reps:null);
   rows.forEach(r=>{if(!r.reps&&defReps!=null)r.reps=String(defReps);});

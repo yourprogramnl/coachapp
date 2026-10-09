@@ -7,7 +7,10 @@
 // niets herkend = grijs. De coach corrigeert in de tekst, vinkt aan en slaat op.
 // Elke opgeslagen set krijgt bron "oud": geen meldingen, en een 1RM eruit krijgt
 // het label "Uit oude log". De oorspronkelijke tekst blijft altijd staan.
-let OL={rows:[],client:null,bezig:false,filter:"alle"};
+let OL={rows:[],client:null,bezig:false,filter:"alle",stang:20};
+// Stang van deze klant: vrouwen 15 kg, mannen 20 kg (besluit Stefan, 9 oktober); onbekend geslacht = 20 kg.
+function olStangVan(clientId){const p=(coachClients||[]).find(x=>x.id===clientId)||{};return p.gender==="vrouw"?15:20;}
+const olOpties=r=>({stang:OL.stang,oefening:r.exercise,lift:r.lift});
 const OL_SLEUTEL=id=>"forge_oudelog_"+id; // AI-lezing in de browser bewaren: sluiten en later verdergaan kost niets extra
 const OL_LBL={eens:"✓ eens",nakijken:"⚠ nakijken",lezer:"tekstlezer",geen:"geen sets"};
 const OL_KLEUR={eens:"#27b376",nakijken:"#e5a13d",lezer:"#38bdf8",geen:"#b3b9c2"};
@@ -40,7 +43,7 @@ async function olLaad(clientId){
     let ai=null;try{ai=JSON.parse(localStorage.getItem(OL_SLEUTEL(r.id))||"null");}catch(e){}
     const row={id:r.id,block_id:r.block_id,workout_id:r.workout_id,athlete_id:r.athlete_id,company_id:r.company_id,
       date:w.workout_date||"",titel:w.title||"",label:b.label||"",exercise:b.exercise||"",prescription:b.prescription||"",
-      lift:liftNaam(b.lift_id),tekst:String(r.score_text||"").trim(),schema,lezer:setsUitTekst(r.score_text,schema).rows,
+      lift:liftNaam(b.lift_id),tekst:String(r.score_text||"").trim(),schema,lezer:setsUitTekst(r.score_text,schema,{stang:OL.stang,oefening:b.exercise||"",lift:liftNaam(b.lift_id)}).rows,
       ai:(ai&&Array.isArray(ai.sets))?ai:null,voorstel:"",status:"",reden:"",aan:false,klaar:false,bewerkt:null};
     olBepaal(row);
     return row;
@@ -70,6 +73,7 @@ function ensureOlModal(){
       '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap"><input type="checkbox" id="ol-alles" style="width:auto;margin:0" onchange="olAlles(this.checked)"> Alle groene aanvinken</label>'+
       '<select id="ol-filter" onchange="olFilterZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px"><option value="alle">Alles</option><option value="eens">✓ eens</option><option value="nakijken">⚠ nakijken</option><option value="lezer">tekstlezer</option><option value="geen">geen sets</option></select>'+
       '<span class="sm muted" id="ol-teller"></span>'+
+      '<label class="sm" style="display:flex;align-items:center;gap:6px;white-space:nowrap">Stang <select id="ol-stang" onchange="olStangZet(this.value)" style="width:auto;font-size:12px;padding:4px 6px"><option value="20">20 kg (man)</option><option value="15">15 kg (vrouw)</option></select></label>'+
       '<button class="btn ghost sm" id="ol-ai" onclick="olLeesAi()" style="margin-left:auto">🤖 Lees met AI</button>'+
       '<button class="btn ghost sm" id="ol-opnieuw" onclick="olOpnieuw()" title="Oranje regels opnieuw door de AI laten lezen (na een verbetering van de leesregels)">↻ Oranje opnieuw lezen</button></div>'+
     '<div class="sm muted" id="ol-status" style="margin-bottom:8px;min-height:16px"></div>'+
@@ -85,9 +89,10 @@ function ensureOlModal(){
 async function olOpen(){
   if(typeof calClient==="undefined"||!calClient)return;
   ensureOlModal();
-  OL.client=calClient;OL.rows=[];OL.filter="alle";
+  OL.client=calClient;OL.rows=[];OL.filter="alle";OL.stang=olStangVan(calClient);
   const p=(coachClients||[]).find(x=>x.id===calClient)||{};
   document.getElementById("ol-titel").textContent="Oude logs omzetten · "+naamVan(p);
+  const stangSel=document.getElementById("ol-stang");if(stangSel){stangSel.value=String(OL.stang);stangSel.title=p.gender?"Uit het profiel ("+p.gender+")":"Geslacht staat niet in het profiel: kies de stang van deze klant";}
   document.getElementById("ol-status").textContent="";
   const f=document.getElementById("ol-filter");if(f)f.value="alle";
   document.getElementById("ol-lijst").innerHTML='<div class="sm muted" style="padding:14px">Laden…</div>';
@@ -97,6 +102,13 @@ async function olOpen(){
   olRender();
 }
 function closeOl(){const m=document.getElementById("olmodal");if(m)m.classList.remove("show");}
+// Andere stang gekozen: alle voorstellen van de tekstlezer opnieuw berekenen ("per kant", "leeg")
+function olStangZet(v){
+  OL.stang=parseInt(v,10)===15?15:20;
+  const sel=document.getElementById("ol-stang");if(sel)sel.value=String(OL.stang);
+  OL.rows.forEach(r=>{if(r.klaar)return;r.lezer=setsUitTekst(r.tekst,r.schema,olOpties(r)).rows;r.bewerkt=null;olBepaal(r);});
+  olRender();
+}
 function olFilterZet(v){OL.filter=v;olRender();}
 function olZichtbaar(){return OL.rows.filter(r=>!r.klaar&&(OL.filter==="alle"||r.status===OL.filter));}
 function olRijHtml(r,i){
@@ -105,7 +117,7 @@ function olRijHtml(r,i){
     :(r.status==="geen"&&r.reden?'<div class="sm muted">AI: '+esc(r.reden)+'</div>':'');
   const vs=(r.prescription||"").split("\n")[0].slice(0,90);
   const tekst=r.bewerkt!=null?r.bewerkt:r.voorstel;
-  const gelezen=tekst?setsSamenvatting(setsUitTekst(tekst,r.schema).rows):"";
+  const gelezen=tekst?setsSamenvatting(setsUitTekst(tekst,r.schema,olOpties(r)).rows):"";
   return '<div class="ol-rij'+(r.klaar?' klaar':'')+'" data-i="'+i+'">'+
     '<input type="checkbox" class="ol-aan"'+(r.aan?" checked":"")+' onchange="olVink(this,'+i+')">'+
     '<div style="min-width:0"><div class="sm"><b>'+esc(datumNL(r.date))+'</b> · '+esc(r.label)+(r.label?") ":"")+esc(r.exercise)+(r.lift&&r.lift.toLowerCase()!==r.exercise.toLowerCase()?' <span class="muted">('+esc(r.lift)+')</span>':'')+(vs?' <span class="muted" title="'+esc(r.prescription)+'">· '+esc(vs)+'</span>':'')+'</div>'+
@@ -132,7 +144,7 @@ function olWijzig(inp,i){
   r.bewerkt=inp.value;r.aan=!!inp.value.trim();
   const rij=inp.closest(".ol-rij"),cb=rij&&rij.querySelector(".ol-aan");if(cb)cb.checked=r.aan;
   const g=rij&&rij.querySelector(".ol-gelezen");
-  if(g){const gelezen=inp.value.trim()?setsSamenvatting(setsUitTekst(inp.value,r.schema).rows):"";g.textContent=gelezen&&gelezen!==inp.value.trim()?"→ "+gelezen:(inp.value.trim()?"":"leeg: wordt niet opgeslagen");}
+  if(g){const gelezen=inp.value.trim()?setsSamenvatting(setsUitTekst(inp.value,r.schema,olOpties(r)).rows):"";g.textContent=gelezen&&gelezen!==inp.value.trim()?"→ "+gelezen:(inp.value.trim()?"":"leeg: wordt niet opgeslagen");}
   olTeller();
 }
 // Alle groene (eens) regels in de huidige weergave aan- of uitvinken.
@@ -151,7 +163,7 @@ async function olLeesAi(){
   for(let i=0;i<todo.length;i+=50){
     const deel=todo.slice(i,i+50);
     stat.textContent="AI leest… "+klaar+" van "+todo.length+" regels"+(kosten?" · kosten tot nu ≈ $"+kosten.toFixed(2):"");
-    const rijen=deel.map((r,j)=>({i:j,blok:r.exercise,voorschrift:(r.prescription||"").slice(0,300),log:r.tekst.slice(0,400)}));
+    const rijen=deel.map((r,j)=>({i:j,blok:r.exercise,voorschrift:(r.prescription||"").slice(0,300),log:r.tekst.slice(0,400),stang:OL.stang}));
     let data=null,error=null;
     try{({data,error}=await db.functions.invoke("oude-logs-sets",{body:{rijen}}));}catch(e){error=e;}
     if(error||!data||data.error){
@@ -191,7 +203,7 @@ async function olOpslaan(){
   const payload=[],leeg=[];
   rows.forEach(r=>{
     const tekst=(r.bewerkt!=null?r.bewerkt:r.voorstel)||"";
-    const sets=setsNaarRec(setsUitTekst(tekst,r.schema).rows).map(s=>Object.assign(s,{bron:"oud"}));
+    const sets=setsNaarRec(setsUitTekst(tekst,r.schema,olOpties(r)).rows).map(s=>Object.assign(s,{bron:"oud"}));
     if(!sets.length){leeg.push(r);return;}
     payload.push({row:r,rec:{id:r.id,block_id:r.block_id,workout_id:r.workout_id,athlete_id:r.athlete_id,company_id:r.company_id,status:"completed",sets}});
   });
