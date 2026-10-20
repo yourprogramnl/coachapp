@@ -8,6 +8,51 @@
 let chatKanaal=null,chatAthlete=null;
 function tijdNL(iso){const d=new Date(iso);return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+" · "+d.getDate()+" "+MAANDKORT[d.getMonth()];}
 
+// ---------- Emoji-reacties op chatberichten (feedbackronde 5, 20 okt 2026) ----------
+// Gedeeld door de chat-popup, de Berichten-sectie en het lid-scherm. Onder elk
+// bericht: de geplaatste emoji's (eigen licht op; klik = weghalen) en bij hover
+// de knopjes om te reageren. Zelfde vaste set als de dagreacties (dashboard.js)
+// en de app, zodat iPhone en Android hetzelfde tonen.
+const RX_EMOJIS=["👍","✅","💪","❤️","🔥","👏"];
+let RXMAP={},RXMSG={}; // message_id -> [{profile_id,emoji}] / message_id -> bericht
+async function rxLaad(ids){
+  ids=(ids||[]).filter(Boolean);if(!ids.length)return;
+  ids.forEach(id=>{RXMAP[id]=[];});
+  for(let i=0;i<ids.length;i+=150){
+    try{
+      const{data}=await db.from("message_reactions").select("message_id,profile_id,emoji").in("message_id",ids.slice(i,i+150));
+      (data||[]).forEach(r=>{(RXMAP[r.message_id]=RXMAP[r.message_id]||[]).push(r);});
+    }catch(e){}
+  }
+}
+function rxHtml(m){
+  const lijst=RXMAP[m.id]||[];const per={};
+  lijst.forEach(r=>{per[r.emoji]=per[r.emoji]||{n:0,mij:false};per[r.emoji].n++;if(r.profile_id===ME.user.id)per[r.emoji].mij=true;});
+  const chips=Object.keys(per).map(e=>'<span class="rc'+(per[e].mij?' mijn':'')+'" title="'+(per[e].mij?'Jouw reactie weghalen':'Ook zo reageren')+'" onclick="rxReageer(\''+esc(m.id)+'\',\''+e+'\')">'+e+(per[e].n>1?' '+per[e].n:'')+'</span>').join("");
+  const kies=RX_EMOJIS.filter(e=>!per[e]||!per[e].mij).map(e=>'<span class="rc kies" title="Reageer met '+e+'" onclick="rxReageer(\''+esc(m.id)+'\',\''+e+'\')">'+e+'</span>').join("");
+  return '<div class="wcreact">'+chips+'<span class="rkies">'+kies+'</span></div>';
+}
+// Bubbel + reactieregel in één kolom, uitgelijnd links (ander) of rechts (ik).
+function rxRij(m,mij,bubbel){RXMSG[m.id]=m;return '<div class="wcrij '+(mij?"me":"them")+'" data-mid="'+esc(m.id)+'">'+bubbel+rxHtml(m)+'</div>';}
+function rxTeken(ids){(ids||[]).forEach(id=>{const m=RXMSG[id];if(!m)return;document.querySelectorAll('[data-mid="'+id+'"] .wcreact').forEach(el=>{el.outerHTML=rxHtml(m);});});}
+async function rxVernieuw(ids){await rxLaad(ids);rxTeken(ids);}
+async function rxReageer(mid,emoji){
+  const m=RXMSG[mid];if(!m)return;
+  const lijst=RXMAP[mid]||[];
+  const mijn=lijst.find(r=>r.profile_id===ME.user.id&&r.emoji===emoji);
+  if(mijn){
+    RXMAP[mid]=lijst.filter(r=>r!==mijn);rxTeken([mid]);
+    const{error}=await db.from("message_reactions").delete().eq("message_id",mid).eq("profile_id",ME.user.id).eq("emoji",emoji);
+    if(error){RXMAP[mid]=lijst;rxTeken([mid]);toast(error.message||"Weghalen mislukt");}
+  }else{
+    RXMAP[mid]=[...lijst,{message_id:mid,profile_id:ME.user.id,emoji}];rxTeken([mid]);
+    const{error}=await db.from("message_reactions").insert({message_id:mid,athlete_id:m.athlete_id,company_id:m.company_id||ME.profile.company_id,profile_id:ME.user.id,emoji});
+    if(error&&!/duplicate|unique/i.test(error.message||"")){RXMAP[mid]=lijst;rxTeken([mid]);toast(error.message||"Reageren mislukt");}
+  }
+}
+// Alle berichten van één draad die nu in beeld staan (voor een live-ververs).
+function rxIdsVan(athleteId){return Object.keys(RXMSG).filter(id=>RXMSG[id].athlete_id===athleteId);}
+
 // ---------- Bijlagen (gedeeld door popup, Berichten-sectie en lid-scherm) ----------
 const CHAT_MEDIA_MAX=104857600; // 100 MB, gelijk aan de bucket-limiet
 const CHATBIJL={pop:[],ber:[],wc:[]}; // gekozen bestanden per invoerbalk (popup, Berichten, reactiepaneel), geüpload bij versturen
@@ -110,13 +155,17 @@ function chatKanaalStart(){
     chatKanaal=db.channel("chat-"+chatAthlete+"-"+Date.now())
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"athlete_id=eq."+chatAthlete},payload=>{
         if(payload.new&&payload.new.sender_id!==ME.user.id)chatToon(payload.new,true);
-      }).subscribe();
+      })
+      // Emoji van de ander direct in beeld
+      .on("postgres_changes",{event:"*",schema:"public",table:"message_reactions",filter:"athlete_id=eq."+chatAthlete},()=>{rxVernieuw(rxIdsVan(chatAthlete));})
+      .subscribe();
   }catch(e){}
 }
 function chatSluitKanaal(){try{if(chatKanaal){db.removeChannel(chatKanaal);chatKanaal=null;}}catch(e){}}
 function chatSluit(){const pop=document.getElementById("chatpop");if(pop)pop.classList.remove("show");chatSluitKanaal();}
 async function chatLaad(){
   const{data}=await db.from("messages").select("*").eq("athlete_id",chatAthlete).order("created_at");
+  await rxLaad((data||[]).map(m=>m.id)); // emoji-reacties van deze draad
   const host=document.getElementById("chat-msgs");if(!host)return;
   host.innerHTML=(data||[]).map(m=>chatBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>';
   host.scrollTop=host.scrollHeight;
@@ -129,7 +178,7 @@ async function chatLaad(){
 }
 function chatBubHtml(m){
   const mij=m.sender_id===ME.user.id;
-  return '<div data-notr class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>';
+  return rxRij(m,mij,'<div data-notr class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>');
 }
 function chatToon(m,scroll){
   const host=document.getElementById("chat-msgs");if(!host)return;

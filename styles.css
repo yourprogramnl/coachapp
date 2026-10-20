@@ -1070,6 +1070,10 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .wcreact .rc.kies{border-color:transparent;background:transparent;padding:1px 3px;opacity:.6}
 .wcreact .rc.kies:hover{opacity:1;background:#f4f6f8}
 .wcfloat .chatmedia{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+/* Emoji-reacties ook in de chat-popup, Berichten en het lid-scherm (zelfde rij als bij dagreacties) */
+.msgs2 .wcrij,.msgs .wcrij{flex:none}
+.wcrij .bub{align-self:auto}
+.chatpop .wcreact .rc{font-size:11.5px;padding:0 6px}
 @media print{.wcfloat{display:none!important}}
 
 /* Gelogde resultaten onder een blok in de bouwer (feedbackronde 4, 29 sep) */

@@ -132,7 +132,7 @@ function berBubHtml(m,c){
   const vanLid=m.sender_id===c.id;
   let meta=tijdNL(m.created_at);
   if(!vanLid&&m.sender_id!==ME.user.id)meta=berNaam(m.sender_id)+" · "+meta;
-  return '<div data-notr class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+meta+'</div></div>';
+  return rxRij(m,!vanLid,'<div data-notr class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+meta+'</div></div>');
 }
 function berScroll(){const h=document.getElementById("ber-msgs");if(h)h.scrollTop=h.scrollHeight;}
 async function berOpen(id){
@@ -142,6 +142,7 @@ async function berOpen(id){
   const th=document.getElementById("ber-thread");if(th)th.innerHTML=berThreadHtml();
   berScroll();
   if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen
+  rxVernieuw(berMsgsVan(id).map(m=>m.id)); // emoji-reacties van deze draad erbij
   // gelezen-markering alleen door de eigen coach (RLS staat anderen niet toe)
   if(c&&c.coach_id===ME.user.id&&berOngelezen(id)){
     try{
@@ -196,6 +197,11 @@ function berRealtime(){
         if(!document.getElementById("ber-lijst"))return; // sectie niet meer in beeld
         if(BER.cur===m.athlete_id)berAppend(m);
         berLijstVernieuw();
+      })
+      // Emoji-reacties van de ander live in de open draad
+      .on("postgres_changes",{event:"*",schema:"public",table:"message_reactions"},payload=>{
+        const r=payload.new||payload.old;if(!r||!document.getElementById("ber-msgs"))return;
+        if(BER.cur===r.athlete_id)rxVernieuw(rxIdsVan(r.athlete_id));
       })
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_group_messages"},payload=>{
         const m=payload.new;if(!m||m.sender_id===ME.user.id)return;

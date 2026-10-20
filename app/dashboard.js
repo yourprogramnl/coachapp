@@ -387,7 +387,7 @@ function closeWc(){const m=document.getElementById("wcmodal");if(m)m.classList.r
 // Emoji-reacties op dagreacties (feedbackronde 5, 20 okt): dezelfde vaste set
 // als de app, zodat ze op iPhone en Android hetzelfde tonen. Onder elk bericht
 // staan de geplaatste emoji's (jouw eigen licht op) en vijf knopjes om te reageren.
-const WC_EMOJIS=["👍","❤️","💪","🔥","👏"];
+const WC_EMOJIS=["👍","✅","💪","❤️","🔥","👏"]; // zelfde set als RX_EMOJIS in chat.js en de app
 let WCR={}; // comment_id -> [{profile_id,emoji}]
 function wcReactiesHtml(m){
   const lijst=WCR[m.id]||[];const per={};
