@@ -126,7 +126,7 @@ function assHtml(d){
       '<div class="sp-field"><label>Notities Work</label><textarea id="as-worknotes">'+esc(wk.notes||"")+'</textarea></div>'+
       '<div id="ass-extra-2">'+extraHtml(wk.extra)+'</div>'+
     '</div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="sp-btn" onclick="assOpslaan()">'+saveLabel+'</button>'+delBtn+'<button class="sp-btn ghost" onclick="toast(\'Exporteren komt in een volgende stap\')">Exporteer als PDF</button></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="sp-btn" onclick="assOpslaan()">'+saveLabel+'</button>'+delBtn+'<button class="sp-btn ghost" onclick="openExport({alleen:\'assessment\'})">Exporteer als PDF</button></div>'+
     '<div class="sp-info" id="ass-msg" style="margin-top:10px"></div>';
 }
 function assTab(i){assTabIdx=i;[0,1,2].forEach(x=>{document.getElementById("ass-"+x).style.display=x===i?"":"none";document.getElementById("ass-t"+x).classList.toggle("on",x===i);});}

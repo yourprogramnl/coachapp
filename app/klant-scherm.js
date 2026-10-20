@@ -1594,7 +1594,7 @@ async function renderMonth(opts){
       dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '</div></div></div>'+
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
-    '<button class="btn ghost sm" title="Print of bewaar als PDF" onclick="window.print()"><svg class="i sm-i"><use href="#i-dl"/></svg> Export PDF</button>'+
+    '<button class="btn ghost sm" title="Exporteer workouts, scores, metrics en meer als PDF of tekstbestand" onclick="openExport()"><svg class="i sm-i"><use href="#i-dl"/></svg> Exporteren</button>'+
     '</div>';
   const headDays=calView==="dag"?[DAGEN[(gridStart.getDay()+6)%7]]:DAGEN;
   const head=headDays.map(d=>'<div>'+d+'</div>').join("");
