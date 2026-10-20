@@ -2,6 +2,7 @@
 // gegenereerd en kan overschreven worden; nieuwe teksten van na 27 sep 2026
 // komen hier). Sleutel = exacte Nederlandse tekst.
 i18nLaad({
+  "App-meldingen verschijnen direct in het dashboard én als pushmelding op je telefoon in de YourProgram-app (vanaf de build van oktober 2026). E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.": "App notifications appear directly in the dashboard and as a push notification on your phone in the YourProgram app (from the October 2026 build). Email works for comments on a workout day; the other emails will follow soon.",
   // Feedbackronde 5, ronde C (20 okt 2026): bijlagen en emoji's bij dagreacties
   "Jouw reactie weghalen": "Remove your reaction",
   "Ook zo reageren": "React the same way",

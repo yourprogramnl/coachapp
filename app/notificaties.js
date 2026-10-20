@@ -39,7 +39,7 @@ function instNotifHtml(){
   const uurOpts=(sel)=>Array.from({length:24},(_,u)=>'<option value="'+u+'"'+(u===sel?" selected":"")+'>'+String(u).padStart(2,"0")+':00</option>').join("");
   const t=n.mail_tijden;
   return '<h2 style="margin:0 0 4px">Notificaties</h2>'+
-    '<div class="sm muted" style="margin-bottom:14px">Kies waarvan je een melding wilt. App-meldingen verschijnen direct in het dashboard. E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.</div>'+
+    '<div class="sm muted" style="margin-bottom:14px">Kies waarvan je een melding wilt. App-meldingen verschijnen direct in het dashboard én als pushmelding op je telefoon in de YourProgram-app (vanaf de build van oktober 2026). E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.</div>'+
     '<div style="max-width:560px">'+NOTIF_EVENTS.map(e=>rij(e[0],e[1])).join("")+'</div>'+
     '<h3 style="margin:20px 0 4px;font-size:14px">Browsermeldingen</h3>'+
     '<div class="sm muted" style="margin-bottom:10px">Een melding van je computer, ook als het dashboard in een ander tabblad staat of je in een ander programma werkt. Werkt zolang het dashboard ergens open staat.</div>'+
