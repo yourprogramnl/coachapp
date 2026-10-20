@@ -1303,6 +1303,12 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .td-klantlink a:hover{text-decoration:underline}
 .td-koppel{max-width:680px}
 .td-koppel .td-form{margin-top:12px}
+/* Uit de app (20 okt 2026): knop in de kaartkop + paneel met voorstellen uit Metingen & PR's */
+.td-appbtn{color:var(--td-accent-muted);border-color:var(--td-accent-muted)}
+.td-appbtn.on,.td-appbtn:hover{background:var(--td-panel);color:var(--td-ink)}
+.td-app .td-table{margin-top:4px}
+.td-app .td-table td label{cursor:pointer;font-weight:600}
+.td-app .td-table input[type=checkbox],.td-kl-vink{width:15px;height:15px;cursor:pointer}
 
 /* ---------- Krachtlog (stap 2, 8 okt 2026): liftchip, schema-regel en kaarttitel in de bouwer ---------- */
 .liftrow{margin-top:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative}

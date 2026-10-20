@@ -6,10 +6,40 @@
 // tdBuild() uit app/testdata-engine.js (1-op-1 port van Michels dashboard_logic.py).
 // Bewerken schrijft direct naar de database (rpc athlete_testdata_patch) en rekent de
 // kaart meteen opnieuw door.
+// Sinds 20 okt 2026 (verzoek Stefan): ook de klanten van een coach in de YourProgram-app krijgen
+// zo'n kaart, gekoppeld aan hun account en gevuld uit wat er al in de app staat (Metingen & PR's,
+// krachtlog, profiel). Zie het blok "testwaarden uit de app" onderaan. De dag (Michels vaste
+// controledag) is sinds die datum optioneel: tdBuild krijgt dan een lege dag mee.
 
-const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,compWerk:null,fout:""};
+const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,compWerk:null,fout:"",
+  app:{metrics:{},profiel:{},open:null},klantenOpen:false};
 // naam = gekozen atleet in de naamkeuze (leeg = iedereen); klant = profiel-id als de kaart
 // in het klantdossier staat (zijbalk > Data), dan tekent tdsGrid alleen die ene kaart.
+// app.metrics / app.profiel = metingen en profielgegevens per gekoppeld account (profile_id);
+// app.open = de atleet waarvan het paneel "Uit de app" openstaat; klantenOpen = het paneel
+// "Kaarten voor klanten" bovenaan.
+
+// Meting in de app (naam uit Metingen & PR's, METRICS_DEF in panelen.js) → sleutel in Michels invoer.
+// `test` = de dashboard-sleutel (voor het label uit de engine); `soort` kg/cal = de hoogste meting telt
+// (zoals "Huidig" in Metingen & PR's), tijd = de snelste. Alleen metingen met de passende eenheid tellen.
+// Niet te koppelen (geen gelijke test in de app): run 5k/10k/1 mile, row 1k, strict HSPU, RMU, LLRC,
+// de 5-minuten AMRAP's, Row/Burpee/TTB en de bike-erg FTP; die vult de coach na een testweek.
+const TDS_APP_MAP=[
+  {key:"deadlift",test:"deadlift",metrics:["Deadlift"],soort:"kg"},
+  {key:"back_squat",test:"back_squat",metrics:["Back Squat 1RM"],soort:"kg"},
+  {key:"front_squat",test:"front_squat",metrics:["Front Squat 1RM"],soort:"kg"},
+  {key:"ohs",test:"ohs",metrics:["Overhead Squat"],soort:"kg"},
+  {key:"strict_press",test:"strict_press",metrics:["Strict Press 1RM"],soort:"kg"},
+  {key:"cgbp",test:"cgbp",metrics:["CGBP 1RM"],soort:"kg"},
+  {key:"squat_clean",test:"clean",metrics:["Clean 1RM"],soort:"kg"},
+  {key:"power_clean",test:"power_clean",metrics:["Power Clean 1RM"],soort:"kg"},
+  {key:"jerk",test:"jerk",metrics:["Split Jerk"],soort:"kg"},
+  {key:"snatch",test:"snatch",metrics:["Snatch 1RM"],soort:"kg"},
+  {key:"weighted_pullup_extra",test:"weighted_pullup",metrics:["Weighted Pull-up 1RM"],soort:"kg",opm:"extra gewicht aan de gordel"},
+  {key:"row_2k",test:"row_2k",metrics:["2k Row"],soort:"tijd"},
+  {key:"row_5k",test:"row_5k",metrics:["5k Row"],soort:"tijd"},
+  {key:"echo_bike",test:"echo_bike",metrics:["10 minute AirBike"],soort:"cal"},
+];
 
 // Dashboard-testsleutel → sleutel in de ruwe invoer (Michels athletes_input.json).
 const TDS_INPUT_KEY={seal_row:"seal_row_8rm",strict_hspu:"strict_hspu_unbroken",weighted_pullup:"weighted_pullup_extra",clean:"squat_clean"};
@@ -36,13 +66,15 @@ async function tdsLaad(){
   TDS.magAlles=true;
   if(typeof myRole==="function"&&myRole()==="coach"){const v=await db.from("athlete_testdata_viewers").select("profile_id").eq("profile_id",ME.user.id);TDS.magAlles=!!(v.data&&v.data.length);}
   if(typeof waLaad==="function"&&WA.rows===null)await waLaad(); // wedstrijdanalyses: doelwedstrijd-keuzelijst en live overlay
+  await tdsAppLaad(); // metingen en profiel van de gekoppelde accounts (voor "Uit de app")
   TDS.athletes={};
   TDS.rows.forEach(r=>tdsZetRij(r));
   TDS.geladen=true;
 }
 function tdsZetRij(r){
   let rec;
-  try{rec=tdBuild(r.name,r.input||{});}
+  // Michels build() eist een dag; zonder vaste dag (optioneel sinds 20 okt 2026) krijgt hij een lege mee.
+  try{rec=tdBuild(r.name,Object.assign({day:""},r.input||{}));}
   catch(e){console.error("tdBuild",r.name,e);rec={name:r.name,day:(r.input||{}).day||"",gender:(r.input||{}).gender||"M",bw:null,age:null,updated:"",tests:{},cat_scores:{},overall:null,filled:0,total:0,priorities:{},priorities_layers:{},crossfit_profile:"",crossfit_layers:[],sri_status:null,top_priorities:null,accessory_focus:null,comp:null,testbatterij_full:[],kapot:true};}
   rec.id=r.id;rec.input=r.input||{};rec.comp_overlay=r.comp_overlay||null;rec.profile_id=r.profile_id||null;
   TDS.athletes[r.name]=rec;
@@ -373,8 +405,9 @@ function tdsKaart(a){
       '<p class="td-name">'+esc(a.name)+tdsSriBadge(a)+'</p>'+
       '<p class="td-meta"><span>'+(a.bw!=null?esc(a.bw)+" kg":"gewicht onbekend")+esc(ageStr)+'</span> · <span>'+genderStr+'</span>'+(a.target_level?' · <span>doel '+esc(a.target_level)+'</span>':"")+' · <span>bijgewerkt '+esc(a.updated||"–")+'</span></p>'+
       tdsKlantLink(a)+
-    '</div><div class="td-head-r"><span class="td-day">'+esc(a.day||"–")+'</span><button class="td-editbtn" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">'+(TDS.bewerk===a.name?"Sluiten":"Bewerken")+'</button></div></div>'+
+    '</div><div class="td-head-r">'+(a.day?'<span class="td-day">'+esc(a.day)+'</span>':"")+tdsAppKnop(a)+'<button class="td-editbtn" onclick="tdsBewerk(\''+esc(a.name).replace(/'/g,"\\'")+'\')">'+(TDS.bewerk===a.name?"Sluiten":"Bewerken")+'</button></div></div>'+
     (a.kapot?'<div class="td-flags">Deze atleet kon niet doorgerekend worden (controleer de ingevoerde waarden).</div>':"")+
+    tdsAppPaneel(a)+
     bewerk+
     tdsSriTraining(a)+
     tdsSec("today","Vandaag: Strivee + WhatsApp",todayNote,todayHtml)+
@@ -401,7 +434,8 @@ function tdsRender(h){
   if(!TDS.geladen){h.innerHTML='<div class="spin">Laden…</div>';return;}
   if(TDS.fout){h.innerHTML='<div class="panel" style="padding:22px"><b>Dashboard laden mislukt.</b><div class="sm muted" style="margin-top:6px">'+esc(TDS.fout)+'</div><button class="btn sm" style="margin-top:12px" onclick="TDS.geladen=false;dataZetTab(\'atleten\')">Opnieuw proberen</button></div>';return;}
   const lijst=tdsLijst();
-  const dagen=["Alle",...Array.from(new Set(lijst.map(a=>a.day).filter(Boolean))).sort((x,y)=>TDS_DAGEN.indexOf(x)-TDS_DAGEN.indexOf(y))];
+  // Dagchips; atleten zonder vaste dag (optioneel sinds 20 okt) krijgen de chip "Geen dag".
+  const dagen=["Alle",...Array.from(new Set(lijst.map(a=>a.day).filter(Boolean))).sort((x,y)=>TDS_DAGEN.indexOf(x)-TDS_DAGEN.indexOf(y)),...(lijst.some(a=>!a.day)?["Geen dag"]:[])];
   h.innerHTML='<div class="td-wrap">'+
     '<div class="td-toolbar" id="td-dagen">'+dagen.map(d=>'<button class="td-chip'+(d===TDS.dag?" on":"")+'" data-dag="'+esc(d)+'" onclick="tdsDag(this.dataset.dag)">'+esc(d)+'</button>').join("")+'</div>'+
     '<div class="td-toolbar">'+
@@ -413,12 +447,13 @@ function tdsRender(h){
       '<button class="td-chip" id="td-alles" onclick="tdsAlles()">Alles uitklappen</button>'+
       '<span class="td-count" id="td-count"></span>'+
       (TDS.magAlles?'<button class="btn ghost sm" onclick="tdsNieuwToggle()">+ Atleet</button>':"")+
+      '<button class="btn ghost sm" onclick="tdsKlantenToggle()" title="Een kaart aanmaken voor klanten in de app die er nog geen hebben, gekoppeld aan hun account">Kaarten voor klanten</button>'+
       '<button class="btn ghost sm" onclick="ikKies()" title="Ingevulde intake-Excel (onboarding) inlezen voor een atleet">Intake-Excel</button>'+
       '<button class="btn ghost sm" onclick="tdsExport()" title="Alle atleten als JSON in Michels formaat (athletes_input.json)">Export JSON</button>'+
       (TDS.magAlles?'<button class="btn ghost sm" onclick="document.getElementById(\'td-import\').click()" title="Verse export van Michel inlezen (athletes_input.json)">Import JSON</button>'+
       '<input type="file" id="td-import" accept=".json,application/json" style="display:none" onchange="tdsImportBestand(this)">':"")+
     '</div>'+
-    tdsNieuwForm()+
+    tdsNieuwForm()+tdsKlantenForm()+
     (TDS.magAlles?"":'<div class="td-hint" style="margin:0 0 10px">Je ziet alleen de atleten van je eigen klanten. Een beheerder kan je via Coaches › Rechten alle atleten laten zien.</div>')+
     '<div class="td-legend"><span><span class="dot" style="background:var(--td-dev)"></span>&lt;50% Developing</span><span><span class="dot" style="background:var(--td-close)"></span>50–79% Approaching</span><span><span class="dot" style="background:var(--td-norm)"></span>≥80% At standard</span></div>'+
     '<div id="td-intake-paneel"></div>'+
@@ -449,7 +484,7 @@ function tdsGrid(){
   // Naamkeuze: één atleet op volle breedte; anders de dag- en zoekfilters.
   const een=(TDS.naam&&TDS.athletes[TDS.naam])?TDS.athletes[TDS.naam]:null;
   grid.classList.toggle("td-single",!!een);
-  let list=een?[een]:tdsLijst().filter(a=>(TDS.dag==="Alle"||a.day===TDS.dag)&&(!z||a.name.toLowerCase().includes(z)));
+  let list=een?[een]:tdsLijst().filter(a=>(TDS.dag==="Alle"||(TDS.dag==="Geen dag"?!a.day:a.day===TDS.dag))&&(!z||a.name.toLowerCase().includes(z)));
   if(TDS.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name));
   if(TDS.sort==="overall_desc")list.sort((a,b)=>(b.overall??-1)-(a.overall??-1));
   if(TDS.sort==="overall_asc")list.sort((a,b)=>(a.overall??999)-(b.overall??999));
@@ -578,7 +613,7 @@ function tdsBewerkForm(a){
     '<div class="td-f-h">Gegevens</div>'+
     '<div class="td-f-grid">'+
       '<label>Naam<input class="lid-in" id="td-f-name" value="'+esc(a.name)+'"></label>'+
-      '<label>Dag'+sel("td-f-day",TDS_DAGEN.map(d=>[d,d]),inp.day||"","– dag –")+'</label>'+
+      '<label>Dag (optioneel)'+sel("td-f-day",TDS_DAGEN.map(d=>[d,d]),inp.day||"","– geen vaste dag –")+'</label>'+
       '<label>Geslacht'+sel("td-f-gender",[["M","Man"],["F","Vrouw"]],inp.gender||"M")+'</label>'+
       '<label>Gewicht (kg)<input class="lid-in" id="td-f-bw" value="'+esc(inp.bw??"")+'" placeholder="bv. 82.5"></label>'+
       '<label>Leeftijd<input class="lid-in" id="td-f-age" value="'+esc(inp.age??"")+'"></label>'+
@@ -625,8 +660,7 @@ async function tdsBewaar(id){
   const bw=num(v("td-f-bw")),age=num(v("td-f-age"));
   if(bw===undefined||age===undefined){toast("Gewicht en leeftijd moeten getallen zijn");return;}
   const zet=(k,val)=>{if(val===null||val===""||val===undefined)remove.push(k);else patch[k]=val;};
-  if(!v("td-f-day")){toast("Kies een dag (trainingsdag of groep)");return;} // build() eist een dag
-  zet("day",v("td-f-day"));patch.gender=v("td-f-gender")||"M";zet("bw",bw);zet("age",age);zet("target_level",v("td-f-level"));zet("updated",v("td-f-updated"));
+  zet("day",v("td-f-day"));patch.gender=v("td-f-gender")||"M";zet("bw",bw);zet("age",age);zet("target_level",v("td-f-level"));zet("updated",v("td-f-updated")); // dag optioneel (20 okt)
   const tp=[];for(let i=0;i<5;i++){const cat=v("td-f-tpcat"+i),focus=v("td-f-tpfocus"+i);if(cat&&focus)tp.push({cat,focus});}
   zet("top_priorities",tp.length?tp:null);
   const af={};if(v("td-f-aflower"))af.lower=v("td-f-aflower");if(v("td-f-afupper"))af.upper=v("td-f-afupper");
@@ -684,7 +718,7 @@ function tdsNieuwForm(){
   return '<div class="td-form" style="margin-bottom:14px"><div class="td-f-h">Nieuwe atleet</div><div class="td-f-grid">'+
     '<label>Naam<input class="lid-in" id="td-n-name" placeholder="Voor- en achternaam"></label>'+
     '<label>Geslacht<select class="lid-in" id="td-n-gender"><option value="M">Man</option><option value="F">Vrouw</option></select></label>'+
-    '<label>Dag<select class="lid-in" id="td-n-day"><option value="">– dag –</option>'+TDS_DAGEN.map(d=>'<option>'+d+'</option>').join("")+'</select></label>'+
+    '<label>Dag (optioneel)<select class="lid-in" id="td-n-day"><option value="">– geen vaste dag –</option>'+TDS_DAGEN.map(d=>'<option>'+d+'</option>').join("")+'</select></label>'+
     '<label>Gewicht (kg)<input class="lid-in" id="td-n-bw" placeholder="optioneel"></label>'+
     '</div><div class="td-f-acties"><button class="btn sm" onclick="tdsNieuwOpslaan()">Toevoegen</button><button class="btn ghost sm" onclick="tdsNieuwToggle()">Annuleren</button></div></div>';
 }
@@ -693,8 +727,7 @@ async function tdsNieuwOpslaan(){
   const name=v("td-n-name");if(!name){toast("Vul een naam in");return;}
   if(TDS.athletes[name]){toast("Er bestaat al een atleet met deze naam");return;}
   const input={gender:v("td-n-gender")||"M",updated:tdsVandaag()+" (aangemaakt in dashboard)",target_level:"Quarterfinal"};
-  if(!v("td-n-day")){toast("Kies een dag (trainingsdag of groep)");return;} // build() eist een dag
-  input.day=v("td-n-day");
+  if(v("td-n-day"))input.day=v("td-n-day"); // dag optioneel (20 okt)
   const bw=v("td-n-bw");if(bw){const n=Number(bw.replace(",","."));if(isNaN(n)){toast("Gewicht moet een getal zijn");return;}input.bw=n;}
   const company=ME.profile&&ME.profile.company_id;
   const q=await db.from("athlete_testdata").insert({company_id:company,name,input}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
@@ -733,7 +766,9 @@ function tdsKlantSelect(a){
 async function tdsZetKlant(row,profileId){
   const u=await db.from("athlete_testdata").update({profile_id:profileId||null}).eq("id",row.id);
   if(u.error){toast("Koppelen mislukt: "+(u.error.message||""));return false;}
-  row.profile_id=profileId||null;tdsZetRij(row);return true;
+  row.profile_id=profileId||null;
+  if(row.profile_id)await tdsAppLaad([row.profile_id]); // metingen van dit account ophalen voor "Uit de app"
+  tdsZetRij(row);return true;
 }
 async function tdsNaarKlant(ev,id){if(ev)ev.preventDefault();if(typeof openClient!=="function")return;await openClient(id,{panel:"data"});}
 function tdsNaarDashboard(name){TDS.naam=name;TDS.klant=null;if(typeof dataTab!=="undefined")dataTab="atleten";if(typeof coachGo==="function")coachGo("data");}
@@ -769,7 +804,7 @@ function tdsKlantKoppelHtml(p){
   const naam=[p.first_name,p.last_name].filter(Boolean).join(" ");
   const vrij=TDS.rows.filter(r=>!r.profile_id).map(r=>r.name).sort((a,b)=>a.localeCompare(b));
   const sug=vrij.find(n=>n.toLowerCase()===naam.toLowerCase())||"";
-  const g=String(p.gender||"").toLowerCase(),gender=(g==="man"||g==="m")?"M":((g==="vrouw"||g==="f"||g==="v")?"F":"");
+  const gender=tdsGeslacht(p);
   return '<div class="td-card td-koppel">'+
     '<p class="td-name">Nog geen atleet gekoppeld</p>'+
     '<p class="td-meta">Deze klant staat nog niet in Data › Atleten. Koppel een bestaande atleet of maak een nieuwe aan.</p>'+
@@ -777,9 +812,10 @@ function tdsKlantKoppelHtml(p){
     '<div class="td-form"><div class="td-f-h">Nieuwe atleet aanmaken voor deze klant</div><div class="td-f-grid">'+
       '<label>Naam<input class="lid-in" id="td-k-name" value="'+esc(naam)+'"></label>'+
       '<label>Geslacht<select class="lid-in" id="td-k-gender"><option value="">– kies –</option><option value="M"'+(gender==="M"?" selected":"")+'>Man</option><option value="F"'+(gender==="F"?" selected":"")+'>Vrouw</option></select></label>'+
-      '<label>Dag<select class="lid-in" id="td-k-day"><option value="">– dag –</option>'+TDS_DAGEN.map(d=>'<option>'+d+'</option>').join("")+'</select></label>'+
-      '<label>Gewicht (kg)<input class="lid-in" id="td-k-bw" placeholder="optioneel"></label>'+
-    '</div><div class="td-f-acties"><button class="btn sm" onclick="tdsKlantNieuw()">Aanmaken</button></div></div>'+
+      '<label>Dag (optioneel)<select class="lid-in" id="td-k-day"><option value="">– geen vaste dag –</option>'+TDS_DAGEN.map(d=>'<option>'+d+'</option>').join("")+'</select></label>'+
+      '<label>Gewicht (kg)<input class="lid-in" id="td-k-bw" placeholder="optioneel" value="'+esc(p.weight_kg??"")+'"></label>'+
+    '</div><div class="td-f-acties"><button class="btn sm" onclick="tdsKlantNieuw()">Aanmaken</button></div>'+
+    '<div class="td-hint">Geslacht en gewicht staan alvast ingevuld als de klant ze in de app heeft ingevuld (Profiel). Na het aanmaken kun je de testwaarden uit Metingen &amp; PR\'s overnemen met de knop "Uit de app" op de kaart.</div></div>'+
   '</div>';
 }
 async function tdsKlantKoppel(){
@@ -794,14 +830,17 @@ async function tdsKlantNieuw(){
   if(TDS.athletes[name]){toast("Er bestaat al een atleet met deze naam");return;}
   const gender=v("td-k-gender");if(!gender){toast("Kies het geslacht; de normen hangen ervan af");return;}
   const input={gender,updated:tdsVandaag()+" (aangemaakt in dashboard)",target_level:"Quarterfinal"};
-  if(!v("td-k-day")){toast("Kies een dag (trainingsdag of groep)");return;} // build() eist een dag
-  input.day=v("td-k-day");
+  if(v("td-k-day"))input.day=v("td-k-day"); // dag optioneel (20 okt)
   const bw=v("td-k-bw");if(bw){const n=Number(bw.replace(",","."));if(isNaN(n)){toast("Gewicht moet een getal zijn");return;}input.bw=n;}
   const p=(typeof coachClients!=="undefined"?coachClients:[]).find(x=>x.id===TDS.klant);
+  const lt=tdsLeeftijd(p&&p.birth_date);if(lt!=null)input.age=lt;
   const company=(p&&p.company_id)||(ME.profile&&ME.profile.company_id);
   const q=await db.from("athlete_testdata").insert({company_id:company,name,profile_id:TDS.klant,input}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
-  if(q.error){toast("Toevoegen mislukt: "+(q.error.message||""));return;}
-  TDS.rows.push(q.data);tdsZetRij(q.data);toast("Atleet toegevoegd");tdsKlantGrid();
+  if(q.error){
+    if(tdsDubbeleNaam(q.error)){toast("Er bestaat al een atleet met deze naam bij een andere coach; vraag een beheerder die aan deze klant te koppelen, of kies een andere naam",8000);return;}
+    toast("Toevoegen mislukt: "+(q.error.message||""));return;
+  }
+  TDS.rows.push(q.data);await tdsAppLaad([TDS.klant]);tdsZetRij(q.data);toast("Atleet toegevoegd");tdsKlantGrid();
 }
 
 // ---------- wedstrijduitslagen bewerken (Michels `comp`: bron, overall, events, signaal) ----------
@@ -853,7 +892,8 @@ function tdsCompSchoon(list){
 // bestand ze niet heeft (zijn export laat die bewust weg). Atleten buiten het bestand blijven staan.
 function tdsExportData(){
   const out={};
-  TDS.rows.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(r=>{out[r.name]=r.input||{};});
+  // Michels Python leest d["day"]; een atleet zonder vaste dag (optioneel sinds 20 okt) krijgt in de export een lege dag mee.
+  TDS.rows.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(r=>{const d=Object.assign({},r.input||{});if(!d.day)d.day="";out[r.name]=d;});
   return out;
 }
 function tdsExport(){
@@ -881,7 +921,7 @@ function tdsImportControle(obj){
     if(!d||typeof d!=="object"||Array.isArray(d))return "atleet "+n+" heeft geen invoer-object";
     if(d.tests||d.cat_scores)return "dit lijkt athletes_dashboard.json (berekende data); gebruik athletes_input.json";
     if(d.gender!=="M"&&d.gender!=="F")return "atleet "+n+": gender moet M of F zijn";
-    if(!d.day)return "atleet "+n+": geen trainingsdag (day)";
+    // day is sinds 20 okt optioneel (een lege dag uit onze eigen export mag terug).
   }
   return "";
 }
@@ -910,4 +950,174 @@ async function tdsImportVerwerk(obj){
   toast(fail?"Import gestopt bij "+fail+" ("+klaar+" van "+namen.length+" verwerkt)":klaar+" van "+namen.length+" atleten verwerkt");
   const h=document.getElementById("data-inhoud");if(h&&!TDS.klant)tdsRender(h);else tdsGrid();
   return !fail;
+}
+
+// ---------- testwaarden uit de app (Metingen & PR's en het profiel) voor gekoppelde atleten ----------
+// Verzoek Stefan 20 okt 2026: de klanten van een coach in de YourProgram-app (Stefan Vissenberg)
+// krijgen dezelfde kaart als Michels atleten, gevuld uit wat er al over ze in de app staat. De
+// krachtlog schrijft echte 1RM's naar Metingen & PR's; die metingen, het profiel (geslacht, gewicht,
+// geboortedatum) en de roei-/biketests komen hier als voorstel per veld. De coach neemt ze over (per
+// veld of alles tegelijk); de kaart (`input`) blijft de bron, zodat Michels rekenlogica en zijn
+// exportformaat ongewijzigd blijven. Nooit stilletjes: alleen via de knop "Uit de app" of het vinkje
+// dat de coach zelf aanzet in "Kaarten voor klanten".
+async function tdsAppLaad(ids){
+  const alle=TDS.rows.filter(r=>r.profile_id).map(r=>r.profile_id);
+  ids=(ids||alle).filter(id=>alle.includes(id));
+  if(!ids.length)return;
+  const namen=["Weight"];TDS_APP_MAP.forEach(m=>m.metrics.forEach(n=>{if(!namen.includes(n))namen.push(n);}));
+  const [m,p]=await Promise.all([
+    db.from("metrics").select("athlete_id,metric,value,unit,measured_at").in("athlete_id",ids).in("metric",namen).order("measured_at",{ascending:false}),
+    db.from("profiles").select("id,gender,weight_kg,birth_date").in("id",ids)
+  ]);
+  if(m.error||p.error){console.error("tdsAppLaad",m.error||p.error);return;}
+  ids.forEach(id=>{TDS.app.metrics[id]=[];});
+  (m.data||[]).forEach(r=>{(TDS.app.metrics[r.athlete_id]=TDS.app.metrics[r.athlete_id]||[]).push(r);});
+  (p.data||[]).forEach(r=>{TDS.app.profiel[r.id]=r;});
+}
+// Postgres-fout 23505 op de unieke naam per bedrijf (athlete_testdata_company_id_name_key).
+function tdsDubbeleNaam(err){return !!err&&(err.code==="23505"||/duplicate key|company_id_name_key/i.test(err.message||""));}
+// Geslacht uit het profiel in de app ("man"/"vrouw", soms m/f/v) → M/F van Michels invoer; leeg = onbekend.
+function tdsGeslacht(p){const g=String((p&&p.gender)||"").toLowerCase();return (g==="man"||g==="m"||g==="male")?"M":((g==="vrouw"||g==="f"||g==="v"||g==="female")?"F":"");}
+function tdsLeeftijd(bd){
+  if(!bd)return null;const d=new Date(bd);if(isNaN(d))return null;
+  const n=new Date();let a=n.getFullYear()-d.getFullYear();const m=n.getMonth()-d.getMonth();
+  if(m<0||(m===0&&n.getDate()<d.getDate()))a--;
+  return a>0&&a<120?a:null;
+}
+// Voorstellen voor één gekoppelde atleet: [{key,label,nu,nieuw,toon,datum,bron}], alleen waar de app
+// iets anders heeft dan de kaart. Kilo's en calorieën: de hoogste meting telt; tijden: de snelste.
+function tdsAppVoorstellen(a){
+  if(!a||!a.profile_id)return [];
+  const inp=a.input||{},mets=TDS.app.metrics[a.profile_id]||[],prof=TDS.app.profiel[a.profile_id]||null;
+  const uit=[];
+  const num=v=>{if(v===null||v===undefined||v==="")return null;const n=Number(v);return isFinite(n)?n:null;};
+  const laatst=(x,y)=>String(y.measured_at||"").localeCompare(String(x.measured_at||""));
+  if(prof){
+    const g=tdsGeslacht(prof);
+    if(g&&g!==inp.gender)uit.push({key:"gender",label:"Geslacht",nu:inp.gender==="F"?"vrouw":(inp.gender==="M"?"man":"–"),nieuw:g,toon:g==="M"?"man":"vrouw",datum:"",bron:"profiel in de app"});
+    const w=num(prof.weight_kg);
+    const wm=mets.filter(r=>r.metric==="Weight"&&r.unit==="kg"&&num(r.value)!=null).sort(laatst)[0];
+    const gew=wm?{v:num(wm.value),d:wm.measured_at,b:"Metingen & PR's (Weight)"}:(w!=null&&w>0?{v:w,d:"",b:"profiel in de app"}:null);
+    if(gew&&gew.v!==num(inp.bw))uit.push({key:"bw",label:"Lichaamsgewicht",nu:inp.bw!=null?inp.bw+" kg":"–",nieuw:gew.v,toon:gew.v+" kg",datum:gew.d||"",bron:gew.b});
+    const lt=tdsLeeftijd(prof.birth_date);
+    if(lt!=null&&lt!==num(inp.age))uit.push({key:"age",label:"Leeftijd",nu:inp.age!=null?String(inp.age):"–",nieuw:lt,toon:lt+" jr",datum:"",bron:"geboortedatum in het profiel"});
+  }
+  for(const m of TDS_APP_MAP){
+    const unitOk=u=>m.soort==="tijd"?u==="sec":(m.soort==="cal"?u==="cal":u==="kg");
+    const rows=mets.filter(r=>m.metrics.includes(r.metric)&&unitOk(r.unit)&&num(r.value)!=null);
+    if(!rows.length)continue;
+    rows.sort((x,y)=>(m.soort==="tijd"?num(x.value)-num(y.value):num(y.value)-num(x.value))||laatst(x,y));
+    const best=rows[0];
+    const label=(a.tests&&a.tests[m.test]&&a.tests[m.test].label)||m.key;
+    const bron=best.metric+(m.opm?" ("+m.opm+")":"");
+    if(m.soort==="tijd"){
+      const t=tdS2t(Math.round(num(best.value)));
+      if(t===inp[m.key])continue;
+      uit.push({key:m.key,label,nu:inp[m.key]||"–",nieuw:t,toon:t,datum:best.measured_at||"",bron});
+    }else{
+      const v=num(best.value),eenheid=m.soort==="cal"?" cal":" kg";
+      if(v===num(inp[m.key]))continue;
+      uit.push({key:m.key,label,nu:inp[m.key]!=null?inp[m.key]+eenheid:"–",nieuw:v,toon:v+eenheid,datum:best.measured_at||"",bron});
+    }
+  }
+  return uit;
+}
+// Knop in de kaartkop: alleen bij een gekoppelde atleet met iets nieuws in de app.
+function tdsAppKnop(a){
+  if(!a.profile_id)return "";
+  const n=tdsAppVoorstellen(a).length;if(!n)return "";
+  const open=TDS.app.open===a.name;
+  return '<button class="td-editbtn td-appbtn'+(open?" on":"")+'" onclick="tdsAppToggle(\''+esc(a.name).replace(/'/g,"\\'")+'\')" title="Nieuwe waarden uit Metingen &amp; PR\'s en het profiel van deze klant">'+(open?"Sluiten":"Uit de app ("+n+")")+'</button>';
+}
+function tdsAppToggle(name){TDS.app.open=TDS.app.open===name?null:name;tdsHerteken(name);}
+function tdsAppPaneel(a){
+  if(TDS.app.open!==a.name)return "";
+  const v=tdsAppVoorstellen(a);
+  if(!v.length)return '<div class="td-form td-app"><div class="td-f-h">Uit de app</div><div class="td-hint" style="margin:0">De kaart is gelijk aan wat er in de app staat.</div></div>';
+  const rijen=v.map((r,i)=>'<tr><td><input type="checkbox" class="td-app-vink" id="td-app-'+esc(a.id)+'-'+i+'" data-i="'+i+'" checked></td><td><label for="td-app-'+esc(a.id)+'-'+i+'">'+esc(r.label)+'</label></td><td>'+esc(r.nu)+'</td><td><b>'+esc(r.toon)+'</b></td><td class="td-norm-basis">'+esc(r.bron)+(r.datum?" · "+esc(r.datum):"")+'</td></tr>').join("");
+  return '<div class="td-form td-app" id="td-app-'+esc(a.id)+'">'+
+    '<div class="td-f-h">Uit de app: '+v.length+(v.length===1?" waarde":" waarden")+' nieuwer of anders dan op de kaart</div>'+
+    '<table class="td-table"><thead><tr><th></th><th>Veld</th><th>Nu op de kaart</th><th>In de app</th><th>Bron</th></tr></thead><tbody>'+rijen+'</tbody></table>'+
+    '<div class="td-f-acties"><button class="btn sm" onclick="tdsAppOvernemen(\''+esc(a.id)+'\')">Overnemen</button><button class="btn ghost sm" onclick="tdsAppToggle(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button></div>'+
+    '<div class="td-hint">Kilo\'s en calorieën: de hoogste meting in Metingen &amp; PR\'s telt (de krachtlog zet echte 1RM\'s daar automatisch bij). Tijden: de snelste. Wat je overneemt kun je daarna gewoon nog aanpassen in de testbatterij.</div>'+
+  '</div>';
+}
+async function tdsAppOvernemen(id){
+  const row=TDS.rows.find(r=>r.id===id);if(!row)return;
+  const a=TDS.athletes[row.name];const v=tdsAppVoorstellen(a);
+  const gekozen=[...document.querySelectorAll('#td-app-'+CSS.escape(id)+' .td-app-vink')].filter(c=>c.checked).map(c=>v[Number(c.dataset.i)]).filter(Boolean);
+  if(!gekozen.length){toast("Vink minstens één waarde aan");return;}
+  const patch={},remove=[];
+  gekozen.forEach(r=>{patch[r.key]=r.nieuw;if(r.key==="front_squat")remove.push("front_squat_estimate");});
+  patch.updated=tdsUpdatedTekst(row.input&&row.input.updated,"uit de app:",gekozen.map(r=>r.label+" "+r.toon).join(", "));
+  const ok=await tdsPatch(id,patch,remove);
+  if(!ok)return;
+  TDS.app.open=null;toast(gekozen.length+(gekozen.length===1?" waarde overgenomen":" waarden overgenomen"));tdsHerteken(row.name);
+}
+
+// ---------- kaarten aanmaken voor klanten in de app die er nog geen hebben ----------
+// Eén kaart per klant, gekoppeld via profile_id; geslacht, gewicht en leeftijd uit het profiel in de
+// app (de klant vult die zelf in, keuze Stefan 20 okt). Zonder geslacht geen kaart: Michels normen
+// hangen eraan en we gokken nooit. Een coach ziet hier alleen zijn eigen klanten (coachClients).
+function tdsKlantenToggle(){TDS.klantenOpen=!TDS.klantenOpen;if(TDS.klantenOpen)TDS.nieuwOpen=false;const h=document.getElementById("data-inhoud");if(h)tdsRender(h);}
+function tdsKlantenKandidaten(){
+  const cl=(typeof coachClients!=="undefined"?coachClients:[]).filter(c=>!c.archived);
+  return cl.filter(c=>!TDS.rows.some(r=>r.profile_id===c.id)).map(c=>{
+    const naam=[c.first_name,c.last_name].filter(Boolean).join(" ")||c.email||"";
+    const g=tdsGeslacht(c);const bezet=!!TDS.athletes[naam];
+    return {c,naam,g,bezet,kan:!!g&&!bezet};
+  }).sort((x,y)=>x.naam.localeCompare(y.naam));
+}
+function tdsKlantenForm(){
+  if(!TDS.klantenOpen)return "";
+  const k=tdsKlantenKandidaten();
+  const rijen=k.map((x,i)=>'<tr><td><input type="checkbox" class="td-kl-vink" data-i="'+i+'"'+(x.kan?" checked":" disabled")+'></td><td>'+esc(x.naam)+'</td><td>'+(x.g?(x.g==="M"?"man":"vrouw"):'<span class="td-pct td-pct-orange">ontbreekt</span>')+'</td><td>'+(x.c.weight_kg!=null?esc(x.c.weight_kg)+" kg":"–")+'</td><td class="td-norm-basis">'+(x.bezet?"er is al een atleet met deze naam; koppel die via het klantdossier (Data)":(x.g?"":"de klant vult geslacht en gewicht zelf in via Profiel in de app"))+'</td></tr>').join("");
+  return '<div class="td-form" style="margin-bottom:14px"><div class="td-f-h">Kaarten voor klanten zonder kaart</div>'+
+    (k.length?'<table class="td-table"><thead><tr><th></th><th>Klant</th><th>Geslacht</th><th>Gewicht</th><th></th></tr></thead><tbody>'+rijen+'</tbody></table>'+
+      '<div class="td-f-row" style="margin-top:10px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="td-kl-app" checked> Testwaarden uit Metingen &amp; PR\'s meteen overnemen (1RM\'s, roeitijden)</label></div>'+
+      '<div class="td-f-acties"><button class="btn sm" onclick="tdsKlantenAanmaken()">Aanmaken</button><button class="btn ghost sm" onclick="tdsKlantenToggle()">Annuleren</button></div>'+
+      '<div class="td-hint">Elke kaart wordt gekoppeld aan het account van de klant. Geslacht, gewicht en leeftijd komen uit het profiel in de app; zonder geslacht kan de kaart niet doorgerekend worden (de normen hangen ervan af). Een vaste dag is optioneel en zet je later via Bewerken.</div>'
+      :'<div class="td-hint" style="margin:0">Alle klanten hebben al een kaart.</div><div class="td-f-acties"><button class="btn ghost sm" onclick="tdsKlantenToggle()">Sluiten</button></div>')+
+  '</div>';
+}
+async function tdsKlantenAanmaken(){
+  const k=tdsKlantenKandidaten();
+  const gekozen=[...document.querySelectorAll(".td-kl-vink")].filter(c=>c.checked).map(c=>k[Number(c.dataset.i)]).filter(x=>x&&x.kan);
+  if(!gekozen.length){toast("Vink minstens één klant aan");return;}
+  const metApp=!!(document.getElementById("td-kl-app")||{}).checked;
+  const nieuw=[],overgeslagen=[];let fail="";
+  for(const x of gekozen){
+    const input={gender:x.g,updated:tdsVandaag()+" (kaart aangemaakt uit het app-profiel via dashboard)",target_level:"Quarterfinal"};
+    const bw=Number(x.c.weight_kg);if(x.c.weight_kg!=null&&isFinite(bw)&&bw>0)input.bw=bw;
+    const lt=tdsLeeftijd(x.c.birth_date);if(lt!=null)input.age=lt;
+    const company=x.c.company_id||(ME.profile&&ME.profile.company_id);
+    const q=await db.from("athlete_testdata").insert({company_id:company,name:x.naam,profile_id:x.c.id,input}).select("id,name,profile_id,input,comp_overlay,updated_at").single();
+    if(q.error){
+      // Naam is uniek per bedrijf (index athlete_testdata_company_id_name_key). Een coach ziet een losse
+      // atleet van een andere coach niet (rechten), dus die botsing merkt hij pas hier: overslaan en melden.
+      if(tdsDubbeleNaam(q.error)){overgeslagen.push(x.naam);continue;}
+      fail=x.naam+": "+(q.error.message||"");break;
+    }
+    TDS.rows.push(q.data);tdsZetRij(q.data);nieuw.push(q.data);
+  }
+  let over=0;
+  if(nieuw.length&&metApp){
+    await tdsAppLaad(nieuw.map(r=>r.profile_id));
+    for(const row of nieuw){
+      const a=TDS.athletes[row.name];
+      const v=tdsAppVoorstellen(a).filter(r=>r.key!=="gender"); // geslacht komt al uit het profiel
+      if(!v.length)continue;
+      const patch={};v.forEach(r=>{patch[r.key]=r.nieuw;});
+      patch.updated=tdsUpdatedTekst(row.input&&row.input.updated,"uit de app:",v.map(r=>r.label+" "+r.toon).join(", "));
+      if(await tdsPatch(row.id,patch,[]))over+=v.length;
+    }
+  }
+  const n=nieuw.length;
+  let msg=n+(n===1?" kaart aangemaakt":" kaarten aangemaakt");
+  if(over)msg+=", "+over+(over===1?" waarde uit de app overgenomen":" waarden uit de app overgenomen");
+  if(overgeslagen.length)msg+=". Overgeslagen (er bestaat al een atleet met deze naam bij een andere coach; vraag een beheerder die te koppelen): "+overgeslagen.join(", ");
+  if(fail)msg+="; gestopt bij "+fail;
+  toast(msg,(fail||overgeslagen.length)?9000:undefined);
+  TDS.klantenOpen=false;TDS.zoek="";TDS.dag="Alle";
+  const h=document.getElementById("data-inhoud");if(h)tdsRender(h);
 }

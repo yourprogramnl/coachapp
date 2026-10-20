@@ -452,6 +452,40 @@ i18nLaad({
   "Self-assessment: {n} bewegingen · Zelfreflectie: {n} antwoorden · Mentale prestatie: {n} vragen · Sport-referentie: {n} eigen waarden · Doelen: {n} regels · Testbatterij (volledig): {n} rijen": "Self-assessment: {n} movements · Self-reflection: {n} answers · Mental performance: {n} questions · Sport reference: {n} own values · Goals: {n} lines · Test battery (full): {n} rows",
 });
 
+// Data › Atleten voor de klanten in de app (20 okt 2026): dag optioneel, kaarten voor klanten,
+// testwaarden uit Metingen & PR's overnemen ("Uit de app").
+i18nLaad({
+  "Dag (optioneel)": "Day (optional)", "– geen vaste dag –": "– no fixed day –", "Geen dag": "No day",
+  "Kaarten voor klanten": "Cards for clients",
+  "Een kaart aanmaken voor klanten in de app die er nog geen hebben, gekoppeld aan hun account": "Create a card for clients in the app who do not have one yet, linked to their account",
+  "Kaarten voor klanten zonder kaart": "Cards for clients without a card",
+  "Klant": "Client", "ontbreekt": "missing",
+  "er is al een atleet met deze naam; koppel die via het klantdossier (Data)": "an athlete with this name already exists; link it from the client file (Data)",
+  "de klant vult geslacht en gewicht zelf in via Profiel in de app": "the client fills in gender and weight in the app (Profile)",
+  "Testwaarden uit Metingen & PR's meteen overnemen (1RM's, roeitijden)": "Apply test values from Metrics & PRs right away (1RMs, rowing times)",
+  "Elke kaart wordt gekoppeld aan het account van de klant. Geslacht, gewicht en leeftijd komen uit het profiel in de app; zonder geslacht kan de kaart niet doorgerekend worden (de normen hangen ervan af). Een vaste dag is optioneel en zet je later via Bewerken.": "Each card is linked to the client's account. Gender, weight and age come from the profile in the app; without a gender the card cannot be calculated (the norms depend on it). A fixed day is optional and can be set later via Edit.",
+  "Alle klanten hebben al een kaart.": "All clients already have a card.",
+  "Vink minstens één klant aan": "Tick at least one client",
+  "{n} kaart aangemaakt": "{n} card created", "{n} kaarten aangemaakt": "{n} cards created",
+  "{n} kaart aangemaakt, {n} waarde uit de app overgenomen": "{n} card created, {n} value applied from the app",
+  "{n} kaart aangemaakt, {n} waarden uit de app overgenomen": "{n} card created, {n} values applied from the app",
+  "{n} kaarten aangemaakt, {n} waarde uit de app overgenomen": "{n} cards created, {n} value applied from the app",
+  "{n} kaarten aangemaakt, {n} waarden uit de app overgenomen": "{n} cards created, {n} values applied from the app",
+  "Geslacht en gewicht staan alvast ingevuld als de klant ze in de app heeft ingevuld (Profiel). Na het aanmaken kun je de testwaarden uit Metingen & PR's overnemen met de knop \"Uit de app\" op de kaart.": "Gender and weight are prefilled when the client entered them in the app (Profile). After creating the card you can apply the test values from Metrics & PRs with the \"From the app\" button on the card.",
+  "Uit de app": "From the app", "Uit de app ({n})": "From the app ({n})",
+  "Nieuwe waarden uit Metingen & PR's en het profiel van deze klant": "New values from Metrics & PRs and this client's profile",
+  "Uit de app: {n} waarde nieuwer of anders dan op de kaart": "From the app: {n} value newer or different from the card",
+  "Uit de app: {n} waarden nieuwer of anders dan op de kaart": "From the app: {n} values newer or different from the card",
+  "De kaart is gelijk aan wat er in de app staat.": "The card matches what is in the app.",
+  "Veld": "Field", "Nu op de kaart": "Now on the card", "In de app": "In the app",
+  "Kilo's en calorieën: de hoogste meting in Metingen & PR's telt (de krachtlog zet echte 1RM's daar automatisch bij). Tijden: de snelste. Wat je overneemt kun je daarna gewoon nog aanpassen in de testbatterij.": "Kilos and calories: the highest entry in Metrics & PRs counts (the strength log adds real 1RMs there automatically). Times: the fastest. Anything you apply can still be changed in the test battery afterwards.",
+  "Vink minstens één waarde aan": "Tick at least one value",
+  "{n} waarde overgenomen": "{n} value applied", "{n} waarden overgenomen": "{n} values applied",
+  "Lichaamsgewicht": "Bodyweight", "profiel in de app": "profile in the app",
+  "geboortedatum in het profiel": "birth date in the profile", "extra gewicht aan de gordel": "extra weight on the belt",
+  "Er bestaat al een atleet met deze naam bij een andere coach; vraag een beheerder die aan deze klant te koppelen, of kies een andere naam": "An athlete with this name already exists with another coach; ask an administrator to link it to this client, or choose another name",
+});
+
 // Intake-kaart voor het consult (app/intake-kaart.js, stap 4b, 8 okt 2026 avond). De inhoud
 // (inzichten, vragen, draaiboek) is Michels Nederlandse tekst en blijft Nederlands.
 i18nLaad({
