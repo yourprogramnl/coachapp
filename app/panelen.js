@@ -187,7 +187,7 @@ const METRICS_DEF={
  "Benchmarks (Girls)":["Amanda","Andi","Angie","Annie","Barbara","Barbara Ann","Candy","Chelsea","Christine","Cindy","Diane","Elizabeth","Ellen","Eva","Fran","Grace","Grettel","Gwen","Helen","Ingrid","Isabel","Jackie","Karen","Kelly","Lane","Linda","Lyla","Lynne","Maggie","Mary","Megan","Nancy","Nicole"],
  "Body":["Basal Metabolic Rate","Bodyfat Percentage","Skeletal Muscle Mass","Weight"]
 };
-let mxData=[],mxOpen={},balKeuze="Deadlift";
+let mxData=[],mxOpen={},balKeuze="Deadlift",mxZoek="";
 // Detailscherm-state + koppeling naar Assessment (zodat je deze waarden maar op één plek invult).
 // [sectie, veld] verwijst naar assessments.data[sectie][veld] (body = Body, move = Move).
 let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
@@ -288,19 +288,26 @@ async function openMx(){
     '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">'+
     '<button class="sp-btn" style="width:auto;padding:9px 14px" onclick="metricsView()">Bekijk structural balance</button>'+
     '<button class="sp-btn ghost" style="width:auto;padding:9px 14px;margin-left:auto" onclick="openMxModal(\'\')">+ Toevoegen</button></div>'+
+    // Zoekveld (feedbackronde 5, 20 okt): ruim 130 metrics in vaste groepen was
+    // zoeken; typen filtert alle groepen en de krachtlog-records tegelijk.
+    '<div class="mx-zoek"><input id="mx-zoek" placeholder="Zoek een metric… (bijv. squat, row, 1RM)" value="'+esc(mxZoek)+'" oninput="mxZoekTyp(this.value)" autocomplete="off"></div>'+
     '<div id="kl-groep"></div><div id="mx-groepen"></div>';
   mxRender();
 }
 function mxToggle(g){mxOpen[g]=!mxOpen[g];mxRender();}
 function mxRender(){
-  klRender();
+  const klHits=klRender()||0;
   const host=document.getElementById("mx-groepen");if(!host)return;
   const groepen=mxGroepen();let html="";
+  const q=mxZoek.trim().toLowerCase();let treffers=0;
   for(const g in groepen){
-    html+='<div class="mx-hd" onclick="mxToggle(\''+g.replace(/'/g,"\\'")+'\')"><span>'+esc(g)+'</span><span class="plus" title="Meting toevoegen" onclick="event.stopPropagation();openMxModal(\'\')">+</span></div>';
-    if(mxOpen[g]){
+    const namen=q?groepen[g].filter(n=>n.toLowerCase().includes(q)):groepen[g];
+    if(q&&!namen.length)continue; // bij zoeken: groepen zonder treffer verdwijnen
+    treffers+=namen.length;
+    html+='<div class="mx-hd" onclick="mxToggle(\''+g.replace(/'/g,"\\'")+'\')"><span>'+esc(g)+(q?' <span class="mx-n">'+namen.length+'</span>':'')+'</span><span class="plus" title="Meting toevoegen" onclick="event.stopPropagation();openMxModal(\'\')">+</span></div>';
+    if(q||mxOpen[g]){
       html+='<div class="mx-cols"><div style="flex:1.7">Naam</div><div style="flex:.6">Huidig</div><div style="flex:.4;text-align:right">+/-</div></div>';
-      groepen[g].forEach(naam=>{
+      namen.forEach(naam=>{
         let curTxt="—",pm="–",pmKl="#8b919b";
         if(MX_ASS_VELD[naam]){
           // Waarde komt uit Assessment (niet dubbel invoeren)
@@ -322,11 +329,20 @@ function mxRender(){
         const cam=(g==="Resistance")?'<span class="mxcam" title="Demo-video" onclick="mxVid(event,\''+nEsc+'\')"><svg class="i sm-i"><use href="#i-cam"/></svg></span>':'';
         // Vraagteken met testbeschrijving (hover), net als bij Body. Klik niet doorlaten naar de rij.
         const tip=MX_TIP[naam]?' <span class="ass-help" data-tip="'+esc(MX_TIP[naam])+'" onclick="event.stopPropagation()">?</span>':'';
-        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+esc(naam)+tip+cam+'</div><div class="mx-cur">'+curTxt+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
+        html+='<div class="mx-row" onclick="mxOpenDetail(\''+nEsc+'\')"><div class="mx-naam">'+mxMark(naam,q)+tip+cam+'</div><div class="mx-cur">'+curTxt+'</div><div class="mx-pm" style="color:'+pmKl+'">'+pm+'</div></div>';
       });
     }
   }
+  if(q&&!treffers&&!klHits)html='<div class="sp-info" style="margin-top:12px">Geen metric gevonden voor "'+esc(mxZoek.trim())+'". <a href="#" onclick="openMxModal(mxZoek.trim());return false" style="color:#3eb3e0">Als nieuwe metric toevoegen</a></div>';
   host.innerHTML=html;
+}
+function mxZoekTyp(v){mxZoek=v||"";mxRender();}
+// Zoekterm oplichten in de naam (alles netjes ge-escaped).
+function mxMark(naam,q){
+  naam=String(naam||"");
+  if(!q)return esc(naam);
+  const i=naam.toLowerCase().indexOf(q);if(i<0)return esc(naam);
+  return esc(naam.slice(0,i))+'<mark>'+esc(naam.slice(i,i+q.length))+'</mark>'+esc(naam.slice(i+q.length));
 }
 // Zoek een demo-video uit de bibliotheek (oefeningen) bij een metric-naam.
 // Namen als "Back Squat 1RM" of "Goblet Squat 20RM" matchen op de basisnaam.
@@ -1329,22 +1345,25 @@ async function progressVerwijder(id){
 // per exact aantal reps; mislukte sets tellen nergens mee; nooit een schatting.
 let klDetailLift=null;
 function klRender(){
-  const host=document.getElementById("kl-groep");if(!host)return;
+  const host=document.getElementById("kl-groep");if(!host)return 0;
   if(mxOpen.__kl===undefined)mxOpen.__kl=true; // standaard open
-  const liften=Object.values(klRecords()).sort((a,b)=>a.lift.localeCompare(b.lift));
+  const q=(typeof mxZoek==="string"?mxZoek:"").trim().toLowerCase();
+  const liften=Object.values(klRecords()).filter(l=>!q||String(l.lift||"").toLowerCase().includes(q)).sort((a,b)=>a.lift.localeCompare(b.lift));
+  if(q&&!liften.length){host.innerHTML="";return 0;} // bij zoeken zonder treffer: groep weg
   let html='<div class="mx-hd" onclick="mxToggle(\'__kl\')"><span>Records uit de krachtlog</span><span style="font-weight:600;color:#c9cdd4">'+liften.length+'</span></div>';
-  if(mxOpen.__kl){
+  if(q||mxOpen.__kl){
     if(!liften.length)html+='<div class="sp-info">Nog geen sets gelogd. Zodra de sporter in de app kilo\'s en reps per set logt, staan de records hier per lift en per aantal reps.</div>';
     else{
       html+='<div class="mx-cols"><div style="flex:1">Lift</div><div style="flex:1.5">Beste per reps</div></div>';
       liften.forEach(l=>{
         const reps=Object.keys(l.reps).map(Number).sort((a,b)=>a-b);
         const chips=reps.map(r=>'<span class="klchip" title="beste set van '+r+' reps">'+r+'× <b>'+kgTxt(l.reps[r].kg)+'</b></span>').join("");
-        html+='<div class="mx-row" onclick="klOpenDetail(\''+l.lift_id+'\')"><div style="flex:1;font-weight:700">'+esc(l.lift)+'</div><div style="flex:1.5;display:flex;flex-wrap:wrap;gap:4px">'+chips+'</div></div>';
+        html+='<div class="mx-row" onclick="klOpenDetail(\''+l.lift_id+'\')"><div style="flex:1;font-weight:700">'+mxMark(l.lift,q)+'</div><div style="flex:1.5;display:flex;flex-wrap:wrap;gap:4px">'+chips+'</div></div>';
       });
     }
   }
   host.innerHTML=html;
+  return liften.length;
 }
 async function klOpenDetail(liftId){
   klDetailLift=liftId;activePanel="kl-detail";

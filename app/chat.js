@@ -72,6 +72,17 @@ async function chatUpload(key,athleteId){
   return uit;
 }
 
+// Alinea's in de chat (feedbackronde 5, 20 okt): het invoerveld is een
+// meegroeiend tekstvak. Enter = versturen, Shift+Enter = nieuwe regel.
+function chatToets(ev,stuur){
+  if(ev.key==="Enter"&&!ev.shiftKey&&!ev.isComposing){ev.preventDefault();stuur();return false;}
+  return true;
+}
+// Tekstvak groeit mee met de tekst (tot zo'n 5 regels) en krimpt weer na het versturen.
+function chatGroei(ta){
+  if(!ta||ta.tagName!=="TEXTAREA")return;
+  ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,120)+"px";
+}
 async function openChatPop(){
   let pop=document.getElementById("chatpop");
   if(pop&&chatAthlete===calClient){pop.classList.toggle("show");return;}
@@ -84,13 +95,19 @@ async function openChatPop(){
   pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+naamVan(p)+'</b>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
     '<div class="msgs2" id="chat-msgs"><div class="sm muted" style="text-align:center;padding:14px">Laden…</div></div>'+
-    '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><input id="chat-inp" placeholder="Schrijf een bericht…" onkeydown="if(event.key===\'Enter\')chatStuur()"><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
+    '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)"></textarea><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
   document.body.appendChild(pop);
   await chatLaad();
-  // realtime meelezen (als de verbinding het toelaat)
+  chatKanaalStart();
+}
+// Realtime meelezen (als de verbinding het toelaat). Apart, zodat de
+// verbindingsbewaker (notificaties.js) hem na een hapering opnieuw kan starten.
+function chatKanaalStart(){
+  chatSluitKanaal();
+  if(!chatAthlete)return;
   try{
-    chatKanaal=db.channel("chat-"+calClient)
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"athlete_id=eq."+calClient},payload=>{
+    chatKanaal=db.channel("chat-"+chatAthlete+"-"+Date.now())
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"athlete_id=eq."+chatAthlete},payload=>{
         if(payload.new&&payload.new.sender_id!==ME.user.id)chatToon(payload.new,true);
       }).subscribe();
   }catch(e){}
@@ -138,6 +155,6 @@ async function chatStuur(){
     if(media.length)try{db.storage.from("media").remove(media.map(x=>x.path));}catch(e){}
     toast(error.message||"Versturen mislukt");return;
   }
-  inp.value="";CHATBIJL.pop=[];chatBijlToon("pop");
+  inp.value="";chatGroei(inp);CHATBIJL.pop=[];chatBijlToon("pop");
   chatToon(data||{sender_id:ME.user.id,body:tekst,media,created_at:new Date().toISOString()},true);
 }

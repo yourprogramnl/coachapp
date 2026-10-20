@@ -2,6 +2,28 @@
 // gegenereerd en kan overschreven worden; nieuwe teksten van na 27 sep 2026
 // komen hier). Sleutel = exacte Nederlandse tekst.
 i18nLaad({
+  // Feedbackronde 5 (20 okt 2026): zoekveld metrics, Shift+Enter, kaarttitel, browsermeldingen
+  "Zoek een metric… (bijv. squat, row, 1RM)": "Search a metric… (e.g. squat, row, 1RM)",
+  "Geen metric gevonden voor \"{naam}\".": "No metric found for \"{naam}\".",
+  "Als nieuwe metric toevoegen": "Add as a new metric",
+  "Enter = versturen, Shift+Enter = nieuwe regel": "Enter = send, Shift+Enter = new line",
+  "Kaart in de app": "Card in the app",
+  "Titel van de kaart, bijv. Special Strength": "Card title, e.g. Special Strength",
+  "De sporter ziet de gekoppelde oefeningen hieronder als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.": "The athlete sees the linked exercises below as one card with this title, each with its own entry bar and PR history.",
+  "De sporter ziet deze {n} gekoppelde oefeningen als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.": "The athlete sees these {n} linked exercises as one card with this title, each with its own entry bar and PR history.",
+  "Browsermeldingen": "Browser notifications",
+  "Een melding van je computer, ook als het dashboard in een ander tabblad staat of je in een ander programma werkt. Werkt zolang het dashboard ergens open staat.": "A notification from your computer, even when the dashboard sits in another tab or you are working in another program. Works as long as the dashboard is open somewhere.",
+  "✅ Browsermeldingen staan aan in deze browser.": "✅ Browser notifications are on in this browser.",
+  "Testmelding sturen": "Send a test notification",
+  "Meldingen zijn geblokkeerd in je browser. Klik op het slotje naast het adres en sta meldingen toe; daarna werkt het hier vanzelf.": "Notifications are blocked in your browser. Click the padlock next to the address and allow notifications; after that it works here automatically.",
+  "Deze browser ondersteunt geen meldingen.": "This browser does not support notifications.",
+  "Browsermeldingen aanzetten": "Turn on browser notifications",
+  "Browsermeldingen staan aan": "Browser notifications are on",
+  "Deze browser kan geen meldingen tonen": "This browser cannot show notifications",
+  "Meldingen zijn geblokkeerd in je browser. Zet ze aan via het slotje naast het adres.": "Notifications are blocked in your browser. Allow them via the padlock next to the address.",
+  "Zo ziet een melding van het dashboard eruit.": "This is what a dashboard notification looks like.",
+  "Tip: zet browsermeldingen aan bij Instellingen > Notificaties. Dan zie je nieuwe berichten ook als dit tabblad niet open staat.": "Tip: turn on browser notifications under Settings > Notifications. Then you also see new messages when this tab is not open.",
+  "💬 {n} nieuwe berichten van {naam}": "💬 {n} new messages from {naam}",
   // Handleiding als PDF downloaden (help.js)
   "Download als PDF:": "Download as PDF:",
   // App installeren via TestFlight (auth.js, appInstallHtml)

@@ -102,7 +102,7 @@ async function lidChatOpen(){
   CHATBIJL.pop=[];
   const invoer=ME.profile.messages_readonly
     ?'<div class="sm muted" style="padding:10px 12px;text-align:center;border-top:1px solid #eef0f3">Meelezen kan; berichten sturen staat voor jou uit.</div>'
-    :'<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><input id="chat-inp" placeholder="Schrijf een bericht…" onkeydown="if(event.key===\'Enter\')chatStuur()"><div class="cinrow">'+(ME.profile.disable_uploads?'':'<button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button>')+'<button class="send" onclick="chatStuur()">Stuur</button></div></div>';
+    :'<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)"></textarea><div class="cinrow">'+(ME.profile.disable_uploads?'':'<button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button>')+'<button class="send" onclick="chatStuur()">Stuur</button></div></div>';
   pop=document.createElement("div");pop.id="chatpop";pop.className="chatpop show";
   pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+(lidCoach?naamVan(lidCoach):"Je coach")+'</b>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+

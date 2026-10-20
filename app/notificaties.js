@@ -41,6 +41,9 @@ function instNotifHtml(){
   return '<h2 style="margin:0 0 4px">Notificaties</h2>'+
     '<div class="sm muted" style="margin-bottom:14px">Kies waarvan je een melding wilt. App-meldingen verschijnen direct in het dashboard. E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.</div>'+
     '<div style="max-width:560px">'+NOTIF_EVENTS.map(e=>rij(e[0],e[1])).join("")+'</div>'+
+    '<h3 style="margin:20px 0 4px;font-size:14px">Browsermeldingen</h3>'+
+    '<div class="sm muted" style="margin-bottom:10px">Een melding van je computer, ook als het dashboard in een ander tabblad staat of je in een ander programma werkt. Werkt zolang het dashboard ergens open staat.</div>'+
+    '<div id="nt-browser">'+notifBrowserRijHtml()+'</div>'+
     '<h3 style="margin:20px 0 4px;font-size:14px">Geluiden</h3>'+
     '<div style="display:flex;gap:22px;flex-wrap:wrap">'+
       '<div class="field" style="max-width:220px"><label>Nieuw bericht</label><div style="display:flex;gap:8px"><select id="nt-gel-ber">'+NOTIF_GELUIDEN.map(g=>'<option value="'+g[0]+'"'+(n.geluid_bericht===g[0]?" selected":"")+'>'+g[1]+'</option>').join("")+'</select><button class="btn ghost sm" onclick="notifGeluid(document.getElementById(\'nt-gel-ber\').value)">▶</button></div></div>'+
@@ -95,25 +98,28 @@ function notifGeluid(naam){
 let notifGestart=false,notifKanalen=[];
 const notifGezien=new Set();
 function notifKlantNaam(aid){const p=(coachClients||[]).find(x=>x.id===aid);return p?naamVan(p):"Een klant";}
-function notifToon(ev,tekst,sleutel){
+function notifToon(ev,tekst,sleutel,klik){
   const n=notifPrefs();
   if(!n.app[ev])return;
   if(sleutel){if(notifGezien.has(sleutel))return;notifGezien.add(sleutel);}
   toast(tekst);
   notifGeluid(ev==="bericht"?n.geluid_bericht:n.geluid_melding);
+  notifBrowser(tekst,sleutel,klik);
 }
 function startNotifs(){
   if(notifGestart||myRole()==="lid")return;
   notifGestart=true;
+  const gen=++notifGen; // generatie: status van kanalen uit een vorige ronde negeren we
+  notifLaatstLevend=Date.now();
   const kan=(naam,tabel,event,cb)=>{
     try{
-      notifKanalen.push(db.channel(naam).on("postgres_changes",{event,schema:"public",table:tabel},cb).subscribe());
+      notifKanalen.push(db.channel(naam+"-"+gen).on("postgres_changes",{event,schema:"public",table:tabel},p=>{notifLaatstLevend=Date.now();cb(p);}).subscribe(st=>notifStatus(gen,st)));
     }catch(e){}
   };
   // Chatbericht van een klant (bericht van het lid = afzender is het lid zelf)
   kan("nf-msg","messages","INSERT",p=>{
     const m=p.new;if(!m||m.sender_id!==m.athlete_id)return;
-    notifToon("bericht","💬 Nieuw bericht van "+notifKlantNaam(m.athlete_id),"m"+m.id);
+    notifToon("bericht","💬 Nieuw bericht van "+notifKlantNaam(m.athlete_id),"m"+m.id,()=>{if(typeof dashBericht==="function")dashBericht(m.athlete_id);});
   });
   // Reactie op een workout-dag
   kan("nf-wc","workout_comments","INSERT",p=>{
@@ -145,6 +151,7 @@ function startNotifs(){
     kan("lv-wo-"+ev,"workouts",ev,liveCb);
     kan("lv-bl-"+ev,"blocks",ev,liveCb);
   });
+  notifBrowserTip();
 }
 // Het scherm zachtjes verversen na een live wijziging. Bewust voorzichtig:
 // nooit terwijl de coach ergens in typt of de bouwer open heeft, en gebundeld
@@ -174,6 +181,117 @@ function stopNotifs(){
   notifKanalen=[];
   belStop();
 }
+// ---------- Verbinding bewaken (feedbackronde 5, 20 okt) ----------
+// De live-meldingen vielen stil na een slaapstand of een haperende verbinding,
+// zonder dat de pagina het merkte ("soms krijg ik geen melding"). Nu volgen we
+// de status van elk kanaal, abonneren we bij een fout opnieuw (met oplopende
+// wachttijd), verversen we alles bij terugkomen in het tabblad of na "online",
+// en halen we in wat er intussen aan berichten binnenkwam.
+let notifGen=0,notifHerstelTimer=null,notifHerstelPogingen=0,notifVerborgenSinds=0,notifLaatstHersteld=0,notifLaatstLevend=0;
+function notifStatus(gen,st){
+  if(gen!==notifGen||!notifGestart)return;
+  if(st==="SUBSCRIBED"){notifHerstelPogingen=0;notifLaatstLevend=Date.now();return;}
+  if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED")notifHerstelPlan();
+}
+// Een kanaal dat niet (meer) meedoet: niet "joined" en ook niet onderweg daarnaartoe.
+function notifKanaalKapot(){return notifKanalen.some(k=>k&&typeof k.state==="string"&&k.state!=="joined"&&k.state!=="joining");}
+function notifHerstelPlan(){
+  if(notifHerstelTimer||navigator.onLine===false)return;
+  const wacht=Math.min(60000,3000*Math.pow(2,notifHerstelPogingen++));
+  notifHerstelTimer=setTimeout(()=>{notifHerstelTimer=null;notifHerstart("fout");},wacht);
+}
+function notifHerstart(reden){
+  if(!ME||!ME.user||myRole()==="lid")return;
+  if(Date.now()-notifLaatstHersteld<5000)return; // niet twee keer vlak na elkaar
+  const sinds=notifLaatstLevend||notifLaatstHersteld||0;
+  notifLaatstHersteld=Date.now();
+  if(notifHerstelTimer){clearTimeout(notifHerstelTimer);notifHerstelTimer=null;}
+  // meldingskanalen opnieuw
+  notifKanalen.forEach(k=>{try{db.removeChannel(k);}catch(e){}});
+  notifKanalen=[];notifGestart=false;startNotifs();
+  // belletje opnieuw
+  if(BEL.kanaal){try{db.removeChannel(BEL.kanaal);}catch(e){}BEL.kanaal=null;}
+  belStart();
+  // open schermen die zelf live meeluisteren: chat-popup en de Berichten-sectie
+  try{
+    const pop=document.getElementById("chatpop");
+    if(pop&&pop.classList.contains("show")&&typeof chatKanaalStart==="function"&&typeof chatAthlete!=="undefined"&&chatAthlete){chatKanaalStart();if(typeof chatLaad==="function")chatLaad();}
+    if(typeof berRealtime==="function"&&document.getElementById("ber-lijst"))berRealtime();
+  }catch(e){}
+  if(typeof telMsgBadge==="function")telMsgBadge();
+  notifInhaal(sinds);
+}
+// Inhaalslag: chatberichten van leden die binnenkwamen terwijl de verbinding
+// weg was (en nog ongelezen zijn) alsnog melden, gebundeld in één melding.
+async function notifInhaal(sinds){
+  try{
+    const n=notifPrefs();if(!n.app.bericht||!sinds)return;
+    const{data}=await db.from("messages").select("id,athlete_id,sender_id,created_at").gt("created_at",new Date(sinds-5000).toISOString()).is("read_at",null).order("created_at",{ascending:false}).limit(50);
+    const rows=(data||[]).filter(m=>m.sender_id===m.athlete_id&&m.sender_id!==ME.user.id&&!notifGezien.has("m"+m.id));
+    if(!rows.length)return;
+    rows.forEach(m=>notifGezien.add("m"+m.id));
+    const namen=[...new Set(rows.map(m=>notifKlantNaam(m.athlete_id)))];
+    const tekst=rows.length===1?"💬 Nieuw bericht van "+namen[0]:"💬 "+rows.length+" nieuwe berichten van "+namen.slice(0,3).join(", ")+(namen.length>3?" en anderen":"");
+    toast(tekst,5000);notifGeluid(n.geluid_bericht);
+    notifBrowser(tekst,"inhaal"+Date.now(),()=>{if(typeof dashBericht==="function")dashBericht(rows[0].athlete_id);});
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{
+  if(!notifGestart)return;
+  if(document.visibilityState==="hidden"){notifVerborgenSinds=Date.now();return;}
+  const lang=notifVerborgenSinds&&Date.now()-notifVerborgenSinds>60000;
+  notifVerborgenSinds=0;
+  if(lang||notifKanaalKapot())notifHerstart(lang?"terug":"kapot");
+});
+window.addEventListener("online",()=>{if(notifGestart)setTimeout(()=>notifHerstart("online"),1500);});
+// Elke halve minuut: leeft alles nog? Dan onthouden we dat moment voor de
+// inhaalslag; zo niet, dan plannen we een herstart.
+setInterval(()=>{
+  if(!notifGestart||document.visibilityState!=="visible")return;
+  if(notifKanaalKapot())notifHerstelPlan();else notifLaatstLevend=Date.now();
+},30000);
+
+// ---------- Browsermeldingen (feedbackronde 5, 20 okt) ----------
+// Een echte melding van het besturingssysteem, zodat de coach een bericht ook
+// ziet als het dashboard in een ander tabblad staat of achter een ander
+// programma. Werkt zolang het dashboard ergens open staat; de browser vraagt
+// één keer toestemming (knop bij Instellingen > Notificaties).
+function notifBrowserStatus(){return ("Notification" in window)?Notification.permission:"nee";}
+function notifBrowser(tekst,sleutel,klik){
+  try{
+    if(notifBrowserStatus()!=="granted")return;
+    if(document.visibilityState==="visible"&&document.hasFocus())return; // staat al als melding in beeld
+    const n=new Notification(document.title||"Dashboard",{body:t(tekst),tag:sleutel||undefined,icon:"img/logo-yp-mark.png"});
+    n.onclick=()=>{try{window.focus();}catch(e){}n.close();if(klik)try{klik();}catch(e){}};
+  }catch(e){}
+}
+async function notifBrowserAan(){
+  let st=notifBrowserStatus();
+  if(st==="nee"){toast("Deze browser kan geen meldingen tonen");return;}
+  if(st==="default"){try{st=await Notification.requestPermission();}catch(e){}}
+  if(st==="granted"){
+    toast("Browsermeldingen staan aan");
+    try{new Notification(document.title||"Dashboard",{body:t("Zo ziet een melding van het dashboard eruit."),icon:"img/logo-yp-mark.png"});}catch(e){}
+  }else if(st==="denied")toast("Meldingen zijn geblokkeerd in je browser. Zet ze aan via het slotje naast het adres.",5000);
+  notifBrowserRij();
+}
+function notifBrowserRijHtml(){
+  const st=notifBrowserStatus();
+  if(st==="granted")return '<div class="sm" style="color:#1f8a4c;font-weight:600">✅ Browsermeldingen staan aan in deze browser.</div><button class="btn ghost sm" style="margin-top:8px" onclick="notifBrowserAan()">Testmelding sturen</button>';
+  if(st==="denied")return '<div class="sm" style="color:#c0392b">Meldingen zijn geblokkeerd in je browser. Klik op het slotje naast het adres en sta meldingen toe; daarna werkt het hier vanzelf.</div>';
+  if(st==="nee")return '<div class="sm muted">Deze browser ondersteunt geen meldingen.</div>';
+  return '<button class="btn" onclick="notifBrowserAan()">Browsermeldingen aanzetten</button>';
+}
+function notifBrowserRij(){const h=document.getElementById("nt-browser");if(h)h.innerHTML=notifBrowserRijHtml();}
+// Eén keer per browser een tip, zolang de coach nog niets gekozen heeft.
+function notifBrowserTip(){
+  try{
+    if(notifBrowserStatus()!=="default"||localStorage.getItem("forge_notif_tip"))return;
+    localStorage.setItem("forge_notif_tip","1");
+    setTimeout(()=>toast("Tip: zet browsermeldingen aan bij Instellingen > Notificaties. Dan zie je nieuwe berichten ook als dit tabblad niet open staat.",8000),4000);
+  }catch(e){}
+}
+
 // ---------- Het belletje in de balk (notificatiecentrum, tabel notifications) ----------
 let BEL={rows:[],geladen:false,kanaal:null,laden:null};
 function belHtml(){
@@ -191,10 +309,9 @@ function belStart(){
   }
   if(!BEL.kanaal){
     try{
-      BEL.kanaal=db.channel("bel").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},p=>{
+      BEL.kanaal=db.channel("bel-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},p=>{
         const r=p.new;if(!r||r.recipient_id!==ME.user.id)return;
         BEL.rows.unshift(r);belBadge();belPanelVernieuw();
-        if(r.soort==="pr")notifToon("pr","🏆 "+belTekst(r),"n"+r.id); // nieuw record (krachtlog): ook meteen in beeld
         if(r.soort==="pr")notifToon("pr","🏆 "+belTekst(r),"n"+r.id); // nieuw record (krachtlog): ook meteen in beeld
       }).subscribe();
     }catch(e){}

@@ -124,7 +124,7 @@ function berThreadHtml(){
       '<div><b>'+naamVan(c)+'</b>'+(myRole()!=="coach"&&coach?'<div class="sm muted">Coach: '+naamVan(coach)+'</div>':'')+'</div></div>'+
     '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berBubHtml(m,c)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
-    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><input id="ber-inp" placeholder="Typ een bericht…" onkeydown="if(event.key===\'Enter\')berStuur()"><button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>';
+    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="Typ een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berStuur)" oninput="chatGroei(this)"></textarea><button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>';
 }
 // Rechts = de coach-kant (alles wat niet van het lid komt), links = het lid.
 // Leest een eigenaar/admin mee, dan staat de naam van de afzender erbij.
@@ -172,7 +172,7 @@ async function berStuur(){
     if(media.length)try{db.storage.from("media").remove(media.map(x=>x.path));}catch(e){}
     toast(error.message||"Versturen mislukt");return;
   }
-  inp.value="";CHATBIJL.ber=[];chatBijlToon("ber");
+  inp.value="";chatGroei(inp);CHATBIJL.ber=[];chatBijlToon("ber");
   BER.msgs.push(data||{athlete_id:BER.cur,sender_id:ME.user.id,body:tekst,media,created_at:new Date().toISOString()});
   berAppend(BER.msgs[BER.msgs.length-1]);
   berLijstVernieuw();
@@ -189,7 +189,7 @@ function berAppend(m){
 function berRealtime(){
   try{
     if(BER.kanaal){db.removeChannel(BER.kanaal);BER.kanaal=null;}
-    BER.kanaal=db.channel("berichten-sectie")
+    BER.kanaal=db.channel("berichten-sectie-"+Date.now())
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
         const m=payload.new;if(!m||m.sender_id===ME.user.id)return;
         BER.msgs.push(m);
@@ -227,7 +227,7 @@ function berGroepThreadHtml(gid){
       (beheer?'<span style="margin-left:auto;display:flex;gap:8px"><button class="btn ghost sm" onclick="berGroepLedenBeheer(\''+gid+'\')">Leden</button><button class="btn ghost sm" onclick="berGroepWeg(\''+gid+'\')" title="Groep verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button></span>':'')+
     '</div>'+
     '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berGroepBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten in deze groep.</div>')+'</div>'+
-    '<div class="inputbar"><input id="ber-inp" placeholder="Bericht aan de groep…" onkeydown="if(event.key===\'Enter\')berGroepStuur()"><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
+    '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="Bericht aan de groep…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berGroepStuur)" oninput="chatGroei(this)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
 }
 async function berOpenGroep(gid){
   BER.cur="g:"+gid;
@@ -254,7 +254,7 @@ async function berGroepStuur(){
   if(!tekst||!gid)return;
   const{data,error}=await db.from("chat_group_messages").insert({group_id:gid,company_id:ME.profile.company_id,sender_id:ME.user.id,body:tekst}).select().single();
   if(error){toast(error.message||"Versturen mislukt");return;}
-  inp.value="";
+  inp.value="";chatGroei(inp);
   BER.gmsgs.push(data);
   const host=document.getElementById("ber-msgs");
   if(host){const leeg=host.querySelector(".muted");if(leeg)leeg.remove();host.insertAdjacentHTML("beforeend",berGroepBubHtml(data));host.scrollTop=host.scrollHeight;}

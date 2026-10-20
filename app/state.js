@@ -34,7 +34,7 @@ function versZet(k,v){VERS[k]={t:Date.now(),v};}
 function versPak(k,maxMs){const e=VERS[k];return (e&&Date.now()-e.t<maxMs)?e.v:null;}
 function versWis(){for(const k in VERS)delete VERS[k];}
 const MAANDKORT=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
-function toast(t){let e=document.getElementById("toast2");if(!e){e=document.createElement("div");e.id="toast2";e.className="toast2";document.body.appendChild(e);}e.textContent=t;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),2600);}
+function toast(t,ms){let e=document.getElementById("toast2");if(!e){e=document.createElement("div");e.id="toast2";e.className="toast2";document.body.appendChild(e);}e.textContent=t;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),ms||2600);}
 // Upload van een lid: foto of video? Het opslagpad eindigt op de extensie.
 const isFotoUpload=p=>/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(p||"");
 function resultScoreTxt(r){if(!r)return"";if(r.time_seconds!=null)return Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60);if(r.load_kg!=null)return r.load_kg+" kg";if(r.rounds!=null)return r.rounds+" rondes"+(r.reps!=null?" + "+r.reps:"");if(r.reps!=null)return r.reps+" reps";return r.score_text||"";}
