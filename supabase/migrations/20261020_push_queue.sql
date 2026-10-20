@@ -55,7 +55,7 @@ begin
 end $$;
 
 create or replace function private.push_tekst(p_body text, p_media jsonb) returns text
-language sql immutable as $$
+language sql immutable set search_path = '' as $
   select case
     when coalesce(p_body,'') <> '' then p_body
     when jsonb_typeof(p_media) = 'array' and jsonb_array_length(p_media) > 0 then 'Foto of video'
