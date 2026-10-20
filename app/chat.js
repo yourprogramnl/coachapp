@@ -10,7 +10,7 @@ function tijdNL(iso){const d=new Date(iso);return ("0"+d.getHours()).slice(-2)+"
 
 // ---------- Bijlagen (gedeeld door popup, Berichten-sectie en lid-scherm) ----------
 const CHAT_MEDIA_MAX=104857600; // 100 MB, gelijk aan de bucket-limiet
-const CHATBIJL={pop:[],ber:[]}; // gekozen bestanden per invoerbalk, geüpload bij versturen
+const CHATBIJL={pop:[],ber:[],wc:[]}; // gekozen bestanden per invoerbalk (popup, Berichten, reactiepaneel), geüpload bij versturen
 const chatIsFoto=f=>String(f.type||"").startsWith("image");
 // Regel voor de gesprekkenlijst/preview: berichttekst, anders wat er meegestuurd is.
 function chatPreview(m){
@@ -57,11 +57,12 @@ function chatBijlToon(key){
 }
 // Uploadt de gekozen bestanden en geeft de media-array voor het bericht terug.
 // Mislukt er één, dan worden de al geüploade bestanden weer opgeruimd.
-async function chatUpload(key,athleteId){
+// map: "chat" (standaard) of "reacties" (bijlagen bij een dagreactie).
+async function chatUpload(key,athleteId,map){
   const uit=[];
   for(const f of CHATBIJL[key]){
     const ext=String(f.name.split(".").pop()||"").toLowerCase().replace(/[^a-z0-9]/g,"")||(chatIsFoto(f)?"jpg":"mp4");
-    const path=ME.profile.company_id+"/"+athleteId+"/chat/"+crypto.randomUUID()+"."+ext;
+    const path=ME.profile.company_id+"/"+athleteId+"/"+(map==="reacties"?"reacties":"chat")+"/"+crypto.randomUUID()+"."+ext;
     const{error}=await db.storage.from("media").upload(path,f,{contentType:f.type||undefined,upsert:false});
     if(error){
       if(uit.length)try{await db.storage.from("media").remove(uit.map(x=>x.path));}catch(e){}

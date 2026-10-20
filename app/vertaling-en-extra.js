@@ -2,6 +2,11 @@
 // gegenereerd en kan overschreven worden; nieuwe teksten van na 27 sep 2026
 // komen hier). Sleutel = exacte Nederlandse tekst.
 i18nLaad({
+  // Feedbackronde 5, ronde C (20 okt 2026): bijlagen en emoji's bij dagreacties
+  "Jouw reactie weghalen": "Remove your reaction",
+  "Ook zo reageren": "React the same way",
+  "Weghalen mislukt": "Removing failed",
+  "Reageren mislukt": "Reacting failed",
   // Feedbackronde 5, ronde B (20 okt 2026): exportvenster
   "Gegevens exporteren voor {naam}": "Export data for {naam}",
   "Gegevens exporteren": "Export data",

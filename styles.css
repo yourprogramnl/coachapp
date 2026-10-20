@@ -1058,6 +1058,18 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .wcfloat #wc-body{flex:1;min-height:60px;max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:8px;background:#f6f7f9;border-radius:10px;padding:10px}
 .wcinvoer{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
 .wcinvoer textarea{flex:1;resize:none;overflow:hidden;font-family:inherit;font-size:13px;line-height:1.5;padding:9px 12px;border:1px solid var(--line);border-radius:10px}
+/* Reactiepaneel: rij per bericht met emoji-reacties eronder (feedbackronde 5, 20 okt) */
+.wcrij{display:flex;flex-direction:column;max-width:100%}
+.wcrij.me{align-items:flex-end}.wcrij.them{align-items:flex-start}
+.wcrij .bub{max-width:88%}
+.wcreact{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:3px 2px 0}
+.wcreact .rc{display:inline-flex;align-items:center;border:1px solid #e7e9ec;background:#fff;border-radius:999px;padding:1px 7px;font-size:12.5px;line-height:1.5;cursor:pointer;user-select:none}
+.wcreact .rc.mijn{border-color:#3eb3e0;background:#eaf6fb}
+.wcreact .rkies{display:inline-flex;gap:2px;opacity:.4;transition:opacity .12s}
+.wcrij:hover .rkies,.wcreact .rkies:focus-within{opacity:1}
+.wcreact .rc.kies{border-color:transparent;background:transparent;padding:1px 3px;opacity:.6}
+.wcreact .rc.kies:hover{opacity:1;background:#f4f6f8}
+.wcfloat .chatmedia{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
 @media print{.wcfloat{display:none!important}}
 
 /* Gelogde resultaten onder een blok in de bouwer (feedbackronde 4, 29 sep) */

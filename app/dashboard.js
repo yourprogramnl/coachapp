@@ -348,7 +348,8 @@ function ensureWcModal(){
     '<span class="wcx" onclick="closeWc()" title="Sluiten">×</span></div>'+
     '<div class="sm muted wcuitleg">Feedback bij deze workout-dag. De klant ziet dit in de app bij die dag, los van de chat. Sleep de kop om het paneel te verplaatsen; de kalender blijft scrollbaar.</div>'+
     '<div id="wc-body"></div>'+
-    '<div class="wcinvoer"><textarea id="wc-inp" rows="1" placeholder="Schrijf een reactie… (Enter = nieuwe regel)" oninput="wcGroei(this)" onkeydown="if(event.key===\'Enter\'&&(event.ctrlKey||event.metaKey)){event.preventDefault();wcStuur();}"></textarea><button class="btn" onclick="wcStuur()">Stuur</button></div>'+
+    '<div class="bijlrij" id="chat-bijl-wc" style="display:none;margin-top:8px"></div>'+
+    '<div class="wcinvoer"><button class="bijlknop" onclick="chatKies(\'wc\')" title="Foto of video meesturen">📎</button><textarea id="wc-inp" rows="1" placeholder="Schrijf een reactie… (Enter = nieuwe regel)" oninput="wcGroei(this)" onkeydown="if(event.key===\'Enter\'&&(event.ctrlKey||event.metaKey)){event.preventDefault();wcStuur();}"></textarea><button class="btn" id="wc-stuur" onclick="wcStuur()">Stuur</button></div>'+
     '</div>';
   document.body.appendChild(wrap.firstChild);
   wcSleepInit();
@@ -382,15 +383,42 @@ function wcPosHerstel(){
   let p=null;try{p=JSON.parse(localStorage.getItem("forge_wcpos")||"null");}catch(x){}
   if(p&&typeof p.l==="number"&&typeof p.t==="number")wcZetPos(p.l,p.t);
 }
-function closeWc(){const m=document.getElementById("wcmodal");if(m)m.classList.remove("show");wcWid=null;wcAid=null;WCC=[];}
+function closeWc(){const m=document.getElementById("wcmodal");if(m)m.classList.remove("show");wcWid=null;wcAid=null;WCC=[];WCR={};}
+// Emoji-reacties op dagreacties (feedbackronde 5, 20 okt): dezelfde vaste set
+// als de app, zodat ze op iPhone en Android hetzelfde tonen. Onder elk bericht
+// staan de geplaatste emoji's (jouw eigen licht op) en vijf knopjes om te reageren.
+const WC_EMOJIS=["👍","❤️","💪","🔥","👏"];
+let WCR={}; // comment_id -> [{profile_id,emoji}]
+function wcReactiesHtml(m){
+  const lijst=WCR[m.id]||[];const per={};
+  lijst.forEach(r=>{per[r.emoji]=per[r.emoji]||{n:0,mij:false};per[r.emoji].n++;if(r.profile_id===ME.user.id)per[r.emoji].mij=true;});
+  const chips=Object.keys(per).map(e=>'<span class="rc'+(per[e].mij?' mijn':'')+'" title="'+(per[e].mij?'Jouw reactie weghalen':'Ook zo reageren')+'" onclick="wcReageer(\''+m.id+'\',\''+e+'\')">'+e+(per[e].n>1?' '+per[e].n:'')+'</span>').join("");
+  const kies=WC_EMOJIS.filter(e=>!per[e]||!per[e].mij).map(e=>'<span class="rc kies" title="Reageer met '+e+'" onclick="wcReageer(\''+m.id+'\',\''+e+'\')">'+e+'</span>').join("");
+  return '<div class="wcreact">'+chips+'<span class="rkies">'+kies+'</span></div>';
+}
+async function wcReageer(cid,emoji){
+  const m=WCC.find(x=>x.id===cid);if(!m)return;
+  const lijst=WCR[cid]||[];
+  const mijn=lijst.find(r=>r.profile_id===ME.user.id&&r.emoji===emoji);
+  if(mijn){
+    WCR[cid]=lijst.filter(r=>r!==mijn);wcRender();
+    const{error}=await db.from("workout_comment_reactions").delete().eq("comment_id",cid).eq("profile_id",ME.user.id).eq("emoji",emoji);
+    if(error){WCR[cid]=lijst;wcRender();toast(error.message||"Weghalen mislukt");}
+  }else{
+    WCR[cid]=[...lijst,{comment_id:cid,profile_id:ME.user.id,emoji}];wcRender();
+    const{error}=await db.from("workout_comment_reactions").insert({comment_id:cid,athlete_id:m.athlete_id,company_id:m.company_id||ME.profile.company_id,profile_id:ME.user.id,emoji});
+    if(error&&!/duplicate|unique/i.test(error.message||"")){WCR[cid]=lijst;wcRender();toast(error.message||"Reageren mislukt");}
+  }
+}
 function wcRender(){
   const host=document.getElementById("wc-body");if(!host)return;
   host.innerHTML=WCC.map(m=>{
     const mij=m.author_id===ME.user.id;
     const naam=m.author_id===m.athlete_id?naamVan(actieveKlanten().find(x=>x.id===m.athlete_id)||{}):(mij?"Jij":"Coach");
-    return '<div class="bub '+(mij?"me":"them")+'">'+esc(m.body)+'<div class="meta">'+esc(naam)+' · '+tijdNL(m.created_at)+'</div></div>';
+    return '<div class="wcrij '+(mij?"me":"them")+'"><div class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+esc(naam)+' · '+tijdNL(m.created_at)+'</div></div>'+wcReactiesHtml(m)+'</div>';
   }).join("")||'<div class="sm muted" style="text-align:center;padding:10px">Nog geen reacties op deze dag. Schrijf de eerste.</div>';
   host.scrollTop=host.scrollHeight;
+  if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen
 }
 // Ververs de tellers op het scherm dat open staat (dashboard-feed of klant-kalender).
 function wcVerversUI(){
@@ -406,6 +434,15 @@ async function openDayComments(wid,aid,datum){
   const{data:rows}=await db.from("workout_comments").select("*").eq("workout_id",wid).eq("athlete_id",aid).order("created_at");
   if(wcWid!==wid)return; // intussen een andere dag geopend
   WCC=rows||[];
+  CHATBIJL.wc=[];chatBijlToon("wc"); // andere dag = gekozen bijlagen weg
+  // Emoji-reacties van deze draad
+  WCR={};
+  if(WCC.length){
+    try{
+      const{data:rs}=await db.from("workout_comment_reactions").select("comment_id,profile_id,emoji").in("comment_id",WCC.map(m=>m.id));
+      (rs||[]).forEach(r=>{(WCR[r.comment_id]=WCR[r.comment_id]||[]).push(r);});
+    }catch(e){}
+  }
   const w=(DASH&&(DASH.ws||[]).find(x=>x.id===wid))||(typeof monthWorkouts!=="undefined"&&monthWorkouts[wid])||{};
   const dag=w.workout_date||datum||null;
   document.getElementById("wc-sub").textContent=naamVan(p)+(dag?" · "+datumNL(dag):"");
@@ -436,14 +473,25 @@ function dashComments(wid,aid){return openDayComments(wid,aid);} // oude naam bl
 // Ctrl+Enter of de knop = versturen) — pilotfeedback 17 aug.
 function wcGroei(ta){ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight+2,160)+"px";if(ta.scrollHeight+2>160)ta.style.overflow="auto";}
 async function wcStuur(){
-  const inp=document.getElementById("wc-inp");
-  const tekst=(inp.value||"").trim();if(!tekst||!wcWid)return;
+  const inp=document.getElementById("wc-inp"),knop=document.getElementById("wc-stuur");
+  const tekst=(inp.value||"").trim();if((!tekst&&!CHATBIJL.wc.length)||!wcWid)return;
+  if(knop&&knop.disabled)return; // niet dubbel versturen tijdens een upload
+  let media=null;
+  if(CHATBIJL.wc.length){
+    if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
+    try{media=await chatUpload("wc",wcAid,"reacties");}
+    catch(e){toast(e.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Stuur";}return;}
+  }
   const{data,error}=await db.from("workout_comments").insert({
-    workout_id:wcWid,athlete_id:wcAid,company_id:ME.profile.company_id,author_id:ME.user.id,body:tekst
+    workout_id:wcWid,athlete_id:wcAid,company_id:ME.profile.company_id,author_id:ME.user.id,body:tekst,media
   }).select().single();
-  if(error){toast(error.message||"Versturen mislukt");return;}
-  inp.value="";inp.style.height="auto";
-  const rij=data||{workout_id:wcWid,athlete_id:wcAid,author_id:ME.user.id,body:tekst,created_at:new Date().toISOString()};
+  if(knop){knop.disabled=false;knop.textContent="Stuur";}
+  if(error){
+    if(media&&media.length)try{db.storage.from("media").remove(media.map(x=>x.path));}catch(e){}
+    toast(error.message||"Versturen mislukt");return;
+  }
+  inp.value="";inp.style.height="auto";CHATBIJL.wc=[];chatBijlToon("wc");
+  const rij=data||{workout_id:wcWid,athlete_id:wcAid,author_id:ME.user.id,body:tekst,media,created_at:new Date().toISOString()};
   WCC.push(rij);
   if(DASH&&DASH.wc)DASH.wc.push(rij);
   if(typeof monthComments!=="undefined")monthComments.push(rij);
