@@ -1309,6 +1309,14 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .td-app .td-table{margin-top:4px}
 .td-app .td-table td label{cursor:pointer;font-weight:600}
 .td-app .td-table input[type=checkbox],.td-kl-vink{width:15px;height:15px;cursor:pointer}
+/* Gesprekken uit de app op de kaart (21 okt 2026): chat en dagreacties + AI-voorstel voor de weekstatus */
+.td-gs-acties{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 8px}
+.td-gs-lijst{list-style:none;margin:4px 0 0;padding:0;max-height:340px;overflow:auto}
+.td-gs{padding:5px 9px;border-radius:8px;margin-bottom:4px;font-size:12px;line-height:1.45;background:var(--td-panel);border:1px solid var(--td-line)}
+.td-gs-coach{background:#eef4ff;border-color:#d6e2fb}
+.td-gs-meta{display:block;font-size:10.5px;color:var(--td-muted);font-weight:700;margin-bottom:1px}
+.td-gs-voorstel{background:var(--td-panel);border:1px solid var(--td-accent);border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:12.5px}
+.td-gs-fout{color:var(--td-dev);border-color:var(--td-dev)}
 
 /* ---------- Krachtlog (stap 2, 8 okt 2026): liftchip, schema-regel en kaarttitel in de bouwer ---------- */
 .liftrow{margin-top:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative}

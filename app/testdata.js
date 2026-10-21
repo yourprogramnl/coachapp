@@ -12,7 +12,8 @@
 // controledag) is sinds die datum optioneel: tdBuild krijgt dan een lege dag mee.
 
 const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,compWerk:null,fout:"",
-  app:{metrics:{},profiel:{},open:null},klantenOpen:false};
+  app:{metrics:{},profiel:{},gesprekken:{},voorstel:{},open:null},klantenOpen:false};
+// app.gesprekken = chat en dagreacties per gekoppeld account (laatste 30 dagen); app.voorstel = AI-samenvatting per kaart.
 // naam = gekozen atleet in de naamkeuze (leeg = iedereen); klant = profiel-id als de kaart
 // in het klantdossier staat (zijbalk > Data), dan tekent tdsGrid alleen die ene kaart.
 // app.metrics / app.profiel = metingen en profielgegevens per gekoppeld account (profile_id);
@@ -346,7 +347,7 @@ function tdsKaart(a){
   if(a.recent){
     const r=a.recent;
     const actions=(r.actions&&r.actions.length)?'<div class="td-today-actions"><b>Actiepunten</b><ul>'+r.actions.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>':"";
-    todayHtml='<div class="td-today">'+tdsBulletBlok("Strivee",r.strivee)+tdsBulletBlok("WhatsApp",r.whatsapp)+actions+'</div>';
+    todayHtml='<div class="td-today">'+tdsBulletBlok("Strivee",r.strivee)+tdsBulletBlok("WhatsApp",r.whatsapp)+tdsBulletBlok("Chat (app)",r.chat)+actions+'</div>';
   }
   const compHtml=tdsComp(a);
   const ovl=tdsOverlay(a);
@@ -418,6 +419,7 @@ function tdsKaart(a){
     prio+
     tdsSec("flags","Let op",(a.flags&&a.flags.length>1)?a.flags.length+" punten":"",flagsHtml,"td-sec-warn")+
     tdsSec("notes","Notities (coach)",notesArr.length>1?notesArr.length+" notities":"",notesHtml,"td-sec-notes")+
+    tdsGesprekken(a)+ // chat en dagreacties uit de app (alleen bij een gekoppeld account), met AI-samenvatting naar de weekstatus
     (typeof ikkSectie==="function"?ikkSectie(a):"")+ // intake-kaart voor het consult (app/intake-kaart.js), alleen met intake-data
     tdsTestTabel(a.testbatterij_full,a)+
     tdsSelfAssessment(a.self_assessment_detail)+
@@ -977,14 +979,22 @@ async function tdsAppLaad(ids){
   ids=(ids||alle).filter(id=>alle.includes(id));
   if(!ids.length)return;
   const namen=["Weight"];TDS_APP_MAP.forEach(m=>m.metrics.forEach(n=>{if(!namen.includes(n))namen.push(n);}));
-  const [m,p]=await Promise.all([
+  const sinds=new Date(Date.now()-TDS_GESPREK_DAGEN*864e5).toISOString();
+  const [m,p,ch,wc]=await Promise.all([
     db.from("metrics").select("athlete_id,metric,value,unit,measured_at").in("athlete_id",ids).in("metric",namen).order("measured_at",{ascending:false}),
-    db.from("profiles").select("id,gender,weight_kg,birth_date").in("id",ids)
+    db.from("profiles").select("id,gender,weight_kg,birth_date").in("id",ids),
+    // Gesprekken (verzoek Stefan 21 okt): chat en reacties op workout-dagen van de laatste 30 dagen
+    db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",sinds).order("created_at",{ascending:false}).limit(600),
+    db.from("workout_comments").select("athlete_id,author_id,body,created_at,workouts(workout_date,title)").in("athlete_id",ids).gte("created_at",sinds).order("created_at",{ascending:false}).limit(900)
   ]);
   if(m.error||p.error){console.error("tdsAppLaad",m.error||p.error);return;}
-  ids.forEach(id=>{TDS.app.metrics[id]=[];});
+  if(ch.error||wc.error)console.error("tdsAppLaad gesprekken",ch.error||wc.error);
+  ids.forEach(id=>{TDS.app.metrics[id]=[];TDS.app.gesprekken[id]=[];});
   (m.data||[]).forEach(r=>{(TDS.app.metrics[r.athlete_id]=TDS.app.metrics[r.athlete_id]||[]).push(r);});
   (p.data||[]).forEach(r=>{TDS.app.profiel[r.id]=r;});
+  (ch.data||[]).forEach(r=>{if(!String(r.body||"").trim())return;(TDS.app.gesprekken[r.athlete_id]=TDS.app.gesprekken[r.athlete_id]||[]).push({soort:"chat",van:r.sender_id===r.athlete_id?"sporter":"coach",body:r.body,t:r.created_at});});
+  (wc.data||[]).forEach(r=>{if(!String(r.body||"").trim())return;(TDS.app.gesprekken[r.athlete_id]=TDS.app.gesprekken[r.athlete_id]||[]).push({soort:"workout",van:r.author_id===r.athlete_id?"sporter":"coach",body:r.body,t:r.created_at,dag:r.workouts&&r.workouts.workout_date,titel:r.workouts&&r.workouts.title});});
+  ids.forEach(id=>{TDS.app.gesprekken[id].sort((x,y)=>String(y.t).localeCompare(String(x.t)));});
 }
 // Postgres-fout 23505 op de unieke naam per bedrijf (athlete_testdata_company_id_name_key).
 function tdsDubbeleNaam(err){return !!err&&(err.code==="23505"||/duplicate key|company_id_name_key/i.test(err.message||""));}
@@ -1120,4 +1130,73 @@ async function tdsKlantenAanmaken(){
   toast(msg,(fail||overgeslagen.length)?9000:undefined);
   TDS.klantenOpen=false;TDS.zoek="";TDS.dag="Alle";
   const h=document.getElementById("data-inhoud");if(h)tdsRender(h);
+}
+
+// ---------- gesprekken uit de app (chat + reacties op workout-dagen), coach-only ----------
+// Verzoek Stefan 21 okt 2026: wat een coach met zijn klant bespreekt (blessures!) hoort op de kaart,
+// zoals Michel dat met zijn WhatsApp-samenvatting doet. Bij een gekoppeld account staan de laatste
+// 30 dagen chat en dagreacties onder de kaart. "Samenvatting maken (AI)" (Edge Function
+// kaart-gesprekken) maakt er een voorstel van: korte samenvatting, actiepunten en blessures.
+// De coach kijkt na, past aan en neemt over: samenvatting en actiepunten in het weekstatus-blok
+// (`recent.chat`, naast Michels strivee/whatsapp), blessures bij Let op (`flags`). Nooit automatisch.
+const TDS_GESPREK_DAGEN=30;
+const tdsGsDatum=iso=>{if(!iso)return "";const d=new Date(String(iso).length===10?iso+"T12:00:00":iso);if(isNaN(d))return String(iso);return d.getDate()+" "+MAANDKORT[d.getMonth()];};
+const tdsDagTekst=d=>["Zo","Ma","Di","Wo","Do","Vr","Za"][d.getDay()]+" "+d.getDate()+" "+MAANDKORT[d.getMonth()];
+function tdsGesprekken(a){
+  if(!a.profile_id)return "";
+  const lijst=TDS.app.gesprekken[a.profile_id]||[];
+  const v=TDS.app.voorstel[a.id];
+  const items=lijst.slice(0,60).map(g=>'<li class="td-gs '+(g.van==="coach"?"td-gs-coach":"td-gs-sporter")+'"><span class="td-gs-meta">'+esc(tdsGsDatum(g.t))+' · '+(g.van==="coach"?"coach":"sporter")+(g.soort==="workout"?' · bij workout'+(g.dag?" "+esc(tdsGsDatum(g.dag)):"")+(g.titel?' ('+esc(g.titel)+')':""):"")+'</span>'+esc(g.body).replace(/\n/g,"<br>")+'</li>').join("");
+  const body='<div class="td-gs-acties"><button class="btn ghost sm" onclick="tdsGesprekAi(\''+esc(a.id)+'\')"'+(lijst.length&&!(v&&v.bezig)?"":" disabled")+'>Samenvatting maken (AI)</button><span class="td-hint" style="margin:0">Maakt van de gesprekken een voorstel: korte samenvatting, actiepunten en blessures. Jij kijkt na en neemt over in de weekstatus.</span></div>'+
+    (v?tdsGesprekVoorstelHtml(a,v):"")+
+    (lijst.length?'<ul class="td-gs-lijst">'+items+'</ul>'+(lijst.length>60?'<div class="td-hint">Alleen de laatste 60 berichten staan hier.</div>':""):'<div class="td-leeg-note">Geen berichten in de laatste '+TDS_GESPREK_DAGEN+' dagen.</div>');
+  const note=lijst.length?lijst.length+" berichten · "+TDS_GESPREK_DAGEN+" dagen":"";
+  return tdsSec("gesprekken","Gesprekken in de app",note,body,"td-sec-notes");
+}
+function tdsGesprekVoorstelHtml(a,v){
+  if(v.bezig)return '<div class="td-gs-voorstel"><span class="td-hint" style="margin:0">AI leest de gesprekken…</span></div>';
+  if(v.fout)return '<div class="td-gs-voorstel td-gs-fout">Samenvatting mislukt: '+esc(v.fout)+'</div>';
+  const id=esc(a.id);
+  return '<div class="td-gs-voorstel"><div class="td-f-h">Voorstel voor de weekstatus (AI, '+esc(v.datum)+')</div>'+
+    '<div class="td-f-row"><label style="width:120px;flex:none">Samenvatting</label><textarea class="lid-in" id="td-gs-sam-'+id+'" rows="3" style="flex:1">'+esc(v.samenvatting||"")+'</textarea></div>'+
+    '<div class="td-f-row"><label style="width:120px;flex:none">Actiepunten</label><textarea class="lid-in" id="td-gs-act-'+id+'" rows="2" style="flex:1" placeholder="Eén per regel">'+esc((v.actiepunten||[]).join("\n"))+'</textarea></div>'+
+    '<div class="td-f-row"><label style="width:120px;flex:none">Blessures / let op</label><textarea class="lid-in" id="td-gs-bl-'+id+'" rows="2" style="flex:1" placeholder="Eén per regel; komt bij Let op">'+esc((v.blessures||[]).concat(v.signalen||[]).join("\n"))+'</textarea></div>'+
+    '<div class="td-f-acties"><button class="btn sm" onclick="tdsGesprekOvernemen(\''+id+'\')">Overnemen in weekstatus</button><button class="btn ghost sm" onclick="tdsGesprekWeg(\''+id+'\')">Annuleren</button>'+(v.kosten&&v.kosten.usd!=null?'<span class="td-hint" style="margin:0">kosten ≈ $'+Number(v.kosten.usd).toFixed(3)+'</span>':"")+'</div></div>';
+}
+async function tdsGesprekAi(id){
+  const row=TDS.rows.find(r=>r.id===id);if(!row||!row.profile_id)return;
+  TDS.app.voorstel[id]={bezig:true};tdsHerteken(row.name);
+  let data=null,error=null;
+  try{({data,error}=await db.functions.invoke("kaart-gesprekken",{body:{athlete_id:row.profile_id,dagen:TDS_GESPREK_DAGEN}}));}catch(e){error=e;}
+  if(error||!data||data.error){
+    let t=(data&&data.error)||"";
+    if(!t&&error&&error.context&&error.context.json){try{t=((await error.context.json())||{}).error||"";}catch(e){}}
+    TDS.app.voorstel[id]={fout:t||(error&&error.message)||"AI-aanroep mislukt"};
+  }else TDS.app.voorstel[id]={samenvatting:data.samenvatting||"",actiepunten:data.actiepunten||[],blessures:data.blessures||[],signalen:data.signalen||[],kosten:data.kosten||null,datum:tdsDagTekst(new Date())};
+  tdsHerteken(row.name);
+  // De sectie open laten zien
+  const det=document.querySelector('#td-grid .td-card[data-name="'+CSS.escape(row.name)+'"] details[data-sec="gesprekken"]');if(det)det.open=true;
+}
+function tdsGesprekWeg(id){delete TDS.app.voorstel[id];const row=TDS.rows.find(r=>r.id===id);if(row)tdsHerteken(row.name);}
+async function tdsGesprekOvernemen(id){
+  const row=TDS.rows.find(r=>r.id===id);if(!row)return;
+  const v=i=>{const e=document.getElementById(i);return e?e.value.trim():"";};
+  const regels=t=>t.split("\n").map(s=>s.trim()).filter(Boolean);
+  const sam=v("td-gs-sam-"+id),acts=regels(v("td-gs-act-"+id)),bl=regels(v("td-gs-bl-"+id));
+  if(!sam&&!acts.length&&!bl.length){toast("Er is niets om over te nemen");return;}
+  const inp=row.input||{},vandaag=tdsDagTekst(new Date());
+  const rec=Object.assign({},(inp.recent&&typeof inp.recent==="object")?inp.recent:{});
+  rec.date=vandaag;
+  if(sam)rec.chat=sam;else delete rec.chat;
+  if(acts.length)rec.actions=acts;else delete rec.actions;
+  const patch={recent:rec};
+  if(bl.length){
+    const oud=Array.isArray(inp.flags)?inp.flags:(inp.flags?[String(inp.flags)]:[]);
+    const nieuw=bl.map(x=>"Chat "+vandaag+": "+x).filter(x=>!oud.includes(x));
+    if(nieuw.length)patch.flags=oud.concat(nieuw);
+  }
+  patch.updated=tdsUpdatedTekst(inp.updated,"weekstatus uit de gesprekken",vandaag);
+  const ok=await tdsPatch(id,patch,[]);
+  if(!ok)return;
+  delete TDS.app.voorstel[id];toast("Weekstatus bijgewerkt");tdsHerteken(row.name);
 }
