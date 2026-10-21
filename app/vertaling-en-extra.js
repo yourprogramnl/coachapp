@@ -485,7 +485,7 @@ i18nLaad({
   "{n} waarde overgenomen": "{n} value applied", "{n} waarden overgenomen": "{n} values applied",
   "Gesprekken in de app": "Conversations in the app", "{n} berichten · {n} dagen": "{n} messages · {n} days",
   "Samenvatting maken (AI)": "Create summary (AI)",
-  "Maakt van de gesprekken een voorstel: korte samenvatting, actiepunten en blessures. Jij kijkt na en neemt over in de weekstatus.": "Turns the conversations into a proposal: short summary, action points and injuries. You review it and apply it to the week status.",
+  "Elke maandagochtend komt er automatisch een weekstatus van de afgelopen week op de kaart (Chat (app), actiepunten, blessures bij Let op). Met deze knop maak je er tussendoor een van de laatste 30 dagen; die kijk je na en neem je zelf over.": "Every Monday morning a week status of the past week lands on the card automatically (Chat (app), action points, injuries under Watch out). With this button you make one of the last 30 days in between; you review it and apply it yourself.",
   "Geen berichten in de laatste {n} dagen.": "No messages in the last {n} days.", "Alleen de laatste 60 berichten staan hier.": "Only the last 60 messages are shown here.",
   "AI leest de gesprekken…": "AI is reading the conversations…", "Samenvatting mislukt: {naam}": "Summary failed: {naam}",
   "Voorstel voor de weekstatus (AI, {naam})": "Proposal for the week status (AI, {naam})",

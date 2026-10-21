@@ -1147,7 +1147,7 @@ function tdsGesprekken(a){
   const lijst=TDS.app.gesprekken[a.profile_id]||[];
   const v=TDS.app.voorstel[a.id];
   const items=lijst.slice(0,60).map(g=>'<li class="td-gs '+(g.van==="coach"?"td-gs-coach":"td-gs-sporter")+'"><span class="td-gs-meta">'+esc(tdsGsDatum(g.t))+' · '+(g.van==="coach"?"coach":"sporter")+(g.soort==="workout"?' · bij workout'+(g.dag?" "+esc(tdsGsDatum(g.dag)):"")+(g.titel?' ('+esc(g.titel)+')':""):"")+'</span>'+esc(g.body).replace(/\n/g,"<br>")+'</li>').join("");
-  const body='<div class="td-gs-acties"><button class="btn ghost sm" onclick="tdsGesprekAi(\''+esc(a.id)+'\')"'+(lijst.length&&!(v&&v.bezig)?"":" disabled")+'>Samenvatting maken (AI)</button><span class="td-hint" style="margin:0">Maakt van de gesprekken een voorstel: korte samenvatting, actiepunten en blessures. Jij kijkt na en neemt over in de weekstatus.</span></div>'+
+  const body='<div class="td-gs-acties"><button class="btn ghost sm" onclick="tdsGesprekAi(\''+esc(a.id)+'\')"'+(lijst.length&&!(v&&v.bezig)?"":" disabled")+'>Samenvatting maken (AI)</button><span class="td-hint" style="margin:0">Elke maandagochtend komt er automatisch een weekstatus van de afgelopen week op de kaart (Chat (app), actiepunten, blessures bij Let op). Met deze knop maak je er tussendoor een van de laatste 30 dagen; die kijk je na en neem je zelf over.</span></div>'+
     (v?tdsGesprekVoorstelHtml(a,v):"")+
     (lijst.length?'<ul class="td-gs-lijst">'+items+'</ul>'+(lijst.length>60?'<div class="td-hint">Alleen de laatste 60 berichten staan hier.</div>':""):'<div class="td-leeg-note">Geen berichten in de laatste '+TDS_GESPREK_DAGEN+' dagen.</div>');
   const note=lijst.length?lijst.length+" berichten · "+TDS_GESPREK_DAGEN+" dagen":"";
