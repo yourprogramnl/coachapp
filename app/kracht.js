@@ -628,6 +628,12 @@ function setsUitTekst(tekst,schema,opties){
   const n=(laatsteDir&&!dirGebruikt&&laatsteDir.sets)||(schema&&schema.sets)||0;
   const dirOpen=!!(laatsteDir&&!dirGebruikt&&laatsteDir.sets>1); // "15kg 6 reps x 3 sets": het directief geldt voor die ene rij
   if(uit.length===1&&n>1&&(dirOpen||(!explicietReps&&woorden===0))){const basis=uit[0];for(let i=1;i<Math.min(n,12);i++)uit.push(Object.assign({},basis));}
+  // "80, laatste 85" bij N sets: N-1 sets op het eerste gewicht, de laatste set op het tweede (keuze Stefan, 21 oktober)
+  if(uit.length===2&&n>2&&/\blaatste\b[^\d]{0,16}\d/i.test(ruw)&&leesKg(uit[0].kg)!=null&&leesKg(uit[1].kg)!=null){
+    const eerste=uit[0],slot=uit[1];uit=[];
+    for(let i=1;i<Math.min(n,12);i++)uit.push(Object.assign({},eerste));
+    uit.push(slot);
+  }
   if(tweeDb)uit.forEach(r=>{if(r.kg)r.dbs=2;}); // aantekening: twee dumbbells van dit gewicht
   return {rows:uit,gelezen:setsSamenvatting(uit)};
 }

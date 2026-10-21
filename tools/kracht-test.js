@@ -256,6 +256,10 @@ check("21 okt: cluster naar de database als tekst",K.setsNaarRec(K.setsUitTekst(
 check("21 okt: cluster telt niet mee voor records (lift_log: reps null + cluster)",(()=>{K.KL.log=[{lift_id:"ps",lift:"Power Snatch",category:"olympic",kg:100,reps:null,cluster:"1.1.1",fail:false,workout_date:"2026-10-01",result_id:"r1",set_nr:1},{lift_id:"ps",lift:"Power Snatch",category:"olympic",kg:90,reps:1,cluster:null,fail:false,workout_date:"2026-09-01",result_id:"r0",set_nr:1}];const r=K.klRecords();return [r.ps.reps[1].kg,Object.keys(r.ps.reps)];})(),[90,["1"]]);
 check("21 okt: vorige keer toont de cluster",(()=>{K.KL.log=[{lift_id:"ps",lift:"Power Snatch",kg:100,reps:null,cluster:"1.1.1",fail:false,workout_date:"2026-10-01",result_id:"r1",set_nr:1}];return K.klVorige("ps").tekst;})(),"100×1.1.1");
 
+check("21 okt: 80, laatste 85 bij 5 sets = 4x80 + 85",rowsN(K.setsUitTekst("80, laatste 85",{sets:5,reps:5,kg:80},{stang:20,oefening:"Back Squat"})),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["85","5",false]]);
+check("21 okt: 2.2 @ 80, laatste 85 bij 5 sets (cluster)",rowsN(K.setsUitTekst("2.2 @ 80, laatste 85",K.schemaLees("Every 2:00 x 5 sets: 2.2 Power Clean"),{stang:20,oefening:"Power Clean"})),[["80","2.2",false],["80","2.2",false],["80","2.2",false],["80","2.2",false],["85","2.2",false]]);
+check("21 okt: laatste 3 reps is geen tweede gewicht (regel slaat niet aan)",rowsN(K.setsUitTekst("100 kg, laatste 3 reps",{sets:5,reps:5},{stang:20,oefening:"Back Squat"})),[["100","3",false]]);
+
 console.log(fouten?"\n"+fouten+" FOUT(EN)":"\nalles ok");
 
 // ---- optioneel: alle Special Strength-templates uit de database (anon-leesbaar) ----
