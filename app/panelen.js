@@ -232,14 +232,17 @@ function mxGroepen(){
   if(eigen.length)uit["Eigen metrics"]=eigen;
   return uit;
 }
-// Alleen echte metingen: geschatte 1RM's bestaan sinds de krachtlog (8 oktober) niet meer.
+// Alleen echte metingen tellen voor "Huidig": de oude app (vóór 20 okt 2026) schreef de zwaarste set als
+// 1RM weg, ongeacht de reps; die rijen hebben sinds 21 okt het label "geschat, oude app" (databasetrigger
+// metrics_oude_app_label). Ze blijven zichtbaar in de geschiedenis, maar zijn nooit het record.
+const mxGeschat=m=>/geschat/i.test((m&&m.note)||"");
 function mxWaarde(naam){
   const h=mxHist(naam);
   if(!h.length)return null;
   const laatste=h[h.length-1],vorig=h.length>1?h[h.length-2]:null;
   // Voor kg-liften is "Huidig" je beste ooit (PR), niet je laatste meting.
   let cur=laatste;
-  if(mxType(naam)==="kg")cur=h.reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),h[0]);
+  if(mxType(naam)==="kg"){const echt=h.filter(m=>!mxGeschat(m));cur=(echt.length?echt:h).reduce((a,b)=>(b.value!=null&&(a.value==null||+b.value>+a.value)?b:a),(echt.length?echt:h)[0]);}
   return{cur,vorig,laatste,unit:cur.unit||""};
 }
 // Invoertype per metric bij het toevoegen van een resultaat.

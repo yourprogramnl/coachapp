@@ -661,7 +661,7 @@ async function klLaad(clientId,vers){
       const namen=[...new Set(LIFTS.lijst.map(l=>l.metric_name).filter(Boolean))];
       const[log,mx]=await Promise.all([
         db.rpc("lift_log",{p_athlete:clientId}),
-        namen.length?db.from("metrics").select("metric,value,measured_at,result_id").eq("athlete_id",clientId).in("metric",namen):Promise.resolve({data:[]})
+        namen.length?db.from("metrics").select("metric,value,measured_at,result_id,note").eq("athlete_id",clientId).in("metric",namen):Promise.resolve({data:[]})
       ]);
       if(KL.client!==clientId)return KL;
       KL.log=(log&&log.data)||[];KL.metrics=(mx&&mx.data)||[];
@@ -687,10 +687,11 @@ function klRecords(){
 function klBeste(liftId,reps){const l=klRecords()[liftId];return l&&l.reps[reps]?l.reps[reps]:null;}
 // Echte 1RM van een lift: de hoogste meting op de metric van die lift (Metingen
 // & PR's, handmatig of automatisch uit een gelogde single), anders de beste
-// gelukte single uit de log. Nooit een schatting.
+// gelukte single uit de log. Nooit een schatting: rijen met "geschat" in de
+// notitie (de oude app schreef de zwaarste set als 1RM weg) tellen niet mee.
 function klEenRm(liftId){
   const l=liftVan(liftId);let best=null;
-  if(l&&l.metric_name)KL.metrics.forEach(m=>{if(m.metric===l.metric_name&&m.value!=null&&(!best||+m.value>best.kg))best={kg:+m.value,date:m.measured_at,bron:"meting"};});
+  if(l&&l.metric_name)KL.metrics.forEach(m=>{if(m.metric===l.metric_name&&m.value!=null&&!/geschat/i.test(m.note||"")&&(!best||+m.value>best.kg))best={kg:+m.value,date:m.measured_at,bron:"meting"};});
   const s=klBeste(liftId,1);
   if(s&&(!best||s.kg>best.kg))best={kg:s.kg,date:s.date,bron:"log"};
   return best;
