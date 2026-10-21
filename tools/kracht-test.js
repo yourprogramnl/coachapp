@@ -3,8 +3,8 @@
 //   node kracht-test.js            (alleen vaste gevallen)
 //   node kracht-test.js --alle     (ook alle Special Strength-templates ophalen)
 const fs=require("fs");
-const src=fs.readFileSync(__dirname+"/../app/kracht.js","utf8");
-const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL};")(null,["yellow","blue","purple","red","green","orange"]);
+const src=fs.readFileSync(__dirname+"/../app/kracht.js","utf8")+String.fromCharCode(10)+fs.readFileSync(__dirname+"/../app/oude-logs.js","utf8");
+const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL,olBepaal};")(null,["yellow","blue","purple","red","green","orange"]);
 let fouten=0;
 const gelijk=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function check(naam,kreeg,verwacht){
@@ -60,7 +60,7 @@ check("schema: regel begint met aantal (8-12 Back Squats @3010)",S("8-12 Back Sq
 check("schema: 8-12RM bench press",S("8-12RM bench press @ 30X0 @ 1-2 RIR (reps in reserve)"+NL+"rest 2 min x 4 sets"),{tempo:"30X0",rust:"2 min",sets:4,reps:"8-12"});
 check("schema: 4 x 30 sec is geen reps",S("4 x 30 sec tegen de muur; rust 60 sec."),{rust:"60 sec"});
 check("schema: 75 seconds is geen reps",S("75 seconds; rest 2 min. x 4 sets."),{rust:"2 min",sets:4});
-check("schema: EMOM zonder reps-woord",S("EMOM10:"+NL+"- 2 Power Cleans."+NL+NL+"Startgewicht = 35 kilo."),{kg:35,reps:2});
+check("schema: EMOM zonder reps-woord",S("EMOM10:"+NL+"- 2 Power Cleans."+NL+NL+"Startgewicht = 35 kilo."),{kg:35,sets:10,reps:2});
 check("schema: metcon = niets",S("3 rounds for time:"+NL+"400 m run"+NL+"21 kettlebell swings"),null);
 check("schema: leeg = niets",S(""),null);
 check("schema: 5x5",S("5x5"),{sets:5,reps:5});
@@ -128,6 +128,77 @@ check("tekst: 17,5 kilo: 12/9",rows(K.setsUitTekst("17,5 kilo: 12/9",{sets:3,rep
 check("tekst: alleen 95 bij 5 sets = 5 rijen",rows(K.setsUitTekst("95",S5)),[["95","5",false],["95","5",false],["95","5",false],["95","5",false],["95","5",false]]);
 check("tekst: tijd en tempo zijn geen gewicht (één gewicht bij 5 sets = 5 rijen)",rows(K.setsUitTekst("3:45 @3010 80 kg",S5)),[["80","5",false],["80","5",false],["80","5",false],["80","5",false],["80","5",false]]);
 check("tekst: niets",rows(K.setsUitTekst("ging lekker",S5)),[]);
+check("regel 9 okt: per kant op barbell = stang + 2x schijf (vrouw 15)",rows(K.setsUitTekst("Eerste set 2,5 per kant Tweede set 5 per kant Derde set 7,5 per kant",{sets:3,reps:10},{stang:15,oefening:"Close Grip Bench Press"})),[["20","10",false],["25","10",false],["30","10",false]]);
+check("regel 9 okt: per kant bij dumbbells blijft het gewicht",rows(K.setsUitTekst("Eerste set 12,5 per kant Tweede set 15 per kant",{reps:12},{stang:15,oefening:"Dumbbell Bench Press"})),[["12,5","12",false],["15","12",false]]);
+check("regel 9 okt: reps per kant is geen gewicht",rows(K.setsUitTekst("Eerste set 7,5 per kant 12 reps per kant",{reps:12},{stang:15,oefening:"Front Squat"})),[["30","12",false]]);
+check("regel 9 okt: safety bar is 20 kg",rows(K.setsUitTekst("Eerste 5 per kant Tweede 7,5 per kant",{reps:10},{stang:15,oefening:"Safety Bar Squat"})),[["30","10",false],["35","10",false]]);
+check("regel 9 okt: belt squat per kant = 2x schijf",rows(K.setsUitTekst("Eerste set 15 per kant Tweede set 20 per kant",{reps:6},{stang:15,oefening:"Belt Squat"})),[["30","6",false],["40","6",false]]);
+check("regel 9 okt: leeg = stang (vrouw 15)",rows(K.setsUitTekst("Leeg-leeg-25-25",{sets:4,reps:1},{stang:15,oefening:"Overhead Squat"})),[["15","1",false],["15","1",false],["25","1",false],["25","1",false]]);
+check("regel 9 okt: stang van 15",rows(K.setsUitTekst("stang van 15 , niet meer opgebouwd",{reps:10},{stang:15,oefening:"Strict Press"})),[["15","10",false]]);
+check("regel 9 okt: stang 15+2,5-5-6",rows(K.setsUitTekst("stang 15+2,5-5-6",{reps:10},{stang:15,oefening:"Bench Press"})),[["20","10",false],["25","10",false],["27","10",false]]);
+check("regel 9 okt: zonder gewicht bij pull-up = 0 kg",rows(K.setsUitTekst("1-zonder gewicht 2-5 kg 3 7.5 4-10",{sets:5,reps:4},{stang:20,oefening:"Weighted Pull-Up"})),[["0","4",false],["5","4",false],["7,5","4",false],["10","4",false]]);
+check("regel 9 okt: gedaan zonder cijfers bij vast schema",rows(K.setsUitTekst("Gelukt, voelde goed",{sets:5,reps:5,kg:70},{stang:15,oefening:"Front Squat"})),[["70","5",false],["70","5",false],["70","5",false],["70","5",false],["70","5",false]]);
+check("regel 9 okt: zwaar zonder gedaan-woord blijft leeg",rows(K.setsUitTekst("Zwaaaaar. Ik wil dit gewoon kunnen.",{sets:5,reps:5,kg:70},{stang:15,oefening:"Front Squat"})),[]);
+check("regel 9 okt: reps-bereik, set zonder reps krijgt de reps van de volgende",rows(K.setsUitTekst("40-45(7reps)-50(6reps)",{sets:3,reps:"6-8",kg_start:40},{stang:15,oefening:"Front Squat"})),[["40","7",false],["45","7",false],["50","6",false]]);
+check("regel 9 okt: reps-bereik zonder enige reps blijft leeg",rows(K.setsUitTekst("40-45-50",{sets:3,reps:"6-8",kg_start:40},{stang:15,oefening:"Front Squat"})),[["40","",false],["45","",false],["50","",false]]);
+check("regel 9 okt: olympische lift zonder reps = 1 rep",rows(K.setsUitTekst("50-50-50-53-53-53",{sets:6,rust:"10 sec"},{stang:15,oefening:"Power Snatch"})),[["50","1",false],["50","1",false],["50","1",false],["53","1",false],["53","1",false],["53","1",false]]);
+check("regel 9 okt: niet-olympisch zonder reps blijft leeg",rows(K.setsUitTekst("82.5",{rust:"as needed"},{stang:20,oefening:"Front Squat"})),[["82,5","",false]]);
+check("keuze 3: 95(2reps, 3e gefaald) = set van 2",rows(K.setsUitTekst("90-93-95(2reps, 3e gefaald)",{reps:3})),[["90","3",false],["93","3",false],["95","2",false]]);
+check("keuze 3: fail op 3e rep + redo",rows(K.setsUitTekst("65x 2 reps(fail op 3e rep) - redo: 3 rep gelukt maar wel billen van bankje",{reps:3})),[["65","2",false],["65","3",false]]);
+check("keuze 3: echte fail blijft fail",rows(K.setsUitTekst("25-35-37-40-43 (45 niet gelukt)",{reps:3})),[["25","3",false],["35","3",false],["37","3",false],["40","3",false],["43","3",false],["45","3",true]]);
+check("keuze 4: 1.1.1 clusters = 1 rep per set",K.schemaLees("1.1.1. Power Snatch @pijnvrij gewicht, max. 45 kg x 6 sets;"),{sets:6,reps:1});
+check("bulk: setnummers vooraan (1-90 2-95 3- 100 4 - 105)",rows(K.setsUitTekst("1-90 2-95 3- 100 4 - 105 Eerste keer met belt",{sets:4,reps:4,kg_start:90})),[["90","4",false],["95","4",false],["100","4",false],["105","4",false]]);
+check("bulk: setnummer aan het gewicht geplakt (587.5)",rows(K.setsUitTekst("1-60 2-80 3 82.5 4 -85 587.5 Was maximaal vandaag",{sets:5,reps:5})),[["60","5",false],["80","5",false],["82,5","5",false],["85","5",false],["87,5","5",false]]);
+check("bulk: reps - kg met rir (12 - 80KG 1/2 rir)",rows(K.setsUitTekst("12 - 80KG 1/2 rir 10 -87,5KG 1 rir 8 - 95KG 7 reps, zat te kloten 6- 102,5KG 5 reps",{sets:2})),[["80","12",false],["87,5","10",false],["95","7",false],["102,5","5",false]]);
+check("bulk: kg - reps los (1-70-12 2-75-12)",rows(K.setsUitTekst("1-70-12 2-75-12 3-80-12 4-85-12",{sets:4,reps:12})),[["70","12",false],["75","12",false],["80","12",false],["85","12",false]]);
+check("bulk: kommalijst reps bij vast gewicht (5,5,5,4,5 reps)",rows(K.setsUitTekst("5,5,5,4,5 reps (laatste rep was traag)",{sets:5,reps:"3-5",kg:74})),[["74","5",false],["74","5",false],["74","5",false],["74","4",false],["74","5",false]]);
+check("bulk: Reps: 4,4,5,4,5",rows(K.setsUitTekst("Reps: 4,4,5,4,5",{sets:5,reps:"3-5",kg:60})),[["60","4",false],["60","4",false],["60","5",false],["60","4",false],["60","5",false]]);
+check("bulk: kg(reps) notatie",rows(K.setsUitTekst("66(6)-68(6)-73(4)-80(2)",{sets:2})),[["66","6",false],["68","6",false],["73","4",false],["80","2",false]]);
+check("bulk: kg(6reps) en reps-bereik erft de reps van de volgende set",rows(K.setsUitTekst("12,5-13,5-15(6reps)-15(4 reps)",{sets:4,reps:"6-8"})),[["12,5","6",false],["13,5","6",false],["15","6",false],["15","4",false]]);
+check("bulk: paren per kant (40-40-40 12/12-12/12-12/12)",rows(K.setsUitTekst("40-40-40 12/12-12/12-12/12",{reps:12,per_kant:true,kg_start:40})),[["40","12",false],["40","12",false],["40","12",false]]);
+check("bulk: reps/reps@kg (10/10@45)",rows(K.setsUitTekst("10/10@45 10/10@48 10/10@50 10/10@52",{sets:4,reps:10,per_kant:true})),[["45","10",false],["48","10",false],["50","10",false],["52","10",false]]);
+check("bulk: Kg: en Reps: lijsten",rows(K.setsUitTekst("Kg:28-30-34 Reps:8-8-",{sets:3,reps:8})),[["28","8",false],["30","8",false],["34","8",false]]);
+check("bulk: twee reeksen (kg en reps)",rows(K.setsUitTekst("34–36-36 8-8-8",{sets:3,reps:"6-8",kg_start:34})),[["34","8",false],["36","8",false],["36","8",false]]);
+check("bulk: reps-lijst + één gewicht (5-5-5-5-4 97kg)",rows(K.setsUitTekst("5-5-5-5-4 97kg",{sets:5,reps:5,kg:97})),[["97","5",false],["97","5",false],["97","5",false],["97","5",false],["97","4",false]]);
+check("bulk: alleen reps-lijst zonder gewicht (4-4-4-4-4)",rows(K.setsUitTekst("4-4-4-4-4",{sets:5,reps:4})),[["","4",false],["","4",false],["","4",false],["","4",false],["","4",false]]);
+check("bulk: Eerste set 10 Tweede set 10 met verhaal",rows(K.setsUitTekst("Eerste set 10 Tweede set 10 Derde set 10 hey zou je mis kunnen kijken naar hoe laag ik zak",{reps:8,per_kant:true,kg_start:10})),[["10","8",false],["10","8",false],["10","8",false]]);
+check("bulk: Eerste 10 Tweede 12 Derde 13",rows(K.setsUitTekst("Eerste 10 Tweede 12 Derde 13 Vierde 14",{reps:12,per_kant:true,kg_start:10})),[["10","12",false],["12","12",false],["13","12",false],["14","12",false]]);
+check("bulk: Set 1 32kg 6 reps 2 rir",rows(K.setsUitTekst("Set 1 32kg 6 reps 2 rir Set 2 36kg 5 reps 0rir video Set 3 34kg 6 reps 0rir",{sets:3,reps:6,kg_start:32})),[["32","6",false],["36","5",false],["34","6",false]]);
+check("bulk: Set 35 Set 40 Set 40 (set = gewicht)",rows(K.setsUitTekst("Set 35 Set 40 Set 40",{sets:3,reps:8})),[["35","8",false],["40","8",false],["40","8",false]]);
+check("bulk: heavy 2 was 100kg",rows(K.setsUitTekst("Heavy 2 was 100kg. 85kg gerept x 3 Michel heeft filmpje",{reps:2})),[["100","2",false],["85","3",false]]);
+check("bulk: 14@12,5 7@15 (reps@kg bij dumbbells)",rows(K.setsUitTekst("14@12,5 7@15 12@12,5 11@12,5",{reps:"12-14"})),[["12,5","14",false],["15","7",false],["12,5","12",false],["12,5","11",false]]);
+check("bulk: 2x 117,5 bij singles = 2 sets van 1",rows(K.setsUitTekst("2x 117,5 3x 120",{sets:10,reps:1})),[["117,5","1",false],["117,5","1",false],["120","1",false],["120","1",false],["120","1",false]]);
+check("bulk: 81,82,83(failed) zijn drie gewichten",rows(K.setsUitTekst("81,82,83(failed)",{sets:2,reps:1})),[["81","1",false],["82","1",false],["83","1",true]]);
+check("bulk: 5x5 met vast gewicht in het voorschrift",rows(K.setsUitTekst("Blij, 5x5",{sets:5,reps:"3-5",kg:59})),[["59","5",false],["59","5",false],["59","5",false],["59","5",false],["59","5",false]]);
+check("bulk: alles gelukt + laatste set 15 reps",rows(K.setsUitTekst("Alles gelukt. Laatste set 15 reps.",{sets:3,reps:8,kg:85})),[["85","8",false],["85","8",false],["85","15",false]]);
+check("bulk: 110 - 6 reps - 0rir",rows(K.setsUitTekst("110 - 6 reps - 0rir 120 - 4 reps - 1rir? 122,5 - 4 reps - 0rir 130 - 2 reps - 0rir",{sets:2,reps_lijst:[6,4,4,2]})),[["110","6",false],["120","4",false],["122,5","4",false],["130","2",false]]);
+check("bulk: 2x15kg dbs 6 reps x 3 sets",rows(K.setsUitTekst("Db strict presses @2x15kg dbs 6 reps@3010 X 3 sets",{reps:2})),[["15","6",false],["15","6",false],["15","6",false]]);
+check("bulk: 70&75 op video telt niet dubbel",rows(K.setsUitTekst("50-60-65-70-75 70&75 op video 1e rep altijd even zoeken.",{sets:5,reps:5,kg_start:50})),[["50","5",false],["60","5",false],["65","5",false],["70","5",false],["75","5",false]]);
+check("bulk: filmpje van 70-74-75 telt niet dubbel",rows(K.setsUitTekst("Sets: 68-69-70-71 Filmpje van 70-71 70 en 71 waren het beste",{sets:4,reps:1})),[["68","1",false],["69","1",false],["70","1",false],["71","1",false]]);
+check("bulk: 1 filmpje dubbel = niets",rows(K.setsUitTekst("1 filmpje dubbel",{sets:10,reps:2,kg:60})),[]);
+check("bulk: klein getal in verhaal is geen gewicht",rows(K.setsUitTekst("20 nieteens geprobeerd, wel 15 voor de techniek en opwarmen. 25 wel, dus opgebouwd naar 30-35.",{sets:10,reps:1})),[["20","1",false],["25","1",false],["30","1",false],["35","1",false]]);
+check("bulk: 17,5 kilo: 12/9 maar niet 40 kg Opgebouwd: 25",rows(K.setsUitTekst("Hoogste set: 40 kg Opgebouwd: 25 - 35 - 40",{sets:5,reps:5})),[["40","5",false],["25","5",false],["35","5",false],["40","5",false]]);
+check("bulk: 18kg 10,5 reps = 10",rows(K.setsUitTekst("Set 3: 18kg 10,5 0rir Set4: 16kg 12 1rir",{sets:4,reps:"8-12"})),[["18","10",false],["16","12",false]]);
+check("schema: Find your 1RM for the day",K.schemaLees("Find your 1RM for the day."),{reps:1});
+check("schema: 3RM @32X0; rest as needed",K.schemaLees("3RM @32X0; rest as needed in between sets."),{tempo:"32X0",rust:"as needed",reps:3});
+check("schema: 12-10-8-6 @20X1",K.schemaLees("12-10-8-6 @20X1; rest 2 min."),{tempo:"20X1",rust:"2 min",reps_lijst:[12,10,8,6],sets:4});
+check("tekst: opbouwen + 'Dus 3×2 sets gedaan met 70 kilo'",rows(K.setsUitTekst("65 ✅ 75 kilo ✅ 80 kilo ✅ 82.50 kilo ✅ Dus 3×2 sets gedaan met 70 kilo",{reps:2})),[["65","2",false],["75","2",false],["80","2",false],["82,5","2",false],["70","2",false],["70","2",false],["70","2",false]]);
+check("tekst: mislukt met (3 herhalingen) + '3x reps met 26 kilo'",rows(K.setsUitTekst("25 kilo ✅ 30 kilo ✅ 31 kilo ✅ 32 kilo ❌ (3 herhalingen) 3x reps met 26 kilo gedaan.",{reps:5})),[["25","5",false],["30","5",false],["31","5",false],["32","3",true],["26","5",false],["26","5",false],["26","5",false]]);
+check("tekst: 'maximaal haalbaar' + 'de 3 sets gedaan met 25 kilo'",rows(K.setsUitTekst("30 kilo was maximaal haalbaar vandaag. Dus de 3 sets gedaan met 25 kilo",{reps:6})),[["30","6",false],["25","6",false],["25","6",false],["25","6",false]]);
+check("tekst: '6 reps was 65 kilo' + '3× 6 reps gedaan met 55 kilo'",rows(K.setsUitTekst("Maximale gewicht 6 reps was 65 kilo zie video Daarna 3× 6 reps gedaan met 55 kilo",{reps:6})),[["65","6",false],["55","6",false],["55","6",false],["55","6",false]]);
+check("tekst: '3 sets van 5 met 60 kilo'",rows(K.setsUitTekst("3 sets van 5 met 60 kilo",null)),[["60","5",false],["60","5",false],["60","5",false]]);
+check("tekst: 4x8 @ 24",rows(K.setsUitTekst("4x8 @ 24",null)),[["24","8",false],["24","8",false],["24","8",false],["24","8",false]]);
+check("schema: heavy but technical 3",K.schemaLees("Work to a heavy but technical 3 for the day"),{reps:3});
+check("schema: Every 2:00 × 8 sets met 2 Power Snatch",K.schemaLees("Every 2:00 × 8 sets:"+String.fromCharCode(10)+"2 Power Snatch @ 70%"),{pct:70,sets:8,reps:2});
+check("tekst: 11: 70 kilo met herkansing na mislukt (11-9-7-5)",rows(K.setsUitTekst("11: 70 kilo 9: 80 kilo 7: 90 kilo ❌ 86 kilo ✅ 5: 88.50 kilo ✅",{sets:4,reps_lijst:[11,9,7,5]})),[["70","11",false],["80","9",false],["90","7",true],["86","7",false],["88,5","5",false]]);
+check("tekst: Set 1: 2 kilo (lichte dumbbells)",rows(K.setsUitTekst("Set 1: 2 kilo ✅ Set 2: 2.5 kilo ✅ Set 3: 3 kilo ✅",{sets:3,reps:12})),[["2","12",false],["2,5","12",false],["3","12",false]]);
+check("tekst: samenvatting met lichte gewichten (2×12) blijft kg×reps",rows(K.setsUitTekst("2×12 · 2,5×12 · 3×12",{sets:3,reps:12})),[["2","12",false],["2,5","12",false],["3","12",false]]);
+check("tekst: 2 kg x 12 en 12 x 2 kg",rows(K.setsUitTekst("2 kg x 12, 12 x 2 kg",{reps:12})),[["2","12",false],["2","12",false]]);
+check("tekst: gewichten met streepjes en reps uit het schema",rows(K.setsUitTekst("40-45-45-45-50-50-50-50-55-55",{sets:10,reps:2})).length,10);
+check("tekst: reps-lijst per set zonder expliciete reps",rows(K.setsUitTekst("70, 80, 90, 88.5",{sets:4,reps_lijst:[11,9,7,5]})),[["70","11",false],["80","9",false],["90","7",false],["88,5","5",false]]);
+check("schema: EMOM10: 2 Power Cleans @ 70%",K.schemaLees("EMOM10: 2 Power Cleans @ 70%"),{pct:70,sets:10,reps:2});
+check("schema: EMOM 10 min met 2 x Power Clean op een regel",K.schemaLees("EMOM 10 min"+String.fromCharCode(10)+"2 x Power Clean @ 60 kg"),{kg:60,sets:10,reps:2});
+check("tekst: reps voor de kilo (10 reps: 57.50 kilo)",rows(K.setsUitTekst("10 reps: 57.50 kilo 8 reps: 67.50 kilo 6 reps: 72.50 kilo 4 reps: 75 kilo",{sets:4,reps_lijst:[10,8,6,4]})),[["57,5","10",false],["67,5","8",false],["72,5","6",false],["75","4",false]]);
 check("setsTekst",K.setsTekst([{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]),"95×5 · 102,5×1 ✗");
 check("setsNaarRec",K.setsNaarRec([{kg:"95",reps:"5",fail:false},{kg:"",reps:"",fail:false},{kg:"102,5",reps:"1",fail:true}]),[{set:1,kg:95,reps:5},{set:2,kg:102.5,reps:1,fail:true}]);
 check("besteSet slaat mislukt over",K.besteSet([{kg:100,reps:5},{kg:110,reps:1,fail:true},{kg:105,reps:3}]),{kg:105,reps:3});
@@ -150,6 +221,18 @@ check("1RM: zonder meting en zonder single niets (geen schatting)",K.klEenRm("fs
 check("vorige keer back squat",K.klVorige("bs").tekst,"100×5 · 105×5 ✗");
 check("vorige keer vóór 5 okt",K.klVorige("bs","2026-10-05").tekst,"95×5 · 120×1");
 check("vorige keer onbekende lift",K.klVorige("dl"),null);
+}
+
+
+// ---- stap 5: status van een oude log (AI en tekstlezer eens / nakijken / geen) ----
+{
+const S5={sets:5,reps:5,kg:95};
+const rij=(tekst,ai)=>{const r={tekst,schema:S5,lezer:K.setsUitTekst(tekst,S5).rows,ai,voorstel:"",status:"",reden:"",aan:false};K.olBepaal(r);return [r.status,r.voorstel,r.aan];};
+check("oude log: zonder AI = tekstlezer",rij("60, 65 ging goed",null),["lezer","60×5 · 65×5",false]);
+check("oude log: AI eens = groen en aangevinkt",rij("60, 65 ging goed",{sets:[{kg:"60",reps:"5",fail:false},{kg:"65",reps:"5",fail:false}],reden:""}),["eens","60×5 · 65×5",true]);
+check("oude log: AI anders = nakijken",rij("140 lukte niet, 130 wel",{sets:[{kg:"130",reps:"5",fail:false}],reden:""}),["nakijken","130×5",false]);
+check("oude log: AI leeg maar lezer vindt iets = nakijken",rij("60, 65",{sets:[],reden:"onduidelijk"}),["nakijken","60×5 · 65×5",false]);
+check("oude log: niets = geen",rij("voelde zwaar, niet lekker",{sets:[],reden:"alleen tekst"}),["geen","",false]);
 }
 
 console.log(fouten?"\n"+fouten+" FOUT(EN)":"\nalles ok");
