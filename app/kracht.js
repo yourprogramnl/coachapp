@@ -96,7 +96,7 @@ function schemaLees(tekst){
     if(reps===null){m=t.replace(/\b\d+:\d+(?::\d+)?\b/g," ").match(/(?<!@\s{0,3})\b(\d{1,2})\s*[x×]\s*(\d{1,3})\b(?!\s*(?:kg|kilo|%|min|sec|m\b))/i);if(m&&parseInt(m[2],10)>0){reps=m[2];if(!s.sets)s.sets=parseInt(m[1],10);}}
     if(reps===null){m=t.match(/\bheavy(?:\s+\w+){0,3}?\s+(\d{1,2}|single|double|triple)\b/i);if(m)reps=({single:"1",double:"2",triple:"3"})[m[1].toLowerCase()]||m[1];}
     if(reps===null){m=t.match(/\bemom\s*\d{1,2}\b[^\n]*?:\s*(\d{1,2})\s+(?=[A-Za-z])/i);if(m)reps=m[1];} // "EMOM10: 2 Power Cleans"
-    if(reps===null&&/(?:^|\n)\s*1(?:\.1)+\b/.test(t))reps="1"; // "1.1.1. Power Snatch": clusters tellen als 1 rep per set (keuze Stefan)
+    if(reps===null){m=t.match(/(?:^|\n)\s*(\d(?:\.\d)+)\.?\s+(?=[A-Za-z])/);if(m&&setsIsCluster(m[1]))reps=m[1];} // "1.1.1. Power Snatch": cluster, één set met reps "1.1.1" (geen 1RM, geen 3RM; keuze Stefan 21 okt)
     if(reps===null&&/\bbuild\s+to\s+a\s+(?:1\s*rm|heavy\s+single|1rm)\b/i.test(t))reps="1";
     if(reps===null){m=t.match(/(?<!\d\s*-\s*)\b(\d{1,2})\s*rm\b/i);if(m)reps=m[1];} // "Find your 1RM", "3RM @32X0", "6RM @2010"
     if(reps===null&&!metcon){
@@ -123,6 +123,7 @@ function schemaTekst(s){
   let sr="";
   if(s.sets)sr+=s.sets+" sets";
   if(s.reps_lijst)sr+=(sr?" × ":"")+s.reps_lijst.join("-")+" reps";
+  else if(s.reps!=null&&setsIsCluster(s.reps))sr+=(sr?" × ":"")+"cluster "+s.reps;
   else if(s.reps!=null)sr+=(sr?" × ":"")+s.reps+" reps"+(s.per_kant?" per kant":"");
   else if(s.maat)sr+=(sr?" × ":"")+s.maat;
   if(sr)delen.push(sr);
@@ -277,31 +278,38 @@ function blokkenMetLabels(blokken,letter,sortStart){
 // naar een 1RM (keuze Stefan, 8 oktober 2026).
 const kgTxt=v=>String(v).replace(".",",");
 function leesKg(s){const v=parseFloat(String(s==null?"":s).trim().replace(",","."));return isNaN(v)||v<0?null:v;}
-function leesReps(s){const m=String(s==null?"":s).trim().match(/^\d+$/);return m?parseInt(m[0],10):null;}
+// Cluster (keuze Stefan, 21 oktober): "1.1.1" = 1 rep, rust, 1 rep, rust, 1 rep. Eén set met de
+// cluster-notatie als reps (tekst), zichtbaar in de geschiedenis, maar geen 1RM en geen 3RM: de
+// database telt alleen hele getallen als reps voor records. Ook "2.2" of "1.1.1.1"; "7.5" is een gewicht.
+function setsIsCluster(s){s=String(s==null?"":s).trim();if(!/^\d(?:\.\d)+$/.test(s))return false;const d=s.split(".");return d.length>=3||(d[0]===d[1]&&+d[0]<=3);}
+function leesReps(s){const t=String(s==null?"":s).trim();if(/^\d+$/.test(t))return parseInt(t,10);return setsIsCluster(t)?t:null;}
 // Invulrijen ({kg,reps,fail} als tekst) naar de database-vorm; lege rijen vallen af.
+// dbs:2 = twee dumbbells van dit gewicht (aantekening, telt niet mee in de kilo's).
 function setsNaarRec(rows){
   const uit=[];
   (rows||[]).forEach(r=>{
     const kg=leesKg(r.kg),reps=leesReps(r.reps);
     if(kg==null&&reps==null)return;
     const s={set:uit.length+1};
-    if(kg!=null)s.kg=kg;if(reps!=null)s.reps=reps;if(r.fail)s.fail=true;
+    if(kg!=null)s.kg=kg;if(reps!=null)s.reps=reps;if(r.fail)s.fail=true;if(r.dbs===2)s.dbs=2;
     uit.push(s);
   });
   return uit;
 }
-// Database-vorm terug naar invulrijen.
-function setsNaarRijen(sets){return (Array.isArray(sets)?sets:[]).map(x=>({kg:x.kg!=null?kgTxt(x.kg):"",reps:x.reps!=null?String(x.reps):"",fail:!!x.fail}));}
-function setsSamenvatting(rows){
+// Database-vorm terug naar invulrijen (lift_log geeft een cluster apart mee in `cluster`).
+function setsNaarRijen(sets){return (Array.isArray(sets)?sets:[]).map(x=>({kg:x.kg!=null?kgTxt(x.kg):"",reps:x.reps!=null?String(x.reps):(x.cluster?String(x.cluster):""),fail:!!x.fail,dbs:x.dbs===2?2:undefined}));}
+// metDb: "(2 db)" erbij tonen; in het venster Oude logs niet (daar vergelijken we AI en tekstlezer op de cijfers).
+function setsSamenvatting(rows,metDb){
   return (rows||[]).map(r=>{
     const kg=leesKg(r.kg),reps=leesReps(r.reps);
     if(kg==null&&reps==null)return null;
     let t=kg!=null&&reps!=null?kgTxt(kg)+"×"+reps:kg!=null?kgTxt(kg)+" kg":reps+" reps";
+    if(metDb&&r.dbs===2)t+=" (2 db)";
     if(r.fail)t+=" ✗";
     return t;
   }).filter(Boolean).join(" · ");
 }
-const setsTekst=sets=>setsSamenvatting(setsNaarRijen(sets));
+const setsTekst=sets=>setsSamenvatting(setsNaarRijen(sets),true);
 // Beste set: zwaarste gelukte set (bij gelijk gewicht de meeste reps).
 function besteSet(sets){let b=null;(sets||[]).forEach(s=>{if(s.fail||s.kg==null)return;if(!b||s.kg>b.kg||(s.kg===b.kg&&(s.reps||0)>(b.reps||0)))b=s;});return b;}
 // Vrije tekst naar sets: "60, 65 ging goed" = 60 en 65 met de reps uit het
@@ -411,13 +419,22 @@ function setsRepsLijst(t,schema){
 const SETS_GEEN_BARBELL=/dumbbell|dumbell|\bdbs?\b|machine|leg press|pulldown|pull down|cable|kabel|kettlebell|\bkb\b|goblet|arnold|seal row|z press|bulgarian|split squat|lunge|extension|curl|belt squat|landmine|band|ring|pull-?up|pullup|chin|\bdips?\b|push-?up|sled|trap bar|hex bar/i;
 const setsIsBarbell=naam=>!!naam&&!SETS_GEEN_BARBELL.test(naam);
 const setsIsBodyweight=naam=>/pull-?up|pullup|chin|\bdips?\b|push-?up/i.test(naam||"");
-function setsStangSchijven(t,opties){
+// Geeft {t, dbs}: de tekst met de kilo's uitgerekend, en dbs=2 als er twee dumbbells zijn genoemd.
+function setsStangSchijven(t,opties,schema){
   const naam=(opties&&(opties.oefening||opties.lift))||"";
   const stang=opties&&opties.stang?opties.stang:null;
   const bar=/safety/i.test(naam)?20:stang;
   const kgTekst=v=>String(Math.round(v*4)/4).replace(".",",")+" kg";
-  if(/belt squat/i.test(naam)){ // schijven aan weerskanten van de pin, geen stang
+  let dbs=0;
+  // Twee gelijke getallen met een schuine streep, niet gevolgd door reps/x/( : "15/15"
+  const paar=/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*\/\s*(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?(?!\s*(?:reps?|herhalingen|x|×|\(|[.,]\d))/gi;
+  if(/belt squat/i.test(naam)){ // schijven aan weerskanten van de pin, geen stang (0 kg; keuze Stefan 21 okt): "15/15", "15 per kant" en "30 totaal" zijn 30 kg
+    t=t.replace(paar,(m,a,b)=>kgTekst(setsNum(a)+setsNum(b)));
     t=t.replace(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*(?:per\s*(?:kant|zijde|side)|aan\s+elke\s+kant|elke\s+kant)\b/gi,(m,x)=>kgTekst(2*setsNum(x)));
+    t=t.replace(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*(?:in\s+)?(?:totaal|total)\b/gi,(m,x)=>kgTekst(setsNum(x)));
+  }else if(/dumbbell|dumbell|\bdbs?\b/i.test(naam)){ // "15/15" = twee dumbbells van 15: één gewicht per dumbbell, aantekening 2 db (keuze Stefan 21 okt)
+    const perKant=!!(schema&&schema.per_kant); // eenzijdige oefening: "12/12" zijn reps per kant, geen dumbbells
+    t=t.replace(paar,(m,a,b)=>{const x=setsNum(a);if(x!==setsNum(b)||(perKant&&Number.isInteger(x)&&x<=30))return m;dbs=2;return kgTekst(x);});
   }else if(bar&&setsIsBarbell(naam)){
     t=t.replace(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*(?:per\s*(?:kant|zijde|side)|aan\s+elke\s+kant|elke\s+kant)\b/gi,(m,x)=>kgTekst(bar+2*setsNum(x)));
     t=t.replace(/\bper\s*(?:kant|zijde|side)\s*:\s*((?:\d+(?:[.,]\d+)?\s*(?:kg|kilo)?\s*[-\/,]?\s*)+)/gi,(m,lijst)=>lijst.replace(/\d+(?:[.,]\d+)?/g,x=>kgTekst(bar+2*setsNum(x)).replace(" kg","")).replace(/\s*$/," kg "));
@@ -426,11 +443,18 @@ function setsStangSchijven(t,opties){
     t=t.replace(/\b(?:lege\s+stang|lege\s+bar|empty\s+bar|leeg|stang)\b/gi," "+String(bar)+" "); // alleen het getal, zodat "Leeg-leeg-25-25" een gewone reeks blijft
   }
   if(setsIsBodyweight(naam))t=t.replace(/\b(?:zonder\s+gewicht|bodyweight|body\s*weight|eigen\s+gewicht|\bbw\b)\b/gi,"0 kg");
-  return t;
+  return {t,dbs};
 }
 function setsUitTekst(tekst,schema,opties){
-  const ruw=setsStangSchijven(String(tekst||""),opties);
+  const stang=setsStangSchijven(String(tekst||""),opties,schema);
   const naam=(opties&&(opties.oefening||opties.lift))||"";
+  // Twee dumbbells: "15/15" (hierboven) of "2x15kg dbs"
+  const tweeDb=stang.dbs===2||/\b2\s*x\s*\d+(?:[.,]\d+)?\s*(?:kg|kilo)?\s*(?:db|dbs|dumbbells?|dumbells?)\b/i.test(stang.t);
+  // Cluster-notatie ("1.1.1 @ 100", of "100×1.1.1" uit een samenvatting): uit de tekst halen; alle sets krijgen die reps
+  let clusterTekst=schema&&setsIsCluster(schema.reps)?String(schema.reps):null;
+  const ruw=stang.t
+    .replace(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)?\s*[x×]\s*(\d(?:\.\d)+)(?![\d.,])/gi,(m,kg,cl)=>setsIsCluster(cl)?(clusterTekst=cl," "+kg+" kg "):m)
+    .replace(/(?<![\d.,])(\d(?:\.\d)+)(?![\d.,])/g,(m,cl)=>setsIsCluster(cl)?(clusterTekst=cl," "):m);
   const lijst=setsRepsLijst(ruw,schema);
   let t=setsSchoon(ruw);
   if(lijst.bron==="komma")t=t.replace(/^\s*\d(?:\s\d){2,}\s*(?:reps?)?/,""); // de kommalijst is al gelezen
@@ -450,9 +474,11 @@ function setsUitTekst(tekst,schema,opties){
   let laatste=null,laatsteKg=null,explicietReps=false;
   let pend=null,laatsteDir=null,dirGebruikt=false; // "3×2 sets" of "3 sets": geldt voor het eerstvolgende gewicht
   const schemaKg=schema&&(schema.kg!=null?schema.kg:(schema.kg_start!=null?schema.kg_start:null));
-  // Olympische lift zonder reps in het voorschrift: 1 rep per set (besluit Stefan, 9 oktober)
+  // Olympische lift zonder reps in het voorschrift: 1 rep per set (besluit Stefan, 9 oktober).
+  // Cluster (1.1.1) in voorschrift of tekst: de cluster-notatie als reps (keuze Stefan, 21 oktober).
   const olympisch=/snatch|clean|jerk/i.test(naam);
-  const schemaReps=schema&&typeof schema.reps==="number"?schema.reps:((!schema||(schema.reps==null&&!schema.reps_lijst))&&olympisch?1:null);
+  // Een cluster in de gelogde tekst wint van het voorschrift (de sporter deed clusters).
+  const schemaReps=clusterTekst?clusterTekst:(schema&&typeof schema.reps==="number"?schema.reps:((!schema||(schema.reps==null&&!schema.reps_lijst))&&olympisch?1:null));
   const rij=(kg,reps,opts)=>{
     const r={kg:kg==null?"":kgTxt(kg),reps:reps==null?"":String(reps),fail:false};
     // Herkansing na een mislukte set ("90 kilo ❌ 86 kilo"): zelfde reps als de mislukte poging
@@ -602,6 +628,7 @@ function setsUitTekst(tekst,schema,opties){
   const n=(laatsteDir&&!dirGebruikt&&laatsteDir.sets)||(schema&&schema.sets)||0;
   const dirOpen=!!(laatsteDir&&!dirGebruikt&&laatsteDir.sets>1); // "15kg 6 reps x 3 sets": het directief geldt voor die ene rij
   if(uit.length===1&&n>1&&(dirOpen||(!explicietReps&&woorden===0))){const basis=uit[0];for(let i=1;i<Math.min(n,12);i++)uit.push(Object.assign({},basis));}
+  if(tweeDb)uit.forEach(r=>{if(r.kg)r.dbs=2;}); // aantekening: twee dumbbells van dit gewicht
   return {rows:uit,gelezen:setsSamenvatting(uit)};
 }
 

@@ -111,9 +111,17 @@ function olStangZet(v){
 }
 function olFilterZet(v){OL.filter=v;olRender();}
 function olZichtbaar(){return OL.rows.filter(r=>!r.klaar&&(OL.filter==="alle"||r.status===OL.filter));}
+// Bij twijfel (oranje) staan de twee lezingen als knoppen onder de regel: één klik vult de sets in
+// en vinkt de regel aan (verzoek Stefan, 21 oktober). Zelf typen in het veld kan nog steeds.
+function olKeuzeKnop(i,bron,label,tekst,aan){
+  return '<button type="button" class="ol-keuze'+(aan?" on":"")+'" onclick="olKies('+i+',\''+bron+'\')" title="Deze lezing overnemen">'+esc(label)+': <b>'+esc(tekst)+'</b></button>';
+}
 function olRijHtml(r,i){
+  const aiTekst=r.ai&&r.ai.sets.length?setsSamenvatting(r.ai.sets):"",lezerTekst=setsSamenvatting(r.lezer)||"";
   const alt=(r.status==="nakijken"&&r.ai)
-    ?'<div class="sm" style="color:#9a7b1f">AI: '+esc(r.ai.sets.length?setsSamenvatting(r.ai.sets):"leeg"+(r.reden?" · "+r.reden:""))+' · tekstlezer: '+esc(setsSamenvatting(r.lezer)||"leeg")+'</div>'
+    ?'<div class="ol-keuzes"><span class="sm" style="color:#9a7b1f">Kies:</span>'+
+      (aiTekst?olKeuzeKnop(i,"ai","AI",aiTekst,r.keuze==="ai"):'<span class="sm muted">AI: leeg'+(r.reden?" · "+esc(r.reden):"")+'</span>')+
+      (lezerTekst?olKeuzeKnop(i,"lezer","Tekstlezer",lezerTekst,r.keuze==="lezer"):'<span class="sm muted">tekstlezer: leeg</span>')+'</div>'
     :(r.status==="geen"&&r.reden?'<div class="sm muted">AI: '+esc(r.reden)+'</div>':'');
   const vs=(r.prescription||"").split("\n")[0].slice(0,90);
   const tekst=r.bewerkt!=null?r.bewerkt:r.voorstel;
@@ -139,9 +147,19 @@ function olTeller(){
   t.textContent=open.filter(r=>r.aan).length+" aangevinkt · "+n("eens")+" eens · "+n("nakijken")+" nakijken · "+n("lezer")+" tekstlezer · "+n("geen")+" geen sets"+(OL.rows.length-open.length?" · "+(OL.rows.length-open.length)+" omgezet":"");
 }
 function olVink(cb,i){const r=OL.rows[i];if(r)r.aan=cb.checked;olTeller();}
+// Eén van de twee lezingen kiezen (oranje regel): sets invullen, aanvinken, alleen deze regel opnieuw tekenen.
+function olKies(i,bron){
+  const r=OL.rows[i];if(!r)return;
+  const tekst=bron==="ai"?(r.ai&&r.ai.sets.length?setsSamenvatting(r.ai.sets):""):(setsSamenvatting(r.lezer)||"");
+  if(!tekst)return;
+  r.bewerkt=tekst;r.aan=true;r.keuze=bron;
+  const el=document.querySelector('#ol-lijst .ol-rij[data-i="'+i+'"]');
+  if(el)el.outerHTML=olRijHtml(r,i);
+  olTeller();
+}
 function olWijzig(inp,i){
   const r=OL.rows[i];if(!r)return;
-  r.bewerkt=inp.value;r.aan=!!inp.value.trim();
+  r.bewerkt=inp.value;r.aan=!!inp.value.trim();r.keuze=null;
   const rij=inp.closest(".ol-rij"),cb=rij&&rij.querySelector(".ol-aan");if(cb)cb.checked=r.aan;
   const g=rij&&rij.querySelector(".ol-gelezen");
   if(g){const gelezen=inp.value.trim()?setsSamenvatting(setsUitTekst(inp.value,r.schema,olOpties(r)).rows):"";g.textContent=gelezen&&gelezen!==inp.value.trim()?"→ "+gelezen:(inp.value.trim()?"":"leeg: wordt niet opgeslagen");}
@@ -173,7 +191,7 @@ async function olLeesAi(){
     }
     (data.rijen||[]).forEach(u=>{
       const r=deel[u.i];if(!r)return;
-      r.ai={sets:(u.sets||[]).map(s=>({kg:s.kg!=null?kgTxt(s.kg):"",reps:s.reps!=null?String(s.reps):"",fail:!!s.fail})),reden:u.reden||""};
+      r.ai={sets:(u.sets||[]).map(s=>({kg:s.kg!=null?kgTxt(s.kg):"",reps:s.reps!=null?String(s.reps):"",fail:!!s.fail,dbs:s.dbs===2?2:undefined})),reden:u.reden||""};
       try{localStorage.setItem(OL_SLEUTEL(r.id),JSON.stringify(r.ai));}catch(e){}
       r.bewerkt=null;olBepaal(r);
     });

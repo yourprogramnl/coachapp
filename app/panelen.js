@@ -1391,7 +1391,7 @@ function klDetailRender(){
   const sessies=[],per={};
   rows.forEach(g=>{const k=g.result_id||(g.workout_date+"|"+g.block_id);if(!per[k]){per[k]={date:g.workout_date,exercise:g.exercise,sets:[]};sessies.push(per[k]);}per[k].sets.push(g);});
   const logHtml=sessies.map(d=>'<div class="mh-row" style="cursor:pointer" title="Naar deze dag op de kalender" onclick="klNaarDag(\''+esc(d.date)+'\')"><div class="mh-v" style="flex:2">'+
-      d.sets.slice().sort((a,b)=>(a.set_nr||0)-(b.set_nr||0)).map(s=>'<span class="klset'+(s.fail?' fail':'')+(s.is_pr?' pr':'')+'">'+(s.kg!=null?kgTxt(s.kg):'?')+'×'+(s.reps!=null?s.reps:'?')+(s.fail?' ✗':'')+(s.is_pr?'<span class="prbadge">PR</span>':'')+'</span>').join("")+
+      d.sets.slice().sort((a,b)=>(a.set_nr||0)-(b.set_nr||0)).map(s=>'<span class="klset'+(s.fail?' fail':'')+(s.is_pr?' pr':'')+'"'+(s.cluster?' title="Cluster: telt niet mee voor records"':'')+'>'+(s.kg!=null?kgTxt(s.kg):'?')+'×'+(s.reps!=null?s.reps:(s.cluster?s.cluster:'?'))+(s.fail?' ✗':'')+(s.is_pr?'<span class="prbadge">PR</span>':'')+'</span>').join("")+
       '</div><div class="mh-d">'+esc(assDatumNL(d.date))+'</div><div class="mh-n">'+esc(d.exercise||"")+'</div></div>').join("")
     ||'<div class="sm muted" style="padding:12px 0">Nog geen sets gelogd voor deze lift.</div>';
   const metingLink=lift.metric_name?' <span class="demolink" onclick="mxOpenDetail(\''+String(lift.metric_name).replace(/'/g,"\\'")+'\')">Meting '+esc(lift.metric_name)+' →</span>':'';
