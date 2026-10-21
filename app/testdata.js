@@ -767,8 +767,20 @@ async function tdsZetKlant(row,profileId){
   const u=await db.from("athlete_testdata").update({profile_id:profileId||null}).eq("id",row.id);
   if(u.error){toast("Koppelen mislukt: "+(u.error.message||""));return false;}
   row.profile_id=profileId||null;
-  if(row.profile_id)await tdsAppLaad([row.profile_id]); // metingen van dit account ophalen voor "Uit de app"
-  tdsZetRij(row);return true;
+  if(row.profile_id)await tdsVers([row.id]); // de database vult de kaart meteen uit het profiel en Metingen & PR's
+  else tdsZetRij(row);
+  return true;
+}
+// Kaarten vers uit de database halen. Sinds 21 oktober vult de database een gekoppelde kaart zelf
+// uit het profiel en Metingen & PR's (trigger athlete_testdata_link_sync, metrics_sync_testdata,
+// profiles_sync_testdata): na aanmaken, koppelen of een nieuwe meting is de kaart meteen actueel.
+async function tdsVers(ids){
+  if(!ids||!ids.length)return;
+  const q=await db.from("athlete_testdata").select("id,name,profile_id,input,comp_overlay,updated_at").in("id",ids);
+  if(q.error||!q.data)return;
+  q.data.forEach(nw=>{const row=TDS.rows.find(r=>r.id===nw.id);if(row){Object.assign(row,nw);tdsZetRij(row);}});
+  await tdsAppLaad(q.data.map(r=>r.profile_id).filter(Boolean));
+  q.data.forEach(nw=>{const row=TDS.rows.find(r=>r.id===nw.id);if(row)tdsZetRij(row);});
 }
 async function tdsNaarKlant(ev,id){if(ev)ev.preventDefault();if(typeof openClient!=="function")return;await openClient(id,{panel:"data"});}
 function tdsNaarDashboard(name){TDS.naam=name;TDS.klant=null;if(typeof dataTab!=="undefined")dataTab="atleten";if(typeof coachGo==="function")coachGo("data");}
@@ -840,7 +852,7 @@ async function tdsKlantNieuw(){
     if(tdsDubbeleNaam(q.error)){toast("Er bestaat al een atleet met deze naam bij een andere coach; vraag een beheerder die aan deze klant te koppelen, of kies een andere naam",8000);return;}
     toast("Toevoegen mislukt: "+(q.error.message||""));return;
   }
-  TDS.rows.push(q.data);await tdsAppLaad([TDS.klant]);tdsZetRij(q.data);toast("Atleet toegevoegd");tdsKlantGrid();
+  TDS.rows.push(q.data);tdsZetRij(q.data);await tdsVers([q.data.id]);toast("Atleet toegevoegd, gevuld uit de app");tdsKlantGrid();
 }
 
 // ---------- wedstrijduitslagen bewerken (Michels `comp`: bron, overall, events, signaal) ----------
@@ -995,9 +1007,10 @@ function tdsAppVoorstellen(a){
   if(prof){
     const g=tdsGeslacht(prof);
     if(g&&g!==inp.gender)uit.push({key:"gender",label:"Geslacht",nu:inp.gender==="F"?"vrouw":(inp.gender==="M"?"man":"–"),nieuw:g,toon:g==="M"?"man":"vrouw",datum:"",bron:"profiel in de app"});
+    // Gewicht: het profiel (vult de sporter zelf) wint, anders de nieuwste meting Weight (zelfde regel als de database)
     const w=num(prof.weight_kg);
     const wm=mets.filter(r=>r.metric==="Weight"&&r.unit==="kg"&&num(r.value)!=null).sort(laatst)[0];
-    const gew=wm?{v:num(wm.value),d:wm.measured_at,b:"Metingen & PR's (Weight)"}:(w!=null&&w>0?{v:w,d:"",b:"profiel in de app"}:null);
+    const gew=(w!=null&&w>0)?{v:w,d:"",b:"profiel in de app"}:(wm?{v:num(wm.value),d:wm.measured_at,b:"Metingen & PR's (Weight)"}:null);
     if(gew&&gew.v!==num(inp.bw))uit.push({key:"bw",label:"Lichaamsgewicht",nu:inp.bw!=null?inp.bw+" kg":"–",nieuw:gew.v,toon:gew.v+" kg",datum:gew.d||"",bron:gew.b});
     const lt=tdsLeeftijd(prof.birth_date);
     if(lt!=null&&lt!==num(inp.age))uit.push({key:"age",label:"Leeftijd",nu:inp.age!=null?String(inp.age):"–",nieuw:lt,toon:lt+" jr",datum:"",bron:"geboortedatum in het profiel"});
@@ -1039,7 +1052,7 @@ function tdsAppPaneel(a){
     '<div class="td-f-h">Uit de app: '+v.length+(v.length===1?" waarde":" waarden")+' nieuwer of anders dan op de kaart</div>'+
     '<table class="td-table"><thead><tr><th></th><th>Veld</th><th>Nu op de kaart</th><th>In de app</th><th>Bron</th></tr></thead><tbody>'+rijen+'</tbody></table>'+
     '<div class="td-f-acties"><button class="btn sm" onclick="tdsAppOvernemen(\''+esc(a.id)+'\')">Overnemen</button><button class="btn ghost sm" onclick="tdsAppToggle(\''+esc(a.name).replace(/'/g,"\\'")+'\')">Annuleren</button></div>'+
-    '<div class="td-hint">Kilo\'s en calorieën: de hoogste meting in Metingen &amp; PR\'s telt (de krachtlog zet echte 1RM\'s daar automatisch bij). Tijden: de snelste. Wat je overneemt kun je daarna gewoon nog aanpassen in de testbatterij.</div>'+
+    '<div class="td-hint">De kaart volgt de app vanzelf: een hogere 1RM, een snellere tijd of een nieuw gewicht in het profiel komt er direct op. Hier staat alleen wat afwijkt in de andere richting (bijvoorbeeld een lagere meting nadat jij zelf een hogere waarde op de kaart zette). Overnemen is dan jouw keuze.</div>'+
   '</div>';
 }
 async function tdsAppOvernemen(id){
@@ -1074,9 +1087,8 @@ function tdsKlantenForm(){
   const rijen=k.map((x,i)=>'<tr><td><input type="checkbox" class="td-kl-vink" data-i="'+i+'"'+(x.kan?" checked":" disabled")+'></td><td>'+esc(x.naam)+'</td><td>'+(x.g?(x.g==="M"?"man":"vrouw"):'<span class="td-pct td-pct-orange">ontbreekt</span>')+'</td><td>'+(x.c.weight_kg!=null?esc(x.c.weight_kg)+" kg":"–")+'</td><td class="td-norm-basis">'+(x.bezet?"er is al een atleet met deze naam; koppel die via het klantdossier (Data)":(x.g?"":"de klant vult geslacht en gewicht zelf in via Profiel in de app"))+'</td></tr>').join("");
   return '<div class="td-form" style="margin-bottom:14px"><div class="td-f-h">Kaarten voor klanten zonder kaart</div>'+
     (k.length?'<table class="td-table"><thead><tr><th></th><th>Klant</th><th>Geslacht</th><th>Gewicht</th><th></th></tr></thead><tbody>'+rijen+'</tbody></table>'+
-      '<div class="td-f-row" style="margin-top:10px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="td-kl-app" checked> Testwaarden uit Metingen &amp; PR\'s meteen overnemen (1RM\'s, roeitijden)</label></div>'+
       '<div class="td-f-acties"><button class="btn sm" onclick="tdsKlantenAanmaken()">Aanmaken</button><button class="btn ghost sm" onclick="tdsKlantenToggle()">Annuleren</button></div>'+
-      '<div class="td-hint">Elke kaart wordt gekoppeld aan het account van de klant. Geslacht, gewicht en leeftijd komen uit het profiel in de app; zonder geslacht kan de kaart niet doorgerekend worden (de normen hangen ervan af). Een vaste dag is optioneel en zet je later via Bewerken.</div>'
+      '<div class="td-hint">Elke kaart wordt gekoppeld aan het account van de klant en meteen gevuld uit de app: geslacht, gewicht en leeftijd uit het profiel, de testwaarden (1RM\'s, roeitijden) uit Metingen &amp; PR\'s. Daarna blijft de kaart vanzelf bij: elke nieuwe meting of profielwijziging komt er direct op. Zonder geslacht kan de kaart niet doorgerekend worden (de normen hangen ervan af). Een vaste dag is optioneel en zet je later via Bewerken.</div>'
       :'<div class="td-hint" style="margin:0">Alle klanten hebben al een kaart.</div><div class="td-f-acties"><button class="btn ghost sm" onclick="tdsKlantenToggle()">Sluiten</button></div>')+
   '</div>';
 }
@@ -1084,7 +1096,6 @@ async function tdsKlantenAanmaken(){
   const k=tdsKlantenKandidaten();
   const gekozen=[...document.querySelectorAll(".td-kl-vink")].filter(c=>c.checked).map(c=>k[Number(c.dataset.i)]).filter(x=>x&&x.kan);
   if(!gekozen.length){toast("Vink minstens één klant aan");return;}
-  const metApp=!!(document.getElementById("td-kl-app")||{}).checked;
   const nieuw=[],overgeslagen=[];let fail="";
   for(const x of gekozen){
     const input={gender:x.g,updated:tdsVandaag()+" (kaart aangemaakt uit het app-profiel via dashboard)",target_level:"Quarterfinal"};
@@ -1100,21 +1111,10 @@ async function tdsKlantenAanmaken(){
     }
     TDS.rows.push(q.data);tdsZetRij(q.data);nieuw.push(q.data);
   }
-  let over=0;
-  if(nieuw.length&&metApp){
-    await tdsAppLaad(nieuw.map(r=>r.profile_id));
-    for(const row of nieuw){
-      const a=TDS.athletes[row.name];
-      const v=tdsAppVoorstellen(a).filter(r=>r.key!=="gender"); // geslacht komt al uit het profiel
-      if(!v.length)continue;
-      const patch={};v.forEach(r=>{patch[r.key]=r.nieuw;});
-      patch.updated=tdsUpdatedTekst(row.input&&row.input.updated,"uit de app:",v.map(r=>r.label+" "+r.toon).join(", "));
-      if(await tdsPatch(row.id,patch,[]))over+=v.length;
-    }
-  }
+  // De database vult elke nieuwe kaart meteen uit het profiel en Metingen & PR's: vers ophalen.
+  if(nieuw.length)await tdsVers(nieuw.map(r=>r.id));
   const n=nieuw.length;
-  let msg=n+(n===1?" kaart aangemaakt":" kaarten aangemaakt");
-  if(over)msg+=", "+over+(over===1?" waarde uit de app overgenomen":" waarden uit de app overgenomen");
+  let msg=n+(n===1?" kaart aangemaakt en gevuld uit de app":" kaarten aangemaakt en gevuld uit de app");
   if(overgeslagen.length)msg+=". Overgeslagen (er bestaat al een atleet met deze naam bij een andere coach; vraag een beheerder die te koppelen): "+overgeslagen.join(", ");
   if(fail)msg+="; gestopt bij "+fail;
   toast(msg,(fail||overgeslagen.length)?9000:undefined);
