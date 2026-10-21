@@ -981,7 +981,7 @@ async function tdsAppLaad(ids){
   const namen=["Weight"];TDS_APP_MAP.forEach(m=>m.metrics.forEach(n=>{if(!namen.includes(n))namen.push(n);}));
   const sinds=new Date(Date.now()-TDS_GESPREK_DAGEN*864e5).toISOString();
   const [m,p,ch,wc]=await Promise.all([
-    db.from("metrics").select("athlete_id,metric,value,unit,measured_at").in("athlete_id",ids).in("metric",namen).order("measured_at",{ascending:false}),
+    db.from("metrics").select("athlete_id,metric,value,unit,measured_at,note,result_id").in("athlete_id",ids).in("metric",namen).order("measured_at",{ascending:false}),
     db.from("profiles").select("id,gender,weight_kg,birth_date").in("id",ids),
     // Gesprekken (verzoek Stefan 21 okt): chat en reacties op workout-dagen van de laatste 30 dagen
     db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",sinds).order("created_at",{ascending:false}).limit(600),
@@ -1008,9 +1008,12 @@ function tdsLeeftijd(bd){
 }
 // Voorstellen voor één gekoppelde atleet: [{key,label,nu,nieuw,toon,datum,bron}], alleen waar de app
 // iets anders heeft dan de kaart. Kilo's en calorieën: de hoogste meting telt; tijden: de snelste.
+// Betrouwbare meting (zelfde regel als private.testdata_sync_app): door de coach ingevoerd of een echte single uit de
+// krachtlog. Niet: het oude app-voorstel "Gelogd vanuit je workout" zonder set erachter (zwaarste set, ongeacht reps) en "geschat".
+const tdsMetingOk=r=>!(String(r.note||"")==="Gelogd vanuit je workout"&&!r.result_id)&&!/geschat/i.test(r.note||"");
 function tdsAppVoorstellen(a){
   if(!a||!a.profile_id)return [];
-  const inp=a.input||{},mets=TDS.app.metrics[a.profile_id]||[],prof=TDS.app.profiel[a.profile_id]||null;
+  const inp=a.input||{},mets=(TDS.app.metrics[a.profile_id]||[]).filter(tdsMetingOk),prof=TDS.app.profiel[a.profile_id]||null;
   const uit=[];
   const num=v=>{if(v===null||v===undefined||v==="")return null;const n=Number(v);return isFinite(n)?n:null;};
   const laatst=(x,y)=>String(y.measured_at||"").localeCompare(String(x.measured_at||""));
