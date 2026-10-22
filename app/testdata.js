@@ -11,8 +11,9 @@
 // krachtlog, profiel). Zie het blok "testwaarden uit de app" onderaan. De dag (Michels vaste
 // controledag) is sinds die datum optioneel: tdBuild krijgt dan een lege dag mee.
 
-const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",klant:null,nieuwOpen:false,bewerk:null,compWerk:null,fout:"",
-  app:{metrics:{},profiel:{},gesprekken:{},voorstel:{},open:null},klantenOpen:false};
+const TDS={rows:[],athletes:{},geladen:false,dag:"Alle",zoek:"",sort:"name",naam:"",coach:"",klant:null,nieuwOpen:false,bewerk:null,compWerk:null,fout:"",
+  app:{metrics:{},profiel:{},gesprekken:{},voorstel:{},coaches:{},open:null},klantenOpen:false};
+// coach = keuzelijst Coaches (alleen beheerder/eigenaar, 22 okt): coach-id, "los" = kaarten zonder account, leeg = iedereen.
 // app.gesprekken = chat en dagreacties per gekoppeld account (laatste 30 dagen); app.voorstel = AI-samenvatting per kaart.
 // naam = gekozen atleet in de naamkeuze (leeg = iedereen); klant = profiel-id als de kaart
 // in het klantdossier staat (zijbalk > Data), dan tekent tdsGrid alleen die ene kaart.
@@ -441,6 +442,7 @@ function tdsRender(h){
   h.innerHTML='<div class="td-wrap">'+
     '<div class="td-toolbar" id="td-dagen">'+dagen.map(d=>'<button class="td-chip'+(d===TDS.dag?" on":"")+'" data-dag="'+esc(d)+'" onclick="tdsDag(this.dataset.dag)">'+esc(d)+'</button>').join("")+'</div>'+
     '<div class="td-toolbar">'+
+      tdsCoachSelectHtml()+
       '<select class="lid-in" id="td-naam" style="width:auto;max-width:240px" onchange="tdsNaam(this.value)"></select>'+
       '<input type="search" class="lid-in" style="min-width:200px" placeholder="Zoek op naam…" value="'+esc(TDS.zoek)+'" oninput="tdsZoek(this.value)">'+
       '<select class="lid-in" style="width:auto" onchange="tdsSort(this.value)">'+
@@ -486,7 +488,8 @@ function tdsGrid(){
   // Naamkeuze: één atleet op volle breedte; anders de dag- en zoekfilters.
   const een=(TDS.naam&&TDS.athletes[TDS.naam])?TDS.athletes[TDS.naam]:null;
   grid.classList.toggle("td-single",!!een);
-  let list=een?[een]:tdsLijst().filter(a=>(TDS.dag==="Alle"||(TDS.dag==="Geen dag"?!a.day:a.day===TDS.dag))&&(!z||a.name.toLowerCase().includes(z)));
+  const vanCoach=a=>!TDS.coach||!tdsIsBeheerder()||tdsCoachVan(a)===TDS.coach;
+  let list=een?[een]:tdsLijst().filter(a=>vanCoach(a)&&(TDS.dag==="Alle"||(TDS.dag==="Geen dag"?!a.day:a.day===TDS.dag))&&(!z||a.name.toLowerCase().includes(z)));
   if(TDS.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name));
   if(TDS.sort==="overall_desc")list.sort((a,b)=>(b.overall??-1)-(a.overall??-1));
   if(TDS.sort==="overall_asc")list.sort((a,b)=>(a.overall??999)-(b.overall??999));
@@ -502,9 +505,11 @@ function tdsZoek(v){TDS.zoek=v;TDS.naam="";tdsGrid();}
 function tdsNaam(v){TDS.naam=v||"";if(TDS.naam){TDS.zoek="";const z=document.querySelector("#data-inhoud input[type=search]");if(z)z.value="";}tdsGrid();}
 function tdsNaamSelectVul(){
   const s=document.getElementById("td-naam");if(!s)return;
-  const namen=tdsLijst().map(a=>a.name).sort((a,b)=>a.localeCompare(b));
+  // Binnen de gekozen coach (beheerder) alleen diens atleten
+  const namen=tdsLijst().filter(a=>!TDS.coach||!tdsIsBeheerder()||tdsCoachVan(a)===TDS.coach).map(a=>a.name).sort((a,b)=>a.localeCompare(b));
   s.innerHTML='<option value="">Alle atleten</option>'+namen.map(n=>'<option value="'+esc(n)+'"'+(n===TDS.naam?" selected":"")+'>'+esc(n)+'</option>').join("");
   if(!namen.includes(TDS.naam))s.value="";
+  const c=document.getElementById("td-coach");if(c&&c.value!==TDS.coach)c.value=TDS.coach;
 }
 function tdsSort(v){TDS.sort=v;tdsGrid();}
 // Open/dicht per atleet + sectie onthouden (localStorage), zoals in Michels dashboard.
@@ -982,7 +987,7 @@ async function tdsAppLaad(ids){
   const sinds=new Date(Date.now()-TDS_GESPREK_DAGEN*864e5).toISOString();
   const [m,p,ch,wc]=await Promise.all([
     db.from("metrics").select("athlete_id,metric,value,unit,measured_at,note,result_id").in("athlete_id",ids).in("metric",namen).order("measured_at",{ascending:false}),
-    db.from("profiles").select("id,gender,weight_kg,birth_date").in("id",ids),
+    db.from("profiles").select("id,gender,weight_kg,birth_date,coach_id").in("id",ids),
     // Gesprekken (verzoek Stefan 21 okt): chat en reacties op workout-dagen van de laatste 30 dagen
     db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",sinds).order("created_at",{ascending:false}).limit(600),
     db.from("workout_comments").select("athlete_id,author_id,body,created_at,workouts(workout_date,title)").in("athlete_id",ids).gte("created_at",sinds).order("created_at",{ascending:false}).limit(900)
@@ -995,7 +1000,35 @@ async function tdsAppLaad(ids){
   (ch.data||[]).forEach(r=>{if(!String(r.body||"").trim())return;(TDS.app.gesprekken[r.athlete_id]=TDS.app.gesprekken[r.athlete_id]||[]).push({soort:"chat",van:r.sender_id===r.athlete_id?"sporter":"coach",body:r.body,t:r.created_at});});
   (wc.data||[]).forEach(r=>{if(!String(r.body||"").trim())return;(TDS.app.gesprekken[r.athlete_id]=TDS.app.gesprekken[r.athlete_id]||[]).push({soort:"workout",van:r.author_id===r.athlete_id?"sporter":"coach",body:r.body,t:r.created_at,dag:r.workouts&&r.workouts.workout_date,titel:r.workouts&&r.workouts.title});});
   ids.forEach(id=>{TDS.app.gesprekken[id].sort((x,y)=>String(y.t).localeCompare(String(x.t)));});
+  // Namen van de coaches van deze accounts (voor de keuzelijst Coaches van de beheerder)
+  TDS.app.coaches=TDS.app.coaches||{};
+  const coachIds=[...new Set((p.data||[]).map(r=>r.coach_id).filter(Boolean))].filter(id=>!TDS.app.coaches[id]);
+  if(coachIds.length){
+    const c=await db.from("profiles").select("id,first_name,last_name").in("id",coachIds);
+    (c.data||[]).forEach(r=>{TDS.app.coaches[r.id]=[r.first_name,r.last_name].filter(Boolean).join(" ")||"Coach";});
+    coachIds.forEach(id=>{if(!TDS.app.coaches[id])TDS.app.coaches[id]="Coach (onbekend)";});
+  }
 }
+// Coach van een kaart: de coach van het gekoppelde account; zonder account "los" (Michels lijst).
+function tdsCoachVan(a){
+  if(!a.profile_id)return "los";
+  const p=TDS.app.profiel[a.profile_id];
+  return (p&&p.coach_id)||"los";
+}
+const tdsIsBeheerder=()=>typeof myRole==="function"&&(myRole()==="platform_admin"||myRole()==="eigenaar");
+// Keuzelijst Coaches (verzoek Stefan 22 okt): alleen voor beheerder en eigenaar, zodat zij per coach kunnen
+// rondkijken. Een coach ziet door de rechten toch alleen zijn eigen klanten en krijgt de lijst niet.
+function tdsCoachSelectHtml(){
+  if(!tdsIsBeheerder())return "";
+  const lijst=tdsLijst();
+  const ids=[...new Set(lijst.map(tdsCoachVan))];
+  const coaches=ids.filter(id=>id!=="los").map(id=>[id,TDS.app.coaches[id]||"Coach"]).sort((x,y)=>x[1].localeCompare(y[1]));
+  const n=id=>lijst.filter(a=>tdsCoachVan(a)===id).length;
+  let opts='<option value="">Alle coaches ('+lijst.length+')</option>'+coaches.map(c=>'<option value="'+esc(c[0])+'"'+(TDS.coach===c[0]?" selected":"")+'>'+esc(c[1])+' ('+n(c[0])+')</option>').join("");
+  if(ids.includes("los"))opts+='<option value="los"'+(TDS.coach==="los"?" selected":"")+'>Zonder account (Michels lijst) ('+n("los")+')</option>';
+  return '<select class="lid-in" id="td-coach" style="width:auto;max-width:240px" onchange="tdsCoach(this.value)">'+opts+'</select>';
+}
+function tdsCoach(v){TDS.coach=v||"";TDS.naam="";tdsGrid();}
 // Postgres-fout 23505 op de unieke naam per bedrijf (athlete_testdata_company_id_name_key).
 function tdsDubbeleNaam(err){return !!err&&(err.code==="23505"||/duplicate key|company_id_name_key/i.test(err.message||""));}
 // Geslacht uit het profiel in de app ("man"/"vrouw", soms m/f/v) → M/F van Michels invoer; leeg = onbekend.

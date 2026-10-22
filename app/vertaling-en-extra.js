@@ -483,6 +483,7 @@ i18nLaad({
   "Kilo's en calorieën: de hoogste meting in Metingen & PR's telt (de krachtlog zet echte 1RM's daar automatisch bij). Tijden: de snelste. Wat je overneemt kun je daarna gewoon nog aanpassen in de testbatterij.": "Kilos and calories: the highest entry in Metrics & PRs counts (the strength log adds real 1RMs there automatically). Times: the fastest. Anything you apply can still be changed in the test battery afterwards.",
   "Vink minstens één waarde aan": "Tick at least one value",
   "{n} waarde overgenomen": "{n} value applied", "{n} waarden overgenomen": "{n} values applied",
+  "Alle coaches ({n})": "All coaches ({n})", "Zonder account (Michels lijst) ({n})": "Without an account (Michel's list) ({n})", "Coach (onbekend)": "Coach (unknown)",
   "Gesprekken in de app": "Conversations in the app", "{n} berichten · {n} dagen": "{n} messages · {n} days",
   "Samenvatting maken (AI)": "Create summary (AI)",
   "Elke maandagochtend komt er automatisch een weekstatus van de afgelopen week op de kaart (Chat (app), actiepunten, blessures bij Let op). Met deze knop maak je er tussendoor een van de laatste 30 dagen; die kijk je na en neem je zelf over.": "Every Monday morning a week status of the past week lands on the card automatically (Chat (app), action points, injuries under Watch out). With this button you make one of the last 30 days in between; you review it and apply it yourself.",
