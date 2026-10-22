@@ -12,6 +12,9 @@
 //                        bestelling daarna op canceled en haalt het programma weg.
 //  actie "terugbetalen": een bedrag (centen) terugbetalen op de laatste geslaagde betaling van
 //                        deze klant. Interne melding als vastlegging.
+//  actie "account_verwijderen": een lid-account definitief weg (bestanden, losse rijen, inlog;
+//                        zelfde stappen als account-delete in de app), met profile_id in plaats
+//                        van order_id. Geweigerd zolang er een lopend winkelabonnement is.
 // verify_jwt staat aan; de rol wordt hier nog eens uit profiles gelezen (niet uit de client).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -114,8 +117,60 @@ Deno.serve(async (req) => {
   if (!ik || !["eigenaar", "platform_admin"].includes(ik.role)) return json(403, { error: "Alleen de eigenaar of beheerder kan abonnementen beheren." });
   const ikNaam = [ik.first_name, ik.last_name].filter(Boolean).join(" ") || wie?.user?.email || "een beheerder";
 
-  let body: { actie?: string; order_id?: string; reden?: string; bedrag_cents?: number } = {};
+  let body: { actie?: string; order_id?: string; profile_id?: string; reden?: string; bedrag_cents?: number } = {};
   try { body = await req.json(); } catch { /* leeg */ }
+
+  // Account van een lid definitief verwijderen (Blog > Klanten > Account verwijderen).
+  if (body.actie === "account_verwijderen") {
+    const pid = String(body.profile_id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(pid)) return json(400, { error: "Geen klant opgegeven." });
+    const { data: doel } = await db.from("profiles").select("id,role,company_id,avatar_url,first_name,last_name,email").eq("id", pid).maybeSingle();
+    if (!doel) return json(404, { error: "Klant niet gevonden." });
+    if (doel.role !== "lid") return json(400, { error: "Dit is een coach- of beheerdersaccount; dat verwijder je via Coaches." });
+    if (ik.role !== "platform_admin" && doel.company_id !== ik.company_id) return json(403, { error: "Deze klant hoort bij een ander bedrijf." });
+    const { data: lopend } = await db.from("shop_orders").select("id").eq("profile_id", pid).in("status", ["paid", "processing"]).is("withdrawn_at", null);
+    if ((lopend || []).length) return json(400, { error: "Deze klant heeft nog een lopend winkelabonnement. Zeg dat eerst op of stop het; anders loopt de betaling door." });
+    const doelNaam = [doel.first_name, doel.last_name].filter(Boolean).join(" ") || doel.email || "de klant";
+    const fouten: string[] = [];
+    // Bestanden in Storage (paden uit de tabellen; de rijen zelf gaan straks via cascade).
+    const paden: Record<string, Set<string>> = { media: new Set(), progress: new Set(), avatars: new Set(), documents: new Set() };
+    const [{ data: rm }, { data: pf }, { data: docs }, { data: msgs }] = await Promise.all([
+      db.from("result_media").select("storage_path").eq("athlete_id", pid),
+      db.from("progress_photos").select("storage_path").eq("athlete_id", pid),
+      db.from("documents").select("storage_path").eq("athlete_id", pid),
+      db.from("messages").select("media").or(`athlete_id.eq.${pid},sender_id.eq.${pid}`),
+    ]);
+    (rm || []).forEach((r) => { if (r.storage_path) paden.media.add(r.storage_path); });
+    (pf || []).forEach((r) => { if (r.storage_path) paden.progress.add(r.storage_path); });
+    (docs || []).forEach((r) => { if (r.storage_path) paden.documents.add(r.storage_path); });
+    (msgs || []).forEach((m) => { const lijst = Array.isArray(m.media) ? m.media : []; lijst.forEach((x: { path?: string }) => { if (x && x.path) paden.media.add(x.path); }); });
+    const av = String(doel.avatar_url || "").match(/\/avatars\/([^?]+)/);
+    if (av && av[1]) paden.avatars.add(decodeURIComponent(av[1]));
+    for (const bucket of Object.keys(paden)) {
+      const lijst = [...paden[bucket]];
+      for (let i = 0; i < lijst.length; i += 100) {
+        const { error } = await db.storage.from(bucket).remove(lijst.slice(i, i + 100));
+        if (error) fouten.push(bucket + ": " + error.message);
+      }
+    }
+    // Rijen zonder cascade, in deze volgorde (zelfde als account-delete).
+    // deno-lint-ignore no-explicit-any
+    const weg = async (tabel: string, filter: (q: any) => any) => {
+      const { error } = await filter(db.from(tabel).delete());
+      if (error) fouten.push(tabel + ": " + error.message);
+    };
+    await weg("feedback_replies", (q) => q.or(`athlete_id.eq.${pid},author_id.eq.${pid}`));
+    await weg("feedback", (q) => q.eq("athlete_id", pid));
+    await weg("attention_snooze", (q) => q.eq("athlete_id", pid));
+    await weg("messages", (q) => q.or(`athlete_id.eq.${pid},sender_id.eq.${pid}`));
+    await weg("workouts", (q) => q.eq("client_id", pid));
+    const { error: authFout } = await db.auth.admin.deleteUser(pid);
+    if (authFout) return json(500, { error: "Verwijderen is niet gelukt: " + authFout.message, fouten });
+    const { error: mErr } = await db.from("app_meldingen").insert({ company_id: doel.company_id, profile_id: uid, soort: "vraag", pagina: "winkel", onderwerp: "Account verwijderd: " + doelNaam, bericht: ikNaam + " heeft het account van " + doelNaam + " (" + (doel.email || "") + ") definitief verwijderd via Blog > Klanten." + (fouten.length ? " Niet alles kon worden opgeruimd: " + fouten.join("; ") : ""), context: { verwijderd: pid, door: uid } });
+    if (mErr) console.error("melding mislukt:", mErr.message);
+    return json(200, { ok: true, fouten });
+  }
+
   if (!body.order_id) return json(400, { error: "Geen bestelling opgegeven." });
 
   const { data: o, error: oErr } = await db.from("shop_orders")

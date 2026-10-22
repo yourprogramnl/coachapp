@@ -566,3 +566,10 @@ i18nLaad({
   "Geen geldig bedrag": "Not a valid amount", "Abonnement gestopt; binnen een minuut verdwijnt het programma bij de klant": "Subscription stopped; the program disappears for the client within a minute",
 });
 
+// Blog > Klanten, menu voor alle klanten (22 okt 2026)
+i18nLaad({
+  "Van programma afhalen": "Remove from program", "Account verwijderen…": "Delete account…", "Uit archief halen": "Restore from archive",
+  "Niet verwijderd": "Not deleted", "Afhalen mislukt": "Removing failed",
+});
+i18nRegel(/^(\d+) betaald$/, "$1 paid");
+

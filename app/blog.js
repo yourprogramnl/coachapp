@@ -656,13 +656,13 @@ async function blogKlantenLaad(){
     // Lopende bestelling gaat voor een gestopte; nieuwste eerst (de lijst is al zo gesorteerd).
     const mijn=orders.filter(o=>o.profile_id===m.athlete_id&&o.blog_program_id===m.blog_program_id).sort((a,b)=>rang(b.status)-rang(a.status));
     const o=mijn[0]||null;if(o)gezien.add(o.id);
-    rows.push({p,pid:m.blog_program_id,sinds:(o&&o.created_at<m.created_at)?o.created_at:m.created_at,o,lid:true});
+    rows.push({key:m.athlete_id+"|"+m.blog_program_id+"|"+(o?o.id:""),mid:m.id,p,pid:m.blog_program_id,sinds:(o&&o.created_at<m.created_at)?o.created_at:m.created_at,o,lid:true});
   });
   // Bestellingen zonder koppeling meer (herroepen, gestopt, mislukt): alleen bij "ook gestopte tonen".
   orders.forEach(o=>{
     if(gezien.has(o.id)||!o.blog_program_id||o.status==="pending")return;
     const p=(o.profile_id&&prof[o.profile_id])||{id:o.profile_id,first_name:null,last_name:null,email:o.email,membership_type:null,archived:true};
-    rows.push({p,pid:o.blog_program_id,sinds:o.created_at,o,lid:false});
+    rows.push({key:(p.id||"")+"|"+o.blog_program_id+"|"+o.id,mid:null,p,pid:o.blog_program_id,sinds:o.created_at,o,lid:false});
   });
   BLOG.klanten=rows;blogRender();
 }
@@ -693,11 +693,11 @@ function blogKlantenHtml(){
     .filter(r=>!q||((r.p.first_name||"")+" "+(r.p.last_name||"")+" "+(r.p.email||"")+" "+r.prog.name).toLowerCase().includes(q))
     .sort((a,b)=>a.st.rang-b.st.rang||(naamVan(a.p)).localeCompare(naamVan(b.p)));
   const betaald=rows.filter(r=>r.o&&r.o.status==="paid").length;
-  const kop='<div class="thead"><div style="flex:2.2">Klant</div><div style="flex:1.2">Programma</div><div style="flex:.9">Sinds</div><div style="flex:1.6">Status</div><div style="flex:1.1;text-align:right">'+(blogKlantMagBeheren()?'Acties':'')+'</div></div>';
+  const kop='<div class="thead"><div style="flex:2.2">Klant</div><div style="flex:1.2">Programma</div><div style="flex:.9">Sinds</div><div style="flex:1.6">Status</div><div style="flex:1.1;text-align:right">Acties</div></div>';
   const lijst=rows.length?rows.map(r=>{
     const d=new Date(r.sinds).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"});
     const typePill=r.p.membership_type==="one_on_one"?' <span class="cpill gray" style="font-size:9.5px">1-op-1</span>':'';
-    return '<div class="trow" style="align-items:center" data-order="'+(r.o?r.o.id:'')+'">'+
+    return '<div class="trow" style="align-items:center" data-key="'+esc(r.key)+'">'+
       '<div style="flex:2.2;display:flex;align-items:center;gap:10px;min-width:0"><div class="cavc" style="width:32px;height:32px;font-size:11px;flex:none;'+avFotoStyle(r.p)+'">'+avFotoText(r.p)+'</div>'+
         '<div style="min-width:0"><b style="font-size:12.5px">'+naamVan(r.p)+'</b>'+typePill+(r.p.archived?' <span class="cpill gray" style="font-size:9.5px">archief</span>':'')+'<div class="sm muted" style="font-size:11px;overflow:hidden;text-overflow:ellipsis">'+esc(r.p.email||"")+'</div></div></div>'+
       '<div style="flex:1.2" class="sm">'+esc(r.prog.name)+'</div>'+
@@ -712,29 +712,90 @@ function blogKlantenHtml(){
 // zelf nog eens controleert en met Stripe praat.
 const blogKlantMagBeheren=()=>["eigenaar","platform_admin"].includes(myRole());
 function blogKlantActies(r){
-  const o=r.o;if(!o||!blogKlantMagBeheren())return "";
-  const lopend=o.status==="paid"&&!o.withdrawn_at;
-  const kanTerug=!!o.stripe_customer_id&&["paid","canceled"].includes(o.status);
-  if(!lopend&&!kanTerug)return "";
-  return '<button class="kebab" title="Acties" onclick="blogKlantMenu(event,\''+o.id+'\')">⋮</button>';
+  if(!r.p||!r.p.id)return ""; // bestelling zonder account: niets te doen
+  return '<button class="kebab" title="Acties" onclick="blogKlantMenu(event,\''+esc(r.key)+'\')">⋮</button>';
 }
-function blogKlantMenu(ev,oid){
+// Het menu per regel. Winkelacties (opzeggen, stoppen, terugbetalen) en archiveren/verwijderen
+// alleen voor eigenaar en beheerder; "van programma afhalen" mag elke coach (zoals Leden koppelen).
+function blogKlantMenu(ev,key){
   ev.stopPropagation();
   const row=ev.target.closest(".trow");if(!row)return;
   const bestond=row.querySelector(".coachmenu");document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   if(bestond)return;
-  const r=(BLOG.klanten||[]).find(x=>x.o&&x.o.id===oid);if(!r)return;
-  const o=r.o,lopend=o.status==="paid"&&!o.withdrawn_at;
-  const test=/^cs_test_/.test(o.stripe_session_id||"");
-  const stripeUrl="https://dashboard.stripe.com/"+(test?"test/":"")+(o.stripe_subscription_id?"subscriptions/"+o.stripe_subscription_id:"customers/"+o.stripe_customer_id);
-  const m=document.createElement("div");m.className="coachmenu";
-  m.innerHTML=(lopend?(o.cancel_at
-      ?'<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'intrekken\')">Opzegging intrekken</button>'
-      :'<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'opzeggen\')">Opzeggen (1 maand)</button>')+
-      '<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'stoppen\')">Direct stoppen</button>':'')+
-    (o.stripe_customer_id?'<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'terugbetalen\')">Terugbetalen…</button>':'')+
-    '<button onclick="event.stopPropagation();window.open(\''+stripeUrl+'\',\'_blank\')">In Stripe openen</button>';
+  const r=(BLOG.klanten||[]).find(x=>x.key===key);if(!r)return;
+  const o=r.o,mag=blogKlantMagBeheren(),lopend=!!o&&o.status==="paid"&&!o.withdrawn_at;
+  const k=JSON.stringify(key).replace(/"/g,"&quot;");
+  let h="";
+  if(o&&mag){
+    const test=/^cs_test_/.test(o.stripe_session_id||"");
+    const stripeUrl="https://dashboard.stripe.com/"+(test?"test/":"")+(o.stripe_subscription_id?"subscriptions/"+o.stripe_subscription_id:"customers/"+o.stripe_customer_id);
+    if(lopend)h+=(o.cancel_at
+      ?'<button onclick="event.stopPropagation();blogKlantActie(\''+o.id+'\',\'intrekken\')">Opzegging intrekken</button>'
+      :'<button onclick="event.stopPropagation();blogKlantActie(\''+o.id+'\',\'opzeggen\')">Opzeggen (1 maand)</button>')+
+      '<button onclick="event.stopPropagation();blogKlantActie(\''+o.id+'\',\'stoppen\')">Direct stoppen</button>';
+    if(o.stripe_customer_id)h+='<button onclick="event.stopPropagation();blogKlantActie(\''+o.id+'\',\'terugbetalen\')">Terugbetalen…</button>';
+    h+='<button onclick="event.stopPropagation();window.open(\''+stripeUrl+'\',\'_blank\')">In Stripe openen</button>';
+  }
+  if(r.lid&&r.mid)h+='<button onclick="event.stopPropagation();blogKlantOntkoppel('+k+')">Van programma afhalen</button>';
+  if(mag){
+    h+='<button onclick="event.stopPropagation();blogKlantArchiveer('+k+','+(r.p.archived?"false":"true")+')">'+(r.p.archived?"Uit archief halen":"Archiveren")+'</button>';
+    if(!lopend)h+='<button class="danger" onclick="event.stopPropagation();blogKlantVerwijder('+k+')">Account verwijderen…</button>';
+  }
+  if(!h)return;
+  const m=document.createElement("div");m.className="coachmenu";m.innerHTML=h;
   row.style.position="relative";row.appendChild(m);
+}
+// Koppeling met dit programma weghalen (zelfde regels als Leden koppelen).
+async function blogKlantOntkoppel(key){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  const r=(BLOG.klanten||[]).find(x=>x.key===key);if(!r||!r.mid)return;
+  const wie=naamVan(r.p).replace(/&amp;/g,"&"),prog=(BLOG.list.find(p=>p.id===r.pid)||{}).name||"dit programma";
+  const betaalt=r.o&&r.o.status==="paid"&&!r.o.withdrawn_at;
+  if(betaalt&&!confirm(wie+" betaalt nog via de winkel voor "+prog+(r.o.cancel_at?" (opgezegd, loopt tot "+new Date(r.o.cancel_at).toLocaleDateString("nl-NL",{day:"numeric",month:"long"})+")":"")+". Afhalen stopt de betaling niet; zeg het abonnement zo nodig eerst op. Toch afhalen?"))return;
+  if(!betaalt&&!confirm(wie+" van "+prog+" afhalen? Het programma verdwijnt uit de app; het account blijft bestaan."))return;
+  const{error}=await db.from("blog_program_members").delete().eq("id",r.mid);
+  if(error){toast(error.message||"Afhalen mislukt");return;}
+  // profiles.blog_program_id gelijkhouden met het eerste overgebleven programma (oudere app-builds).
+  try{
+    const{data:rest}=await db.from("blog_program_members").select("blog_program_id").eq("athlete_id",r.p.id).order("created_at").limit(1);
+    await db.from("profiles").update({blog_program_id:(rest&&rest[0])?rest[0].blog_program_id:null}).eq("id",r.p.id);
+  }catch(e){}
+  toast(wie+" is van "+prog+" afgehaald");
+  await fillBlog();await blogKlantenLaad();
+}
+// Archiveren of terughalen (zelfde check als op de Klanten-pagina).
+async function blogKlantArchiveer(key,arch){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  const r=(BLOG.klanten||[]).find(x=>x.key===key);if(!r||!r.p.id)return;
+  const wie=naamVan(r.p).replace(/&amp;/g,"&");
+  if(arch){
+    const{data:lo}=await db.from("shop_orders").select("id,cancel_at").eq("profile_id",r.p.id).in("status",["paid","processing"]).is("withdrawn_at",null);
+    if((lo||[]).length&&!confirm(wie+" betaalt nog via de winkel. In het archief kan hij in de app niet meer zelf opzeggen, terwijl de betaling doorloopt. Zeg het abonnement eerst op. Toch archiveren?"))return;
+    if(!(lo||[]).length&&!confirm(wie+" archiveren? Hij kan dan niet meer inloggen in de app; alles blijft bewaard en je kunt hem later terughalen."))return;
+  }
+  const{error}=await db.from("profiles").update({archived:arch}).eq("id",r.p.id);
+  if(error){toast(error.message||"Mislukt");return;}
+  toast(arch?wie+" gearchiveerd":wie+" teruggehaald");
+  await blogKlantenLaad();
+}
+// Account definitief verwijderen via de serverfunctie (alleen als er geen lopend abonnement is).
+async function blogKlantVerwijder(key){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  const r=(BLOG.klanten||[]).find(x=>x.key===key);if(!r||!r.p.id)return;
+  const wie=naamVan(r.p).replace(/&amp;/g,"&");
+  if(!confirm("Het account van "+wie+" ("+(r.p.email||"")+") DEFINITIEF verwijderen?\n\nAlles gaat weg: inlog, profiel, scores, berichten, foto's en video's. Dit is niet terug te draaien. Wil je het alleen uit beeld, kies dan Archiveren."))return;
+  const typ=prompt("Typ VERWIJDER om te bevestigen:","");
+  if(typ!=="VERWIJDER"){toast("Niet verwijderd");return;}
+  let data=null,error=null;
+  try{({data,error}=await db.functions.invoke("shop-beheer",{body:{actie:"account_verwijderen",profile_id:r.p.id}}));}catch(e){error=e;}
+  if(!error&&data&&data.error)error={message:data.error};
+  if(error){
+    let tekst=error.message||"Verwijderen lukt nu niet";
+    try{if(error.context&&typeof error.context.json==="function"){const j=await error.context.json();if(j&&j.error)tekst=j.error;}}catch(e){}
+    toast(tekst);return;
+  }
+  toast("Account van "+wie+" verwijderd"+(data&&data.fouten&&data.fouten.length?" (niet alles kon worden opgeruimd, zie de melding)":""));
+  await fillBlog();await blogKlantenLaad();
 }
 async function blogKlantActie(oid,actie){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
