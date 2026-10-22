@@ -265,13 +265,17 @@ async function loadApp(){
   if(!user){show("login");return;}
   const{data:profile}=await db.from("profiles").select("*").eq("id",user.id).single();
   ME={user,profile:profile||{role:"lid"}};
-  // Taal: het profiel wint van de browser/localStorage (zie i18n.js). Een
-  // nieuw account zonder taal krijgt de taal waarmee het zich aanmeldde.
-  // Eigen keuze op dit apparaat wint en gaat naar het profiel; anders volgt
-  // het apparaat de taal uit het profiel (van de app of een ander apparaat).
+  // Taal: het profiel is de baas (keuze Stefan 22 okt 2026: "altijd Nederlands").
+  // Een account zonder taal krijgt de taal waarmee het zich aanmeldde; daarna volgt
+  // elk apparaat het profiel, ook als er op dat apparaat ooit iets anders gekozen is.
+  // Het vlaggetje (setLang) en Profiel in de app schrijven naar het profiel, dus een
+  // bewuste wissel blijft gewoon werken.
   if(profile){
-    if(taalExpliciet()||!profile.lang){if(profile.lang!==LANG){try{await db.from("profiles").update({lang:LANG}).eq("id",user.id);profile.lang=LANG;}catch(e){}}}
-    else if(TALEN.includes(profile.lang)&&profile.lang!==LANG){try{localStorage.setItem("forge_lang",profile.lang);}catch(e){}location.reload();return;}
+    if(!profile.lang){try{await db.from("profiles").update({lang:LANG}).eq("id",user.id);profile.lang=LANG;}catch(e){}}
+    else if(TALEN.includes(profile.lang)&&profile.lang!==LANG){
+      let kan=false;try{localStorage.setItem("forge_lang",profile.lang);kan=localStorage.getItem("forge_lang")===profile.lang;}catch(e){}
+      if(kan){location.reload();return;} // zonder werkende opslag niet herladen (anders een lus)
+    }
   }
   // Na een bevestigde e-mailwijziging loopt profiles.email achter op het
   // auth-adres; stilletjes gelijktrekken.
