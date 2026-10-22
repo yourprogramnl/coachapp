@@ -112,19 +112,34 @@ function wwBoardInner(id){
   });
   return html;
 }
+// Eén regel op een leaderboard (Showdown én blogprogramma's). De score staat vooraan;
+// de notitie van de sporter is dicht tot je op de naam klikt (verzoek Stefan 22 okt:
+// "scores wil ik zien, wat ze typen is alleen handig als ik het wil uitklappen").
+let LB_OPEN=new Set(); // result_id's waarvan de notitie open staat
 function wwRij(r,rank){
   const p={first_name:r.first_name,last_name:r.last_name,avatar_url:r.avatar_url,email:""};
   const score=(r.capped?"CAP · ":"")+(resultScoreTxt(r)||"–"); // gecapt: reps/rondes binnen de timecap
   const lid=r.membership_type==="one_on_one"?"1-op-1 klant":(r.membership_type==="free_blog"?"blog-lid":"");
-  const sub=[score,lid,(r.media_url?"video":"")].filter(Boolean).join(" · ");
+  const rest=[lid,(r.media_url?"video":"")].filter(Boolean).join(" · ");
+  const open=LB_OPEN.has(r.result_id);
   const tag=r.rx==="scaled"?'<span class="rxtag sc">SC</span>':'<span class="rxtag">RX</span>';
-  return '<div class="lbrow"><span class="rank">'+rank+'</span>'+
+  return '<div class="lbrow'+(open?" open":"")+'" id="lbrow-'+esc(r.result_id)+'"><span class="rank">'+rank+'</span>'+
     '<div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
-    '<div><div class="lbnm">'+naamVan(p)+' '+tag+'</div><div class="lbsc">'+esc(sub)+(r.note?'<span class="muted"> · "'+esc(r.note)+'"</span>':'')+'</div></div>'+
+    '<div style="min-width:0;flex:1"><div class="lbnm"><button class="lbnaam" title="'+(r.note?"Notitie van de sporter tonen":"Geen notitie")+'" onclick="wwRijToggle(\''+esc(r.result_id)+'\')">'+naamVan(p)+'</button> '+tag+(r.note?' <span class="lbnote-dot" title="Heeft een notitie">✎</span>':'')+'</div>'+
+    '<div class="lbsc"><b class="lbscore">'+esc(score)+'</b>'+(rest?' · '+esc(rest):'')+'</div>'+
+    '<div class="lbdetail"'+(open?'':' style="display:none"')+'>'+(r.note?'<div class="lbnote">'+esc(r.note)+'</div>':'<div class="muted">Geen notitie ingevuld.</div>')+
+      '<div class="sm muted" style="margin-top:4px">Gelogd op '+esc(datumNL(r.created_at))+'</div></div></div>'+
     '<div class="fist">'+
       '<button class="fb wwlike'+(r.liked_by_me?" aan":"")+'" title="Goed gedaan!" onclick="wwLike(\''+r.result_id+'\','+(r.liked_by_me?"true":"false")+')"><svg class="i"><use href="#i-fist"/></svg>'+r.likes+'</button>'+
       '<button class="fb wwcom" title="Reacties" onclick="wwComments(\''+r.result_id+'\')"><svg class="i"><use href="#i-chat"/></svg>'+r.comments+'</button>'+
     '</div></div>';
+}
+function wwRijToggle(id){
+  if(LB_OPEN.has(id))LB_OPEN.delete(id);else LB_OPEN.add(id);
+  const row=document.getElementById("lbrow-"+id);if(!row)return;
+  const aan=LB_OPEN.has(id);
+  const d=row.querySelector(".lbdetail");if(d)d.style.display=aan?"":"none";
+  row.classList.toggle("open",aan);
 }
 // Bij welke workout hoort dit result? (nodig om het juiste bord te verversen)
 function wwFindWid(resultId){

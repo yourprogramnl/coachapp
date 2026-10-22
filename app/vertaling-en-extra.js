@@ -618,3 +618,4 @@ i18nLaad({
 });
 i18nRegel(/^Nog geen (Rx|Scaled)-scores op dit onderdeel\.$/, "No $1 scores on this part yet.");
 i18nRegel(/^Gelogd op (.+?)( · met video\/foto)?$/, (m, d, v) => "Logged on " + d + (v ? " · with video/photo" : ""));
+i18nRegel(/^Showdown: (.+)$/, "Showdown: $1");
