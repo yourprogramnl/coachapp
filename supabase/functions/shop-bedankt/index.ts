@@ -16,7 +16,7 @@ const cors = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "https://testflight.apple.com/join/JqqZHVDp";
-const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "";
+const APP_STORE_URL = Deno.env.get("APP_STORE_URL") || "https://apps.apple.com/nl/app/id6792739065"; // app in de winkels sinds oktober 2026
 const WACHTWOORD_VENSTER_MS = 48 * 3600_000;
 const app = () => ({ app_url: APP_STORE_URL || TESTFLIGHT_URL, app_is_testflight: !APP_STORE_URL });
 
