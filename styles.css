@@ -1445,3 +1445,16 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .bl-deel textarea{width:100%;min-height:150px;font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical;background:#fff;color:var(--txt)}
 @media(max-width:1100px){.bl-cards{grid-template-columns:1fr}}
 @media(max-width:820px){.bl-kk{grid-template-columns:1fr 1fr}.bloglay .bl-weeks{position:static}}
+
+/* Leaderboard-venster op de programmapagina (22 okt 2026): Rx/Scaled-knoppen, workouttekst, notitie bij naam */
+.bl-rxbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 8px}
+.bl-rxbar .seg{display:flex;background:#f0f1f3;border-radius:9px;padding:3px}
+.bl-rxbar .seg button{border:none;background:none;font-family:inherit;font-weight:800;font-size:12px;padding:6px 14px;border-radius:7px;cursor:pointer;color:#5d6570}
+.bl-rxbar .seg button.on{background:#fff;color:var(--txt);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.bl-rxbar .seg button span{font-weight:600;color:#8a919c;margin-left:4px}
+.bl-wtekst{white-space:pre-wrap;background:#f8f9fa;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5;margin:4px 0 8px}
+.lbrow .lbnaam{background:none;border:none;padding:0;font:inherit;font-weight:700;color:inherit;cursor:pointer;text-decoration:underline dotted #b3b9c2;text-underline-offset:3px}
+.lbrow .lbnaam:hover{color:var(--accent)}
+.lbrow .lbnote-dot{font-size:11px;color:#8a919c}
+.lbrow .lbdetail{margin-top:6px;font-size:12px}
+.lbrow .lbnote{white-space:pre-wrap;background:#fff8e6;border:1px solid #f1e2b3;border-radius:8px;padding:7px 10px;line-height:1.5}

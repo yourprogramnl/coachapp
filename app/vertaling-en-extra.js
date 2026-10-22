@@ -608,3 +608,13 @@ i18nRegel(/^(\d+) programmadagen(.*)$/, (m, a, b) => a + " program days" + b.rep
 i18nRegel(/^(\d+) van (\d+) mogelijke sessies$/, "$1 of $2 possible sessions");
 i18nRegel(/^(\d+) Rx · (\d+) Scaled$/, "$1 Rx · $2 Scaled");
 i18nRegel(/^Kon de cijfers niet laden: (.+)$/, "Could not load the numbers: $1");
+// Blog > leaderboard-venster (22 okt 2026, avond)
+i18nLaad({
+  "Klik op een naam voor de notitie van de sporter.": "Click a name for the athlete's note.",
+  "Notitie van de sporter tonen": "Show the athlete's note", "Geen notitie": "No note", "Heeft een notitie": "Has a note",
+  "Geen notitie ingevuld.": "No note entered.", "Deze workout heeft nog geen onderdelen.": "This workout has no parts yet.",
+  "Openbare scores per onderdeel, ook van de Showdown als die in deze workout zit. Fist bumps en reacties werken zoals bij de Showdown.": "Public scores per part, including the Showdown when it is part of this workout. Fist bumps and comments work the same as in the Showdown.",
+  "Nog geen openbare scores op deze workout. Zodra volgers loggen en hun score op \"openbaar\" zetten, staan ze hier.": "No public scores on this workout yet. As soon as followers log and set their score to \"public\", they appear here.",
+});
+i18nRegel(/^Nog geen (Rx|Scaled)-scores op dit onderdeel\.$/, "No $1 scores on this part yet.");
+i18nRegel(/^Gelogd op (.+?)( · met video\/foto)?$/, (m, d, v) => "Logged on " + d + (v ? " · with video/photo" : ""));

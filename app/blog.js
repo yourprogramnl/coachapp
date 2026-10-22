@@ -352,39 +352,107 @@ function blogCardTools(w){
 // Elke workout in een blogprogramma heeft een leaderboard per blok met de
 // openbare scores van de volgers. Rijen, fist bumps en reacties hergebruiken
 // de code van de Showdown (weekworkout.js); het bord staat in WW.boards.
-let BLOGBOARD=null; // {wid} zolang het venster open is
+let BLOGBOARD=null; // {wid, rx, bronnen, bronIds, open} zolang het venster open is
 async function blogBoard(wid){
   const w=BLOG.workouts.find(x=>x.id===wid);if(!w)return;
   ensureWwModals();ensureBlogModals();
-  BLOGBOARD={wid};
+  BLOGBOARD={wid,rx:(BLOGBOARD&&BLOGBOARD.rx)||"rx",bronnen:[],bronIds:[],open:new Set()};
   document.getElementById("blogboard-titel").textContent=(w.title||"Workout")+" · "+datumNL(w.workout_date);
   document.getElementById("blogboard-body").innerHTML='<div class="cempty">Leaderboard laden…</div>';
   document.getElementById("blogboardmodal").classList.add("show");
   await blogBoardLaad(wid);
 }
+// Scores ophalen: van de workout zelf én van de originelen waar een gekopieerde
+// weekworkout of een Showdown-blok naar verwijst (daar staan de Showdown-scores,
+// ook die uit Strivee). Verzoek Stefan 22 okt: "leaderboards vullen, Showdown erbij".
 async function blogBoardLaad(wid){
-  const{data,error}=await db.rpc("blog_leaderboard",{p_workout_id:wid});
-  if(error){toast(error.message||"Leaderboard laden mislukt");return;}
-  WW.boards[wid]=data||[];
+  const w=BLOG.workouts.find(x=>x.id===wid);if(!w)return;
+  const ids=[];const voeg=id=>{if(id&&!ids.includes(id))ids.push(id);};
+  voeg(w.source_blog_workout_id);(w.blocks||[]).forEach(b=>voeg(b.source_blog_workout_id));
+  const[eigen,bronWs,...rest]=await Promise.all([
+    db.rpc("blog_leaderboard",{p_workout_id:wid}),
+    ids.length?db.from("workouts").select("id,title,workout_date,blocks(*)").in("id",ids):Promise.resolve({data:[]}),
+    ...ids.map(id=>db.rpc("blog_leaderboard",{p_workout_id:id}))
+  ]);
+  if(eigen.error){toast(eigen.error.message||"Leaderboard laden mislukt");return;}
+  WW.boards[wid]=eigen.data||[];
+  ids.forEach((id,i)=>{WW.boards[id]=(rest[i]&&rest[i].data)||[];});
+  if(!BLOGBOARD||BLOGBOARD.wid!==wid)return; // intussen gesloten of een ander bord geopend
+  BLOGBOARD.bronnen=(bronWs&&bronWs.data)||[];BLOGBOARD.bronIds=ids;
   const host=document.getElementById("blogboard-body");if(host)host.innerHTML=blogBoardHtml(wid);
 }
-// Haakje voor wwRefreshBoard: na een fist bump/reactie dit venster verversen.
-function blogBoardRefresh(wid){if(!BLOGBOARD||BLOGBOARD.wid!==wid)return false;blogBoardLaad(wid);return true;}
+// Haakje voor wwRefreshBoard: na een fist bump/reactie dit venster verversen, ook
+// als de score op een origineel (Showdown) staat.
+function blogBoardRefresh(wid){if(!BLOGBOARD||(BLOGBOARD.wid!==wid&&!(BLOGBOARD.bronIds||[]).includes(wid)))return false;blogBoardLaad(BLOGBOARD.wid);return true;}
+function blogBoardRx(rx){if(!BLOGBOARD)return;BLOGBOARD.rx=rx;const host=document.getElementById("blogboard-body");if(host)host.innerHTML=blogBoardHtml(BLOGBOARD.wid);}
 function blogBoardHtml(wid){
-  const w=BLOG.workouts.find(x=>x.id===wid),rows=WW.boards[wid]||[];
-  const blocks=((w&&w.blocks)||[]).slice().sort((a,b)=>a.sort-b.sort);
-  if(!rows.length)return '<div class="cempty">Nog geen openbare scores op deze workout. Zodra volgers loggen en hun score op "openbaar" zetten, staan ze hier.</div>';
-  return blocks.map(b=>{
-    const br=rows.filter(r=>r.block_id===b.id);
-    let html='<div class="lbcat" style="margin-top:14px;font-size:13px">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.timecap_seconds?' <span class="muted" style="font-weight:500">· cap '+secNaarTijd(b.timecap_seconds)+'</span>':'')+'</div>';
-    if(!br.length)return html+'<div class="sm muted" style="padding:4px 0 6px">Nog geen openbare scores op dit onderdeel.</div>';
-    const st=b.score_type||"text";
-    [["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]].forEach(cat=>{["rx","scaled"].forEach(rx=>{
-      const groep=br.filter(r=>{const g=(r.gender==="man"||r.gender==="vrouw")?r.gender:"overig";return g===cat[0]&&(r.rx==="scaled"?"scaled":"rx")===rx;}).sort(wwCmp(st));
-      if(groep.length)html+='<div class="sm muted" style="margin:8px 0 4px;font-weight:700">'+cat[1]+' / '+(rx==="rx"?"Rx":"Scaled")+'</div><div class="card">'+groep.map((r,i)=>wwRij(r,i+1)).join("")+'</div>';
-    });});
-    return html;
+  const w=BLOG.workouts.find(x=>x.id===wid);if(!w)return "";
+  const rx=(BLOGBOARD&&BLOGBOARD.rx)||"rx";
+  const bronnen=(BLOGBOARD&&BLOGBOARD.bronnen)||[];
+  // Onderdelen: de eigen blokken; een blok met een origineel toont de blokken (en
+  // scores) van dat origineel; een gekopieerde weekworkout toont alleen het origineel.
+  const secties=[];
+  const vanBron=(bronId,kopVoor)=>{
+    const bron=bronnen.find(x=>x.id===bronId),rows=WW.boards[bronId]||[];
+    const bb=(bron?(bron.blocks||[]):[]).slice().sort((x,y)=>x.sort-y.sort);
+    if(!bb.length){secties.push({blok:null,rows,kop:kopVoor||"Scores",tekst:"",notes:""});return;}
+    bb.forEach(sb=>{
+      const eigenKop=(sb.label||"")+") "+(sb.exercise||"");
+      secties.push({blok:sb,rows:rows.filter(r=>r.block_id===sb.id),kop:kopVoor?(bb.length>1?kopVoor+" · "+eigenKop:kopVoor):eigenKop,tekst:composePresc(sb)||sb.prescription||"",notes:sb.notes||""});
+    });
+  };
+  if(w.source_blog_workout_id)vanBron(w.source_blog_workout_id,"");
+  else (w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort).forEach(b=>{
+    const kop=(b.label||"")+") "+(b.exercise||"");
+    if(b.source_blog_workout_id)vanBron(b.source_blog_workout_id,kop);
+    else secties.push({blok:b,rows:(WW.boards[wid]||[]).filter(r=>r.block_id===b.id),kop,tekst:composePresc(b)||"",notes:b.notes||""});
+  });
+  const tel=r=>secties.reduce((n,s)=>n+s.rows.filter(x=>(x.rx==="scaled"?"scaled":"rx")===r).length,0);
+  let html='<div class="bl-rxbar"><div class="seg">'+
+    '<button class="'+(rx==="rx"?"on":"")+'" onclick="blogBoardRx(\'rx\')">Rx <span>'+tel("rx")+'</span></button>'+
+    '<button class="'+(rx==="scaled"?"on":"")+'" onclick="blogBoardRx(\'scaled\')">Scaled <span>'+tel("scaled")+'</span></button></div>'+
+    '<span class="sm muted">Klik op een naam voor de notitie van de sporter.</span></div>';
+  if(!secties.length)return html+'<div class="cempty">Deze workout heeft nog geen onderdelen.</div>';
+  if(!secties.some(s=>s.rows.length))return html+'<div class="cempty">Nog geen openbare scores op deze workout. Zodra volgers loggen en hun score op "openbaar" zetten, staan ze hier.</div>';
+  return html+secties.map(s=>{
+    const st=(s.blok&&s.blok.score_type)||"text";
+    let h='<div class="lbcat" style="margin-top:14px;font-size:13px">'+esc(s.kop)+(s.blok&&s.blok.timecap_seconds?' <span class="muted" style="font-weight:500">· cap '+secNaarTijd(s.blok.timecap_seconds)+'</span>':'')+'</div>';
+    if(s.tekst||s.notes)h+='<div class="bl-wtekst">'+esc(s.tekst)+(s.notes?'<div class="muted" style="margin-top:4px">'+esc(s.notes)+'</div>':'')+'</div>';
+    const br=s.rows.filter(r=>(r.rx==="scaled"?"scaled":"rx")===rx);
+    if(!br.length)return h+'<div class="sm muted" style="padding:4px 0 6px">Nog geen '+(rx==="rx"?"Rx":"Scaled")+'-scores op dit onderdeel.</div>';
+    [["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]].forEach(cat=>{
+      const groep=br.filter(r=>{const g=(r.gender==="man"||r.gender==="vrouw")?r.gender:"overig";return g===cat[0];}).sort(wwCmp(st));
+      if(groep.length)h+='<div class="sm muted" style="margin:8px 0 4px;font-weight:700">'+cat[1]+'</div><div class="card">'+groep.map((r,i)=>blogRij(r,i+1)).join("")+'</div>';
+    });
+    return h;
   }).join("");
+}
+// Eén regel op het bord (zoals wwRij), met de naam als knop: klik = notitie van de
+// sporter ("hoe ging het"), datum van loggen en of er een video/foto bij zit.
+function blogRij(r,rank){
+  const p={first_name:r.first_name,last_name:r.last_name,avatar_url:r.avatar_url,email:""};
+  const score=(r.capped?"CAP · ":"")+(resultScoreTxt(r)||"–");
+  const lid=r.membership_type==="one_on_one"?"1-op-1 klant":(r.membership_type==="free_blog"?"blog-lid":"");
+  const open=!!(BLOGBOARD&&BLOGBOARD.open.has(r.result_id));
+  const tag=r.rx==="scaled"?'<span class="rxtag sc">SC</span>':'<span class="rxtag">RX</span>';
+  return '<div class="lbrow'+(open?" open":"")+'" id="lbrow-'+esc(r.result_id)+'"><span class="rank">'+rank+'</span>'+
+    '<div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
+    '<div style="min-width:0;flex:1"><div class="lbnm"><button class="lbnaam" title="'+(r.note?"Notitie van de sporter tonen":"Geen notitie")+'" onclick="blogRijToggle(\''+esc(r.result_id)+'\')">'+naamVan(p)+'</button> '+tag+(r.note?' <span class="lbnote-dot" title="Heeft een notitie">✎</span>':'')+'</div>'+
+    '<div class="lbsc">'+esc([score,lid].filter(Boolean).join(" · "))+'</div>'+
+    '<div class="lbdetail"'+(open?'':' style="display:none"')+'>'+(r.note?'<div class="lbnote">'+esc(r.note)+'</div>':'<div class="muted">Geen notitie ingevuld.</div>')+
+      '<div class="sm muted" style="margin-top:4px">Gelogd op '+esc(datumNL(r.created_at))+(r.media_url?' · met video/foto':'')+'</div></div></div>'+
+    '<div class="fist">'+
+      '<button class="fb wwlike'+(r.liked_by_me?" aan":"")+'" title="Goed gedaan!" onclick="wwLike(\''+esc(r.result_id)+'\','+(r.liked_by_me?"true":"false")+')"><svg class="i"><use href="#i-fist"/></svg>'+r.likes+'</button>'+
+      '<button class="fb wwcom" title="Reacties" onclick="wwComments(\''+esc(r.result_id)+'\')"><svg class="i"><use href="#i-chat"/></svg>'+r.comments+'</button>'+
+    '</div></div>';
+}
+function blogRijToggle(id){
+  if(!BLOGBOARD)return;
+  if(BLOGBOARD.open.has(id))BLOGBOARD.open.delete(id);else BLOGBOARD.open.add(id);
+  const row=document.getElementById("lbrow-"+id);if(!row)return;
+  const aan=BLOGBOARD.open.has(id);
+  const d=row.querySelector(".lbdetail");if(d)d.style.display=aan?"":"none";
+  row.classList.toggle("open",aan);
 }
 function blogBoardDicht(){document.getElementById("blogboardmodal").classList.remove("show");BLOGBOARD=null;}
 // ---------- Aanmeldlink (gratis blog-lid via een link, zoals Strivee's Subscribe) ----------
@@ -663,7 +731,7 @@ function ensureBlogModals(){
       '<div class="msg" id="blogp-msg"></div></div></div>'+
     '<div class="lmodal" id="blogboardmodal" style="z-index:397"><div class="box" style="width:640px;max-width:96vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0" id="blogboard-titel">Leaderboard</h3><span onclick="blogBoardDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
-      '<div class="sm muted" style="margin-bottom:6px">Openbare scores van de volgers van dit programma, per onderdeel. Fist bumps en reacties werken zoals bij de Showdown.</div>'+
+      '<div class="sm muted" style="margin-bottom:6px">Openbare scores per onderdeel, ook van de Showdown als die in deze workout zit. Fist bumps en reacties werken zoals bij de Showdown.</div>'+
       '<div id="blogboard-body" style="max-height:62vh;overflow:auto"></div></div></div>'+
     '<div class="lmodal" id="blogledmodal" style="z-index:398"><div class="box" style="width:460px;max-width:94vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Leden koppelen</h3><span onclick="blogLedenDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+

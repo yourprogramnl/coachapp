@@ -3,13 +3,14 @@
 // MutationObserver elke tekst die op het scherm komt via het woordenboek in
 // app/vertaling-en.js (sleutel = de exacte Nederlandse tekst). Zo hoeven de
 // 23 schermbestanden niet aangepast te worden en blijft Nederlands de bron.
-// Volgorde van de taalkeuze: localStorage (forge_lang) > browsertaal; na het
-// inloggen wint profiles.lang (zie loadApp in auth.js).
+// Volgorde van de taalkeuze: localStorage (forge_lang) > Nederlands; na het
+// inloggen wint profiles.lang (zie loadApp in auth.js). De browsertaal telt niet mee.
 const TALEN=["nl","en"];
 let LANG=(()=>{
   try{const l=localStorage.getItem("forge_lang");if(TALEN.includes(l))return l;}catch(e){}
-  const b=((navigator.languages&&navigator.languages[0])||navigator.language||"nl").toLowerCase();
-  return b.startsWith("nl")?"nl":"en";
+  // Standaard Nederlands, ook op een Engelstalige browser (keuze Stefan, 22 okt 2026):
+  // Engels alleen als iemand het zelf kiest via het vlaggetje (localStorage/profiel).
+  return "nl";
 })();
 const LOCALE=LANG==="en"?"en-GB":"nl-NL";
 const I18N={dict:{},ontbreekt:new Set(),geproduceerd:new Set(),klaar:false};
