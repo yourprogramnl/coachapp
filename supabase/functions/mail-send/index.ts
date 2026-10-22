@@ -44,7 +44,7 @@ const BEDRIJF = {
   juridisch: "CrossFit Capelle B.V.",
   adres: "Venkelbaan 50, 2908 KE Capelle aan den IJssel",
   kvk: "98778978",
-  btw: "[btw-identificatienummer]",
+  btw: "NL868639461B01",
   email: "info@yourprogram.nl",
   website: "https://yourprogram.nl",
 };
