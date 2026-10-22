@@ -2140,7 +2140,7 @@ function openKeys(){
 }
 // Globale sneltoetsen, alleen actief op het klant-scherm.
 document.addEventListener("keydown",e=>{
-  if(!calClient||!document.querySelector(".client-layout"))return;
+  if(!calClient||!document.querySelector(".client-layout:not(.bloglay)"))return; // .bloglay = programmapagina in Blog, die heeft eigen toetsen
   // Groot-weergave van foto's/video's open? Dan zijn pijltjes en Esc van háár
   // (bladeren/sluiten); de kalender mag dan niet van maand springen en de
   // bouwer niet dichtgaan (pilotmelding sept: "sessie kwijt bij doorklikken").

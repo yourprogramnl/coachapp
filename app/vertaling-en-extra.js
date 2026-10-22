@@ -573,3 +573,38 @@ i18nLaad({
 });
 i18nRegel(/^(\d+) betaald$/, "$1 paid");
 
+// Blog > programmapagina: zijmenu, Data, Leaderboards, klantkaart (22 okt 2026)
+i18nLaad({
+  "Terug naar Blog": "Back to Blog", "Terug naar de lijst met programma's": "Back to the list of programs", "Leaderboards": "Leaderboards",
+  "Klant uitnodigen": "Invite client", "Aanmeldlink kopiëren": "Copy sign-up link", "Details bewerken": "Edit details", "Bibliotheek": "Library",
+  "Cijfers laden…": "Loading numbers…", "Cijfers niet geladen": "Numbers not loaded", "Verversen": "Refresh",
+  "Volgers": "Followers", "Actief (7 / 30 dagen)": "Active (7 / 30 days)", "Sporters die iets logden": "Athletes who logged something",
+  "Sessies (30 dagen)": "Sessions (30 days)", "Voltooiing (30 dagen)": "Completion (30 days)", "Nog geen programmadagen": "No program days yet",
+  "Rx / Scaled": "Rx / Scaled", "Nog geen scores": "No scores yet", "Geschatte omzet": "Estimated revenue",
+  "Betaalde abonnementen × huidige prijs. Het exacte bedrag staat in Stripe.": "Paid subscriptions × current price. The exact amount is in Stripe.",
+  "Activiteit per week": "Activity per week", "Volgers per maand": "Followers per month", "Meest gedaan (8 weken)": "Most done (8 weeks)", "Meest gemist (8 weken)": "Most missed (8 weeks)",
+  "Gelogde sessies per week, met het weeknummer eronder. Deze week staat in donkerblauw.": "Logged sessions per week, with the week number below. This week is in dark blue.",
+  "Nog geen gelogde workouts in de laatste 8 weken.": "No logged workouts in the last 8 weeks.", "Niemand heeft een workout als gemist gelogd.": "Nobody logged a workout as missed.",
+  "Maand": "Month", "Nieuw": "New", "Betaald +": "Paid +", "Betaald −": "Paid −", "Omzet*": "Revenue*", "Sessies": "Sessions", "Sporters": "Athletes",
+  "* Schatting: betaalde abonnementen × de huidige prijs. Het echte bedrag staat in Stripe.": "* Estimate: paid subscriptions × the current price. The real amount is in Stripe.",
+  "Per klant": "Per client", "Laatste training": "Last training", "Sessies 30 d / totaal": "Sessions 30 d / total", "Gemist 30 d": "Missed 30 d", "Streak": "Streak", "Rx / Sc": "Rx / Sc", "Openbaar": "Public",
+  "Nog geen klanten gekoppeld aan dit programma.": "No clients linked to this program yet.",
+  "Per workout de openbare scores van de volgers; hetzelfde bord als het vuistje op een kaart in de kalender.": "The followers' public scores per workout; the same board as the fist on a card in the calendar.",
+  "Nog geen workouts in het verleden.": "No past workouts yet.", "Datum": "Date", "Gelogd": "Logged", "Leaderboard": "Leaderboard",
+  "Klantkaart": "Client card", "sessies, 30 dagen": "sessions, 30 days", "sessies totaal": "sessions total", "streak": "streak", "gemist, 30 dagen": "missed, 30 days",
+  "laatste training": "last training", "volgt sinds": "following since", "openbare scores": "public scores",
+  "Delen met de klant": "Share with the client", "alleen de eigen cijfers; geen omzet, geen anderen": "only their own numbers; no revenue, nobody else",
+  "Kopiëren": "Copy", "Samenvatting gekopieerd": "Summary copied", "Klant-scherm openen": "Open client screen", "Sluiten": "Close",
+  "Zijbalk in-/uitklappen": "Collapse/expand sidebar", "Naar deze week": "Go to this week", "Vorige week": "Previous week", "Volgende week": "Next week", "Onderdelen": "Sections", "Bibliotheek-venster": "Library window",
+  "Lettertoetsen werken als je niet in een tekstveld typt en de bouwer dicht is. De bouwer-toetsen (met Ctrl) werken ook tijdens het typen.": "Letter keys work when you are not typing in a text field and the builder is closed. The builder keys (with Ctrl) also work while typing.",
+  "Bouwer sluiten zonder op te slaan?": "Close the builder without saving?", "Workout niet gevonden": "Workout not found",
+});
+i18nRegel(/^Klanten van (.+)$/, "Clients of $1");
+i18nRegel(/^Data · (.+)$/, "Data · $1");
+i18nRegel(/^Bijgewerkt (.+)$/, "Updated $1");
+i18nRegel(/^(\d+) betaald · (\d+) gratis · (\d+) via 1-op-1(.*)$/, (m, a, b, c, d) => a + " paid · " + b + " free · " + c + " via 1-on-1" + d.replace(" opgezegd", " cancelled"));
+i18nRegel(/^(\d+) actief \(30 d\)$/, "$1 active (30 d)");
+i18nRegel(/^(\d+) programmadagen(.*)$/, (m, a, b) => a + " program days" + b.replace(" gemist", " missed"));
+i18nRegel(/^(\d+) van (\d+) mogelijke sessies$/, "$1 of $2 possible sessions");
+i18nRegel(/^(\d+) Rx · (\d+) Scaled$/, "$1 Rx · $2 Scaled");
+i18nRegel(/^Kon de cijfers niet laden: (.+)$/, "Could not load the numbers: $1");

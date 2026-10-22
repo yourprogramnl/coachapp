@@ -422,7 +422,7 @@ function wcRender(){
 }
 // Ververs de tellers op het scherm dat open staat (dashboard-feed of klant-kalender).
 function wcVerversUI(){
-  if(document.querySelector(".client-layout")){if(typeof renderMonth==="function")renderMonth({skipFetch:true});}
+  if(document.querySelector(".client-layout:not(.bloglay)")){if(typeof renderMonth==="function")renderMonth({skipFetch:true});}
   else if(DASH&&coachSection==="dash")dashRender();
 }
 // Gedeeld: opent het reacties-venster voor een workout-dag (haalt de draad vers op).

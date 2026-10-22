@@ -140,7 +140,7 @@ async function routeHash(){
   if(r.type==="client"){
     await ensureClients();
     if((coachClients||[]).some(x=>x.id===r.id)){
-      const alOpen=typeof calClient!=="undefined"&&calClient===r.id&&document.querySelector(".client-layout");
+      const alOpen=typeof calClient!=="undefined"&&calClient===r.id&&document.querySelector(".client-layout:not(.bloglay)");
       if(!alOpen)openClient(r.id,{dag:r.dag,reacties:r.reacties,panel:r.data?"data":null});
       else if(r.data)renderClient("data"); // #klant/<id>/data: het kopje Data (testdata van deze klant)
       else if(r.dag&&typeof histGaNaar==="function"){

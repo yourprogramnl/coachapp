@@ -164,7 +164,7 @@ function liveVervers(athleteId){
       const a=document.activeElement;
       if(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.isContentEditable))return;
       if(document.querySelector(".coachmenu")||document.querySelector('[id$="modal"].show:not(#wcmodal)'))return; // menu of venster open (het zwevende reactiepaneel telt niet)
-      const klantOpen=typeof calClient!=="undefined"&&calClient&&document.querySelector(".client-layout");
+      const klantOpen=typeof calClient!=="undefined"&&calClient&&document.querySelector(".client-layout:not(.bloglay)");
       if(klantOpen){
         if(typeof editDay!=="undefined"&&editDay)return; // bouwer open: niet onder je handen verversen
         if(athleteId&&athleteId!==calClient)return;      // wijziging van een andere klant

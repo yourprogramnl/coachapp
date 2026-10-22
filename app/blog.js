@@ -4,7 +4,7 @@
 // workouts.blog_program_id (audience='blog'); de losse weekworkout heeft geen
 // blog_program_id en blijft dus in de Weekworkout-sectie. Prijs is alleen
 // weergave; betalen blijft via Strivee lopen.
-let BLOG={list:[],counts:{},zoek:"",cur:null,maand:null,workouts:[],editDay:null,editWid:null,editPid:null,tab:"progs",klantFilter:null,klantZoek:"",klantGestopt:false,klanten:null};
+let BLOG={list:[],counts:{},zoek:"",cur:null,maand:null,workouts:[],editDay:null,editWid:null,editPid:null,tab:"progs",klantFilter:null,klantZoek:"",klantGestopt:false,klanten:null,paneel:"kalender",data:null,dataPid:null,dataLaden:false,dataFout:null};
 const BLOG_TYPES=[["classic","Classic"],["fixed","Vast"],["one_on_one","1-op-1"]];
 const blogTypeNL=t=>{const x=BLOG_TYPES.find(o=>o[0]===t);return x?x[1]:(t||"Classic");};
 
@@ -39,6 +39,7 @@ function blogGaNaar(id){
 function blogRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   if(BLOG.cur){blogDetailRender();return;}
+  cp.classList.remove("fullbleed"); // de lijst staat in de gewone kolom; de programmapagina op volle breedte
   // Twee tabbladen (22 okt 2026, verzoek Stefan): de programma's en een klantenoverzicht
   // per programma (wie volgt wat, sinds wanneer, betaald of gratis, opgezegd of gestopt).
   const knoppen='<div style="display:flex;gap:8px"><button class="btn" onclick="blogpModal(null)">+ Programma aanmaken</button>'+
@@ -200,7 +201,7 @@ async function blogpOpslaan(){
 async function blogOpen(id){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   const p=BLOG.list.find(x=>x.id===id);if(!p){toast("Programma niet gevonden");return;}
-  BLOG.cur=p;
+  BLOG.cur=p;BLOG.paneel="kalender";
   BLOG.weekStart=mondayOf(new Date());
   BLOG.editDay=null;BLOG.editWid=null;
   await blogLaadWeek();
@@ -247,6 +248,53 @@ async function blogSwitch(id){
 function blogDetailRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   const p=BLOG.cur,n=BLOG.counts[p.id]||0;
+  cp.classList.add("fullbleed"); // volle breedte, zoals het klant-scherm (verzoek Stefan 22 okt)
+  const paneel=BLOG.paneel||"kalender";
+  const knop=(key,icon,label,actie,extra)=>'<button class="'+(key===paneel?"on":"")+'" data-tip="'+esc(label)+'"'+(extra||"")+' onclick="'+actie+'"><svg class="i"><use href="#'+icon+'"/></svg> '+esc(label)+'</button>';
+  const nav=knop("kalender","i-cal","Kalender","blogPaneel('kalender')")+
+    knop("klanten","i-user","Klanten","blogPaneel('klanten')")+
+    knop("boards","i-fist","Leaderboards","blogPaneel('boards')")+
+    knop("data","i-chart","Data","blogPaneel('data')")+
+    knop("sneltoetsen","i-keys","Sneltoetsen","blogKeys()",' style="margin-top:14px"')+
+    knop("bieb","i-book","Bibliotheek","openBiebVenster()")+
+    knop("leden","i-link","Leden koppelen","blogLedenOpen()",' style="margin-top:14px"')+
+    knop("uitnodigen","i-doc","Klant uitnodigen","openInvModal('blog')")+
+    (p.join_open?knop("join","i-globe","Aanmeldlink kopiëren","blogKopieerJoin()"):"")+
+    knop("details","i-gear","Details bewerken","blogpModal('"+p.id+"')");
+  cp.innerHTML='<div class="client-layout bloglay'+(sideCollapsed?' collapsed':'')+'">'+
+    '<div class="cside"><div class="cside-in"><div class="prof">'+
+      '<button class="bl-terug" title="Terug naar de lijst met programma\'s" onclick="blogTerug()">‹ Terug naar Blog</button>'+
+      '<div class="bigav" style="'+avStijl(p.name)+'" title="'+esc(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div>'+
+      '<div class="cnm">'+esc(p.name)+'</div>'+
+      '<div class="cinfo">'+esc(blogTypeNL(p.type))+' · '+esc(blogPrijsTekst(p)||"Gratis")+'<br><span style="cursor:pointer" title="Klantenoverzicht van dit programma" onclick="blogPaneel(\'klanten\')"><b>'+n+'</b> klant'+(n===1?"":"en")+'</span></div></div>'+
+    '<div class="mini-sess" title="Klanten" style="cursor:pointer" onclick="blogPaneel(\'klanten\')">'+n+'</div>'+
+    '<div class="streak" id="bs-stats">'+blogSideStats()+'</div>'+
+    '<div class="cnav">'+nav+'</div>'+
+    '<button class="collapsebtn" title="Zijbalk in-/uitklappen" onclick="toggleSide()"><span id="cl-arrow">'+(sideCollapsed?"→":"←")+'</span></button></div></div>'+
+    '<div class="cmain" id="cmain">'+blogPaneelHtml()+'</div></div>';
+  if(paneel==="kalender"&&BLOG.editDay){relabel();groei();}
+  // Cijfers op de achtergrond ophalen (zijbalk, Data en Leaderboards), één keer per programma.
+  if(BLOG.dataPid!==p.id&&!BLOG.dataLaden)blogDataLaad();
+}
+// Welk onderdeel staat open in het grote vlak rechts van het zijmenu.
+function blogPaneel(key){
+  if(!BLOG.cur)return;
+  BLOG.paneel=key;
+  document.querySelectorAll(".coachmenu,.daymenu").forEach(x=>x.remove());
+  if(key!=="kalender"){BLOG.editDay=null;BLOG.editWid=null;}
+  if(key==="klanten"){BLOG.klantFilter=BLOG.cur.id;blogKlantenLaad();return;}
+  blogRender();
+}
+function blogPaneelHtml(){
+  const k=BLOG.paneel||"kalender";
+  if(k==="klanten")return '<div class="bl-pad"><h2 style="margin:0 0 10px">Klanten van '+esc(BLOG.cur.name)+'</h2>'+blogKlantenHtml(true)+'</div>';
+  if(k==="boards")return '<div class="bl-pad">'+blogBoardsHtml()+'</div>';
+  if(k==="data")return '<div class="bl-pad">'+blogDataHtml()+'</div>';
+  return blogKalenderHtml();
+}
+// Het weekraster (was de hele pagina; nu het onderdeel Kalender).
+function blogKalenderHtml(){
+  const p=BLOG.cur;
   const midden=addDays(BLOG.weekStart,3); // donderdag bepaalt de maand van de week
   const maandNaam=MAANDVOL[midden.getMonth()].charAt(0).toUpperCase()+MAANDVOL[midden.getMonth()].slice(1)+" "+midden.getFullYear();
   const dagen=[0,1,2,3,4,5,6].map(i=>ymd(addDays(BLOG.weekStart,i)));
@@ -257,11 +305,8 @@ function blogDetailRender(){
     const vandaag=datum===todayStr();
     return '<div'+(vandaag?' style="background:#e3f1f8;color:#1d6f9c"':'')+'>'+DAGENVOL[i]+' <span style="font-weight:600;color:'+(vandaag?"#1d6f9c":"#9aa1ab")+'">'+d.getDate()+'/'+pad(d.getMonth()+1)+'</span></div>';
   }).join("");
-  cp.innerHTML='<div class="progedit">'+
-    '<div class="pe-top"><button class="btn ghost sm" onclick="blogTerug()">‹ Terug</button>'+
-      '<div class="pe-badges"><span class="cpill">'+esc(blogTypeNL(p.type))+'</span><span class="cpill">'+esc(blogPrijsTekst(p)||"Gratis")+'</span><span class="cpill teal" style="cursor:pointer" title="Klantenoverzicht van dit programma" onclick="blogKlantenOpen(\''+p.id+'\')">'+n+" klant"+(n===1?"":"en")+'</span></div>'+
-      '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'+(p.join_open?'<button class="btn ghost sm" title="Iedereen met deze link kan zich als gratis blog-lid aanmelden" onclick="blogKopieerJoin()">🔗 Aanmeldlink kopiëren</button>':'')+'<button class="btn ghost sm" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
-    '<div class="pe-weeks" style="margin-top:10px;align-items:center">'+
+  return '<div class="progedit bl-pad" style="padding-top:0">'+
+    '<div class="pe-weeks bl-weeks">'+
       '<h1 style="margin:0;font-size:20px">'+esc(maandNaam)+'</h1><span class="muted" style="font-weight:700;font-size:13px;margin-left:4px">Week '+isoWeek(midden)+'</span>'+
       '<button class="btn ghost sm" style="margin-left:14px" onclick="blogWeekGa(0)">Vandaag</button>'+
       '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(-1)">‹</button>'+
@@ -274,7 +319,6 @@ function blogDetailRender(){
     '<div class="pe-cal"><div class="pe-hd7" style="grid-template-columns:'+cols+'">'+koppen+'</div>'+
     '<div class="pe-row" style="grid-template-columns:'+cols+'">'+dagen.map(d=>blogDayCel(d)).join("")+'</div></div>'+
   '</div>';
-  if(BLOG.editDay){relabel();groei();}
 }
 function blogDayCel(datum){
   const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
@@ -373,11 +417,14 @@ function blogDragStart(ev,wid){
   if(card&&ev.dataTransfer.setDragImage)ev.dataTransfer.setDragImage(card,24,18);
 }
 function blogDragEnd(){blogDragWid=null;document.querySelectorAll(".pe-cell.dragover").forEach(c=>c.classList.remove("dragover"));}
-function blogDragOver(ev,cell){if(!blogDragWid)return;ev.preventDefault();cell.classList.add("dragover");}
+function blogDragOver(ev,cell){if(!blogDragWid&&!(typeof biebDragItem==="function"&&biebDragItem(ev)))return;ev.preventDefault();cell.classList.add("dragover");}
 function blogDragLeave(cell){cell.classList.remove("dragover");}
 async function blogDropDay(ev,ds){
   ev.preventDefault();
   document.querySelectorAll(".pe-cell.dragover").forEach(c=>c.classList.remove("dragover"));
+  // Kaart uit het bibliotheek-venster (template, benchmark, oefening of weekworkout)?
+  const item=(typeof biebLees==="function")?biebLees(ev):null;
+  if(item){blogDragWid=null;await blogBiebDrop(item,ds);return;}
   const wid=blogDragWid;blogDragWid=null;
   if(!wid)return;
   const w=BLOG.workouts.find(x=>x.id===wid);
@@ -622,7 +669,10 @@ function ensureBlogModals(){
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Leden koppelen</h3><span onclick="blogLedenDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
       '<div class="sm muted" style="margin-bottom:8px">Klik op een lid om te (ont)koppelen. Een lid volgt één blogprogramma tegelijk.</div>'+
       '<div id="blogled-lijst" style="max-height:52vh;overflow:auto"></div>'+
-      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="blogLedenDicht()">Sluiten</button></div></div></div>';
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="blogLedenDicht()">Sluiten</button></div></div></div>'+
+    '<div class="lmodal" id="blogkkmodal" style="z-index:399"><div class="box" style="width:560px;max-width:94vw">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Klantkaart</h3><span onclick="blogKlantKaartDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+      '<div id="blogkk-body"></div></div></div>';
   document.body.appendChild(d);
 }
 
@@ -677,11 +727,11 @@ function blogKlantStatus(r){
   if(o.cancel_at)return{html:'<span class="cpill bad">Opgezegd, stopt '+esc(d(o.cancel_at))+'</span>',rang:1,gestopt:false};
   return{html:'<span class="cpill ok">Betaald</span>',rang:0,gestopt:false};
 }
-function blogKlantenHtml(){
+function blogKlantenHtml(vast){
   const progs=BLOG.list;
   const filter='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px">'+
-    '<select class="lid-in" style="width:auto;min-width:200px" onchange="blogKlantFilter(this.value)"><option value="">Alle programma\'s</option>'+
-      progs.map(p=>'<option value="'+p.id+'"'+(BLOG.klantFilter===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join("")+'</select>'+
+    (vast?"":'<select class="lid-in" style="width:auto;min-width:200px" onchange="blogKlantFilter(this.value)"><option value="">Alle programma\'s</option>'+
+      progs.map(p=>'<option value="'+p.id+'"'+(BLOG.klantFilter===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join("")+'</select>')+
     '<input class="lid-in" style="width:100%;max-width:260px" placeholder="Zoek een klant…" oninput="blogKlantZoek(this.value)" value="'+esc(BLOG.klantZoek)+'">'+
     '<label class="sm muted" style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="checkbox" '+(BLOG.klantGestopt?'checked':'')+' onchange="blogKlantGestopt(this.checked)"> Ook gestopte abonnementen tonen</label>'+
     '</div>';
@@ -849,3 +899,222 @@ function blogKlantFilter(v){BLOG.klantFilter=v||null;blogRender();}
 function blogKlantZoek(v){BLOG.klantZoek=v||"";const cp=document.getElementById("cpage");if(!cp)return;blogRender();const i=cp.querySelector('input[placeholder="Zoek een klant…"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
 function blogKlantGestopt(aan){BLOG.klantGestopt=!!aan;blogRender();}
 
+
+// ---------- Programmapagina: cijfers (Data), leaderboards, klantkaart, sneltoetsen ----------
+// (22 okt 2026, verzoek Stefan.) De cijfers komen uit de serverfunctie blog_program_data:
+// één aanroep per programma, alleen voor staf van het bedrijf. Zie PROGRESS.md.
+async function blogDataLaad(force){
+  const p=BLOG.cur;if(!p)return;
+  if(!force&&BLOG.dataPid===p.id&&BLOG.data)return;
+  const pid=p.id;
+  BLOG.dataLaden=true;BLOG.dataFout=null;
+  if(force)blogDataToon();
+  let data=null,error=null;
+  try{({data,error}=await db.rpc("blog_program_data",{p_program:pid}));}catch(e){error=e;}
+  BLOG.dataLaden=false;
+  if(!BLOG.cur||BLOG.cur.id!==pid)return; // intussen is een ander programma geopend
+  BLOG.dataPid=pid;
+  if(error){BLOG.dataFout=(error&&error.message)||"Cijfers laden mislukt";BLOG.data=null;}
+  else{BLOG.data=data||null;}
+  blogDataToon();
+}
+// Alleen de stukken verversen die de cijfers tonen; de kalender (en een open bouwer) blijft staan.
+function blogDataToon(){
+  const s=document.getElementById("bs-stats");if(s)s.innerHTML=blogSideStats();
+  if(BLOG.paneel==="data"||BLOG.paneel==="boards"){const m=document.getElementById("cmain");if(m)m.innerHTML=blogPaneelHtml();}
+}
+function blogSideStats(){
+  if(BLOG.dataFout)return '<span title="'+esc(BLOG.dataFout)+'">Cijfers niet geladen</span>';
+  const d=BLOG.data;if(!d||BLOG.dataPid!==(BLOG.cur||{}).id)return "Cijfers laden…";
+  const a=d.actief||{},v=d.volgers||{};
+  return '<span title="Betaald via de winkel">'+Number(v.betaald||0)+' betaald</span> · <span title="Sporters die de laatste 30 dagen iets logden">'+Number(a.d30||0)+' actief (30 d)</span>';
+}
+const blogEuro=c=>"€ "+(Number(c||0)/100).toFixed(2).replace(".",",");
+function blogDatumKort(iso){if(!iso)return "";const d=new Date(String(iso).length>10?iso:iso+"T12:00:00");return d.getDate()+" "+MAANDKORT[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():"");}
+function blogMaandKort(ym){const[y,m]=String(ym).split("-");return MAANDKORT[parseInt(m,10)-1]+" "+y;}
+function blogDataStatus(k){
+  if(k.betaald)return k.opgezegd_tot?'<span class="cpill bad" style="font-size:10px">Opgezegd, stopt '+esc(blogDatumKort(k.opgezegd_tot))+'</span>':'<span class="cpill ok" style="font-size:10px">Betaald</span>';
+  return k.membership_type==="one_on_one"?'<span class="cpill gray" style="font-size:10px">via 1-op-1</span>':'<span class="cpill gray" style="font-size:10px">Gratis</span>';
+}
+function blogDataHtml(){
+  const p=BLOG.cur,d=BLOG.data;
+  let html='<div class="hrow" style="margin:0 0 4px"><h2 style="margin:0">Data · '+esc(p.name)+'</h2><div style="margin-left:auto;display:flex;gap:8px;align-items:center">'+
+    (d&&d.gemaakt_op?'<span class="sm muted">Bijgewerkt '+esc(new Date(d.gemaakt_op).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"}))+'</span>':'')+
+    '<button class="btn ghost sm" onclick="blogDataLaad(true)">Verversen</button></div></div>';
+  if(BLOG.dataLaden||(!d&&!BLOG.dataFout))return html+'<div class="card" style="margin-top:12px"><div class="cempty">Cijfers laden…</div></div>';
+  if(BLOG.dataFout)return html+'<div class="card" style="margin-top:12px"><div class="cempty">Kon de cijfers niet laden: '+esc(BLOG.dataFout)+'</div></div>';
+  const v=d.volgers||{},a=d.actief||{},pd=d.programma_dagen||{},rs=d.rx_scaled||{};
+  const n=x=>Number(x||0);
+  const volgers=n(v.totaal);
+  const mogelijk=n(pd.d30)*volgers;
+  const volt=mogelijk?Math.min(100,Math.round(100*n(a.sessies_30d)/mogelijk)):null;
+  const rxTot=n(rs.rx)+n(rs.scaled);
+  const beheer=blogKlantMagBeheren();
+  const omzet=beheer&&p.price_cents>0;
+  const interval=p.price_interval==="week"?"/week":p.price_interval==="year"?"/jaar":"/maand";
+  const tile=(val,label,sub,kleur)=>'<div class="stat"><div class="n'+(kleur?" "+kleur:"")+'">'+val+'</div><div class="l">'+label+'</div>'+(sub?'<div class="s">'+sub+'</div>':'')+'</div>';
+  html+='<div class="bl-tiles">'+
+    tile(volgers,"Volgers",n(v.betaald)+" betaald · "+n(v.gratis)+" gratis · "+n(v.een_op_een)+" via 1-op-1"+(n(v.opgezegd)?" · "+n(v.opgezegd)+" opgezegd":""))+
+    tile(n(a.d7)+' <span class="muted" style="font-size:14px">/ '+n(a.d30)+'</span>',"Actief (7 / 30 dagen)","Sporters die iets logden")+
+    tile(n(a.sessies_30d),"Sessies (30 dagen)",n(pd.d30)+" programmadagen"+(n(a.gemist_30d)?" · "+n(a.gemist_30d)+" gemist":""))+
+    tile(volt===null?"–":volt+"%","Voltooiing (30 dagen)",mogelijk?n(a.sessies_30d)+" van "+mogelijk+" mogelijke sessies":"Nog geen programmadagen",volt!==null&&volt>=60?"ok":"")+
+    tile(rxTot?Math.round(100*n(rs.rx)/rxTot)+"% Rx":"–","Rx / Scaled",rxTot?n(rs.rx)+" Rx · "+n(rs.scaled)+" Scaled":"Nog geen scores")+
+    (omzet?tile(blogEuro(n(v.betaald)*p.price_cents)+' <span class="muted" style="font-size:12px">'+interval+'</span>',"Geschatte omzet","Betaalde abonnementen × huidige prijs. Het exacte bedrag staat in Stripe."):"")+
+  '</div>';
+  const weken=d.per_week||[],max=Math.max(1,...weken.map(w=>n(w.voltooid)));
+  const nuWk=ymd(mondayOf(new Date()));
+  const bars=weken.length?'<div class="bl-bars">'+weken.map(w=>'<div class="bl-bar'+(w.week===nuWk?" nu":"")+'" title="Week van '+esc(blogDatumKort(w.week))+': '+n(w.voltooid)+' sessies, '+n(w.atleten)+' sporters'+(n(w.gemist)?', '+n(w.gemist)+' gemist':'')+'"><b>'+n(w.voltooid)+'</b><i style="height:'+Math.max(2,Math.round(100*n(w.voltooid)/max))+'%"></i><span>wk '+isoWeek(new Date(w.week+"T12:00:00"))+'</span></div>').join("")+'</div>'+
+    '<div class="sm muted">Gelogde sessies per week, met het weeknummer eronder. Deze week staat in donkerblauw.</div>':'<div class="nodata">Nog geen data</div>';
+  const maanden=d.per_maand||[];
+  const mTabel=maanden.length?'<table class="bl-tabel"><tr><th>Maand</th><th class="r">Nieuw</th><th class="r" title="Nieuwe betaalde abonnementen">Betaald +</th><th class="r" title="Gestopte betaalde abonnementen">Betaald −</th><th class="r" title="Betaalde abonnementen aan het eind van de maand">Betaald</th>'+(omzet?'<th class="r">Omzet*</th>':'')+'<th class="r">Sessies</th><th class="r">Sporters</th></tr>'+
+    maanden.map((m,i)=>'<tr'+(i===maanden.length-1?' class="nu"':'')+'><td>'+esc(blogMaandKort(m.maand))+'</td><td class="r">'+n(m.nieuw)+'</td><td class="r">'+n(m.betaald_nieuw)+'</td><td class="r">'+n(m.betaald_gestopt)+'</td><td class="r">'+n(m.betaald_actief)+'</td>'+(omzet?'<td class="r">'+blogEuro(n(m.betaald_actief)*p.price_cents)+'</td>':'')+'<td class="r">'+n(m.sessies)+'</td><td class="r">'+n(m.atleten)+'</td></tr>').join("")+'</table>'+
+    (omzet?'<div class="sm muted" style="margin-top:6px">* Schatting: betaalde abonnementen × de huidige prijs. Het echte bedrag staat in Stripe.</div>':''):'<div class="nodata">Nog geen data</div>';
+  const lijst=(rows,leeg,veld)=>rows.length?'<div class="bl-lijst">'+rows.map(r=>'<button onclick="blogBoardOpen(\''+r.workout_id+'\')" title="Leaderboard van deze workout openen"><span class="d">'+esc(blogDatumKort(r.workout_date))+'</span><span>'+esc(r.title||"Workout")+'</span><span class="n">'+n(r[veld])+'×</span></button>').join("")+'</div>':'<div class="nodata">'+leeg+'</div>';
+  html+='<div class="metcards bl-cards">'+
+    '<div class="metcard"><h3>Activiteit per week</h3>'+bars+'</div>'+
+    '<div class="metcard"><h3>Volgers per maand</h3>'+mTabel+'</div>'+
+    '<div class="metcard"><h3>Meest gedaan (8 weken)</h3>'+lijst(d.meest_gedaan||[],"Nog geen gelogde workouts in de laatste 8 weken.","voltooid")+'</div>'+
+    '<div class="metcard"><h3>Meest gemist (8 weken)</h3>'+lijst(d.meest_gemist||[],"Niemand heeft een workout als gemist gelogd.","gemist")+'</div>'+
+  '</div>';
+  const kl=d.klanten||[];
+  html+='<h3 style="margin:18px 0 8px">Per klant</h3>'+
+    (kl.length?'<div class="card" style="padding:4px 10px;overflow-x:auto"><table class="bl-tabel"><tr><th>Klant</th><th>Status</th><th>Sinds</th><th>Laatste training</th><th class="r" title="Sessies in de laatste 30 dagen / totaal">Sessies 30 d / totaal</th><th class="r">Gemist 30 d</th><th class="r">Streak</th><th class="r">Rx / Sc</th><th class="r" title="Openbare scores op het leaderboard">Openbaar</th></tr>'+
+      kl.map(k=>'<tr class="bl-klant" onclick="blogKlantKaart(\''+k.athlete_id+'\')"><td><b>'+naamVan(k)+'</b>'+(k.archived?' <span class="cpill gray" style="font-size:9.5px">archief</span>':'')+'</td><td>'+blogDataStatus(k)+'</td><td class="sm muted">'+esc(blogDatumKort(k.sinds))+'</td><td class="sm muted">'+(k.laatste_training?esc(blogDatumKort(k.laatste_training)):"–")+'</td><td class="r">'+n(k.sessies_30d)+' / '+n(k.sessies_totaal)+'</td><td class="r">'+n(k.gemist_30d)+'</td><td class="r">'+n(k.streak_weken)+' wk</td><td class="r">'+n(k.rx)+' / '+n(k.scaled)+'</td><td class="r">'+n(k.openbaar)+'</td></tr>').join("")+'</table></div>':'<div class="card"><div class="cempty">Nog geen klanten gekoppeld aan dit programma.</div></div>')+
+    '<div class="sm muted" style="margin-top:10px;line-height:1.6">Een <b>sessie</b> is een dag waarop iemand minstens één onderdeel heeft gelogd. De <b>streak</b> telt aaneengesloten weken met minstens één sessie (deze week mag nog leeg zijn). <b>Voltooiing</b> is het aantal sessies gedeeld door het aantal programmadagen keer het aantal volgers. Gasten (scores zonder account via de weekworkout) tellen mee in de sessies, niet bij de volgers. Klik op een klant voor een kaart met een samenvatting die je kunt delen.</div>';
+  return html;
+}
+// ---------- Leaderboards: de laatste workouts van het programma met hun openbare scores ----------
+function blogBoardsHtml(){
+  const d=BLOG.data;
+  let html='<h2 style="margin:0 0 4px">Leaderboards</h2><div class="sm muted" style="margin-bottom:12px">Per workout de openbare scores van de volgers; hetzelfde bord als het vuistje op een kaart in de kalender.</div>';
+  if(BLOG.dataLaden||(!d&&!BLOG.dataFout))return html+'<div class="card"><div class="cempty">Laden…</div></div>';
+  if(BLOG.dataFout)return html+'<div class="card"><div class="cempty">'+esc(BLOG.dataFout)+'</div></div>';
+  const rows=d.recente_workouts||[];
+  if(!rows.length)return html+'<div class="card"><div class="cempty">Nog geen workouts in het verleden.</div></div>';
+  return html+'<div class="card"><div class="thead"><div style="flex:.9">Datum</div><div style="flex:2.4">Workout</div><div style="flex:.8;text-align:right">Gelogd</div><div style="flex:.8;text-align:right">Openbaar</div><div style="width:130px"></div></div>'+
+    rows.map(r=>'<div class="trow" style="align-items:center"><div style="flex:.9" class="sm muted">'+esc(blogDatumKort(r.workout_date))+'</div><div style="flex:2.4"><b style="font-size:12.5px">'+esc(r.title||"Workout")+'</b></div><div style="flex:.8;text-align:right" class="sm">'+Number(r.voltooid||0)+'</div><div style="flex:.8;text-align:right" class="sm">'+Number(r.openbaar||0)+'</div><div style="width:130px;text-align:right"><button class="btn ghost sm" onclick="blogBoardOpen(\''+r.workout_id+'\')">Leaderboard</button></div></div>').join("")+'</div>';
+}
+// Bord openen van een workout die niet in de zichtbare week staat: eerst ophalen.
+async function blogBoardOpen(wid){
+  if(!BLOG.workouts.find(w=>w.id===wid)){
+    const{data,error}=await db.from("workouts").select("*, blocks(*)").eq("id",wid).single();
+    if(error||!data){toast("Workout niet gevonden");return;}
+    BLOG.workouts.push(data);
+  }
+  blogBoard(wid);
+}
+// ---------- Klantkaart: cijfers van één volger + samenvatting om te delen ----------
+function blogKlantKaart(aid){
+  const d=BLOG.data;if(!d)return;
+  const k=(d.klanten||[]).find(x=>x.athlete_id===aid);if(!k)return;
+  ensureBlogModals();
+  const n=x=>Number(x||0);
+  const vak=(val,label)=>'<div><b>'+val+'</b><span>'+label+'</span></div>';
+  document.getElementById("blogkk-body").innerHTML=
+    '<div style="display:flex;align-items:center;gap:12px"><div class="cavc" style="width:44px;height:44px;font-size:14px;flex:none;'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div><b style="font-size:15px">'+naamVan(k)+'</b><div class="sm muted">'+esc(k.email||"")+'</div></div><div style="margin-left:auto">'+blogDataStatus(k)+'</div></div>'+
+    '<div class="bl-kk">'+vak(n(k.sessies_30d),"sessies, 30 dagen")+vak(n(k.sessies_totaal),"sessies totaal")+vak(n(k.streak_weken)+" wk","streak")+vak(n(k.gemist_30d),"gemist, 30 dagen")+
+      vak(k.laatste_training?esc(blogDatumKort(k.laatste_training)):"–","laatste training")+vak(esc(blogDatumKort(k.sinds)),"volgt sinds")+vak(n(k.rx)+" / "+n(k.scaled),"Rx / Scaled")+vak(n(k.openbaar),"openbare scores")+'</div>'+
+    '<div class="bl-deel"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap"><b>Delen met de klant</b><span class="sm muted">alleen de eigen cijfers; geen omzet, geen anderen</span><button class="btn ghost sm" style="margin-left:auto" onclick="kopieerNaarKlembord(document.getElementById(\'blogkk-tekst\').value,\'Samenvatting gekopieerd\')">Kopiëren</button></div>'+
+      '<textarea id="blogkk-tekst" readonly>'+esc(blogKlantSamenvatting(k))+'</textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end"><button class="btn ghost" onclick="blogKlantKaartDicht();location.hash=\'klant/'+k.athlete_id+'\'">Klant-scherm openen</button><button class="btn ghost" onclick="blogKlantKaartDicht()">Sluiten</button></div>';
+  document.getElementById("blogkkmodal").classList.add("show");
+}
+function blogKlantKaartDicht(){const m=document.getElementById("blogkkmodal");if(m)m.classList.remove("show");}
+// De tekst voor de klant: alleen zijn eigen cijfers, nooit omzet of andermans data.
+function blogKlantSamenvatting(k){
+  const p=BLOG.cur,n=x=>Number(x||0);
+  const naam=[k.first_name,k.last_name].filter(Boolean).join(" ")||k.email||"";
+  return naam+" · "+(p.name||"")+"\n"+
+    "Laatste 30 dagen: "+n(k.sessies_30d)+" training"+(n(k.sessies_30d)===1?"":"en")+" gelogd"+(n(k.gemist_30d)?", "+n(k.gemist_30d)+" gemist":"")+"\n"+
+    "Totaal: "+n(k.sessies_totaal)+" training"+(n(k.sessies_totaal)===1?"":"en")+" sinds "+blogDatumKort(k.sinds)+"\n"+
+    "Streak: "+n(k.streak_weken)+(n(k.streak_weken)===1?" week":" weken")+" op rij\n"+
+    "Laatste training: "+(k.laatste_training?blogDatumKort(k.laatste_training):"nog geen")+"\n"+
+    "Rx / Scaled: "+n(k.rx)+" / "+n(k.scaled)+"\n"+
+    "Openbare scores op het leaderboard: "+n(k.openbaar);
+}
+// ---------- Slepen vanuit het bibliotheek-venster naar een programmadag ----------
+// Zelfde gedrag als op de klant-kalender (biebDropOpDag): bouwer open op die dag =
+// onderaan in de bouwer; dag met workout = blok eronder; lege dag = nieuwe workout.
+async function blogBiebDrop(item,ds){
+  if(!BLOG.cur||!item)return;
+  if(BLOG.editDay===ds&&typeof biebInBouwer==="function"&&biebInBouwer(item))return;
+  if(typeof liftsLaad==="function")await liftsLaad();
+  const dag=BLOG.workouts.filter(w=>w.workout_date===ds&&!/^rest ?day$/i.test((w.title||"").trim())).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  const kort=ds.slice(8,10)+"-"+ds.slice(5,7);
+  if(dag.length){
+    const w=dag[dag.length-1],blokken=w.blocks||[];
+    const sort=blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1;
+    const label=String.fromCharCode(65+Math.min(blokken.length,25));
+    const{error}=await db.from("blocks").insert(blokkenMetLabels(biebBlokkenVan(item),label,sort).map(b=>Object.assign({workout_id:w.id},b)));
+    if(error){toast(error.message||"Toevoegen mislukt");return;}
+    toast('"'+item.naam+'" als blok '+label+' onder "'+(w.title||"workout")+'" gezet');
+  }else{
+    const wf={company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:ds,title:item.naam};
+    const kopie=item.soort==="weekworkout"&&item.blocks;
+    if(kopie)Object.assign(wf,{warmup:item.warmup||null,cooldown:item.cooldown||null,warmup_oefening_id:item.warmup_oefening_id||null,cooldown_oefening_id:item.cooldown_oefening_id||null,warmup_media:item.warmup_media||null,cooldown_media:item.cooldown_media||null,source_blog_workout_id:item.id});
+    const{data:nw,error}=await db.from("workouts").insert(wf).select().single();
+    if(error){toast(error.message||"Toevoegen mislukt");return;}
+    const blokken=kopie?item.blocks.map(b=>Object.assign({},b,{workout_id:nw.id})):blokkenMetLabels(biebBlokkenVan(item),"A",1).map(b=>Object.assign({workout_id:nw.id},b));
+    if(blokken.length){const{error:be}=await db.from("blocks").insert(blokken);if(be){toast(be.message||"Toevoegen mislukt");return;}}
+    toast(kopie?'Weekworkout "'+item.naam+'" als eigen kopie op '+kort+' gezet':'"'+item.naam+'" als nieuwe workout op '+kort+' gezet');
+  }
+  await blogHerlaad();
+}
+// ---------- Sneltoetsen op de programmapagina (zelfde paneel als op het klant-scherm) ----------
+const BLOG_SNELTOETSEN=[
+ ["Kalender",[["Sneltoetsen tonen","?"],["Naar deze week","T"],["Vorige week","←"],["Volgende week","→"],["Zijbalk in-/uitklappen","\\"],["Alles sluiten","Esc"]]],
+ ["Bouwer",[["Workout opslaan","Ctrl Enter"],["Bouwer sluiten","Esc"],["Oefening-blok toevoegen","Ctrl Shift O"],["Conditioning-blok toevoegen","Ctrl Shift K"]]],
+ ["Onderdelen",[["Kalender","C"],["Klanten","K"],["Leaderboards","L"],["Data","D"],["Bibliotheek-venster","B"]]]
+];
+function blogKeys(){
+  const lay=document.querySelector(".client-layout.bloglay");if(!lay)return;
+  let sp=document.getElementById("sp-blogkeys");
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(!sp){
+    sp=document.createElement("div");sp.id="sp-blogkeys";sp.className="sidepanel";
+    sp.innerHTML='<div class="sp-head"><h3>Sneltoetsen</h3></div><div>'+BLOG_SNELTOETSEN.map(g=>'<div class="keygroep">'+esc(g[0])+'</div>'+g[1].map(r=>'<div class="keyrow"><span>'+esc(r[0])+'</span><span>'+r[1].split(" ").map(k=>'<span class="kbd">'+esc(k)+'</span>').join("")+'</span></div>').join("")).join("")+'</div>'+
+      '<div class="sp-info" style="margin-top:14px">Lettertoetsen werken als je niet in een tekstveld typt en de bouwer dicht is. De bouwer-toetsen (met Ctrl) werken ook tijdens het typen.</div>';
+  }
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  sp.classList.add("show");
+}
+document.addEventListener("keydown",e=>{
+  if(!BLOG.cur||!document.querySelector(".client-layout.bloglay"))return;
+  const ov=document.getElementById("vidoverlay");if(ov&&ov.style.display==="flex")return;
+  const tag=(e.target.tagName||"").toLowerCase();
+  const typt=tag==="input"||tag==="textarea"||tag==="select"||e.target.isContentEditable;
+  const k=(e.key||"").toLowerCase();
+  const bouwerOpen=!!document.getElementById("exrows");
+  if(e.ctrlKey||e.metaKey){
+    if(bouwerOpen){
+      if(k==="enter"){e.preventDefault();blogSaveWorkout();return;}
+      if(e.shiftKey&&k==="o"){e.preventDefault();addExBtn();return;}
+      if(e.shiftKey&&k==="k"){e.preventDefault();addCondBtn();return;}
+    }
+    return;
+  }
+  if(e.key==="Escape"){
+    if(e.target.closest&&e.target.closest("#wcmodal")){if(typeof closeWc==="function")closeWc();return;}
+    const open=document.querySelector(".lmodal.show");
+    if(open){open.classList.remove("show");if(open.id==="blogboardmodal")BLOGBOARD=null;return;}
+    document.querySelectorAll(".daymenu,.coachmenu,.wwmenu").forEach(x=>x.remove());
+    const sp=document.querySelector(".sidepanel.show");
+    if(sp){sp.classList.remove("show");return;}
+    if(bouwerOpen){const vuil=typeof bouwerDirty!=="undefined"&&bouwerDirty;if(!vuil||confirm("Bouwer sluiten zonder op te slaan?"))blogCloseBuilder();}
+    return;
+  }
+  if(typt||e.altKey)return;
+  if(document.querySelector(".lmodal.show"))return;
+  if(e.key==="?"){e.preventDefault();blogKeys();return;}
+  if(e.key==="ArrowLeft"){if(BLOG.paneel==="kalender"&&!bouwerOpen){e.preventDefault();blogWeekGa(-1);}return;}
+  if(e.key==="ArrowRight"){if(BLOG.paneel==="kalender"&&!bouwerOpen){e.preventDefault();blogWeekGa(1);}return;}
+  if(e.shiftKey||bouwerOpen)return;
+  if(k==="\\"){e.preventDefault();toggleSide();}
+  else if(k==="t"){e.preventDefault();BLOG.paneel="kalender";blogWeekGa(0);}
+  else if(k==="c"){e.preventDefault();blogPaneel("kalender");}
+  else if(k==="k"){e.preventDefault();blogPaneel("klanten");}
+  else if(k==="l"){e.preventDefault();blogPaneel("boards");}
+  else if(k==="d"){e.preventDefault();blogPaneel("data");}
+  else if(k==="b"){e.preventDefault();openBiebVenster();}
+});
