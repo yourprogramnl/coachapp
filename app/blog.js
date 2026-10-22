@@ -4,7 +4,7 @@
 // workouts.blog_program_id (audience='blog'); de losse weekworkout heeft geen
 // blog_program_id en blijft dus in de Weekworkout-sectie. Prijs is alleen
 // weergave; betalen blijft via Strivee lopen.
-let BLOG={list:[],counts:{},zoek:"",cur:null,maand:null,workouts:[],editDay:null,editWid:null,editPid:null};
+let BLOG={list:[],counts:{},zoek:"",cur:null,maand:null,workouts:[],editDay:null,editWid:null,editPid:null,tab:"progs",klantFilter:null,klantZoek:"",klantGestopt:false,klanten:null};
 const BLOG_TYPES=[["classic","Classic"],["fixed","Vast"],["one_on_one","1-op-1"]];
 const blogTypeNL=t=>{const x=BLOG_TYPES.find(o=>o[0]===t);return x?x[1]:(t||"Classic");};
 
@@ -39,10 +39,18 @@ function blogGaNaar(id){
 function blogRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   if(BLOG.cur){blogDetailRender();return;}
-  cp.innerHTML='<div class="progedit"><div class="hrow"><h1>Blog</h1>'+
-    '<div style="display:flex;gap:8px"><button class="btn" onclick="blogpModal(null)">+ Programma aanmaken</button>'+
-    '<button class="btn ghost" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button></div></div>'+
-    '<div style="margin:12px 0 14px"><input class="lid-in" id="blog-zoek" placeholder="Zoek een programma…" style="width:100%;max-width:340px" oninput="blogZoek(this.value)" value="'+esc(BLOG.zoek)+'"></div>'+
+  // Twee tabbladen (22 okt 2026, verzoek Stefan): de programma's en een klantenoverzicht
+  // per programma (wie volgt wat, sinds wanneer, betaald of gratis, opgezegd of gestopt).
+  const knoppen='<div style="display:flex;gap:8px"><button class="btn" onclick="blogpModal(null)">+ Programma aanmaken</button>'+
+    '<button class="btn ghost" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button></div>';
+  const tabs='<div class="tabs" style="max-width:360px;margin:14px 0 12px"><button class="'+(BLOG.tab==="klanten"?"":"on")+'" onclick="blogTab(\'progs\')">Programma\'s</button>'+
+    '<button class="'+(BLOG.tab==="klanten"?"on":"")+'" onclick="blogTab(\'klanten\')">Klanten</button></div>';
+  if(BLOG.tab==="klanten"){
+    cp.innerHTML='<div class="progedit"><div class="hrow"><h1>Blog</h1>'+knoppen+'</div>'+tabs+blogKlantenHtml()+'</div>';
+    return;
+  }
+  cp.innerHTML='<div class="progedit"><div class="hrow"><h1>Blog</h1>'+knoppen+'</div>'+tabs+
+    '<div style="margin:0 0 14px"><input class="lid-in" id="blog-zoek" placeholder="Zoek een programma…" style="width:100%;max-width:340px" oninput="blogZoek(this.value)" value="'+esc(BLOG.zoek)+'"></div>'+
     '<div class="card">'+
       '<div class="thead"><div style="flex:2.6">Programma</div><div style="flex:.9">Type</div><div style="flex:.9">Prijs</div><div style="flex:.7">Klanten</div><div style="width:40px"></div></div>'+
       '<div id="blog-lijst">'+blogLijstHtml()+'</div>'+
@@ -54,13 +62,14 @@ function blogLijstHtml(){
   const hits=BLOG.list.filter(p=>!BLOG.zoek||(p.name||"").toLowerCase().includes(BLOG.zoek)||(p.description||"").toLowerCase().includes(BLOG.zoek));
   return hits.map(p=>{
     const n=BLOG.counts[p.id]||0;
-    const prijs=p.price_text?('<b>'+esc(p.price_text)+'</b>'):'<b style="color:#27b376">Gratis</b>';
+    const pt=blogPrijsTekst(p);
+    const prijs=pt?('<b>'+esc(pt)+'</b>'):'<b style="color:#27b376">Gratis</b>';
     return '<div class="trow click" style="cursor:pointer;align-items:center" onclick="blogOpen(\''+p.id+'\')">'+
       '<div style="flex:2.6;display:flex;align-items:center;gap:11px"><div class="cavc" style="width:40px;height:40px;border-radius:10px;font-size:12px;'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div>'+
         '<div><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div></div>'+
       '<div style="flex:.9" class="sm muted">'+esc(blogTypeNL(p.type))+'</div>'+
       '<div style="flex:.9" class="sm">'+prijs+'</div>'+
-      '<div style="flex:.7" class="sm muted">'+(n||"–")+'</div>'+
+      '<div style="flex:.7" class="sm">'+(n?'<a href="#" style="color:#1d6f9c;font-weight:700" title="Klanten van dit programma" onclick="event.stopPropagation();blogKlantenOpen(\''+p.id+'\');return false">'+n+'</a>':'<span class="muted">–</span>')+'</div>'+
       '<div style="width:40px;text-align:right" onclick="event.stopPropagation()"><button class="kebab" onclick="blogMenu(event,\''+p.id+'\')">⋮</button></div></div>';
   }).join("")||'<div class="cempty">Geen programma gevonden voor deze zoekopdracht.</div>';
 }
@@ -250,7 +259,7 @@ function blogDetailRender(){
   }).join("");
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="blogTerug()">‹ Terug</button>'+
-      '<div class="pe-badges"><span class="cpill">'+esc(blogTypeNL(p.type))+'</span><span class="cpill">'+(p.price_text?esc(p.price_text):"Gratis")+'</span><span class="cpill teal">'+n+" klant"+(n===1?"":"en")+'</span></div>'+
+      '<div class="pe-badges"><span class="cpill">'+esc(blogTypeNL(p.type))+'</span><span class="cpill">'+esc(blogPrijsTekst(p)||"Gratis")+'</span><span class="cpill teal" style="cursor:pointer" title="Klantenoverzicht van dit programma" onclick="blogKlantenOpen(\''+p.id+'\')">'+n+" klant"+(n===1?"":"en")+'</span></div>'+
       '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'+(p.join_open?'<button class="btn ghost sm" title="Iedereen met deze link kan zich als gratis blog-lid aanmelden" onclick="blogKopieerJoin()">🔗 Aanmeldlink kopiëren</button>':'')+'<button class="btn ghost sm" onclick="openInvModal(\'blog\')">+ Klant uitnodigen</button><button class="btn ghost sm" onclick="blogLedenOpen()">Leden koppelen</button><button class="btn ghost sm" onclick="blogpModal(\''+p.id+'\')">Details bewerken</button></div></div>'+
     '<div class="pe-weeks" style="margin-top:10px;align-items:center">'+
       '<h1 style="margin:0;font-size:20px">'+esc(maandNaam)+'</h1><span class="muted" style="font-weight:700;font-size:13px;margin-left:4px">Week '+isoWeek(midden)+'</span>'+
@@ -593,7 +602,7 @@ function ensureBlogModals(){
         '<div class="sm muted" style="margin-top:6px">Omslagfoto (link)</div><input id="blogp-cover" placeholder="https://…/foto.jpg">'+
         '<div class="sm muted" style="margin-top:6px">Lange omschrijving (voor de programmapagina; lege regel = nieuwe alinea)</div><textarea id="blogp-desclong" style="min-height:110px" placeholder="Voor wie is dit programma, hoe ziet een week eruit, wat mag je verwachten…"></textarea></div>'+
       '<div class="field"><label>Type</label><select id="blogp-type">'+BLOG_TYPES.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join("")+'</select></div>'+
-      '<div class="field"><label>Prijs (alleen weergave; betalen loopt via Strivee)</label><input id="blogp-prijs" placeholder="bijv. €39 /maand (leeg = gratis)"></div>'+
+      '<div class="field"><label>Prijstekst (alleen weergave, als er geen winkelprijs is)</label><input id="blogp-prijs" placeholder="bijv. €39 /maand (leeg = gratis)"></div>'+
       '<div class="field"><label>Winkel</label>'+
         '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-koop" onchange="blogpKoopToggle()"><span class="pf-sw"></span> Zichtbaar op de etalage (te koop of gratis)</label>'+
         '<div id="blogp-koopvak" style="display:none;gap:8px;align-items:center"><span class="sm muted">Prijs €</span><input id="blogp-koopprijs" placeholder="39,00" style="width:90px"><select id="blogp-koopint" style="width:130px"><option value="month">per maand</option><option value="week">per week</option><option value="year">per jaar</option></select></div>'+
@@ -616,3 +625,91 @@ function ensureBlogModals(){
       '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="blogLedenDicht()">Sluiten</button></div></div></div>';
   document.body.appendChild(d);
 }
+
+// ---------- Klanten (overzicht per programma; verzoek Stefan 22 okt 2026) ----------
+// Wie volgt welk programma, sinds wanneer, betaald via de winkel of gratis, opgezegd
+// of gestopt. Leest profiles, blog_program_members en shop_orders (staf mag die lezen).
+// Opzeggen en terugbetalen vanuit dit overzicht: stap 2 (serverfunctie shop-beheer).
+function blogPrijsTekst(p){
+  if(p.for_sale&&p.price_cents){
+    const per={month:"maand",week:"week",year:"jaar"}[p.price_interval||"month"]||"maand";
+    return "€"+(p.price_cents/100).toFixed(2).replace(".",",")+" /"+per;
+  }
+  return p.price_text||"";
+}
+function blogTab(t){BLOG.tab=t;if(t==="klanten")blogKlantenLaad();else blogRender();}
+function blogKlantenOpen(pid){BLOG.cur=null;BLOG.tab="klanten";BLOG.klantFilter=pid||null;blogKlantenLaad();}
+async function blogKlantenLaad(){
+  BLOG.klanten=null;blogRender();
+  const cid=ME.profile.company_id;
+  const[rl,rm,ro]=await Promise.all([
+    db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type,archived").eq("company_id",cid).or("role.eq.lid,coach_id.not.is.null"),
+    db.from("blog_program_members").select("id,athlete_id,blog_program_id,created_at").eq("company_id",cid),
+    db.from("shop_orders").select("id,profile_id,email,blog_program_id,status,created_at,updated_at,cancel_at,cancel_requested_at,withdrawn_at,stripe_subscription_id,stripe_customer_id").eq("company_id",cid).order("created_at",{ascending:false})
+  ]);
+  const prof={};(rl.data||[]).forEach(p=>prof[p.id]=p);
+  const orders=ro.error?[]:(ro.data||[]);
+  const rang=s=>s==="paid"?3:s==="processing"?2:s==="canceled"?1:0;
+  const rows=[],gezien=new Set();
+  (rm.data||[]).forEach(m=>{
+    const p=prof[m.athlete_id];if(!p)return;
+    // Lopende bestelling gaat voor een gestopte; nieuwste eerst (de lijst is al zo gesorteerd).
+    const mijn=orders.filter(o=>o.profile_id===m.athlete_id&&o.blog_program_id===m.blog_program_id).sort((a,b)=>rang(b.status)-rang(a.status));
+    const o=mijn[0]||null;if(o)gezien.add(o.id);
+    rows.push({p,pid:m.blog_program_id,sinds:(o&&o.created_at<m.created_at)?o.created_at:m.created_at,o,lid:true});
+  });
+  // Bestellingen zonder koppeling meer (herroepen, gestopt, mislukt): alleen bij "ook gestopte tonen".
+  orders.forEach(o=>{
+    if(gezien.has(o.id)||!o.blog_program_id||o.status==="pending")return;
+    const p=(o.profile_id&&prof[o.profile_id])||{id:o.profile_id,first_name:null,last_name:null,email:o.email,membership_type:null,archived:true};
+    rows.push({p,pid:o.blog_program_id,sinds:o.created_at,o,lid:false});
+  });
+  BLOG.klanten=rows;blogRender();
+}
+// Status van één regel: tekst voor de pil, en of het abonnement gestopt is.
+function blogKlantStatus(r){
+  const o=r.o;const d=x=>new Date(x).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"});
+  if(!o)return r.p.membership_type==="one_on_one"?{html:'<span class="cpill gray">via 1-op-1</span>',rang:2,gestopt:false}:{html:'<span class="cpill gray">Gratis</span>',rang:3,gestopt:false};
+  if(o.withdrawn_at)return{html:'<span class="cpill gray">Herroepen op '+esc(d(o.withdrawn_at))+'</span>',rang:5,gestopt:true};
+  if(o.status==="canceled")return{html:'<span class="cpill gray">Gestopt op '+esc(d(o.cancel_at||o.updated_at))+'</span>',rang:5,gestopt:true};
+  if(o.status==="failed")return{html:'<span class="cpill bad">Betaling mislukt</span>',rang:4,gestopt:true};
+  if(o.status==="processing")return{html:'<span class="cpill gray">Betaling wordt verwerkt</span>',rang:1,gestopt:false};
+  if(o.cancel_at)return{html:'<span class="cpill bad">Opgezegd, stopt '+esc(d(o.cancel_at))+'</span>',rang:1,gestopt:false};
+  return{html:'<span class="cpill ok">Betaald</span>',rang:0,gestopt:false};
+}
+function blogKlantenHtml(){
+  const progs=BLOG.list;
+  const filter='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px">'+
+    '<select class="lid-in" style="width:auto;min-width:200px" onchange="blogKlantFilter(this.value)"><option value="">Alle programma\'s</option>'+
+      progs.map(p=>'<option value="'+p.id+'"'+(BLOG.klantFilter===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join("")+'</select>'+
+    '<input class="lid-in" style="width:100%;max-width:260px" placeholder="Zoek een klant…" oninput="blogKlantZoek(this.value)" value="'+esc(BLOG.klantZoek)+'">'+
+    '<label class="sm muted" style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="checkbox" '+(BLOG.klantGestopt?'checked':'')+' onchange="blogKlantGestopt(this.checked)"> Ook gestopte abonnementen tonen</label>'+
+    '</div>';
+  if(BLOG.klanten===null)return filter+'<div class="card"><div class="cempty">Laden…</div></div>';
+  const q=(BLOG.klantZoek||"").toLowerCase().trim();
+  const rows=BLOG.klanten.map(r=>({...r,st:blogKlantStatus(r),prog:progs.find(p=>p.id===r.pid)||{name:"?"}}))
+    .filter(r=>!BLOG.klantFilter||r.pid===BLOG.klantFilter)
+    .filter(r=>BLOG.klantGestopt||!r.st.gestopt)
+    .filter(r=>!q||((r.p.first_name||"")+" "+(r.p.last_name||"")+" "+(r.p.email||"")+" "+r.prog.name).toLowerCase().includes(q))
+    .sort((a,b)=>a.st.rang-b.st.rang||(naamVan(a.p)).localeCompare(naamVan(b.p)));
+  const betaald=rows.filter(r=>r.o&&r.o.status==="paid").length;
+  const kop='<div class="thead"><div style="flex:2.2">Klant</div><div style="flex:1.2">Programma</div><div style="flex:.9">Sinds</div><div style="flex:1.6">Status</div><div style="flex:1.1;text-align:right" id="blogkl-acties-kop"></div></div>';
+  const lijst=rows.length?rows.map(r=>{
+    const d=new Date(r.sinds).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"});
+    const typePill=r.p.membership_type==="one_on_one"?' <span class="cpill gray" style="font-size:9.5px">1-op-1</span>':'';
+    return '<div class="trow" style="align-items:center" data-order="'+(r.o?r.o.id:'')+'">'+
+      '<div style="flex:2.2;display:flex;align-items:center;gap:10px;min-width:0"><div class="cavc" style="width:32px;height:32px;font-size:11px;flex:none;'+avFotoStyle(r.p)+'">'+avFotoText(r.p)+'</div>'+
+        '<div style="min-width:0"><b style="font-size:12.5px">'+naamVan(r.p)+'</b>'+typePill+(r.p.archived?' <span class="cpill gray" style="font-size:9.5px">archief</span>':'')+'<div class="sm muted" style="font-size:11px;overflow:hidden;text-overflow:ellipsis">'+esc(r.p.email||"")+'</div></div></div>'+
+      '<div style="flex:1.2" class="sm">'+esc(r.prog.name)+'</div>'+
+      '<div style="flex:.9" class="sm muted">'+esc(d)+'</div>'+
+      '<div style="flex:1.6" class="sm">'+r.st.html+'</div>'+
+      '<div style="flex:1.1;text-align:right" class="sm">'+blogKlantActies(r)+'</div></div>';
+  }).join(""):'<div class="cempty">'+(BLOG.klanten.length?'Geen klant gevonden.':'Nog geen klanten voor dit programma.')+'</div>';
+  return filter+'<div class="sm muted" style="margin:0 0 8px">'+rows.length+' klant'+(rows.length===1?'':'en')+' · '+betaald+' betaald</div><div class="card">'+kop+lijst+'</div>';
+}
+// Knoppen per regel: stap 2 (opzeggen, intrekken, terugbetalen via shop-beheer).
+function blogKlantActies(r){return "";}
+function blogKlantFilter(v){BLOG.klantFilter=v||null;blogRender();}
+function blogKlantZoek(v){BLOG.klantZoek=v||"";const cp=document.getElementById("cpage");if(!cp)return;blogRender();const i=cp.querySelector('input[placeholder="Zoek een klant…"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
+function blogKlantGestopt(aan){BLOG.klantGestopt=!!aan;blogRender();}
+

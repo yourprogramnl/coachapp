@@ -543,3 +543,18 @@ i18nLaad({
   "nee": "no", "ja": "yes",
   "Intake opgeslagen": "Intake saved", "Atleet niet gevonden": "Athlete not found",
 });
+// Blog > Klanten (22 okt 2026)
+i18nLaad({
+  "Programma's": "Programs", "Alle programma's": "All programs", "Zoek een klant…": "Search a client…",
+  "Ook gestopte abonnementen tonen": "Also show ended subscriptions", "Sinds": "Since", "Status": "Status",
+  "via 1-op-1": "via 1-on-1", "Betaling wordt verwerkt": "Payment being processed", "Betaling mislukt": "Payment failed",
+  "Nog geen klanten voor dit programma.": "No clients for this program yet.", "Geen klant gevonden.": "No client found.",
+  "gekoppeld": "linked", "koppel": "link", "archief": "archived",
+  "Klanten van dit programma": "Clients of this program", "Klantenoverzicht van dit programma": "Client overview of this program",
+  "Prijstekst (alleen weergave, als er geen winkelprijs is)": "Price text (display only, when there is no shop price)",
+});
+i18nRegel(/^Opgezegd, stopt (.+)$/, "Cancelled, ends $1");
+i18nRegel(/^Herroepen op (.+)$/, "Withdrawn on $1");
+i18nRegel(/^Gestopt op (.+)$/, "Ended on $1");
+i18nRegel(/^(\d+) klanten? · (\d+) betaald$/, (m, n, b) => n + (n === "1" ? " client" : " clients") + " · " + b + " paid");
+
