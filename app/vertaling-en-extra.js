@@ -558,3 +558,11 @@ i18nRegel(/^Herroepen op (.+)$/, "Withdrawn on $1");
 i18nRegel(/^Gestopt op (.+)$/, "Ended on $1");
 i18nRegel(/^(\d+) klanten? · (\d+) betaald$/, (m, n, b) => n + (n === "1" ? " client" : " clients") + " · " + b + " paid");
 
+// Blog > Klanten, acties (22 okt 2026)
+i18nLaad({
+  "Opzegging intrekken": "Withdraw cancellation", "Opzeggen (1 maand)": "Cancel (1 month)", "Direct stoppen": "Stop immediately",
+  "Terugbetalen…": "Refund…", "In Stripe openen": "Open in Stripe", "Opzegging ingetrokken": "Cancellation withdrawn",
+  "Laatste betaling opzoeken…": "Looking up the last payment…", "Er is geen geslaagde betaling om terug te betalen.": "There is no successful payment to refund.",
+  "Geen geldig bedrag": "Not a valid amount", "Abonnement gestopt; binnen een minuut verdwijnt het programma bij de klant": "Subscription stopped; the program disappears for the client within a minute",
+});
+

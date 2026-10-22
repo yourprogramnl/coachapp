@@ -645,7 +645,7 @@ async function blogKlantenLaad(){
   const[rl,rm,ro]=await Promise.all([
     db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type,archived").eq("company_id",cid).or("role.eq.lid,coach_id.not.is.null"),
     db.from("blog_program_members").select("id,athlete_id,blog_program_id,created_at").eq("company_id",cid),
-    db.from("shop_orders").select("id,profile_id,email,blog_program_id,status,created_at,updated_at,cancel_at,cancel_requested_at,withdrawn_at,stripe_subscription_id,stripe_customer_id").eq("company_id",cid).order("created_at",{ascending:false})
+    db.from("shop_orders").select("id,profile_id,email,blog_program_id,status,created_at,updated_at,cancel_at,cancel_requested_at,withdrawn_at,stripe_subscription_id,stripe_customer_id,stripe_session_id").eq("company_id",cid).order("created_at",{ascending:false})
   ]);
   const prof={};(rl.data||[]).forEach(p=>prof[p.id]=p);
   const orders=ro.error?[]:(ro.data||[]);
@@ -693,7 +693,7 @@ function blogKlantenHtml(){
     .filter(r=>!q||((r.p.first_name||"")+" "+(r.p.last_name||"")+" "+(r.p.email||"")+" "+r.prog.name).toLowerCase().includes(q))
     .sort((a,b)=>a.st.rang-b.st.rang||(naamVan(a.p)).localeCompare(naamVan(b.p)));
   const betaald=rows.filter(r=>r.o&&r.o.status==="paid").length;
-  const kop='<div class="thead"><div style="flex:2.2">Klant</div><div style="flex:1.2">Programma</div><div style="flex:.9">Sinds</div><div style="flex:1.6">Status</div><div style="flex:1.1;text-align:right" id="blogkl-acties-kop"></div></div>';
+  const kop='<div class="thead"><div style="flex:2.2">Klant</div><div style="flex:1.2">Programma</div><div style="flex:.9">Sinds</div><div style="flex:1.6">Status</div><div style="flex:1.1;text-align:right">'+(blogKlantMagBeheren()?'Acties':'')+'</div></div>';
   const lijst=rows.length?rows.map(r=>{
     const d=new Date(r.sinds).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"});
     const typePill=r.p.membership_type==="one_on_one"?' <span class="cpill gray" style="font-size:9.5px">1-op-1</span>':'';
@@ -707,8 +707,83 @@ function blogKlantenHtml(){
   }).join(""):'<div class="cempty">'+(BLOG.klanten.length?'Geen klant gevonden.':'Nog geen klanten voor dit programma.')+'</div>';
   return filter+'<div class="sm muted" style="margin:0 0 8px">'+rows.length+' klant'+(rows.length===1?'':'en')+' · '+betaald+' betaald</div><div class="card">'+kop+lijst+'</div>';
 }
-// Knoppen per regel: stap 2 (opzeggen, intrekken, terugbetalen via shop-beheer).
-function blogKlantActies(r){return "";}
+// Knoppen per regel (eigenaar/beheerder): opzeggen, intrekken, direct stoppen,
+// terugbetalen en in Stripe openen. Alles via de serverfunctie shop-beheer, die de rol
+// zelf nog eens controleert en met Stripe praat.
+const blogKlantMagBeheren=()=>["eigenaar","platform_admin"].includes(myRole());
+function blogKlantActies(r){
+  const o=r.o;if(!o||!blogKlantMagBeheren())return "";
+  const lopend=o.status==="paid"&&!o.withdrawn_at;
+  const kanTerug=!!o.stripe_customer_id&&["paid","canceled"].includes(o.status);
+  if(!lopend&&!kanTerug)return "";
+  return '<button class="kebab" title="Acties" onclick="blogKlantMenu(event,\''+o.id+'\')">⋮</button>';
+}
+function blogKlantMenu(ev,oid){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow");if(!row)return;
+  const bestond=row.querySelector(".coachmenu");document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  if(bestond)return;
+  const r=(BLOG.klanten||[]).find(x=>x.o&&x.o.id===oid);if(!r)return;
+  const o=r.o,lopend=o.status==="paid"&&!o.withdrawn_at;
+  const test=/^cs_test_/.test(o.stripe_session_id||"");
+  const stripeUrl="https://dashboard.stripe.com/"+(test?"test/":"")+(o.stripe_subscription_id?"subscriptions/"+o.stripe_subscription_id:"customers/"+o.stripe_customer_id);
+  const m=document.createElement("div");m.className="coachmenu";
+  m.innerHTML=(lopend?(o.cancel_at
+      ?'<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'intrekken\')">Opzegging intrekken</button>'
+      :'<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'opzeggen\')">Opzeggen (1 maand)</button>')+
+      '<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'stoppen\')">Direct stoppen</button>':'')+
+    (o.stripe_customer_id?'<button onclick="event.stopPropagation();blogKlantActie(\''+oid+'\',\'terugbetalen\')">Terugbetalen…</button>':'')+
+    '<button onclick="event.stopPropagation();window.open(\''+stripeUrl+'\',\'_blank\')">In Stripe openen</button>';
+  row.style.position="relative";row.appendChild(m);
+}
+async function blogKlantActie(oid,actie){
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  const r=(BLOG.klanten||[]).find(x=>x.o&&x.o.id===oid);if(!r)return;
+  const wie=naamVan(r.p).replace(/&amp;/g,"&"),prog=(BLOG.list.find(p=>p.id===r.pid)||{}).name||"het programma";
+  const roep=async body=>{
+    let data=null,error=null;
+    try{({data,error}=await db.functions.invoke("shop-beheer",{body:{order_id:oid,...body}}));}catch(e){error=e;}
+    if(!error&&data&&data.error)error={message:data.error};
+    if(error){
+      // supabase-js geeft bij een 4xx een FunctionsHttpError; de echte tekst zit in de response.
+      let tekst=error.message||"Dat lukt nu niet";
+      try{if(error.context&&typeof error.context.json==="function"){const j=await error.context.json();if(j&&j.error)tekst=j.error;}}catch(e){}
+      toast(tekst);return null;
+    }
+    return data;
+  };
+  const datum=iso=>iso?new Date(iso).toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"}):"";
+  if(actie==="opzeggen"){
+    if(!confirm("Het abonnement van "+wie+" op "+prog+" opzeggen?\n\nDe opzegtermijn is één maand: het stopt een maand na vandaag, de laatste maand naar rato. "+wie+" krijgt een bevestigingsmail."))return;
+    const reden=prompt("Reden (optioneel, alleen zichtbaar voor jullie en in Stripe):","")||"";
+    const d=await roep({actie:"opzeggen",reden});if(!d)return;
+    toast(d.al?"Was al opgezegd; stopt op "+datum(d.stopt_op):"Opgezegd; stopt op "+datum(d.stopt_op)+(d.mail?"":" (geen bevestigingsmail, stuur die zelf)"));
+  }else if(actie==="intrekken"){
+    if(!confirm("De opzegging van "+wie+" voor "+prog+" intrekken? Het abonnement loopt dan gewoon door; "+wie+" krijgt een mail."))return;
+    const d=await roep({actie:"intrekken"});if(!d)return;
+    toast("Opzegging ingetrokken");
+  }else if(actie==="stoppen"){
+    if(!confirm("Het abonnement van "+wie+" op "+prog+" PER DIRECT stoppen?\n\n"+wie+" verliest meteen toegang tot het programma. Er wordt niets terugbetaald; dat doe je zo nodig apart via Terugbetalen."))return;
+    if(!confirm("Zeker weten? Dit is niet terug te draaien; de klant zou opnieuw moeten bestellen."))return;
+    const d=await roep({actie:"stoppen"});if(!d)return;
+    toast("Abonnement gestopt; binnen een minuut verdwijnt het programma bij de klant");
+  }else if(actie==="terugbetalen"){
+    toast("Laatste betaling opzoeken…");
+    const info=await roep({actie:"info"});if(!info)return;
+    const b=info.laatste_betaling;
+    if(!b||!b.nog_cents){toast("Er is geen geslaagde betaling om terug te betalen.");return;}
+    const max=b.nog_cents;
+    const inv=prompt("Bedrag terugbetalen aan "+wie+" (laatste betaling "+datum(b.datum)+", nog terug te betalen maximaal €"+(max/100).toFixed(2).replace(".",",")+"):\n\nBedrag in euro:",(max/100).toFixed(2).replace(".",","));
+    if(inv===null)return;
+    const cents=Math.round(parseFloat(String(inv).replace(/[€\s]/g,"").replace(",","."))*100);
+    if(!(cents>0)){toast("Geen geldig bedrag");return;}
+    if(cents>max){toast("Maximaal €"+(max/100).toFixed(2).replace(".",",")+" kan nog terug");return;}
+    if(!confirm("€"+(cents/100).toFixed(2).replace(".",",")+" terugbetalen aan "+wie+" via Stripe? Dit is niet terug te draaien."))return;
+    const d=await roep({actie:"terugbetalen",bedrag_cents:cents});if(!d)return;
+    toast("Terugbetaald: €"+(d.bedrag_cents/100).toFixed(2).replace(".",",")+". Stripe stuurt het binnen 5 tot 10 werkdagen terug naar de klant.");
+  }
+  await blogKlantenLaad();
+}
 function blogKlantFilter(v){BLOG.klantFilter=v||null;blogRender();}
 function blogKlantZoek(v){BLOG.klantZoek=v||"";const cp=document.getElementById("cpage");if(!cp)return;blogRender();const i=cp.querySelector('input[placeholder="Zoek een klant…"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
 function blogKlantGestopt(aan){BLOG.klantGestopt=!!aan;blogRender();}
