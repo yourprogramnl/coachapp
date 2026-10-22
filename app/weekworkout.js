@@ -97,7 +97,7 @@ function wwBoardInner(id){
   if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
   const st=(wwMainBlock(w)||{}).score_type||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
-  let html="";
+  let html='<div class="lb-alle">'+wwNotitiesKnop("ww-board-"+id,rows)+'</div>';
   cats.forEach(cat=>{
     ["rx","scaled"].forEach(rx=>{
       const groep=rows.filter(r=>{
@@ -140,6 +140,27 @@ function wwRijToggle(id){
   const aan=LB_OPEN.has(id);
   const d=row.querySelector(".lbdetail");if(d)d.style.display=aan?"":"none";
   row.classList.toggle("open",aan);
+}
+// Knop om alle notities op een bord in één keer open of dicht te zetten (verzoek
+// Stefan 22 okt: "dan kan ik kiezen of ik ze per één doe, niet doe of alles in één keer").
+// Alleen regels mét notitie gaan open; de knop staat alleen als er notities zijn.
+function wwNotitiesKnop(hostId,rows){
+  const met=(rows||[]).filter(r=>r.note);
+  if(!met.length)return "";
+  const alOpen=met.every(r=>LB_OPEN.has(r.result_id));
+  return '<button class="btn ghost sm lb-allebtn" onclick="wwNotitiesAlle(\''+hostId+'\',this)">'+(alOpen?"Alle notities sluiten":"Alle notities openen")+'</button>';
+}
+function wwNotitiesAlle(hostId,knop){
+  const host=document.getElementById(hostId);if(!host)return;
+  const rijen=[...host.querySelectorAll(".lbrow")].filter(r=>r.querySelector(".lbnote"));
+  const aan=rijen.some(r=>!r.classList.contains("open"));
+  rijen.forEach(r=>{
+    const id=r.id.replace("lbrow-","");
+    if(aan)LB_OPEN.add(id);else LB_OPEN.delete(id);
+    const d=r.querySelector(".lbdetail");if(d)d.style.display=aan?"":"none";
+    r.classList.toggle("open",aan);
+  });
+  if(knop)knop.textContent=aan?"Alle notities sluiten":"Alle notities openen";
 }
 // Bij welke workout hoort dit result? (nodig om het juiste bord te verversen)
 function wwFindWid(resultId){

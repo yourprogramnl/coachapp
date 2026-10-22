@@ -408,13 +408,19 @@ function blogBoardHtml(wid){
     else secties.push({blok:b,rows:(WW.boards[wid]||[]).filter(r=>r.block_id===b.id),kop,tekst:composePresc(b)||"",notes:b.notes||""});
   });
   const tel=r=>secties.reduce((n,s)=>n+s.rows.filter(x=>(x.rx==="scaled"?"scaled":"rx")===r).length,0);
+  // Standaard alleen de onderdelen waar scores op staan (bij een vrijdag dus alleen de
+  // Showdown, verzoek Stefan 22 okt); de rest is met één klik erbij te halen.
+  const metScores=secties.filter(s=>s.rows.length),verborgen=secties.length-metScores.length;
+  const alles=!!(BLOGBOARD&&BLOGBOARD.alles)||!metScores.length;
+  const toon=alles?secties:metScores;
+  const schakel=(verborgen>0&&metScores.length)?'<div style="margin-top:12px"><button class="btn ghost sm" onclick="blogBoardAlles()">'+(alles?'Alleen onderdelen met scores tonen':(verborgen===1?'Ook het ene onderdeel zonder scores tonen':'Ook de '+verborgen+' onderdelen zonder scores tonen'))+'</button></div>':'';
   let html='<div class="bl-rxbar"><div class="seg">'+
     '<button class="'+(rx==="rx"?"on":"")+'" onclick="blogBoardRx(\'rx\')">Rx <span>'+tel("rx")+'</span></button>'+
     '<button class="'+(rx==="scaled"?"on":"")+'" onclick="blogBoardRx(\'scaled\')">Scaled <span>'+tel("scaled")+'</span></button></div>'+
-    '<span class="sm muted">Klik op een naam voor de notitie van de sporter.</span></div>';
+    '<span class="sm muted">Klik op een naam voor de notitie van de sporter.</span>'+wwNotitiesKnop("blogboard-body",secties.flatMap(s=>s.rows.filter(r=>(r.rx==="scaled"?"scaled":"rx")===rx)))+'</div>';
   if(!secties.length)return html+'<div class="cempty">Deze workout heeft nog geen onderdelen.</div>';
   if(!secties.some(s=>s.rows.length))return html+'<div class="cempty">Nog geen openbare scores op deze workout. Zodra volgers loggen en hun score op "openbaar" zetten, staan ze hier.</div>';
-  return html+secties.map(s=>{
+  return html+toon.map(s=>{
     const st=(s.blok&&s.blok.score_type)||"text";
     let h='<div class="lbcat" style="margin-top:14px;font-size:13px">'+esc(s.kop)+(s.blok&&s.blok.timecap_seconds?' <span class="muted" style="font-weight:500">· cap '+secNaarTijd(s.blok.timecap_seconds)+'</span>':'')+'</div>';
     if(s.tekst||s.notes)h+='<div class="bl-wtekst">'+esc(s.tekst)+(s.notes?'<div class="muted" style="margin-top:4px">'+esc(s.notes)+'</div>':'')+'</div>';
@@ -425,8 +431,9 @@ function blogBoardHtml(wid){
       if(groep.length)h+='<div class="sm muted" style="margin:8px 0 4px;font-weight:700">'+cat[1]+'</div><div class="card">'+groep.map((r,i)=>blogRij(r,i+1)).join("")+'</div>';
     });
     return h;
-  }).join("");
+  }).join("")+schakel;
 }
+function blogBoardAlles(){if(!BLOGBOARD)return;BLOGBOARD.alles=!BLOGBOARD.alles;const host=document.getElementById("blogboard-body");if(host)host.innerHTML=blogBoardHtml(BLOGBOARD.wid);}
 // Regels op het bord: precies zoals op de Showdown (wwRij in weekworkout.js): score
 // vooraan, naam = knop, notitie dicht tot je klikt.
 function blogRij(r,rank){return wwRij(r,rank);}
@@ -1033,10 +1040,25 @@ function blogBoardsHtml(){
   let html='<h2 style="margin:0 0 4px">Leaderboards</h2><div class="sm muted" style="margin-bottom:12px">Per workout de openbare scores van de volgers; hetzelfde bord als het vuistje op een kaart in de kalender.</div>';
   if(BLOG.dataLaden||(!d&&!BLOG.dataFout))return html+'<div class="card"><div class="cempty">Laden…</div></div>';
   if(BLOG.dataFout)return html+'<div class="card"><div class="cempty">'+esc(BLOG.dataFout)+'</div></div>';
-  const rows=d.recente_workouts||[];
-  if(!rows.length)return html+'<div class="card"><div class="cempty">Nog geen workouts in het verleden.</div></div>';
-  return html+'<div class="card"><div class="thead"><div style="flex:.9">Datum</div><div style="flex:2.4">Workout</div><div style="flex:.8;text-align:right">Gelogd</div><div style="flex:.8;text-align:right">Openbaar</div><div style="width:130px"></div></div>'+
-    rows.map(r=>'<div class="trow" style="align-items:center"><div style="flex:.9" class="sm muted">'+esc(blogDatumKort(r.workout_date))+'</div><div style="flex:2.4;min-width:0"><b style="font-size:12.5px">'+esc(r.title||"Workout")+'</b>'+(r.bron?'<div class="sm" style="font-size:11px;color:#1d6f9c">Showdown: '+esc(r.bron)+'</div>':'')+'</div><div style="flex:.8;text-align:right" class="sm">'+Number(r.voltooid||0)+'</div><div style="flex:.8;text-align:right" class="sm">'+Number(r.openbaar||0)+'</div><div style="width:130px;text-align:right"><button class="btn ghost sm" onclick="blogBoardOpen(\''+r.workout_id+'\')">Leaderboard</button></div></div>').join("")+'</div>';
+  const alle=d.recente_workouts||[];
+  if(!alle.length)return html+'<div class="card"><div class="cempty">Nog geen workouts in het verleden.</div></div>';
+  // Zoeken op workoutnaam, Showdown-naam of onderdeel (verzoek Stefan 22 okt); alle woorden moeten voorkomen.
+  const q=(BLOG.bordZoek||"").toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const TOON=15;
+  const rows=q.length?alle.filter(r=>{const t=((r.title||"")+" "+(r.bron||"")+" "+(r.onderdelen||"")).toLowerCase();return q.every(w=>t.includes(w));}):(BLOG.bordAlles?alle:alle.slice(0,TOON));
+  const teller=q.length?rows.length+' van '+alle.length+' workouts':(alle.length>rows.length?'Laatste '+rows.length+' van '+alle.length+' workouts':alle.length+' workouts');
+  html+='<div style="display:flex;gap:10px;align-items:center;margin:0 0 10px;flex-wrap:wrap"><input class="lid-in" id="blog-zoekbord" style="width:100%;max-width:340px" placeholder="Zoek op workout of onderdeel…" value="'+esc(BLOG.bordZoek||"")+'" oninput="blogBoardZoek(this.value)"><span class="sm muted">'+teller+'</span></div>';
+  if(!rows.length)return html+'<div class="card"><div class="cempty">Geen workout gevonden.</div></div>';
+  html+='<div class="card"><div class="thead"><div style="flex:.9">Datum</div><div style="flex:2.4">Workout</div><div style="flex:.8;text-align:right">Gelogd</div><div style="flex:.8;text-align:right">Openbaar</div><div style="width:130px"></div></div>'+
+    rows.map(r=>'<div class="trow" style="align-items:center"><div style="flex:.9" class="sm muted">'+esc(blogDatumKort(r.workout_date))+'</div><div style="flex:2.4;min-width:0"><b style="font-size:12.5px">'+esc(r.title||"Workout")+'</b>'+(r.bron?'<div class="sm" style="font-size:11px;color:#1d6f9c">Showdown: '+esc(r.bron)+'</div>':'')+(r.onderdelen?'<div class="bl-onderdelen" title="'+esc(r.onderdelen)+'">'+esc(r.onderdelen)+'</div>':'')+'</div><div style="flex:.8;text-align:right" class="sm">'+Number(r.voltooid||0)+'</div><div style="flex:.8;text-align:right" class="sm">'+Number(r.openbaar||0)+'</div><div style="width:130px;text-align:right"><button class="btn ghost sm" onclick="blogBoardOpen(\''+r.workout_id+'\')">Leaderboard</button></div></div>').join("")+'</div>';
+  if(!q.length&&alle.length>rows.length)html+='<div style="margin-top:10px"><button class="btn ghost sm" onclick="BLOG.bordAlles=true;blogRender()">Alle '+alle.length+' workouts tonen</button></div>';
+  return html;
+}
+function blogBoardZoek(v){
+  BLOG.bordZoek=v||"";
+  const m=document.getElementById("cmain");if(!m)return;
+  m.innerHTML=blogPaneelHtml();
+  const i=document.getElementById("blog-zoekbord");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}
 }
 // Bord openen van een workout die niet in de zichtbare week staat: eerst ophalen.
 async function blogBoardOpen(wid){

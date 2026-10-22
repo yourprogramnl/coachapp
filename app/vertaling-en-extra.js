@@ -619,3 +619,11 @@ i18nLaad({
 i18nRegel(/^Nog geen (Rx|Scaled)-scores op dit onderdeel\.$/, "No $1 scores on this part yet.");
 i18nRegel(/^Gelogd op (.+?)( · met video\/foto)?$/, (m, d, v) => "Logged on " + d + (v ? " · with video/photo" : ""));
 i18nRegel(/^Showdown: (.+)$/, "Showdown: $1");
+i18nLaad({ "Alle notities openen": "Open all notes", "Alle notities sluiten": "Close all notes" });
+i18nLaad({ "Zoek op workout of onderdeel…": "Search by workout or part…", "Geen workout gevonden.": "No workout found.", "Alleen onderdelen met scores tonen": "Show only parts with scores" });
+i18nRegel(/^(\d+) van (\d+) workouts$/, "$1 of $2 workouts");
+i18nRegel(/^Laatste (\d+) van (\d+) workouts$/, "Last $1 of $2 workouts");
+i18nRegel(/^(\d+) workouts$/, "$1 workouts");
+i18nRegel(/^Alle (\d+) workouts tonen$/, "Show all $1 workouts");
+i18nRegel(/^Ook de (\d+) onderdelen zonder scores tonen$/, "Also show the $1 parts without scores");
+i18nLaad({ "Ook het ene onderdeel zonder scores tonen": "Also show the one part without scores" });

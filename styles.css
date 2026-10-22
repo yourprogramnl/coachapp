@@ -1460,3 +1460,6 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .lbrow .lbnote{white-space:pre-wrap;background:#fff8e6;border:1px solid #f1e2b3;border-radius:8px;padding:7px 10px;line-height:1.5}
 .lbrow .lbscore{color:var(--txt);font-size:12.5px}
 .lbrow .lbsc{overflow:hidden;text-overflow:ellipsis}
+.lb-alle{display:flex;justify-content:flex-end;margin:4px 0 0}
+.bl-rxbar .lb-allebtn{margin-left:auto}
+.bl-onderdelen{font-size:11px;color:#8a919c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:560px}
