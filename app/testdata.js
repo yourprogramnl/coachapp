@@ -109,7 +109,7 @@ function tdsBulletBlok(label,txt){
 }
 function tdsNote(txt,max){
   if(!txt)return "";
-  const plain=String(txt).replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+  const plain=(typeof tdsNL==="function"?tdsNL:(x=>x))(String(txt).replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()); // samenvatting eerst vertalen, dan inkorten
   const n=max||42;
   return plain.length>n?plain.slice(0,n-1).trimEnd()+"\u2026":plain;
 }
@@ -402,7 +402,8 @@ function tdsKaart(a){
   const ageStr=a.age?", "+a.age+" jr":"";
   const genderStr=a.gender==="M"?"man":"vrouw";
   const bewerk=TDS.bewerk===a.name?tdsBewerkForm(a):"";
-  return '<div class="td-card'+(a.kapot?" td-kapot":"")+'" data-name="'+esc(a.name)+'">'+
+  // tdsNL (app/testdata-nl.js): de Engelse zinnen uit Michels rekenlogica in het Nederlands tonen; de engine blijft gelijk aan zijn Python.
+  return (typeof tdsNL==="function"?tdsNL:(x=>x))('<div class="td-card'+(a.kapot?" td-kapot":"")+'" data-name="'+esc(a.name)+'">'+
     '<div class="td-head"><div>'+
       '<p class="td-name">'+esc(a.name)+tdsSriBadge(a)+'</p>'+
       '<p class="td-meta"><span>'+(a.bw!=null?esc(a.bw)+" kg":"gewicht onbekend")+esc(ageStr)+'</span> · <span>'+genderStr+'</span>'+(a.target_level?' · <span>doel '+esc(a.target_level)+'</span>':"")+' · <span>bijgewerkt '+esc(a.updated||"–")+'</span></p>'+
@@ -428,7 +429,7 @@ function tdsKaart(a){
     tdsMental(a.mental_performance)+
     tdsPerception(a.perception_gap,a.mixed_modal)+
     tdsSportRef(a.sport_reference,a)+
-    '</div>';
+    '</div>');
 }
 
 // ---------- pagina ----------
@@ -439,7 +440,7 @@ function tdsRender(h){
   const lijst=tdsLijst();
   // Dagchips; atleten zonder vaste dag (optioneel sinds 20 okt) krijgen de chip "Geen dag".
   const dagen=["Alle",...Array.from(new Set(lijst.map(a=>a.day).filter(Boolean))).sort((x,y)=>TDS_DAGEN.indexOf(x)-TDS_DAGEN.indexOf(y)),...(lijst.some(a=>!a.day)?["Geen dag"]:[])];
-  h.innerHTML='<div class="td-wrap">'+
+  h.innerHTML=(typeof tdsNL==="function"?tdsNL:(x=>x))('<div class="td-wrap">'+
     '<div class="td-toolbar" id="td-dagen">'+dagen.map(d=>'<button class="td-chip'+(d===TDS.dag?" on":"")+'" data-dag="'+esc(d)+'" onclick="tdsDag(this.dataset.dag)">'+esc(d)+'</button>').join("")+'</div>'+
     '<div class="td-toolbar">'+
       tdsCoachSelectHtml()+
@@ -462,7 +463,7 @@ function tdsRender(h){
     '<div class="td-legend"><span><span class="dot" style="background:var(--td-dev)"></span>&lt;50% Developing</span><span><span class="dot" style="background:var(--td-close)"></span>50–79% Approaching</span><span><span class="dot" style="background:var(--td-norm)"></span>≥80% At standard</span></div>'+
     '<div id="td-intake-paneel"></div>'+
     '<div class="td-grid" id="td-grid"></div><div class="td-leeg" id="td-leeg" style="display:none">Geen atleten gevonden.</div>'+
-  '</div>';
+  '</div>');
   tdsGrid();
   tdsGridListeners(document.getElementById("td-grid"));
 }
