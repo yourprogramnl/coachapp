@@ -41,11 +41,11 @@ const TESTFLIGHT_URL = Deno.env.get("TESTFLIGHT_URL") || "https://testflight.app
 // (Stefan); zolang er iets tussen [haken] staat, komt dat letterlijk zo in de mail.
 const BEDRIJF = {
   handelsnaam: "YourProgram",
-  juridisch: "[juridische naam zoals bij de KvK]",
-  adres: "[straat en huisnummer, postcode en plaats]",
-  kvk: "[KvK-nummer]",
+  juridisch: "CrossFit Capelle B.V.",
+  adres: "Venkelbaan 50, 2908 KE Capelle aan den IJssel",
+  kvk: "98778978",
   btw: "[btw-identificatienummer]",
-  email: "[e-mailadres voor vragen en herroepen]",
+  email: "info@yourprogram.nl",
   website: "https://yourprogram.nl",
 };
 const VOORWAARDEN_URL = "https://programmering.yourprogram.nl/voorwaarden.html";
@@ -533,8 +533,8 @@ function bestellingHtml(o: Bestelling): string {
   }
 
   const bedrijf = (en
-    ? [`${esc(BEDRIJF.handelsnaam)} is a trade name of ${wit(BEDRIJF.juridisch)}`, rij("Address", esc(BEDRIJF.adres)), rij("Chamber of Commerce (KvK)", esc(BEDRIJF.kvk)), rij("VAT", esc(BEDRIJF.btw)), rij("Email", mailAdres), rij("Website", `<a href="${BEDRIJF.website}" style="color:${a}">${esc(BEDRIJF.website.replace(/^https?:\/\//, ""))}</a>`)]
-    : [`${esc(BEDRIJF.handelsnaam)} is een handelsnaam van ${wit(BEDRIJF.juridisch)}`, rij("Adres", esc(BEDRIJF.adres)), rij("KvK", esc(BEDRIJF.kvk)), rij("Btw", esc(BEDRIJF.btw)), rij("E-mail", mailAdres), rij("Website", `<a href="${BEDRIJF.website}" style="color:${a}">${esc(BEDRIJF.website.replace(/^https?:\/\//, ""))}</a>`)]
+    ? [`${esc(BEDRIJF.handelsnaam)} is a trade name of ${wit(BEDRIJF.juridisch)}`, rij("Address", esc(BEDRIJF.adres)), rij("Chamber of Commerce (KvK)", esc(BEDRIJF.kvk)), ingevuld(BEDRIJF.btw) ? rij("VAT", esc(BEDRIJF.btw)) : "", rij("Email", mailAdres), rij("Website", `<a href="${BEDRIJF.website}" style="color:${a}">${esc(BEDRIJF.website.replace(/^https?:\/\//, ""))}</a>`)]
+    : [`${esc(BEDRIJF.handelsnaam)} is een handelsnaam van ${wit(BEDRIJF.juridisch)}`, rij("Adres", esc(BEDRIJF.adres)), rij("KvK", esc(BEDRIJF.kvk)), ingevuld(BEDRIJF.btw) ? rij("Btw", esc(BEDRIJF.btw)) : "", rij("E-mail", mailAdres), rij("Website", `<a href="${BEDRIJF.website}" style="color:${a}">${esc(BEDRIJF.website.replace(/^https?:\/\//, ""))}</a>`)]
   ).join("");
 
   const versieTxt = o.versie ? ` (${en ? "version" : "versie"} ${esc(o.versie)})` : "";
