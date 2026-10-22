@@ -1713,22 +1713,12 @@ document.addEventListener("click",e=>{
 function dagLeave(cell){const m=cell.querySelector(".daymenu");if(m)m.remove();}
 function toggleKlantDrop(ev){ev.stopPropagation();const d=document.getElementById("klantdrop");if(!d)return;const openNu=!d.classList.contains("show");document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));if(openNu){d.classList.add("show");vulBlogDrop();}}
 function filterKlantDrop(v){const z=(v||"").toLowerCase();document.querySelectorAll("#kd-lijst .pd-row").forEach(r=>{r.style.display=(r.dataset.n||"").includes(z)?"":"none";});}
-// Blogprogramma's onderin het klant-wisselmenu (verzoek Stefan, 21 juli):
-// snel doorspringen naar de programmering van een blog. Een coach ziet alleen
-// blogs die aan hem zijn toegewezen (coach_ids leeg = iedereen); de Blog-sectie
-// vult kalBlogs ook bij, zodat een nieuw blog er meteen tussen staat.
+// Blogprogramma's stonden van 21 juli tot 22 oktober 2026 bovenin het klant-wisselmenu.
+// Verzoek Stefan (22 okt): weg, naar een blog springen doen we vanuit de Blog-sectie zelf.
+// kalBlogs blijft bestaan omdat blog.js het nog bijvult.
 let kalBlogs=null;
 async function vulBlogDrop(){
-  const host=document.getElementById("kd-blogs");if(!host)return;
-  if(kalBlogs===null){
-    let q=db.from("blog_programs").select("id,name,coach_ids").order("name");
-    if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
-    const{data}=await q;kalBlogs=data||[];
-  }
-  const zicht=myRole()==="coach"?kalBlogs.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id)):kalBlogs;
-  // Blogs bovenaan (verzoek Stefan: bij 50+ klanten zie je ze onderaan nooit),
-  // daarna een kopje "Klanten" boven de gewone lijst.
-  host.innerHTML=zicht.length?'<div class="pd-kop" style="border-top:0;margin-top:0">Blogprogramma\'s</div>'+zicht.map(p=>'<div class="pd-row" data-n="'+esc((p.name||"").toLowerCase())+'" onclick="blogGaNaar(\''+p.id+'\')"><div class="pd-badge" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div><div class="pd-naam">'+esc(p.name)+'</div></div>').join("")+'<div class="pd-kop">Klanten</div>':"";
+  const host=document.getElementById("kd-blogs");if(host)host.innerHTML="";
 }
 // ---------- Coach wisselen (alleen eigenaar/platform_admin) ----------
 async function laadCoaches(){
