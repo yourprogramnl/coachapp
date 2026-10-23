@@ -627,3 +627,4 @@ i18nRegel(/^(\d+) workouts$/, "$1 workouts");
 i18nRegel(/^Alle (\d+) workouts tonen$/, "Show all $1 workouts");
 i18nRegel(/^Ook de (\d+) onderdelen zonder scores tonen$/, "Also show the $1 parts without scores");
 i18nLaad({ "Ook het ene onderdeel zonder scores tonen": "Also show the one part without scores" });
+i18nLaad({ "Klik op een lid om te (ont)koppelen. Een lid kan meerdere programma's volgen.": "Click a member to link or unlink. A member can follow several programs." });

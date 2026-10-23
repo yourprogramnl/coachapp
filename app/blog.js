@@ -620,7 +620,9 @@ async function blogLedenOpen(){
   document.getElementById("blogled-lijst").innerHTML='<div class="cempty">Laden…</div>';
   document.getElementById("blogledmodal").classList.add("show");
   const[rl,rm,ro]=await Promise.all([
-    db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("archived",false).or("role.eq.lid,coach_id.not.is.null").order("first_name"),
+    // Alleen leden van het eigen bedrijf: een platform_admin mag via RLS ook de SugarWOD-leden
+    // van CrossFit Capelle (membership_type gym) lezen, en die staan los van YourProgram (Stefan 23 okt).
+    db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("archived",false).eq("company_id",ME.profile.company_id).or("role.eq.lid,coach_id.not.is.null").order("first_name"),
     db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id),
     // Winkelabonnementen op dit programma (betaald, opgezegd of gestopt); nieuwste eerst.
     db.from("shop_orders").select("profile_id,status,cancel_at,withdrawn_at,created_at").eq("blog_program_id",BLOG.cur.id).in("status",["paid","processing","canceled"]).order("created_at",{ascending:false})
@@ -718,7 +720,7 @@ function ensureBlogModals(){
       '<div id="blogboard-body" style="max-height:62vh;overflow:auto"></div></div></div>'+
     '<div class="lmodal" id="blogledmodal" style="z-index:398"><div class="box" style="width:460px;max-width:94vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Leden koppelen</h3><span onclick="blogLedenDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
-      '<div class="sm muted" style="margin-bottom:8px">Klik op een lid om te (ont)koppelen. Een lid volgt één blogprogramma tegelijk.</div>'+
+      '<div class="sm muted" style="margin-bottom:8px">Klik op een lid om te (ont)koppelen. Een lid kan meerdere programma\'s volgen.</div>'+
       '<div id="blogled-lijst" style="max-height:52vh;overflow:auto"></div>'+
       '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="blogLedenDicht()">Sluiten</button></div></div></div>'+
     '<div class="lmodal" id="blogkkmodal" style="z-index:399"><div class="box" style="width:560px;max-width:94vw">'+
