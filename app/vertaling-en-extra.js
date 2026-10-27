@@ -628,3 +628,34 @@ i18nRegel(/^Alle (\d+) workouts tonen$/, "Show all $1 workouts");
 i18nRegel(/^Ook de (\d+) onderdelen zonder scores tonen$/, "Also show the $1 parts without scores");
 i18nLaad({ "Ook het ene onderdeel zonder scores tonen": "Also show the one part without scores" });
 i18nLaad({ "Klik op een lid om te (ont)koppelen. Een lid kan meerdere programma's volgen.": "Click a member to link or unlink. A member can follow several programs." });
+// Demo-video-chips in de bouwer en het voorbeeld voor de sporter (27 okt 2026, zoals CoachRx)
+i18nLaad({
+  "Demo-video's": "Demo videos",
+  "+ Zoek video": "+ Find video",
+  "Alles wissen": "Clear all",
+  "Zoek in de bibliotheek of plak een YouTube-link": "Search the library or paste a YouTube link",
+  "Alle video's van dit onderdeel weghalen": "Remove all videos from this part",
+  "Bekijk video": "Watch video",
+  "Video weghalen": "Remove video",
+  "Toevoegen": "Add",
+  "Eerst bekijken": "Watch first",
+  "Niet voorstellen": "Don't suggest",
+  "Demo-video toevoegen": "Add demo video",
+  "Zoek een oefening of plak een YouTube-link…": "Search an exercise or paste a YouTube link…",
+  "Meerdere video's kan; ze gaan mee voor het lid.": "Several videos are fine; they go along for the member.",
+  "Deze YouTube-link toevoegen": "Add this YouTube link",
+  "Typ minstens twee letters, of plak een YouTube-link.": "Type at least two letters, or paste a YouTube link.",
+  "Niets gevonden met een demo-video. Probeer een korter woord (bijv. \"rope\"), of plak een YouTube-link.": "Nothing found with a demo video. Try a shorter word (e.g. \"rope\"), or paste a YouTube link.",
+  "Alle demo-video's van dit onderdeel weggehaald": "All demo videos of this part removed",
+  "+ Nog een demo-video toevoegen": "+ Add another demo video",
+  "Demo-video toegevoegd, gaat mee voor het lid": "Demo video added, goes along for the member",
+  "Deze video staat er al bij": "This video is already included",
+  "Voorbeeld: zo ziet de sporter deze workout in de app": "Preview: how the athlete sees this workout in the app",
+  "Voorbeeld: zo ziet de sporter het in de app": "Preview: how the athlete sees it in the app",
+  "Zo ziet de sporter het in de app": "How the athlete sees it in the app",
+  "Open een workout in de bouwer om het voorbeeld te zien.": "Open a workout in the builder to see the preview.",
+  "Nog niets ingevuld. Typ een titel of voeg een onderdeel toe; het voorbeeld loopt mee.": "Nothing filled in yet. Type a title or add a part; the preview follows along.",
+  "Warm-up": "Warm-up",
+  "Demo-video": "Demo video",
+  "Reacties": "Comments",
+});

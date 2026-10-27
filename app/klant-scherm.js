@@ -303,60 +303,10 @@ function scoreVakHtml(b){
 }
 function scoreSelWissel(sel){const vak=sel.closest(".scorevak").querySelector(".capvak");if(vak)vak.style.display=sel.value==="time"?"":"none";bouwerDirty=true;}
 function rowOpts(b){return '<div class="f-opts" style="align-items:center;flex-wrap:wrap;gap:8px"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div>'+scoreVakHtml(b)+'</div>';}
-function rowChip(b){return b.oefening_id?'<div class="blokchips"><span class="vidchip">🎥 '+esc(b.exercise||"")+' <span class="x" onclick="chipWeg(this,event)">✕</span></span></div>':'<div class="blokchips"></div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-lift="'+esc(b.lift_id||"")+'" data-liftauto="1" data-liftvoor="'+esc(b.exercise||"")+'" data-geenlift="'+(b.lift_scheme&&b.lift_scheme.geen_lift?'1':'0')+'" data-scheme="'+esc(b.lift_scheme?JSON.stringify(b.lift_scheme):"")+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="gtitle-row" style="display:none"><div class="gtitle-kop"><span class="gtlbl">Kaart in de app</span><input class="gtitle" placeholder="Titel van de kaart, bijv. Special Strength" value="'+esc(b.group_title||"")+'"></div><div class="gtitle-uitleg">De sporter ziet de gekoppelde oefeningen hieronder als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.</div></div><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onblur="liftAuto(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.oefening_id?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust" oninput="schemaVernieuw(this)">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+rowChip(b)+liftRowHtml(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
-// Demo-video's op een blok in de bouwer: kleine klikbare tegels (thumbnail +
-// play) mét verwijder-kruisje; komen uit templates of uit Genereer media.
-// Het lid krijgt dezelfde video's in de app. gmTegel/gmRowTegelWeg staan in
-// genereer-media.js (zelfde globale scope).
-function exMediaHtml(media){
-  const vids=Array.isArray(media)?media.filter(m=>m&&m.youtube_id):[];
-  if(!vids.length)return"";
-  return '<div class="exmedia" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:7px;align-items:center">'+
-    vids.map((v,i)=>gmTegel(v,"gmRowTegelWeg(this,"+i+")")).join("")+
-    '<span class="sm muted" style="margin-left:2px">'+vids.length+' demo-video'+(vids.length===1?"":"\'s")+' · gaan mee voor het lid</span></div>';
-}
-// ---------- Eigen video-link plakken op een blok (feedback pilot-coach, 30 juli) ----------
-// De YouTube-link wordt ontleed door ytIdVan uit bibliotheek.js (dubbele
-// declaratie hier legde het hele bestand plat — namen zijn gedeeld over alle
-// app-bestanden, dus altijd eerst grep'en voor je een helper toevoegt).
-function vidLinkHtml(){
-  // Twee manieren om video's bij een blok te zetten, allebei zichtbaar onder
-  // het blok (pilotmelding sept: de kiezer op het camera-icoon werd niet
-  // gevonden): uit de bibliotheek kiezen, of een eigen YouTube-link plakken.
-  return '<div class="vlinkrow" style="margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">'+
-    '<span class="demolink" onclick="vidKiesToon(this.closest(\'.exrow\'))">🎬 Demo-video uit bibliotheek</span>'+
-    '<span class="demolink vlink-open" onclick="vidLinkStart(this)">🎥 Video-link plakken</span>'+
-    '<input class="vlinkinp" placeholder="Plak een YouTube-link en druk op Enter" style="display:none" '+
-      'onkeydown="vidLinkKey(event,this)" onblur="vidLinkBlur(this)" autocomplete="off"></div>';
-}
-function vidLinkStart(el){
-  const row=el.closest(".exrow");if(!row)return;
-  el.style.display="none";
-  const inp=row.querySelector(".vlinkinp");inp.style.display="";inp.value="";inp.focus();
-}
-function vidLinkBlur(inp){
-  if(inp.value.trim())return; // laat staan als er iets is getypt
-  inp.style.display="none";
-  const open=inp.closest(".vlinkrow").querySelector(".vlink-open");if(open)open.style.display="";
-}
-function vidLinkKey(ev,inp){
-  if(ev.key==="Escape"){ev.stopPropagation();inp.value="";vidLinkBlur(inp);return;}
-  if(ev.key!=="Enter")return;
-  ev.preventDefault();
-  const id=ytIdVan(inp.value);
-  if(!id){toast("Dat lijkt geen YouTube-link. Kopieer de link via de Deel-knop van YouTube of uit de adresbalk.");return;}
-  const row=inp.closest(".exrow");
-  let media=[];try{media=row.dataset.media?JSON.parse(row.dataset.media):[];}catch(e){}
-  media=(media||[]).filter(m=>m&&m.youtube_id);
-  if(media.some(m=>m.youtube_id===id)){toast("Deze video staat er al bij");return;}
-  media.push({youtube_id:id,titel:"Eigen video"});
-  row.dataset.media=JSON.stringify(media);
-  gmRowStrip(row);
-  bouwerDirty=true;
-  inp.value="";vidLinkBlur(inp);
-  toast("Video toegevoegd, gaat mee voor het lid");
-}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-lift="'+esc(b.lift_id||"")+'" data-liftauto="1" data-liftvoor="'+esc(b.exercise||"")+'" data-geenlift="'+(b.lift_scheme&&b.lift_scheme.geen_lift?'1':'0')+'" data-scheme="'+esc(b.lift_scheme?JSON.stringify(b.lift_scheme):"")+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="gtitle-row" style="display:none"><div class="gtitle-kop"><span class="gtlbl">Kaart in de app</span><input class="gtitle" placeholder="Titel van de kaart, bijv. Special Strength" value="'+esc(b.group_title||"")+'"></div><div class="gtitle-uitleg">De sporter ziet de gekoppelde oefeningen hieronder als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.</div></div><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onblur="liftAuto(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+((b.oefening_id||(b.media&&b.media.length))?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust" oninput="schemaVernieuw(this)">'+esc(b.prescription||composePresc(b))+'</textarea>'+rowOpts(b)+liftRowHtml(b)+'<div class="vschips"></div><div class="exdrop"></div><div class="vidpop"></div></div>';}
+// Demo-video's op een blok: de chip-rij (app/demo-videos.js) toont gekoppelde
+// video's en voorstellen uit de tekst; "+ Zoek video" zoekt in de bibliotheek
+// of neemt een geplakte YouTube-link aan. Het lid krijgt dezelfde video's in de app.
 // Demo-video groot in het midden van het scherm, met kruisje om te sluiten
 // (zelfde overlay als de klant-video's; vidSluit staat in dashboard.js).
 function ytSpeel(yt){
@@ -370,7 +320,7 @@ function ytSpeel(yt){
   ov.innerHTML='<span class="vx" title="Sluiten">×</span><div class="ytvak"><iframe src="https://www.youtube.com/embed/'+esc(yt)+'?autoplay=1" title="Video" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
   ov.style.display="flex";
 }
-function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.media&&b.media.length?' has-video':'')+'" title="Demo-video toevoegen" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+exMediaHtml(b.media)+vidLinkHtml()+'<div class="exdrop"></div><div class="vidpop"></div></div>';}
+function condRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="conditioning" data-linked="'+(b.linked?'1':'0')+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">D</b><input class="exn" placeholder="Conditioning format (bijv. AMRAP 12, For time)" value="'+esc(b.exercise||"")+'" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+(b.media&&b.media.length?' has-video':'')+'" title="Demo-video toevoegen" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-desc" rows="1" placeholder="Conditioning-omschrijving, notes, enz.">'+esc(b.notes||"")+'</textarea>'+rowOpts(b)+'<div class="vschips"></div><div class="exdrop"></div><div class="vidpop"></div></div>';}
 function rowToObj(r){
   const kind=r.dataset.kind,linked=r.dataset.linked==="1",exercise=r.querySelector(".exn").value.trim();const color=r.dataset.kleur||null;
   // Scoretype/timecap: uit de vakjes als die er staan (blog-bouwer), anders
@@ -434,19 +384,11 @@ function kiesEx(el,oefId){
   row.querySelector(".exdrop").classList.remove("show");
   if(!row.dataset.kleur){const k=kleurVoorOefening(o.naam);row.dataset.kleur=k;row.querySelector(".blokkleur").innerHTML=blokKleurDots(k);}
   const cam=row.querySelector(".cam");if(cam)cam.classList.add("has-video");
-  const ch=row.querySelector(".blokchips");if(ch)ch.innerHTML='<span class="vidchip">🎥 '+esc(o.naam)+' <span class="x" onclick="chipWeg(this,event)">✕</span></span>';
+  vsRender(row); // chip-rij meteen bijwerken (gekoppelde video + voorstellen)
   row.querySelector(".f-presc").focus();
   exNotesInject(); // techniek-notitie-kaartje meteen laten meebewegen met de gekozen naam
   liftAuto(row); // lift uit de gekozen naam (krachtlog)
   toast("Demo-video automatisch gekoppeld, de sporter ziet hem bij de workout");
-}
-function chipWeg(x,ev){
-  ev.stopPropagation();
-  const row=x.closest(".exrow");
-  row.dataset.oefid="";
-  const ch=row.querySelector(".blokchips");if(ch)ch.innerHTML="";
-  const cam=row.querySelector(".cam");if(cam)cam.classList.remove("has-video");
-  const vid=row.querySelector(".vidpop");if(vid)vid.classList.remove("show");
 }
 // ---------- Lift bij een blok (krachtlog, stap 2, 8 oktober 2026) ----------
 // Elk krachtblok kent zijn lift uit gym_lifts: automatisch uit de naam (zelfde
@@ -615,164 +557,18 @@ function toggleVid(cam){
   if(!vid)return;
   if(vid.classList.contains("show")){vid.classList.remove("show");return;}
   // Geen gekoppelde bibliotheek-oefening (eigen naam, conditioning)? Dan opent
-  // het camera-icoon meteen de video-kiezer i.p.v. een dood "kies eerst een
-  // oefening"-melding (pilotfeedback 17 aug).
-  if(!row.dataset.oefid){vidKiesToon(row);return;}
+  // het camera-icoon meteen de video-zoeker (zelfde als "+ Zoek video" in de chips).
+  if(!row.dataset.oefid){vsKiesToon(cam);return;}
   const o=LIB.oef.find(x=>String(x.id)===row.dataset.oefid);
   const naam=row.querySelector(".exn").value||"Oefening";
-  vid.innerHTML=vidPopInner(naam,o)+'<div class="demolink" style="margin-top:8px" onclick="event.stopPropagation();vidKiesToon(this.closest(\'.exrow\'))">+ Nog een demo-video toevoegen</div>';
+  vid.innerHTML=vidPopInner(naam,o)+'<div class="demolink" style="margin-top:8px" onclick="event.stopPropagation();vsKiesToon(this)">+ Nog een demo-video toevoegen</div>';
   vid.classList.add("show");
 }
-// ---------- Video-kiezer op het camera-icoon (pilotfeedback 17 aug) ----------
-// Zoek een oefening uit de bibliotheek en voeg zijn demo-video toe aan dit
-// blok. Meerdere kan (ze komen in de mediastrook en gaan mee voor het lid),
-// werkt ook bij eigen bloknamen die niet in de bibliotheek staan en op
-// conditioning-blokken. Wordt gedeeld met de programma-editor (zelfde rijen).
-function vidKiesToon(row){
-  const vid=row.querySelector(".vidpop");if(!vid)return;
-  if(!LIB.geladen)libLaad();
-  vid.innerHTML='<span class="vp-x" onclick="event.stopPropagation();this.closest(\'.vidpop\').classList.remove(\'show\')">✕</span>'+
-    '<div class="vt">Demo-video toevoegen</div>'+
-    '<input class="vzk" placeholder="Zoek een oefening uit de bibliotheek…" oninput="vidKiesZoek(this)" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();this.closest(\'.vidpop\').classList.remove(\'show\');}" autocomplete="off">'+
-    '<div class="vzk-lijst"></div>'+
-    '<div class="vp-cap" style="margin-top:8px">Meerdere video\'s kan. Een eigen YouTube-link plak je via 🎥 Video-link plakken onder het blok.</div>';
-  vid.classList.add("show");
-  const inp=vid.querySelector(".vzk");
-  inp.value=row.querySelector(".exn").value||""; // bloknaam voorvullen geeft vaak meteen treffers
-  vidKiesZoek(inp);
-  inp.focus();inp.select();
-}
-function vidKiesZoek(inp){
-  const vid=inp.closest(".vidpop"),lijst=vid.querySelector(".vzk-lijst");if(!lijst)return;
-  const v=inp.value.trim().toLowerCase();
-  if(!LIB.geladen){
-    lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Bibliotheek laden…</div>';
-    libLaad().then(()=>{if(document.contains(inp))vidKiesZoek(inp);});
-    return;
-  }
-  if(v.length<2){lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Typ minstens twee letters.</div>';return;}
-  const zoek=q=>LIB.oef.filter(o=>o.youtube_id&&((o.naam||"").toLowerCase().includes(q)||(o.tags||[]).join(" ").toLowerCase().includes(q)));
-  // Volledige bloknamen ("Rope Climb Technique programma") staan zelden zo in
-  // de bibliotheek; dan zoeken we korter (woorden van achteren weghalen, daarna
-  // per los woord) en zeggen dat erbij, zodat de kiezer nooit leeg lijkt.
-  let hits=zoek(v),gebruikt=v;
-  if(!hits.length){
-    const w=v.split(" ").filter(x=>x.length>=3);
-    for(let n=w.length-1;n>=1&&!hits.length;n--){gebruikt=w.slice(0,n).join(" ");hits=zoek(gebruikt);}
-    for(let i=0;i<w.length&&!hits.length;i++){gebruikt=w[i];hits=zoek(gebruikt);}
-  }
-  const kop=hits.length&&gebruikt!==v?'<div class="sm muted" style="padding:4px 2px">Geen exacte treffer voor "'+esc(v)+'"; dit lijkt erop ("'+esc(gebruikt)+'"):</div>':'';
-  lijst.innerHTML=kop+(hits.length?hits.slice(0,40).map(o=>'<div class="vzk-rij" onclick="event.stopPropagation();vidKiesKies(this,'+o.id+')"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" alt="">'+esc(o.naam)+'</div>').join("")
-    :'<div class="sm muted" style="padding:6px 2px">Niets gevonden met een demo-video. Probeer een korter woord (bijv. "rope").</div>');
-}
-function vidKiesKies(el,oefId){
-  const row=el.closest(".exrow"),o=LIB.oef.find(x=>x.id===oefId);
-  if(!row||!o||!o.youtube_id)return;
-  let media=[];try{media=row.dataset.media?JSON.parse(row.dataset.media):[];}catch(e){}
-  media=(media||[]).filter(m=>m&&m.youtube_id);
-  if(media.some(m=>m.youtube_id===o.youtube_id)){toast("Deze video staat er al bij");return;}
-  media.push({youtube_id:o.youtube_id,titel:o.naam});
-  row.dataset.media=JSON.stringify(media);
-  gmRowStrip(row);
-  bouwerDirty=true;
-  const cam=row.querySelector(".cam");if(cam)cam.classList.add("has-video");
-  row.querySelector(".vidpop").classList.remove("show");
-  toast("Demo-video toegevoegd, gaat mee voor het lid");
-}
-// ---------- Demo-video koppelen aan warming-up / cooldown (vrije-tekstblokken) ----------
-function cwNaamVan(oefId){if(!oefId)return"";const o=(LIB.oef||[]).find(x=>String(x.id)===String(oefId));return o?o.naam:"";}
-function cwChipHtml(kind,naam){return '<span class="vidchip"><span onclick="cwToggleVid(\''+kind+'\')" style="cursor:pointer" title="Bekijk video">🎥 '+esc(naam||"Demo-video")+'</span> <span class="x" onclick="cwChipWeg(\''+kind+'\')">✕</span></span>';}
+// ---------- Demo-video's bij warming-up / cooldown ----------
+// De chips (app/demo-videos.js) doen het werk; hier alleen het vak zelf. De
+// oude enkele koppeling (warmup_oefening_id) blijft als eerste chip zichtbaar.
 function cwMediaHtml(kind,oefId,media){
-  const lbl=kind==="warmup"?"warming-up":"cooldown";
-  const heeft=!!oefId;
-  return '<div class="cwmedia" id="wm_'+kind+'" data-oefid="'+(oefId||"")+'" data-gmedia="'+esc(media&&media.length?JSON.stringify(media):"")+'">'+
-    gmStripHtml(kind,media)+
-    '<input class="cwn" placeholder="Zoek een oefening voor de demo-video…" oninput="cwZoek(this,\''+kind+'\')" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();cwDropWeg(this);}" autocomplete="off" style="display:none">'+
-    '<div class="exdrop"></div>'+
-    '<div class="cwchip">'+(heeft?cwChipHtml(kind,cwNaamVan(oefId)):"")+'</div>'+
-    '<div class="demolink" onclick="cwStartAdd(\''+kind+'\')"'+(heeft?' style="display:none"':'')+'>Demo-video toevoegen aan '+lbl+'</div>'+
-    '<div class="vlinkrow" style="margin-top:3px"><span class="demolink vlink-open" onclick="cwLinkStart(\''+kind+'\')">🎥 Video-link plakken</span>'+
-    '<input class="vlinkinp" placeholder="Plak een YouTube-link en druk op Enter" style="display:none" onkeydown="cwLinkKey(event,this,\''+kind+'\')" onblur="vidLinkBlur(this)" autocomplete="off"></div>'+
-    '<div class="vidpop"></div>'+
-    '</div>';
-}
-// Video-link plakken op warming-up/cooldown: zelfde idee als op een blok, maar
-// de strook leeft in dataset.gmedia van het wm_-vak (gmStripZet ververst hem).
-function cwLinkStart(kind){
-  const box=document.getElementById("wm_"+kind);if(!box)return;
-  const rij=box.querySelector(".vlinkrow");
-  rij.querySelector(".vlink-open").style.display="none";
-  const inp=rij.querySelector(".vlinkinp");inp.style.display="";inp.value="";inp.focus();
-}
-function cwLinkKey(ev,inp,kind){
-  if(ev.key==="Escape"){ev.stopPropagation();inp.value="";vidLinkBlur(inp);return;}
-  if(ev.key!=="Enter")return;
-  ev.preventDefault();
-  const id=ytIdVan(inp.value);
-  if(!id){toast("Dat lijkt geen YouTube-link. Kopieer de link via de Deel-knop van YouTube of uit de adresbalk.");return;}
-  const media=(gmStripLees(kind)||[]).filter(m=>m&&m.youtube_id);
-  if(media.some(m=>m.youtube_id===id)){toast("Deze video staat er al bij");return;}
-  media.push({youtube_id:id,titel:"Eigen video"});
-  gmStripZet(kind,media);
-  bouwerDirty=true;
-  inp.value="";vidLinkBlur(inp);
-  toast("Video toegevoegd, gaat mee voor het lid");
-}
-function cwStartAdd(kind){
-  const box=document.getElementById("wm_"+kind);if(!box)return;
-  const inp=box.querySelector(".cwn");inp.style.display="";inp.value="";
-  const dl=box.querySelector(".demolink");if(dl)dl.style.display="none";
-  if(!LIB.geladen)libLaad();
-  inp.focus();
-}
-function cwDropWeg(el){
-  const box=el.closest("[id^=wm_]");if(!box)return;
-  box.dataset.nodrop="1";
-  const d=box.querySelector(".exdrop");if(d)d.classList.remove("show");
-}
-function cwZoek(inp,kind){
-  const box=document.getElementById("wm_"+kind),drop=box.querySelector(".exdrop");
-  const v=inp.value.trim().toLowerCase();
-  drop.innerHTML="";
-  if(v.length<2){box.dataset.nodrop="";drop.classList.remove("show");return;}
-  if(box.dataset.nodrop==="1"){drop.classList.remove("show");return;}
-  if(!LIB.geladen){
-    drop.innerHTML='<div class="hd">Bibliotheek laden…'+dropXHtml("cwDropWeg")+'</div>';drop.classList.add("show");
-    libLaad().then(()=>{if(document.contains(inp)&&inp.value.trim().toLowerCase()===v)cwZoek(inp,kind);});
-    return;
-  }
-  const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
-  if(!hits.length){drop.classList.remove("show");return;}
-  drop.innerHTML='<div class="hd">Oefeningen ('+hits.length+')'+dropXHtml("cwDropWeg")+'</div>'+hits.slice(0,100).map(o=>{
-    return '<div class="exopt" onclick="event.stopPropagation();cwKies(\''+kind+'\','+o.id+')"><div><div class="en">'+esc(o.naam)+'</div><div class="ep">'+esc((o.tags||[]).join(" · ")||(o.youtube_id?"YouTube-video":""))+'</div></div></div>';
-  }).join("")+(hits.length>100?'<div class="hd" style="text-transform:none;letter-spacing:0">… nog '+(hits.length-100)+' resultaten, typ verder om te verfijnen</div>':'');
-  drop.classList.add("show");
-}
-function cwKies(kind,oefId){
-  const box=document.getElementById("wm_"+kind),o=LIB.oef.find(x=>x.id===oefId);
-  if(!box||!o)return;
-  box.dataset.oefid=String(o.id);
-  box.querySelector(".exdrop").classList.remove("show");
-  box.querySelector(".cwn").style.display="none";
-  box.querySelector(".cwchip").innerHTML=cwChipHtml(kind,o.naam);
-  const dl=box.querySelector(".demolink");if(dl)dl.style.display="none";
-  toast("Demo-video gekoppeld aan de "+(kind==="warmup"?"warming-up":"cooldown")+", de sporter ziet hem erbij");
-}
-function cwChipWeg(kind){
-  const box=document.getElementById("wm_"+kind);if(!box)return;
-  box.dataset.oefid="";
-  box.querySelector(".cwchip").innerHTML="";
-  box.querySelector(".vidpop").classList.remove("show");
-  const dl=box.querySelector(".demolink");if(dl)dl.style.display="";
-}
-function cwToggleVid(kind){
-  const box=document.getElementById("wm_"+kind),vid=box.querySelector(".vidpop");
-  if(!vid)return;
-  if(vid.classList.contains("show")){vid.classList.remove("show");return;}
-  const oefId=box.dataset.oefid;if(!oefId){toast("Kies eerst een oefening uit de bibliotheek");return;}
-  const o=LIB.oef.find(x=>String(x.id)===oefId);
-  vid.innerHTML=vidPopInner(cwNaamVan(oefId)||"Oefening",o);
-  vid.classList.add("show");
+  return '<div class="cwmedia" id="wm_'+kind+'" data-oefid="'+(oefId||"")+'" data-gmedia="'+esc(media&&media.length?JSON.stringify(media):"")+'"><div class="vschips"></div><div class="vidpop"></div></div>';
 }
 function cwLees(kind){const box=document.getElementById("wm_"+kind);const v=box&&box.dataset.oefid;return v?parseInt(v,10):null;}
 function speelAf(el,yt){
@@ -782,8 +578,8 @@ function speelAf(el,yt){
   if(pop)pop.innerHTML='Speelt niet af? <a href="https://youtu.be/'+yt+'" target="_blank" rel="noopener" style="color:#2a9fce">Bekijk op YouTube</a>';
 }
 document.addEventListener("click",e=>{
-  if(!e.target.closest(".exdrop")&&!e.target.closest(".liftdrop")&&!e.target.closest(".exn")&&!e.target.closest(".cwn"))document.querySelectorAll(".exdrop.show,.liftdrop.show").forEach(d=>d.classList.remove("show"));
-  if(!e.target.closest(".vidpop")&&!e.target.closest(".cam")&&!e.target.closest(".vidchip"))document.querySelectorAll(".vidpop.show").forEach(d=>d.classList.remove("show"));
+  if(!e.target.closest(".exdrop")&&!e.target.closest(".liftdrop")&&!e.target.closest(".exn"))document.querySelectorAll(".exdrop.show,.liftdrop.show").forEach(d=>d.classList.remove("show"));
+  if(!e.target.closest(".vidpop")&&!e.target.closest(".cam")&&!e.target.closest(".vschip"))document.querySelectorAll(".vidpop.show").forEach(d=>d.classList.remove("show"));
 });
 function relabel(){
   const host=document.getElementById("exrows");if(!host)return;
@@ -933,12 +729,11 @@ function cwPlak(kind){
   toast((kb.kind==="warmup"?"Warming-up":"Cooldown")+" geplakt");
 }
 // Demo-video-koppeling op een warming-up/cooldown-vak zetten zonder de zoeker
-// (bij plakken vanaf het klembord): zelfde uitkomst als cwKies.
+// (bij plakken vanaf het klembord): de chip-rij tekent hem meteen mee.
 function cwZetOef(kind,oefId){
   const box=document.getElementById("wm_"+kind);if(!box)return;
   box.dataset.oefid=String(oefId);
-  const chip=box.querySelector(".cwchip");if(chip)chip.innerHTML=cwChipHtml(kind,cwNaamVan(oefId));
-  const dl=box.querySelector(".demolink");if(dl)dl.style.display="none";
+  vsRender(box);
 }
 // ---------- Techniek-notitie per oefening per klant (exercise_notes) ----------
 // Eén blijvend kaartje per oefening ("knieën naar buiten, volgende keer
@@ -1045,7 +840,7 @@ function inlineBuilderHtml(w){
   const extra=editWid?'<button class="cancel" title="Reacties bij deze workout-dag" onclick="openDayComments(\''+editWid+'\',\''+esc(calClient)+'\')">💬 Reacties'+(cmts.length?' ('+cmts.length+')':'')+(onge?'<span class="wcdot">'+onge+'</span>':'')+'</button>'+
     (scoreDag?'<button class="cancel" title="Scores van de sporter invoeren of aanpassen" onclick="openResults(\''+editWid+'\')">Scores aanpassen</button>':''):'';
   return '<div class="sec">'+
-      '<div class="corner"><span title="Zichtbaar voor de sporter"><svg class="i sm-i"><use href="#i-eye"/></svg></span><span title="Video toevoegen"><svg class="i sm-i"><use href="#i-cam"/></svg></span></div>'+
+      avbOogHtml()+
       '<input id="w_title" class="row-title" placeholder="Titel" value="'+esc(w.title||"")+'">'+
       '<textarea id="w_notes" rows="1" placeholder="Notities van de coach">'+esc(w.coach_notes||"")+'</textarea>'+
       '<div style="border-top:1px solid #e7e9ec;margin:6px 0 4px"></div>'+
@@ -1053,7 +848,6 @@ function inlineBuilderHtml(w){
       cwMediaHtml("warmup",w.warmup_oefening_id,w.warmup_media)+
       '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div>'+
       cwKopieerHtml("warmup")+
-      '<div class="demolink" title="Herken oefeningen in de tekst en stel demo-video\'s voor" onclick="gmOpen()">🎥 Genereer media</div>'+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
     '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="openInsBouwer()">+ Programma</button>'+(blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
@@ -1148,6 +942,7 @@ function cardTools(w){
     :'';
   return '<input type="checkbox" class="cardsel"'+(selWids.has(w.id)?' checked':'')+' title="Selecteren" onclick="event.stopPropagation();toggleSelect(this,\''+w.id+'\')">'+
     '<span class="cardtools" onclick="event.stopPropagation()">'+pijlen+
+    '<button title="Voorbeeld: zo ziet de sporter het in de app" onclick="event.stopPropagation();appVoorbeeldVanKaart(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-eye"/></svg></button>'+
     '<button title="'+(scoreDag?'Scores invoeren':'Bewerken')+'" onclick="event.stopPropagation();'+(scoreDag?'openResults(\''+w.id+'\')':'editWorkout(\''+w.id+'\',0)')+'"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
     '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
