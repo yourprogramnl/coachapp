@@ -25,7 +25,31 @@ function appVoorbeeldOpen(){
     '<div class="kop">Zo ziet de sporter het in de app</div><div class="scherm" id="appvb-scherm"></div></div>';
   el.style.display="";
   appVoorbeeldVul();
+  avbPlaats();
 }
+// Plaats: naast de bouwer of de kaart (rechts als dat past, anders links), zodat
+// het programma zichtbaar blijft; past geen van beide, dan aan de rechterrand.
+function avbDoel(){
+  if(AVB.bron==="bouwer")return document.querySelector(".ib2");
+  if(AVB.wid)return document.querySelector('.mcard[data-wid="'+AVB.wid+'"]');
+  return null;
+}
+function avbPlaats(){
+  const el=document.getElementById("appvb");if(!el||!AVB.open)return;
+  const W=el.offsetWidth||332,M=18;
+  const doel=avbDoel();let left=null;
+  if(doel){
+    const r=doel.getBoundingClientRect();
+    if(r.right+M+W<=window.innerWidth-10)left=r.right+M;
+    else if(r.left-M-W>=10)left=r.left-M-W;
+  }
+  if(left==null)left=Math.max(10,window.innerWidth-W-22);
+  el.style.left=Math.round(left)+"px";el.style.right="auto";
+}
+let avbPlaatsRaf=null;
+function avbPlaatsStraks(){if(!AVB.open||avbPlaatsRaf)return;avbPlaatsRaf=requestAnimationFrame(()=>{avbPlaatsRaf=null;avbPlaats();});}
+window.addEventListener("resize",avbPlaatsStraks);
+document.addEventListener("scroll",avbPlaatsStraks,true);
 function appVoorbeeldDicht(){
   const el=document.getElementById("appvb");if(el)el.style.display="none";
   AVB.open=false;AVB.bron=null;AVB.wid=null;
@@ -107,7 +131,7 @@ function appVoorbeeldVul(){
 function avbPlan(){
   if(!AVB.open||AVB.bron!=="bouwer")return;
   clearTimeout(AVB.timer);
-  AVB.timer=setTimeout(()=>{if(!document.querySelector(".ib2")){appVoorbeeldDicht();return;}appVoorbeeldVul();},250);
+  AVB.timer=setTimeout(()=>{if(!document.querySelector(".ib2")){appVoorbeeldDicht();return;}appVoorbeeldVul();avbPlaats();},250);
 }
 document.addEventListener("input",e=>{if(e.target&&e.target.closest&&e.target.closest(".ib2"))avbPlan();});
 new MutationObserver(muts=>{
