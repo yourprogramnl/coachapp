@@ -701,3 +701,24 @@ i18nLaad({
 i18nRegel(/^Gepland voor (.+)$/, "Scheduled for $1");
 i18nRegel(/^Doorgezet naar (\d+) klanten?(.*)$/, "Pushed to $1 clients$2");
 i18nRegel(/^(Aangezet|Uitgezet) voor (\d+) klanten?$/, "Done for $2 clients");
+// Gezondheid (Apple Health / Health Connect, 28 okt 2026)
+i18nLaad({
+  "Gezondheid": "Health",
+  "Laden…": "Loading…",
+  "Laatste 28 dagen, alleen lezen.": "Last 28 days, read-only.",
+  "stappen gem. 7d": "steps avg 7d",
+  "slaap gem. 7d": "sleep avg 7d",
+  "rust-HR gem. 7d": "resting HR avg 7d",
+  "Stappen gem. 7d": "Steps avg 7d",
+  "Slaap gem. 7d": "Sleep avg 7d",
+  "Rust-HR gem. 7d": "Resting HR avg 7d",
+  "Niet gekoppeld": "Not linked",
+  "Dag": "Day",
+  "Stappen": "Steps",
+  "Slaap": "Sleep",
+  "Rust-HR": "Resting HR",
+  "vandaag": "today",
+  "Nog geen gezondheidsdata. Het lid zet de koppeling met Apple Health of Health Connect zelf aan in de app: Profiel › Apple Health koppelen. Daarna zie je hier stappen, slaap en rusthartslag per dag.": "No health data yet. The member links Apple Health or Health Connect in the app: Profile › Link Apple Health. After that you see steps, sleep and resting heart rate per day here.",
+});
+i18nRegel(/^Gekoppeld sinds (.+), maar er zijn nog geen dagen binnengekomen\. De app haalt ze op zodra het lid hem opent\.$/, "Linked since $1, but no days have come in yet. The app fetches them when the member opens it.");
+i18nRegel(/^Uit (Apple Health|Health Connect)( · gekoppeld sinds (.+))?\. Laatste 28 dagen, alleen lezen\.$/, "From $1$2. Last 28 days, read-only.");

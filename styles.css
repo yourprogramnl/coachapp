@@ -319,6 +319,16 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 /* Inspanningsscore van het lid op kaart en feed (RPE + duur) */
 .weff{display:inline-block;background:#eef5ff;color:#2a5ca8;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:800;margin-right:6px;white-space:nowrap}
 .feedcard .fh .weff{margin-left:auto;align-self:center;font-size:11px;padding:3px 8px}
+/* Gezondheid-paneel (Apple Health / Health Connect) */
+.hd-gem{display:flex;gap:8px;margin-bottom:12px}
+.hd-gem>div{flex:1;background:#26292f;border-radius:9px;padding:9px 8px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hd-gem b{font-size:16px;color:#fff}
+.hd-gem span{font-size:10px;color:#c9cdd4;text-transform:uppercase;letter-spacing:.4px}
+.hd-gem i{font-size:10.5px;color:#8f959d;font-style:normal}
+.hd-tabel{width:100%;border-collapse:collapse;font-size:12px}
+.hd-tabel th{text-align:left;font-size:10px;color:#8f959d;text-transform:uppercase;letter-spacing:.5px;padding:4px 4px;border-bottom:1px solid #33373d}
+.hd-tabel td{padding:6px 4px;border-bottom:1px solid #2a2e35;color:#e6e8ea}
+.hd-tabel td:first-child{color:#c9cdd4}
 .ib2 .corner .oog{cursor:pointer}
 .ib2 .corner .oog:hover{color:#2a9fce}
 /* Voorbeeld voor de sporter: telefoon rechts in beeld, zwart-goud zoals de app (27 okt 2026) */

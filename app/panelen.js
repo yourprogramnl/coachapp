@@ -1438,3 +1438,47 @@ function klGrafiek(rows){
   const legenda=series.map((s,i)=>'<span class="klleg"><span class="klleg-bol" style="background:'+KL_KLEUR[i%KL_KLEUR.length]+'"></span>'+s.reps+' rep'+(s.reps===1?'':'s')+'</span>').join("");
   return '<div class="klgraf"><div class="sm muted" style="margin-bottom:4px">Beste set per dag, per aantal reps</div><svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;max-height:240px">'+g+'</svg><div class="klleg-rij">'+legenda+'</div></div>';
 }
+
+// ---------- GEZONDHEID (Apple Health / Health Connect via de app; tabel health_daily, 28 okt 2026) ----------
+// Stappen, slaap en rusthartslag per dag, alleen lezen. Het lid zet de koppeling
+// zelf aan bij Profiel in de app; de coach ziet hier de laatste 28 dagen.
+const hdUren=m=>m==null?"–":(Math.round(m/6)/10).toString().replace(".",",")+" u";
+const hdGem=(rijen,k)=>{const v=rijen.map(r=>r[k]).filter(x=>x!=null);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;};
+async function openGezondheid(){
+  const lay=document.querySelector(".client-layout");if(!lay)return;
+  let sp=document.getElementById("sp-gezondheid");
+  if(sp&&sp.classList.contains("show")){sp.classList.remove("show");return;}
+  sluitPanelen();
+  if(sp){sp.classList.add("show");gezondheidLaad();return;}
+  sp=document.createElement("div");sp.id="sp-gezondheid";sp.className="sidepanel show";
+  sp.innerHTML='<div class="sp-head"><h3>Gezondheid</h3><span class="sp-x" onclick="document.getElementById(\'sp-gezondheid\').classList.remove(\'show\')"><svg class="i"><use href="#i-x"/></svg></span></div><div class="sp-info" id="hd-body">Laden…</div>';
+  lay.insertBefore(sp,lay.querySelector(".cmain"));
+  gezondheidLaad();
+}
+async function gezondheidLaad(){
+  const host=document.getElementById("hd-body");if(!host)return;
+  const van=ymd(addDays(new Date(),-27));
+  const[{data:rijen},{data:prof}]=await Promise.all([
+    db.from("health_daily").select("day,steps,sleep_minutes,resting_hr,source,updated_at").eq("athlete_id",calClient).gte("day",van).order("day",{ascending:false}),
+    db.from("profiles").select("health_linked_at").eq("id",calClient).single()
+  ]);
+  const lijst=rijen||[];
+  const bron=lijst[0]?(lijst[0].source==="apple_health"?"Apple Health":"Health Connect"):"";
+  const gekoppeld=prof&&prof.health_linked_at?datumNL(prof.health_linked_at.slice(0,10)):null;
+  if(!lijst.length){
+    host.innerHTML='<div class="sm" style="color:#8b919b;line-height:1.6">'+(gekoppeld?'Gekoppeld sinds '+esc(gekoppeld)+', maar er zijn nog geen dagen binnengekomen. De app haalt ze op zodra het lid hem opent.':'Nog geen gezondheidsdata. Het lid zet de koppeling met Apple Health of Health Connect zelf aan in de app: Profiel › '+(bron||"Apple Health")+' koppelen. Daarna zie je hier stappen, slaap en rusthartslag per dag.')+'</div>';
+    return;
+  }
+  const week=lijst.filter(r=>r.day>=ymd(addDays(new Date(),-6)));
+  const g7=k=>hdGem(week,k),g28=k=>hdGem(lijst,k);
+  const dagLbl=d=>{const x=new Date(d+"T00:00:00");return (d===todayStr()?"vandaag":DAGEN[(x.getDay()+6)%7].toLowerCase()+" "+x.getDate()+" "+MAANDKORT[x.getMonth()]);};
+  host.innerHTML='<div class="sm" style="color:#8b919b;margin-bottom:10px">Uit '+esc(bron)+(gekoppeld?' · gekoppeld sinds '+esc(gekoppeld):'')+'. Laatste 28 dagen, alleen lezen.</div>'+
+    '<div class="hd-gem">'+
+      '<div><b>'+(g7("steps")!=null?g7("steps").toLocaleString("nl-NL"):"–")+'</b><span>stappen gem. 7d</span><i>28d: '+(g28("steps")!=null?g28("steps").toLocaleString("nl-NL"):"–")+'</i></div>'+
+      '<div><b>'+hdUren(g7("sleep_minutes"))+'</b><span>slaap gem. 7d</span><i>28d: '+hdUren(g28("sleep_minutes"))+'</i></div>'+
+      '<div><b>'+(g7("resting_hr")!=null?g7("resting_hr"):"–")+'</b><span>rust-HR gem. 7d</span><i>28d: '+(g28("resting_hr")!=null?g28("resting_hr"):"–")+'</i></div>'+
+    '</div>'+
+    '<table class="hd-tabel"><thead><tr><th>Dag</th><th>Stappen</th><th>Slaap</th><th>Rust-HR</th></tr></thead><tbody>'+
+    lijst.map(r=>'<tr><td>'+esc(dagLbl(r.day))+'</td><td>'+(r.steps!=null?r.steps.toLocaleString("nl-NL"):"–")+'</td><td>'+hdUren(r.sleep_minutes)+'</td><td>'+(r.resting_hr!=null?r.resting_hr:"–")+'</td></tr>').join("")+
+    '</tbody></table>';
+}

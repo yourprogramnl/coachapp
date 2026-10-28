@@ -390,6 +390,7 @@ function berKlantHtml(){
     '<div id="ck-stats" class="ck-stats"><div class="sm muted">Cijfers laden…</div></div>'+
     '<div class="ck-sectie"><div class="ck-lbl">Doelen</div><div id="ck-doelen" class="sm muted">…</div></div>'+
     '<div class="ck-sectie"><div class="ck-lbl">Prioriteiten</div><div id="ck-prio" class="sm muted">…</div></div>'+
+    '<div class="ck-sectie"><div class="ck-lbl">Gezondheid</div><div id="ck-gez" class="ck-stats sm">…</div></div>'+
     (progs.length?'<div class="ck-sectie"><div class="ck-lbl">Programma\'s</div><div class="ck-chips">'+progs.map(n=>'<span class="ck-chip">'+esc(n)+'</span>').join("")+'</div></div>':'')+
     '<button class="btn ghost sm" style="margin-top:auto" onclick="openClient(\''+esc(c.id)+'\')">Programma openen</button>';
 }
@@ -398,11 +399,12 @@ async function berKlantLaad(){
   if(!cur||cur.indexOf("g:")===0||!document.getElementById("ck-stats"))return;
   let st=BER.klantCache[cur];
   if(!st||Date.now()-st.t>120000){
-    const[wq,rq,ciq,cpq]=await Promise.all([
+    const[wq,rq,ciq,cpq,hq]=await Promise.all([
       db.from("workouts").select("id,workout_date,title").eq("client_id",cur),
       db.from("results").select("workout_id,status").eq("athlete_id",cur),
       db.from("client_info").select("data").eq("athlete_id",cur).limit(1),
-      db.from("client_private").select("data").eq("athlete_id",cur).limit(1)
+      db.from("client_private").select("data").eq("athlete_id",cur).limit(1),
+      db.from("health_daily").select("day,steps,sleep_minutes,resting_hr").eq("athlete_id",cur).gte("day",ymd(addDays(new Date(),-6)))
     ]);
     const ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
     const done=new Set((rq.data||[]).filter(r=>r.status==="completed").map(r=>r.workout_id));
@@ -416,7 +418,8 @@ async function berKlantLaad(){
     const ci=(ciq.data&&ciq.data[0]&&ciq.data[0].data)||{};
     const cp=(cpq.data&&cpq.data[0]&&cpq.data[0].data)||{};
     st={t:Date.now(),pct:gepl.length?Math.round(gedaan/gepl.length*100):null,gepl:gepl.length,gedaan,streak,open,laatst,sessies:ws.filter(w=>done.has(w.id)).length,
-      doelen:(ci.goals&&Array.isArray(ci.goals.sel))?ci.goals.sel:[],doelenAnders:(ci.goals&&ci.goals.other)||"",prio:Array.isArray(cp.prio)?cp.prio:[]};
+      doelen:(ci.goals&&Array.isArray(ci.goals.sel))?ci.goals.sel:[],doelenAnders:(ci.goals&&ci.goals.other)||"",prio:Array.isArray(cp.prio)?cp.prio:[],
+      gez:(()=>{const h=hq.data||[];if(!h.length)return null;const gem=k=>{const v=h.map(r=>r[k]).filter(x=>x!=null);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;};return{steps:gem("steps"),slaap:gem("sleep_minutes"),hr:gem("resting_hr")};})()};
     BER.klantCache[cur]=st;
   }
   if(String(BER.cur||"")!==cur)return; // intussen ander gesprek
@@ -431,6 +434,11 @@ async function berKlantLaad(){
     '<div class="ck-rij"><span>Volgende workout</span><b'+(st.open&&st.open.workout_date===todayStr()?' style="color:#e5484d"':'')+'>'+(st.open?esc(dagLbl(st.open.workout_date)):"niets gepland")+'</b></div>';
   if(el("ck-doelen"))el("ck-doelen").innerHTML=(st.doelen.length||st.doelenAnders)?'<div class="ck-chips">'+st.doelen.map(d=>'<span class="ck-chip">'+esc(d)+'</span>').join("")+'</div>'+(st.doelenAnders?'<div class="sm muted" style="margin-top:4px">'+esc(st.doelenAnders)+'</div>':''):'<span class="sm muted">Nog geen doelen</span>';
   if(el("ck-prio"))el("ck-prio").innerHTML=st.prio.length?'<div class="ck-chips">'+st.prio.map(d=>'<span class="ck-chip">'+esc(d)+'</span>').join("")+'</div>':'<span class="sm muted">Nog geen prioriteiten</span>';
+  // Gezondheid (Apple Health / Health Connect), gemiddelden van de laatste 7 dagen
+  if(el("ck-gez")){
+    const g=st.gez;
+    el("ck-gez").innerHTML=g?'<div class="ck-rij"><span>Stappen gem. 7d</span><b>'+(g.steps!=null?g.steps.toLocaleString("nl-NL"):"–")+'</b></div><div class="ck-rij"><span>Slaap gem. 7d</span><b>'+(g.slaap!=null?(Math.round(g.slaap/6)/10).toString().replace(".",",")+" u":"–")+'</b></div><div class="ck-rij"><span>Rust-HR gem. 7d</span><b>'+(g.hr!=null?g.hr:"–")+'</b></div>':'<span class="sm muted">Niet gekoppeld</span>';
+  }
 }
 
 // ---------- Geplande berichten (naar CoachRx, 28 okt 2026) ----------
