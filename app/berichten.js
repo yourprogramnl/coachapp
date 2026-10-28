@@ -3,7 +3,7 @@
 // Een coach ziet alleen zijn eigen klanten (RLS dwingt dat ook af);
 // eigenaar/platform_admin zien alle gesprekken en kunnen op coach filteren.
 let BER={clients:[],coaches:[],msgs:[],cur:null,coachF:"",zoek:"",kanaal:null,
-  groups:[],leden:[],gmsgs:[],programs:[]};
+  groups:[],leden:[],gmsgs:[],programs:[],gepland:[],klantCache:{}};
 
 async function fillBerichten(){
   // Ook staf die meetraint als atleet (eigen coach ingesteld) heeft een gesprek.
@@ -18,6 +18,7 @@ async function fillBerichten(){
   BER.coaches=co||[];
   const{data:ms}=await db.from("messages").select("*").order("created_at");
   BER.msgs=ms||[];
+  await berGeplandLaad();
   // Groepschats: groepen + lidmaatschappen + berichten + blogprogramma's (voor de snelkeuzes)
   const[gq,lq,gm,pq,bm]=await Promise.all([
     db.from("chat_groups").select("*").order("created_at"),
@@ -71,8 +72,10 @@ function berRender(){
         '<div style="padding:10px 12px;border-bottom:1px solid #f0f1f3"><input class="lid-in" style="width:100%" placeholder="Zoek een klant…" value="'+esc(BER.zoek)+'" oninput="berZoek(this.value)"></div>'+
         '<div id="ber-lijst" style="max-height:560px;overflow:auto">'+berLijstHtml()+'</div></div>'+
       '<div class="thread" id="ber-thread">'+berThreadHtml()+'</div>'+
+      '<div class="chatklant" id="ber-klant">'+berKlantHtml()+'</div>'+
     '</div>';
   berScroll();
+  berKlantLaad();
   chatBijlToon("ber"); // gekozen bijlage-chips terugzetten na een her-render
   if(typeof dashVidSrcs==="function")dashVidSrcs();
 }
@@ -123,8 +126,11 @@ function berThreadHtml(){
   return '<div class="th"><div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
       '<div><b>'+naamVan(c)+'</b>'+(myRole()!=="coach"&&coach?'<div class="sm muted">Coach: '+naamVan(coach)+'</div>':'')+'</div></div>'+
     '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berBubHtml(m,c)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
+    '<div class="gepland" id="ber-gepland">'+berGeplandHtml(c.id)+'</div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
-    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="Typ een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berStuur)" oninput="chatGroei(this)"></textarea><button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>';
+    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="Typ een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berStuur)" oninput="chatGroei(this)"></textarea>'+
+      '<span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'ber\')">⏱</button></span>'+
+      '<button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>';
 }
 // Rechts = de coach-kant (alles wat niet van het lid komt), links = het lid.
 // Leest een eigenaar/admin mee, dan staat de naam van de afzender erbij.
@@ -140,6 +146,8 @@ async function berOpen(id){
   CHATBIJL.ber=[]; // ander gesprek = gekozen bijlagen weg
   const c=BER.clients.find(x=>x.id===id);
   const th=document.getElementById("ber-thread");if(th)th.innerHTML=berThreadHtml();
+  const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
+  berKlantLaad();
   berScroll();
   if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen
   rxVernieuw(berMsgsVan(id).map(m=>m.id)); // emoji-reacties van deze draad erbij
@@ -192,7 +200,9 @@ function berRealtime(){
     if(BER.kanaal){db.removeChannel(BER.kanaal);BER.kanaal=null;}
     BER.kanaal=db.channel("berichten-sectie-"+Date.now())
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
-        const m=payload.new;if(!m||m.sender_id===ME.user.id)return;
+        const m=payload.new;if(!m)return;
+        if(BER.msgs.some(x=>x.id===m.id))return; // zelf net verstuurd, staat er al
+        if(m.sender_id===ME.user.id)berGeplandLaad(); // een gepland bericht is de deur uit: lijstje bijwerken
         BER.msgs.push(m);
         if(!document.getElementById("ber-lijst"))return; // sectie niet meer in beeld
         if(BER.cur===m.athlete_id)berAppend(m);
@@ -363,4 +373,137 @@ async function berGroepWeg(gid){
   if(BER.cur==="g:"+gid)BER.cur=null;
   toast("Groep verwijderd");
   await fillBerichten();
+}
+
+// ---------- Klantpaneel naast het gesprek (naar CoachRx, 28 okt 2026) ----------
+// Compliance, streak, volgende workout, doelen en programma's in beeld terwijl
+// je typt. Cijfers worden per klant kort gecachet (2 minuten).
+function berKlantHtml(){
+  const cur=String(BER.cur||"");
+  if(!cur||cur.indexOf("g:")===0)return "";
+  const c=BER.clients.find(x=>x.id===cur);if(!c)return "";
+  const coach=BER.coaches.find(x=>x.id===c.coach_id);
+  const lid=c.membership_type==="one_on_one"?"1-op-1 klant":(c.membership_type==="free_blog"?"Blog-lid":"Lid");
+  const progs=(BER.progVan&&BER.progVan[c.id]||[]).map(pid=>(BER.programs.find(p=>p.id===pid)||{}).name).filter(Boolean);
+  return '<div class="ck-kop"><div class="cavc" style="width:40px;height:40px;font-size:12px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
+      '<div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+naamVan(c)+'</b><div class="sm muted">'+esc(lid)+(coach?' · coach '+esc(coach.first_name||naamVan(coach)):'')+'</div></div></div>'+
+    '<div id="ck-stats" class="ck-stats"><div class="sm muted">Cijfers laden…</div></div>'+
+    '<div class="ck-sectie"><div class="ck-lbl">Doelen</div><div id="ck-doelen" class="sm muted">…</div></div>'+
+    '<div class="ck-sectie"><div class="ck-lbl">Prioriteiten</div><div id="ck-prio" class="sm muted">…</div></div>'+
+    (progs.length?'<div class="ck-sectie"><div class="ck-lbl">Programma\'s</div><div class="ck-chips">'+progs.map(n=>'<span class="ck-chip">'+esc(n)+'</span>').join("")+'</div></div>':'')+
+    '<button class="btn ghost sm" style="margin-top:auto" onclick="openClient(\''+esc(c.id)+'\')">Programma openen</button>';
+}
+async function berKlantLaad(){
+  const cur=String(BER.cur||"");
+  if(!cur||cur.indexOf("g:")===0||!document.getElementById("ck-stats"))return;
+  let st=BER.klantCache[cur];
+  if(!st||Date.now()-st.t>120000){
+    const[wq,rq,ciq,cpq]=await Promise.all([
+      db.from("workouts").select("id,workout_date,title").eq("client_id",cur),
+      db.from("results").select("workout_id,status").eq("athlete_id",cur),
+      db.from("client_info").select("data").eq("athlete_id",cur).limit(1),
+      db.from("client_private").select("data").eq("athlete_id",cur).limit(1)
+    ]);
+    const ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+    const done=new Set((rq.data||[]).filter(r=>r.status==="completed").map(r=>r.workout_id));
+    const td=todayStr(),van=ymd(addDays(new Date(),-29));
+    const gepl=ws.filter(w=>w.workout_date>=van&&w.workout_date<=td);
+    const gedaan=gepl.filter(w=>done.has(w.id)).length;
+    const weekSet=new Set(ws.filter(w=>done.has(w.id)).map(w=>ymd(mondayOf(new Date(w.workout_date+"T00:00:00")))));
+    let wk=mondayOf(new Date()),streak=0;if(!weekSet.has(ymd(wk)))wk=addDays(wk,-7);while(weekSet.has(ymd(wk))){streak++;wk=addDays(wk,-7);}
+    const open=ws.filter(w=>w.workout_date>=td&&!done.has(w.id)).sort((a,b)=>a.workout_date.localeCompare(b.workout_date))[0]||null;
+    const laatst=ws.filter(w=>done.has(w.id)).map(w=>w.workout_date).sort().pop()||null;
+    const ci=(ciq.data&&ciq.data[0]&&ciq.data[0].data)||{};
+    const cp=(cpq.data&&cpq.data[0]&&cpq.data[0].data)||{};
+    st={t:Date.now(),pct:gepl.length?Math.round(gedaan/gepl.length*100):null,gepl:gepl.length,gedaan,streak,open,laatst,sessies:ws.filter(w=>done.has(w.id)).length,
+      doelen:(ci.goals&&Array.isArray(ci.goals.sel))?ci.goals.sel:[],doelenAnders:(ci.goals&&ci.goals.other)||"",prio:Array.isArray(cp.prio)?cp.prio:[]};
+    BER.klantCache[cur]=st;
+  }
+  if(String(BER.cur||"")!==cur)return; // intussen ander gesprek
+  const el=id=>document.getElementById(id);
+  const dagLbl=d=>{if(!d)return "";if(d===todayStr())return "vandaag";const x=new Date(d+"T00:00:00");return DAGEN[(x.getDay()+6)%7].toLowerCase()+" "+x.getDate()+" "+MAANDKORT[x.getMonth()];};
+  if(el("ck-stats"))el("ck-stats").innerHTML=
+    '<div class="ck-rij"><span>Compliance 30 dagen</span><b'+(st.pct!=null&&st.pct<50?' style="color:#e5484d"':'')+'>'+(st.pct==null?"–":st.pct+"%")+'</b></div>'+
+    '<div class="ck-rij"><span>Gedaan / gepland</span><b>'+st.gedaan+' / '+st.gepl+'</b></div>'+
+    '<div class="ck-rij"><span>Streak</span><b>'+st.streak+(st.streak===1?" week":" weken")+'</b></div>'+
+    '<div class="ck-rij"><span>Sessies totaal</span><b>'+st.sessies+'</b></div>'+
+    '<div class="ck-rij"><span>Laatste workout</span><b>'+(st.laatst?esc(dagLbl(st.laatst)):"nog geen")+'</b></div>'+
+    '<div class="ck-rij"><span>Volgende workout</span><b'+(st.open&&st.open.workout_date===todayStr()?' style="color:#e5484d"':'')+'>'+(st.open?esc(dagLbl(st.open.workout_date)):"niets gepland")+'</b></div>';
+  if(el("ck-doelen"))el("ck-doelen").innerHTML=(st.doelen.length||st.doelenAnders)?'<div class="ck-chips">'+st.doelen.map(d=>'<span class="ck-chip">'+esc(d)+'</span>').join("")+'</div>'+(st.doelenAnders?'<div class="sm muted" style="margin-top:4px">'+esc(st.doelenAnders)+'</div>':''):'<span class="sm muted">Nog geen doelen</span>';
+  if(el("ck-prio"))el("ck-prio").innerHTML=st.prio.length?'<div class="ck-chips">'+st.prio.map(d=>'<span class="ck-chip">'+esc(d)+'</span>').join("")+'</div>':'<span class="sm muted">Nog geen prioriteiten</span>';
+}
+
+// ---------- Geplande berichten (naar CoachRx, 28 okt 2026) ----------
+// De coach plant een bericht voor morgen 09:00, maandag 09:00 of een eigen
+// tijd. Het staat in scheduled_messages; een cron-taak zet het op dat moment
+// in messages, zodat push, mail en de bel gewoon meelopen. Tot die tijd staat
+// het als "gepland" boven de invoerbalk en is het te annuleren.
+async function berGeplandLaad(){
+  try{const{data}=await db.from("scheduled_messages").select("*").is("sent_at",null).order("send_at");BER.gepland=data||[];}catch(e){BER.gepland=[];}
+  const h=document.getElementById("ber-gepland");if(h&&BER.cur)h.innerHTML=berGeplandHtml(BER.cur);
+}
+function berGeplandHtml(aid){
+  const lijst=BER.gepland.filter(g=>g.athlete_id===aid);
+  if(!lijst.length)return "";
+  return lijst.map(g=>'<div class="gepland-rij"><span class="gepland-tijd">⏱ '+esc(laterLabel(g.send_at))+'</span><span class="gepland-tekst">'+esc(g.body||(g.media&&g.media.length?"(bijlage)":""))+'</span><span class="x" title="Geplande verzending annuleren" onclick="berPlanWeg(\''+esc(g.id)+'\')">✕</span></div>').join("");
+}
+async function berPlanWeg(id){
+  const{error}=await db.from("scheduled_messages").delete().eq("id",id);
+  if(error){toast(error.message||"Annuleren mislukt");return;}
+  BER.gepland=BER.gepland.filter(g=>g.id!==id);
+  const h=document.getElementById("ber-gepland");if(h&&BER.cur)h.innerHTML=berGeplandHtml(BER.cur);
+  toast("Geplande verzending geannuleerd");
+}
+// Tijdstippen: morgen 09:00, komende maandag 09:00 (vandaag maandag = volgende week), of eigen.
+function laterTijd(wat,eigen){
+  const d=new Date();d.setSeconds(0,0);
+  if(wat==="morgen"){d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d;}
+  if(wat==="maandag"){const k=(8-d.getDay())%7||7;d.setDate(d.getDate()+k);d.setHours(9,0,0,0);return d;}
+  if(wat==="eigen"&&eigen){const e=new Date(eigen);return isNaN(e)?null:e;}
+  return null;
+}
+function laterLabel(iso){
+  const d=new Date(iso),td=new Date();
+  const dag=d.toDateString()===td.toDateString()?"vandaag":(d.toDateString()===new Date(td.getTime()+86400000).toDateString()?"morgen":DAGEN[(d.getDay()+6)%7].toLowerCase()+" "+d.getDate()+" "+MAANDKORT[d.getMonth()]);
+  return dag+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+}
+// Het klokje: klein menu naast de verstuurknop (werkt in Berichten én in de chatpopup op het klant-scherm).
+function laterMenu(btn,key){
+  const wrap=btn.closest(".laterwrap");if(!wrap)return;
+  const open=wrap.querySelector(".latermenu");
+  if(open){open.remove();return;}
+  document.querySelectorAll(".latermenu").forEach(m=>m.remove());
+  const d=new Date();d.setDate(d.getDate()+1);d.setHours(9,0,0,0);
+  const eigenStd=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+"T09:00";
+  wrap.insertAdjacentHTML("beforeend",'<div class="latermenu" onclick="event.stopPropagation()">'+
+    '<div class="lm-kop">Later versturen</div>'+
+    '<button onclick="laterKies(\''+key+'\',\'morgen\')">Morgen 09:00</button>'+
+    '<button onclick="laterKies(\''+key+'\',\'maandag\')">Maandag 09:00</button>'+
+    '<div class="lm-eigen"><input type="datetime-local" class="lm-tijd" value="'+eigenStd+'"><button onclick="laterKies(\''+key+'\',\'eigen\')">Plannen</button></div>'+
+    '</div>');
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".laterwrap"))document.querySelectorAll(".latermenu").forEach(m=>m.remove());});
+async function laterKies(key,wat){
+  const wrap=document.querySelector(".laterwrap .latermenu");
+  const eigen=wrap&&wrap.querySelector(".lm-tijd")?wrap.querySelector(".lm-tijd").value:"";
+  const tijd=laterTijd(wat,eigen);
+  if(!tijd){toast("Kies een datum en tijd");return;}
+  if(tijd.getTime()<Date.now()+60000){toast("Dat tijdstip is al geweest; kies een moment in de toekomst");return;}
+  const inp=document.getElementById(key==="ber"?"ber-inp":"chat-inp");if(!inp)return;
+  const tekst=(inp.value||"").trim();
+  const aid=key==="ber"?BER.cur:chatAthlete;
+  const bijl=CHATBIJL[key]||[];
+  if(!tekst&&!bijl.length){toast("Typ eerst een bericht");return;}
+  if(!aid)return;
+  let media=[];
+  if(bijl.length){
+    try{media=await chatUpload(key,aid);}catch(e){toast(e.message||"Upload mislukt");return;}
+  }
+  const{data,error}=await db.from("scheduled_messages").insert({company_id:ME.profile.company_id,athlete_id:aid,sender_id:ME.user.id,body:tekst,media:media.length?media:null,send_at:tijd.toISOString()}).select().single();
+  if(error){toast(error.message||"Plannen mislukt");return;}
+  document.querySelectorAll(".latermenu").forEach(m=>m.remove());
+  inp.value="";chatGroei(inp);CHATBIJL[key]=[];chatBijlToon(key);
+  if(data){BER.gepland.push(data);BER.gepland.sort((a,b)=>a.send_at.localeCompare(b.send_at));}
+  const h=document.getElementById("ber-gepland");if(h&&BER.cur===aid)h.innerHTML=berGeplandHtml(aid);
+  toast("Gepland voor "+laterLabel(tijd.toISOString()));
 }

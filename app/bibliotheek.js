@@ -679,6 +679,8 @@ function progRender(){
       (mag?'<div style="margin-left:auto"><button class="btn ghost sm" onclick="programDetails(\''+PROG.id+'\')">Details bewerken</button></div>':'')+'</div>'+
     '<h1 style="margin:8px 0 2px">'+esc(PROG.name)+'</h1>'+(PROG.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(PROG.description)+'</div>':'')+slotBalk+
     '<div class="pe-bar"><button class="btn sm" onclick="openAssign()">Programma toewijzen</button><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progActief()+' actieve toewijzingen</span><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progAankomend()+' aankomend</span><button class="btn ghost sm" style="margin-left:auto" onclick="openAsgList()">Beheer toewijzingen</button></div>'+
+    (mag?'<div class="sync-rij"><label class="pf-toggle" style="margin:0"><input type="checkbox" id="prog-sync"'+(PROG.sync_changes?' checked':'')+' onchange="progSyncToggle(this.checked)"><span class="pf-sw"></span> Wijzigingen doorzetten naar toegewezen klanten</label>'+
+      '<span class="sm muted" title="Alleen vandaag en later; dagen waarop al scores of reacties staan blijven zoals ze zijn.">Bij elke opgeslagen dag gaan de toekomstige dagen van de klanten mee. Dagen met gelogde scores blijven staan.</span></div>':'')+
     '<h2 style="margin:16px 0 8px">Workouts</h2>'+
     '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" id="pe-viewing" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag '+((progWeek-1)*7+1)+'-'+(progWeek*7)+'</span></div>'+
     '<div class="pe-cal">'+wkHtml+'</div>'+
@@ -725,6 +727,7 @@ async function progDeleteWeek(week){
   const lp=(LIB.programs||[]).find(x=>x.id===PROG.id);if(lp)lp.weeks=PROG.weeks;
   await progReloadWorkouts();
   toast("Week "+week+" verwijderd");
+  progSyncNa(null);
 }
 // Dag-cel: lege dag = "+ Toevoegen" met dag-menu (Workout/Rustdag); bewerken = bouwer inline.
 function progDayCel(week,day){
@@ -756,6 +759,7 @@ async function progRustdag(week,day){
   const{error}=await db.from("program_workouts").insert({program_id:PROG.id,company_id:ME.profile.company_id,week,day,title:"Rest Day"});
   if(error){toast(error.message||"Mislukt");return;}
   await progReloadWorkouts();
+  progSyncNa([{week,day}]);
 }
 // Workout-kaart in exact dezelfde stijl als in de klant-kalender (mcard/cblk + blokkleuren).
 function progCard(w){
@@ -815,15 +819,18 @@ async function progSaveWorkout(){
       if(rows.length){const{error:be}=await db.from("program_blocks").insert(mkBlocks(nw.id));if(be)throw be;}
     }
     toast("Workout opgeslagen");bouwerDirty=false;await progReloadWorkouts();
+    progSyncNa([{week:wf.week,day:wf.day}]);
     return true;
   }catch(e){toast(e.message||"Opslaan mislukt");return false;}
 }
 async function progDeleteWorkout(id){
   if(!progMagOfMeld())return;
   if(!confirm("Deze workout uit het programma verwijderen?"))return;
+  const pw=(PROG.workouts||[]).find(w=>w.id===id);
   const{error}=await db.from("program_workouts").delete().eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
   toast("Workout verwijderd");await progReloadWorkouts();
+  if(pw)progSyncNa([{week:pw.week,day:pw.day}]);
 }
 async function programVerwijder(id){
   if(!progMagOfMeld(id))return;
@@ -1046,4 +1053,81 @@ async function tplVerwijder(){
   if(error){const msg=document.getElementById("tplmodal-msg");msg.textContent=error.message;msg.className="msg err";return;}
   LIB.geladen=false;libModalDicht();toast("Template verwijderd");
   await libLaad();
+}
+
+// ---------- Programma-sync (naar "Sync program changes" in CoachRx, 28 okt 2026) ----------
+// Staat de schakelaar aan, dan gaat elke opgeslagen/verwijderde programma-dag
+// meteen naar de kalenders van de klanten die het programma toegewezen hebben.
+// Alleen vandaag en later; een dag waarop al scores of reacties staan blijft
+// zoals hij is. Een coach zet alleen door bij eigen klanten (de eigenaar en de
+// platform-admin bij alle klanten van het bedrijf), zodat er nooit iets van
+// een collega stilletjes overschreven wordt.
+async function progSyncToggle(aan){
+  if(!PROG)return;
+  const{error}=await db.from("program_templates").update({sync_changes:aan}).eq("id",PROG.id);
+  if(error){toast(error.message||"Opslaan mislukt");const cb=document.getElementById("prog-sync");if(cb)cb.checked=!aan;return;}
+  PROG.sync_changes=aan;
+  const lp=(LIB.programs||[]).find(x=>x.id===PROG.id);if(lp)lp.sync_changes=aan;
+  if(!aan){toast("Doorzetten staat uit");return;}
+  const n=(PROG.assignments||[]).length;
+  if(!n){toast("Doorzetten staat aan. Zodra je het programma toewijst, lopen wijzigingen mee.");return;}
+  if(confirm("Doorzetten staat aan. Wil je het programma nu ook meteen doorzetten naar de "+(n===1?"ene toewijzing":n+" toewijzingen")+"?\n\nAlleen vandaag en later; dagen met gelogde scores of reacties blijven staan."))await progSyncNa(null,true);
+  else toast("Doorzetten staat aan; vanaf nu gaat elke opgeslagen dag mee.");
+}
+async function progSyncNa(dagen,luid){
+  if(!PROG||!PROG.sync_changes||!(PROG.assignments||[]).length)return;
+  try{
+    const u=await progSyncDagen(dagen);
+    if(u.klanten||luid)toast("Doorgezet naar "+u.klanten+(u.klanten===1?" klant":" klanten")+(u.overgeslagen?" · "+u.overgeslagen+(u.overgeslagen===1?" dag":" dagen")+" overgeslagen (scores of reacties)":"")+(u.anderen?" · "+u.anderen+" toewijzing"+(u.anderen===1?"":"en")+" van een collega niet aangeraakt":""),4200);
+  }catch(e){toast("Doorzetten mislukt: "+(e.message||"onbekende fout"),4200);}
+}
+async function progSyncDagen(dagen){
+  const mijn=myRole()==="coach";
+  const asgsAlle=PROG.assignments||[];
+  const td=todayStr();
+  const alleDagen=dagen||(()=>{const uit=[];for(let w=1;w<=Math.max(1,PROG.weeks||1);w++)for(let d=1;d<=7;d++)uit.push({week:w,day:d});return uit;})();
+  const athIds=[...new Set(asgsAlle.map(a=>a.athlete_id))];
+  const{data:profs}=await db.from("profiles").select("id,coach_id,company_id").in("id",athIds);
+  const profVan=id=>(profs||[]).find(p=>p.id===id)||null;
+  let anderen=0;
+  const asgs=asgsAlle.filter(a=>{const p=profVan(a.athlete_id);if(!p)return false;if(mijn&&p.coach_id!==ME.user.id){anderen++;return false;}return true;});
+  const doelen=[];
+  asgs.forEach(a=>alleDagen.forEach(dg=>{
+    if(dg.week>Math.max(1,a.weeks||PROG.weeks||1))return;
+    const datum=ymdPlus(a.start_date,(dg.week-1)*7+(dg.day-1));
+    if(datum<td)return;
+    doelen.push({a,week:dg.week,day:dg.day,datum});
+  }));
+  if(!doelen.length)return{klanten:0,dagen:0,overgeslagen:0,anderen};
+  const asgIds=[...new Set(doelen.map(x=>x.a.id))],datums=[...new Set(doelen.map(x=>x.datum))];
+  const{data:bestaand,error:be0}=await db.from("workouts").select("id,workout_date,assignment_id").in("assignment_id",asgIds).in("workout_date",datums);
+  if(be0)throw be0;
+  const wids=(bestaand||[]).map(w=>w.id);
+  const vast=new Set();
+  if(wids.length){
+    const[{data:rs},{data:cs}]=await Promise.all([
+      db.from("results").select("workout_id").in("workout_id",wids),
+      db.from("workout_comments").select("workout_id").in("workout_id",wids)
+    ]);
+    (rs||[]).forEach(r=>vast.add(r.workout_id));(cs||[]).forEach(c=>vast.add(c.workout_id));
+  }
+  let dagenKlaar=0,overgeslagen=0;const klanten=new Set();
+  for(const d of doelen){
+    const oud=(bestaand||[]).filter(w=>w.assignment_id===d.a.id&&w.workout_date===d.datum);
+    if(oud.some(w=>vast.has(w.id))){overgeslagen++;continue;}
+    const pws=(PROG.workouts||[]).filter(w=>w.week===d.week&&w.day===d.day).sort((a,b)=>(a.sort||0)-(b.sort||0));
+    if(!oud.length&&!pws.length)continue;
+    const prof=profVan(d.a.athlete_id)||{};
+    if(oud.length){const{error}=await db.from("workouts").delete().in("id",oud.map(w=>w.id));if(error)throw error;}
+    const blocksAll=[];let k=0;
+    for(const pw of pws){
+      k++;
+      const{data:nw,error:we}=await db.from("workouts").insert({company_id:prof.company_id||ME.profile.company_id,coach_id:prof.coach_id||ME.user.id,client_id:d.a.athlete_id,workout_date:d.datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,audience:"client",assignment_id:d.a.id,day_sort:k}).select("id").single();
+      if(we)throw we;
+      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+    }
+    if(blocksAll.length){const{error:be}=await db.from("blocks").insert(blocksAll);if(be)throw be;}
+    dagenKlaar++;klanten.add(d.a.athlete_id);
+  }
+  return{klanten:klanten.size,dagen:dagenKlaar,overgeslagen,anderen};
 }

@@ -1096,6 +1096,7 @@ function pfRenderProfiel(p){
       '<label class="pf-toggle"><input type="checkbox" id="pf-comments"'+(p.comments_readonly?" checked":"")+'><span class="pf-sw"></span> Reacties alleen-lezen voor het lid</label>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-messages"'+(p.messages_readonly?" checked":"")+'><span class="pf-sw"></span> Berichten alleen-lezen voor het lid</label>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-uploads"'+(p.disable_uploads?" checked":"")+'><span class="pf-sw"></span> Uploads door het lid uitschakelen</label>'+
+      '<label class="pf-toggle" title="Na het afronden van een workout vraagt de app hoe zwaar het was (RPE 1-10) en hoe lang het duurde. Jij ziet het op de kaart en in de feed."><input type="checkbox" id="pf-effort"'+(p.effort_rating?" checked":"")+'><span class="pf-sw"></span> Inspanning vragen na elke workout (RPE + duur)</label>'+
       '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px"><span style="font-size:12.5px">Workouts zichtbaar tot</span><input type="number" id="pf-daysahead" min="0" value="'+esc(p.workouts_days_ahead!=null?p.workouts_days_ahead:"")+'" style="width:80px"><span class="sm muted">dagen vooruit (0 = geen limiet)</span></div>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-weekonly"'+(p.future_workouts_week_only?" checked":"")+'><span class="pf-sw"></span> Alleen toekomstige workouts tonen als ze in de huidige week vallen</label>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-hideww"'+(p.hide_weekworkout?" checked":"")+'><span class="pf-sw"></span> '+esc(SHOWDOWN)+' verbergen (lid ziet de gedeelde workout en het leaderboard niet)</label>'+
@@ -1129,6 +1130,7 @@ async function profielOpslaan(){
     comments_readonly:document.getElementById("pf-comments").checked,
     messages_readonly:document.getElementById("pf-messages").checked,
     disable_uploads:document.getElementById("pf-uploads").checked,
+    effort_rating:document.getElementById("pf-effort").checked,
     workouts_days_ahead:(()=>{const v=(document.getElementById("pf-daysahead").value||"").trim();return v===""?null:Math.max(0,parseInt(v,10)||0);})(),
     future_workouts_week_only:document.getElementById("pf-weekonly").checked,
     hide_weekworkout:document.getElementById("pf-hideww").checked

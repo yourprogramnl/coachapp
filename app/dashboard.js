@@ -18,7 +18,7 @@ async function fillDashboard(){
   // reacties komen in dezelfde aanroep mee als de workouts: geen lange lijst
   // workout-id's meer in de link.
   const[wq,mq,cq,tq,pq,taq,sq,bq]=await Promise.all([
-    heeft?db.from("workouts").select("*, blocks(*), results(*), result_media(*), workout_comments(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
+    heeft?db.from("workouts").select("*, blocks(*), results(*), result_media(*), workout_comments(*), workout_effort(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
     heeft?db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
     // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
     heeft?db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40):leeg,
@@ -29,21 +29,22 @@ async function fillDashboard(){
     db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id),
     ME.profile.company_id?db.from("workouts").select("id,title,workout_date, blocks(*), results(athlete_id,created_at)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1):leeg,
   ]);
-  let ws=[],rs=[],md=[],wc=[];
+  let ws=[],rs=[],md=[],wc=[],ef=[];
   if(wq.error&&heeft){
     // Terugvalroute: los ophalen zoals vroeger.
     ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length){
-      const[r1,r2,r3]=await Promise.all([
+      const[r1,r2,r3,r4]=await Promise.all([
         db.from("results").select("*").in("workout_id",wids),
         db.from("result_media").select("*").in("workout_id",wids),
-        db.from("workout_comments").select("*").in("workout_id",wids).order("created_at")
+        db.from("workout_comments").select("*").in("workout_id",wids).order("created_at"),
+        db.from("workout_effort").select("*").in("workout_id",wids)
       ]);
-      rs=r1.data||[];md=r2.data||[];wc=r3.data||[];
+      rs=r1.data||[];md=r2.data||[];wc=r3.data||[];ef=r4.data||[];
     }
   }else{
-    ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);md=md.concat(w.result_media||[]);wc=wc.concat(w.workout_comments||[]);delete w.results;delete w.result_media;delete w.workout_comments;return w;});
+    ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);md=md.concat(w.result_media||[]);wc=wc.concat(w.workout_comments||[]);ef=ef.concat(w.workout_effort||[]);delete w.results;delete w.result_media;delete w.workout_comments;delete w.workout_effort;return w;});
     wc.sort((a,b)=>a.created_at<b.created_at?-1:(a.created_at>b.created_at?1:0)); // zelfde volgorde als vroeger (op tijd)
   }
   const msgs=mq.data||[],consults=cq.data||[],dtags=tq.data||[],ptags=pq.data||[],tasks=taq.data||[],snoozeRows=sq.data||[];
@@ -56,7 +57,7 @@ async function fillDashboard(){
     blog=(bq.data||[])[0]||null;
     if(blog){blogRes=blog.results||[];delete blog.results;}
   }
-  const dash={ws,rs,md,wc,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
+  const dash={ws,rs,md,wc,ef,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
   const vingerafdruk=JSON.stringify(dash);
   versZet("dash",{dash,vingerafdruk});
   if(nr!==dashLaadNr)return; // er is intussen opnieuw geladen
@@ -115,7 +116,7 @@ function dashKebab(ev,pid){
 document.addEventListener("click",e=>{if(!e.target.closest(".attnmenu")&&!e.target.closest(".attn-kebab"))document.querySelectorAll(".attnmenu").forEach(x=>x.remove());});
 function dashRender(){
   const cp=document.getElementById("cpage");if(!cp||!DASH)return;
-  const{ws,rs,md,wc,msgs,tasks,blog,blogRes}=DASH;
+  const{ws,rs,md,wc,msgs,tasks,blog,blogRes}=DASH;const ef=DASH.ef||[]; // inspanningsscores (RPE + duur) per workout
   const td=todayStr(),from7=ymd(addDays(new Date(),-6));
   const byId={};actieveKlanten().forEach(p=>byId[p.id]=p);
   const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
@@ -203,7 +204,7 @@ function dashRender(){
       const vids=(md||[]).filter(m=>m.block_id===b.id&&m.athlete_id===w.client_id);
       rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r,vids);
     });
-    return '<div class="feedcard"><div class="fh" style="cursor:pointer" title="Open het programma van '+esc(naamVan(p))+'" onclick="openClient(\''+esc(w.client_id)+'\')"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div></div>'+
+    return '<div class="feedcard"><div class="fh" style="cursor:pointer" title="Open het programma van '+esc(naamVan(p))+'" onclick="openClient(\''+esc(w.client_id)+'\')"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div>'+effortChip(ef.find(e=>e.workout_id===w.id&&e.athlete_id===w.client_id))+'</div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
       '<div class="notesend" style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #f0f1f3;padding-top:10px">'+wcKnopHtml(w)+'<input placeholder="Bericht aan je klant…" style="flex:1;padding:7px 10px;font-size:12px" onkeydown="if(event.key===\'Enter\')stuurNote(\''+w.client_id+'\',this)"><button class="btn sm" onclick="stuurNote(\''+w.client_id+'\',this)">Versturen</button></div></div>';
   }).join(""):'<div class="feedcard"><div class="cempty">Nog geen gelogde workouts.<br>Zodra je sporters in de app resultaten invullen, verschijnen ze hier.</div></div>';

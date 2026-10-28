@@ -925,7 +925,7 @@ function mcardHtml(w){
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright"><span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
+    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     cardComBtn(w)+'</div>';
 }
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
@@ -1307,6 +1307,7 @@ function histRender(){
     host.innerHTML=histData.mx.map(m=>'<div class="histcard"><div class="hh"><b>'+esc(m.metric||"")+'</b><span class="sm muted">'+esc(m.measured_at?datumNL(m.measured_at):"")+'</span></div><div class="hbody">'+esc((m.value!=null?String(m.value):(m.value_text||""))+(m.unit?" "+m.unit:""))+'</div></div>').join("")||'<div class="cempty">Geen metrics gevonden.</div>';
   }
 }
+let monthEffort={}; // inspanningsscores (RPE + duur) per workout_id, voor de kaarten
 async function renderMonth(opts){
   if(activePanel!=="kalender")return;
   const id=calClient;const m=document.getElementById("cmain");if(!m)return;
@@ -1342,17 +1343,20 @@ async function renderMonth(opts){
     if(werr)toast("Kalender kon niet laden: "+(werr.message||"onbekende fout")+" — ververs de pagina of probeer opnieuw.");
     monthWorkouts={};monthByDate={};byDate=monthByDate;(workouts||[]).forEach(w=>{monthWorkouts[w.id]=w;(byDate[w.workout_date]=byDate[w.workout_date]||[]).push(w);});
     // Gelogde resultaten van dit lid voor de zichtbare workouts (per blok)
-    monthResults={};monthMedia={};monthComments=[];
+    monthResults={};monthMedia={};monthComments=[];monthEffort={};
     const wids=(workouts||[]).map(w=>w.id);
     if(wids.length){
-      const[{data:res},{data:mds},{data:wcs}]=await Promise.all([
+      const[{data:res},{data:mds},{data:wcs},{data:efs}]=await Promise.all([
         db.from("results").select("*").eq("athlete_id",id).in("workout_id",wids),
         // Video-uploads van het lid (kleine tegels achter de resultaten)
         db.from("result_media").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at"),
         // Dag-reacties (voor de Reacties-knop op de kaarten)
-        db.from("workout_comments").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at")
+        db.from("workout_comments").select("*").eq("athlete_id",id).in("workout_id",wids).order("created_at"),
+        // Inspanningsscore van het lid (RPE + duur), als de coach dat heeft aangezet
+        db.from("workout_effort").select("*").eq("athlete_id",id).in("workout_id",wids)
       ]);
       (res||[]).forEach(r=>{monthResults[r.block_id]=r;});
+      (efs||[]).forEach(e=>{monthEffort[e.workout_id]=e;});
       (mds||[]).forEach(m=>{(monthMedia[m.block_id]=monthMedia[m.block_id]||[]).push(m);});
       monthComments=wcs||[];
     }
@@ -2041,4 +2045,10 @@ async function dnVerwijder(){
   document.getElementById("dnmodal").classList.remove("show");
   toast("Dag-notitie verwijderd");
   renderMonth({skipFetch:true});
+}
+
+// Inspanning volgens het lid (RPE 1-10 en duur), zoals "effort rating" in CoachRx.
+function effortChip(e){
+  if(!e||(e.rpe==null&&e.minutes==null))return "";
+  return '<span class="weff" title="Inspanning volgens het lid: RPE '+(e.rpe!=null?e.rpe+'/10':'–')+(e.minutes?' · '+e.minutes+' minuten':'')+'">'+(e.rpe!=null?'RPE '+e.rpe:'')+(e.rpe!=null&&e.minutes?' · ':'')+(e.minutes?e.minutes+' min':'')+'</span>';
 }

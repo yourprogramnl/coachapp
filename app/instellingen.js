@@ -68,7 +68,10 @@ async function instPaneel(){
         '</div>'+
       '</div>'+
       '<div class="msg" id="inst-msg"></div>'+
-      '<button class="btn" onclick="instProfielOpslaan()">Profiel opslaan</button>';
+      '<button class="btn" onclick="instProfielOpslaan()">Profiel opslaan</button>'+
+      (myRole()==="lid"?'':'<div style="border-top:1px solid var(--line);margin-top:22px;padding-top:16px"><b style="font-size:14px">Inspanning vragen na elke workout</b>'+
+        '<div class="sm muted" style="margin:4px 0 10px;max-width:560px">Staat dit aan voor een klant, dan vraagt de app na het afronden hoe zwaar de workout was (RPE 1 tot 10) en hoe lang hij duurde. Jij ziet het op de kaart in de kalender en in de activiteitenfeed. Standaard uit; per klant zet je het aan of uit via het klantprofiel (Zichtbaarheid). Hier doe je het in één keer voor al je klanten.</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" onclick="instEffortAlle(true)">Aanzetten voor al mijn klanten</button><button class="btn ghost sm" onclick="instEffortAlle(false)">Uitzetten voor al mijn klanten</button></div></div>');
   }else if(instTab==="wachtwoord"){
     host.innerHTML='<h2 style="margin:0 0 4px">Wachtwoord</h2><div class="sm muted" style="margin-bottom:16px">Vul eerst je huidige wachtwoord in; het nieuwe wachtwoord is minimaal 8 tekens.</div>'+
       '<div class="field" style="max-width:340px"><label>Huidig wachtwoord</label><input type="password" id="inst-pw0" placeholder="••••••••"></div>'+
@@ -410,4 +413,15 @@ async function instWachtwoordOpslaan(){
   document.getElementById("inst-pw0").value="";document.getElementById("inst-pw1").value="";document.getElementById("inst-pw2").value="";
   if(msg)msg.textContent="";
   toast("Wachtwoord gewijzigd");
+}
+
+// Inspanningsscore in één keer aan of uit voor alle eigen klanten (eigenaar/admin: alle leden van het bedrijf).
+async function instEffortAlle(aan){
+  let q=db.from("profiles").update({effort_rating:aan}).eq("role","lid").eq("archived",false);
+  if(myRole()==="coach")q=q.eq("coach_id",ME.user.id);else q=q.eq("company_id",ME.profile.company_id);
+  const{data,error}=await q.select("id");
+  if(error){toast(error.message||"Opslaan mislukt");return;}
+  const n=(data||[]).length;
+  if(typeof coachClients!=="undefined")(coachClients||[]).forEach(c=>{if((data||[]).some(x=>x.id===c.id))c.effort_rating=aan;});
+  toast((aan?"Aangezet":"Uitgezet")+" voor "+n+(n===1?" klant":" klanten"));
 }

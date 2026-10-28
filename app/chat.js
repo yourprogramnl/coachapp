@@ -141,7 +141,7 @@ async function openChatPop(){
   pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+naamVan(p)+'</b>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
     '<div class="msgs2" id="chat-msgs"><div class="sm muted" style="text-align:center;padding:14px">Laden…</div></div>'+
-    '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)"></textarea><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
+    '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)"></textarea><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'pop\')">⏱</button></span><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
   document.body.appendChild(pop);
   await chatLaad();
   chatKanaalStart();
@@ -154,7 +154,8 @@ function chatKanaalStart(){
   try{
     chatKanaal=db.channel("chat-"+chatAthlete+"-"+Date.now())
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"athlete_id=eq."+chatAthlete},payload=>{
-        if(payload.new&&payload.new.sender_id!==ME.user.id)chatToon(payload.new,true);
+        // Berichten van de ander, én eigen geplande berichten die nu de deur uit gaan (staan nog niet in beeld)
+        if(payload.new&&(payload.new.sender_id!==ME.user.id||!document.querySelector('#chat-msgs [data-mid="'+payload.new.id+'"]')))chatToon(payload.new,true);
       })
       // Emoji van de ander direct in beeld
       .on("postgres_changes",{event:"*",schema:"public",table:"message_reactions",filter:"athlete_id=eq."+chatAthlete},()=>{rxVernieuw(rxIdsVan(chatAthlete));})
