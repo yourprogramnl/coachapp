@@ -1,6 +1,9 @@
 // app/dashboard.js — het coach-dashboard: aandacht nodig, contactmomenten,
 // activiteit-feed, mijn cijfers, mijn taken en workout van de week.
 let dashPeriode=30,dashFilter="alles",dashTaken="open",DASH=null,dashFeedClient="all",dashStatIdx=0,dashShowHidden=false,dashFeedLimit=6,dashFeedTab="workouts";
+// Lange lijsten (Aandacht nodig, Contactmomenten) tonen standaard maximaal DASH_MAX
+// regels; de coach klapt de rest open met "Toon alle (N)" (Stefan, 29 okt: 91 klanten).
+const DASH_MAX=10;let dashAttnAlles=false,dashCmAlles=false;
 // Laadvolgnummer: ben je al doorgeklikt voordat de data binnen is, dan tekent
 // een oude lading niets meer over het nieuwe scherm heen.
 let dashLaadNr=0;
@@ -66,7 +69,9 @@ async function fillDashboard(){
   DASH=dash;
   if(dashInBeeld())dashRender();
 }
-function dashSetFilter(f){dashFilter=f;dashRender();}
+function dashSetFilter(f){dashFilter=f;dashAttnAlles=false;dashRender();} // ander filter = weer ingeklapt
+function dashAttnToggle(){dashAttnAlles=!dashAttnAlles;dashRender();}
+function dashCmToggle(){dashCmAlles=!dashCmAlles;dashRender();}
 function dashSetFeedTab(t){dashFeedTab=t;dashFeedLimit=6;dashRender();}
 // Feed-filter: alle klanten (null), één klant, of alle klanten met een tag ("tag:<id>")
 function dashFeedSet(){
@@ -140,12 +145,15 @@ function dashRender(){
       if(teDoen)pills.push('<span class="cpill teal">Workout te doen</span>');
       if(miss>=2)pills.push('<span class="cpill bad">'+miss+'x gemist op rij</span>');
       if(laag)pills.push('<span class="cpill bad">'+comp+'% compliance</span>');
-      attn.push({p,pills,teDoen,laag});
+      attn.push({p,pills,teDoen,laag,miss,comp});
     }
   });
   const nVerborgen=attn.filter(a=>dashIsSnoozed(a.p.id)).length;
   let attnZicht=dashShowHidden?attn:attn.filter(a=>!dashIsSnoozed(a.p.id));
   attnZicht=attnZicht.filter(a=>dashFilter==="alles"||(dashFilter==="tedoen"&&a.teDoen)||(dashFilter==="laag"&&a.laag));
+  // Dringendste bovenaan: meeste gemiste workouts op rij, dan laagste compliance, dan op naam.
+  attnZicht.sort((a,b)=>(b.miss-a.miss)||((a.comp==null?101:a.comp)-(b.comp==null?101:b.comp))||naamVan(a.p).localeCompare(naamVan(b.p)));
+  const attnToon=dashAttnAlles?attnZicht:attnZicht.slice(0,DASH_MAX);
   const attnRij=a=>{
     const s=dashIsSnoozed(a.p.id);
     return '<div class="attn-row'+(s?' snoozed':'')+'"><div class="cavc click" onclick="openClient(\''+a.p.id+'\')" style="'+avFotoStyle(a.p)+'">'+avFotoText(a.p)+'</div><div class="nm click" style="cursor:pointer" onclick="openClient(\''+a.p.id+'\')">'+naamVan(a.p)+'</div><div class="pills">'+a.pills.join("")+'</div>'+
@@ -155,7 +163,8 @@ function dashRender(){
       '<span class="attn-kebab" onclick="dashKebab(event,\''+a.p.id+'\')" style="cursor:pointer;font-weight:800;color:#8a919c;padding:0 4px" title="Meer opties">⋮</span></div></div>';
   };
   const verborgenLink=nVerborgen?'<div class="sm muted" style="padding:9px 14px;text-align:right;border-top:1px solid var(--line2)"><a style="color:var(--accent);cursor:pointer;font-weight:700" onclick="dashToggleHidden()">'+(dashShowHidden?"Verborgen klanten weer verbergen":nVerborgen+" verborgen · toon")+'</a></div>':'';
-  const attnHtml='<div class="attn-card">'+(attnZicht.length?attnZicht.map(attnRij).join(""):'<div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist, nog moet doen of laag scoort, zie je het hier.</div>')+verborgenLink+'</div>';
+  const attnMeer=attnZicht.length>DASH_MAX?'<div style="text-align:center;padding:10px 14px"><button class="btn ghost sm" onclick="dashAttnToggle()">'+(dashAttnAlles?"Toon minder":"Toon alle ("+attnZicht.length+")")+'</button></div>':'';
+  const attnHtml='<div class="attn-card">'+(attnToon.length?attnToon.map(attnRij).join(""):'<div class="cempty">Niets dat nu je aandacht vraagt. 👍<br>Zodra een klant een workout mist, nog moet doen of laag scoort, zie je het hier.</div>')+attnMeer+verborgenLink+'</div>';
   const chips='<div style="display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap">'+
     '<span class="fchip'+(dashFilter==="alles"?" on":"")+'" onclick="dashSetFilter(\'alles\')">Alles</span>'+
     '<span class="fchip'+(dashFilter==="tedoen"?" on":"")+'" onclick="dashSetFilter(\'tedoen\')">Workout te doen ('+nTeDoen+')</span>'+
@@ -166,9 +175,13 @@ function dashRender(){
   const cmPct=actieveKlanten().length?Math.round(gesproken/actieveKlanten().length*100):0;
   const mon=mondayOf(new Date());
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2)+"-"+mon.getFullYear();
+  // Nog niet gesproken eerst (daar ligt het werk), dan op naam; standaard maximaal DASH_MAX bolletjes.
+  const cmLijst=actieveKlanten().slice().sort((a,b)=>((msgCount[a.id]||0)-(msgCount[b.id]||0))||naamVan(a).localeCompare(naamVan(b)));
+  const cmToon=dashCmAlles?cmLijst:cmLijst.slice(0,DASH_MAX);
+  const cmMeer=cmLijst.length>DASH_MAX?'<div style="text-align:center;margin-top:14px"><button class="btn ghost sm" onclick="dashCmToggle()">'+(dashCmAlles?"Toon minder":"Toon alle ("+cmLijst.length+")")+'</button></div>':'';
   const cmHtml='<h2 style="margin:22px 0 4px">Contactmomenten <span class="muted" style="font-weight:600">('+cmPct+'%)</span></h2>'+
     '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+actieveKlanten().length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
-    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+actieveKlanten().map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>';
+    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+cmToon.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>'+cmMeer;
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
   let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
   const feedSet=dashFeedSet();
