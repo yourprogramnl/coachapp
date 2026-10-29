@@ -17,11 +17,13 @@ async function fillDashboard(){
   if(oud){DASH=oud.dash;dashRender();}
   const leeg=Promise.resolve({data:[]});
   const heeft=ids.length>0;
-  // Alle aanroepen tegelijk (was twaalf na elkaar). Resultaten, uploads en
-  // reacties komen in dezelfde aanroep mee als de workouts: geen lange lijst
-  // workout-id's meer in de link.
+  // Alle aanroepen tegelijk. De workoutlijst is bewust licht (29 okt 2026: na de
+  // import van 3.300 workouts was dit 24 MB per keer laden): alleen id, klant,
+  // datum, titel en per workout de status van de resultaten. Blokken, uploads,
+  // reacties en inspanning komen apart, alleen voor de kaarten die de feed echt
+  // toont (dashLaadDetail).
   const[wq,mq,cq,tq,pq,taq,sq,bq]=await Promise.all([
-    heeft?db.from("workouts").select("*, blocks(*), results(*), result_media(*), workout_comments(*), workout_effort(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
+    heeft?db.from("workouts").select("id,client_id,workout_date,title, results(status)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
     heeft?db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
     // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
     heeft?db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40):leeg,
@@ -32,24 +34,9 @@ async function fillDashboard(){
     db.from("attention_snooze").select("athlete_id,snoozed_until").eq("coach_id",ME.user.id),
     ME.profile.company_id?db.from("workouts").select("id,title,workout_date, blocks(*), results(athlete_id,created_at)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(1):leeg,
   ]);
-  let ws=[],rs=[],md=[],wc=[],ef=[];
-  if(wq.error&&heeft){
-    // Terugvalroute: los ophalen zoals vroeger.
-    ws=(await db.from("workouts").select("*, blocks(*)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false})).data||[];
-    const wids=ws.map(w=>w.id);
-    if(wids.length){
-      const[r1,r2,r3,r4]=await Promise.all([
-        db.from("results").select("*").in("workout_id",wids),
-        db.from("result_media").select("*").in("workout_id",wids),
-        db.from("workout_comments").select("*").in("workout_id",wids).order("created_at"),
-        db.from("workout_effort").select("*").in("workout_id",wids)
-      ]);
-      rs=r1.data||[];md=r2.data||[];wc=r3.data||[];ef=r4.data||[];
-    }
-  }else{
-    ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);md=md.concat(w.result_media||[]);wc=wc.concat(w.workout_comments||[]);ef=ef.concat(w.workout_effort||[]);delete w.results;delete w.result_media;delete w.workout_comments;delete w.workout_effort;return w;});
-    wc.sort((a,b)=>a.created_at<b.created_at?-1:(a.created_at>b.created_at?1:0)); // zelfde volgorde als vroeger (op tijd)
-  }
+  if(wq.error)toast(wq.error.message||"Dashboard laden mislukt");
+  // done = minstens één voltooid resultaat; gelogd = er is iets ingevuld (ook gemist)
+  const ws=(wq.data||[]).map(w=>{const r=w.results||[];delete w.results;w.done=r.some(x=>x.status==="completed");w.gelogd=r.length>0;return w;});
   const msgs=mq.data||[],consults=cq.data||[],dtags=tq.data||[],ptags=pq.data||[],tasks=taq.data||[],snoozeRows=sq.data||[];
   const snoozeMap={};snoozeRows.forEach(s=>snoozeMap[s.athlete_id]=s.snoozed_until);
   let blog=null,blogRes=[];
@@ -60,13 +47,51 @@ async function fillDashboard(){
     blog=(bq.data||[])[0]||null;
     if(blog){blogRes=blog.results||[];delete blog.results;}
   }
-  const dash={ws,rs,md,wc,ef,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags};
-  const vingerafdruk=JSON.stringify(dash);
+  // Kaartdata (detail per workout + rs/md/wc/ef van die kaarten) gaat mee van de
+  // vorige stand zodat de feed niet knippert; dashLaadDetail ververst ze erna.
+  const vorige=(oud&&oud.dash)||DASH;
+  const dash={ws,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags,
+    detail:Object.assign({},(vorige&&vorige.detail)||{}),rs:((vorige&&vorige.rs)||[]).slice(),md:((vorige&&vorige.md)||[]).slice(),wc:((vorige&&vorige.wc)||[]).slice(),ef:((vorige&&vorige.ef)||[]).slice()};
+  const vingerafdruk=JSON.stringify({ws,msgs,tasks,blog,blogRes,snoozeMap,consults,dtags,ptags});
   versZet("dash",{dash,vingerafdruk});
   if(nr!==dashLaadNr)return; // er is intussen opnieuw geladen
-  // Staat precies dezelfde data al op het scherm? Dan niets overtekenen.
-  if(oud&&oud.vingerafdruk===vingerafdruk&&DASH===oud.dash)return;
+  // Staat precies dezelfde lijst al op het scherm? Dan alleen de kaarten verversen.
+  if(oud&&oud.vingerafdruk===vingerafdruk&&DASH===oud.dash){dashLaadDetail(Object.keys(DASH.detail),true);return;}
   DASH=dash;
+  if(dashInBeeld())dashRender();
+  dashLaadDetail(Object.keys(dash.detail),true); // meegenomen kaarten op de achtergrond verversen
+}
+// Volledige kaartdata (blokken, resultaten, uploads, reacties, inspanning) voor een
+// handvol workouts: alleen wat de feed toont. Met vernieuw=true worden al geladen
+// kaarten opnieuw opgehaald terwijl de oude blijft staan (geen geknipper).
+const dashDetailBezig=new Set();
+async function dashLaadDetail(ids,vernieuw){
+  if(!DASH)return;
+  ids=(ids||[]).filter(id=>!dashDetailBezig.has(id)&&(vernieuw||!DASH.detail[id]));
+  if(vernieuw)ids=ids.slice(0,24); // na een paar keer "Meer laden" niet alles opnieuw
+  if(!ids.length)return;
+  ids.forEach(id=>dashDetailBezig.add(id));
+  const van=DASH;
+  const{data,error}=await db.from("workouts").select("*, blocks(*), results(*), result_media(*), workout_comments(*), workout_effort(*)").in("id",ids);
+  ids.forEach(id=>dashDetailBezig.delete(id));
+  if(DASH!==van){if(dashInBeeld())dashRender();return;} // intussen opnieuw geladen: die stand haalt zelf op wat hij mist
+  if(error){toast(error.message||"Kaarten laden mislukt");return;}
+  const set=new Set(ids),rows=data||[];
+  // Oude stand van deze workouts eruit, verse erin
+  DASH.rs=DASH.rs.filter(r=>!set.has(r.workout_id));DASH.md=DASH.md.filter(m=>!set.has(m.workout_id));
+  DASH.wc=DASH.wc.filter(m=>!set.has(m.workout_id));DASH.ef=DASH.ef.filter(e=>!set.has(e.workout_id));
+  rows.forEach(w=>{
+    DASH.rs=DASH.rs.concat(w.results||[]);DASH.md=DASH.md.concat(w.result_media||[]);
+    DASH.wc=DASH.wc.concat((w.workout_comments||[]).slice().sort((a,b)=>a.created_at<b.created_at?-1:(a.created_at>b.created_at?1:0)));
+    DASH.ef=DASH.ef.concat(w.workout_effort||[]);
+    delete w.results;delete w.result_media;delete w.workout_comments;delete w.workout_effort;
+    DASH.detail[w.id]=w;
+    // Lichte lijst gelijk houden met wat er echt gelogd staat
+    const l=DASH.ws.find(x=>x.id===w.id);
+    if(l){const r=DASH.rs.filter(x=>x.workout_id===w.id);l.done=r.some(x=>x.status==="completed");l.gelogd=r.length>0;}
+  });
+  // Intussen verwijderde workout: niet eindeloos opnieuw proberen
+  ids.forEach(id=>{if(!rows.some(w=>w.id===id))DASH.detail[id]={id,weg:true};});
   if(dashInBeeld())dashRender();
 }
 function dashSetFilter(f){dashFilter=f;dashAttnAlles=false;dashRender();} // ander filter = weer ingeklapt
@@ -125,7 +150,7 @@ function dashRender(){
   const td=todayStr(),from7=ymd(addDays(new Date(),-6));
   const byId={};actieveKlanten().forEach(p=>byId[p.id]=p);
   const echte=ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
-  const doneWo=new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id));
+  const doneWo=new Set(ws.filter(w=>w.done).map(w=>w.id));
   const resByBlock={};rs.forEach(r=>resByBlock[r.block_id]=r);
   // Compliance per klant (laatste 30 dagen; alleen bij genoeg geplande workouts)
   const from30=ymd(addDays(new Date(),-29));
@@ -183,14 +208,20 @@ function dashRender(){
     '<div class="sm muted" style="margin-bottom:12px"><b>'+gesproken+' van '+actieveKlanten().length+'</b> klanten deze week gesproken · week van maandag <b>'+monLbl+'</b></div>'+
     '<div style="display:flex;gap:26px;flex-wrap:wrap">'+cmToon.map(p=>'<div class="cmav click" onclick="openClient(\''+p.id+'\')" style="cursor:pointer"><span class="bol" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</span>'+esc(p.first_name||naamVan(p))+' ('+(msgCount[p.id]||0)+')</div>').join("")+'</div>'+cmMeer;
   // Activiteit: recente workouts met gelogde resultaten, als volledige kaarten (optioneel op één klant gefilterd)
-  let metAll=echte.filter(w=>rs.some(r=>r.workout_id===w.id));
+  let metAll=echte.filter(w=>w.gelogd);
   const feedSet=dashFeedSet();
   if(feedSet)metAll=metAll.filter(w=>feedSet.has(w.client_id));
   const met=metAll.slice(0,dashFeedLimit);
+  // Kaartdata die nog ontbreekt op de achtergrond ophalen; tot die tijd een laadkaart
+  const ontbreekt=met.filter(w=>!DASH.detail[w.id]).map(w=>w.id);
+  if(ontbreekt.length)dashLaadDetail(ontbreekt);
   const meerLink=metAll.length>dashFeedLimit?'<div style="text-align:center;margin-top:12px"><button class="btn ghost sm" onclick="dashMeer()">Meer laden ('+(metAll.length-dashFeedLimit)+')</button></div>':'';
   const feedHtml=met.length?met.map(w=>{
+    const d=DASH.detail[w.id];
+    if(!d)return '<div class="feedcard"><div class="spin" style="padding:14px 0">Laden…</div></div>';
+    if(d.weg)return '';
     const p=byId[w.client_id]||{};
-    const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+    const blocks=(d.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     let done=0;
     const rij=(badge,titel,tekst,r,vids)=>{
       const sc=resultScoreVol(r);
@@ -211,7 +242,7 @@ function dashRender(){
         '<div class="fside">'+statusBtn+histBtn+'</div></div>';
     };
     let rows="";
-    if(w.warmup)rows+=rij("W","Warmup",w.warmup,null);
+    if(d.warmup)rows+=rij("W","Warmup",d.warmup,null);
     blocks.forEach(b=>{
       const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
       const vids=(md||[]).filter(m=>m.block_id===b.id&&m.athlete_id===w.client_id);
@@ -563,6 +594,8 @@ async function dashToggleStatus(resId,huidig){
   const{error}=await db.from("results").update(patch).eq("id",resId);
   if(error){toast(error.message||"Bijwerken mislukt");return;}
   (DASH.rs||[]).forEach(r=>{if(r.id===resId)Object.assign(r,patch);});
+  const r0=(DASH.rs||[]).find(r=>r.id===resId);
+  if(r0){const l=(DASH.ws||[]).find(x=>x.id===r0.workout_id);if(l)l.done=DASH.rs.some(x=>x.workout_id===l.id&&x.status==="completed");}
   dashRender();
   toast(nieuw==="completed"?"Op voltooid gezet":"Op gemist gezet");
 }
