@@ -432,12 +432,13 @@ function wkMarkeer(t){
   return uit;
 }
 const wkKort=(t,n)=>{t=String(t||"").trim();return t.length>n?t.slice(0,n-1)+"…":t;};
-let ncTab="week",ncKlant="all",ncWeekTerug=0; // 0 = deze week, 1 = vorige week, …
+let ncTab="week",ncKlant="all",ncWeekTerug=0,ncGen=0; // 0 = deze week, 1 = vorige week, …
 function ncTabZet(t){ncTab=t;fillNotifCentrum();}
 function ncKlantZet(v){ncKlant=v;fillNotifCentrum();}
 function ncWeekZet(n){ncWeekTerug=parseInt(n,10)||0;fillNotifCentrum();}
 async function fillNotifCentrum(){
   const cp=document.getElementById("cpage");if(!cp)return;
+  ncGen++;
   cp.innerHTML='<h1>Meldingen</h1>'+
     '<div class="ctabs" style="margin-bottom:14px"><button class="'+(ncTab==="week"?"on":"")+'" onclick="ncTabZet(\'week\')">Deze week per klant</button>'+
     '<button class="'+(ncTab==="notifs"?"on":"")+'" onclick="ncTabZet(\'notifs\')">Notificaties</button></div>'+
@@ -452,17 +453,30 @@ async function ncWeek(){
   // Gekozen week: van maandag tot de maandag erna (deze week, vorige week, …)
   const mon=addDays(mondayOf(new Date()),-7*ncWeekTerug);
   const monISO=ymd(mon),eindISO=ymd(addDays(mon,7));
-  let rs=[],wc=[],msgs=[],mets=[],prs=[];
+  let rs=[],wc=[],msgs=[],mets=[],prsLater=null;
   if(ids.length){
-    rs=(await db.from("results").select("*, blocks(exercise,kind), workouts(workout_date)").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
-    wc=(await db.from("workout_comments").select("*").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
-    msgs=(await db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
-    mets=(await db.from("metrics").select("athlete_id,metric,value,unit,created_at,result_id").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO)).data||[];
-    // Records uit de krachtlog in deze week (per exact aantal reps; mislukte sets tellen niet)
-    prs=(await db.rpc("lift_prs",{p_athletes:ids,p_from:monISO,p_to:ymd(addDays(mon,6))})).data||[];
+    // Alles tegelijk (was vijf keer na elkaar). Resultaten op de datum van de
+    // workout en metingen op de meetdatum, niet op het moment van invoeren: de
+    // import van 29 okt zette 68.000 oude resultaten in één avond in de database
+    // en die vielen anders allemaal in "deze week" (42 MB per keer laden).
+    const[rq,cq,mq,tq]=await Promise.all([
+      db.from("results").select("athlete_id,status,note,score_text,created_at, blocks(exercise,kind), workouts!inner(workout_date)").in("athlete_id",ids).gte("workouts.workout_date",monISO).lt("workouts.workout_date",eindISO),
+      db.from("workout_comments").select("athlete_id,author_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO),
+      db.from("messages").select("athlete_id,sender_id,body,created_at").in("athlete_id",ids).gte("created_at",monISO).lt("created_at",eindISO),
+      db.from("metrics").select("athlete_id,metric,value,unit,measured_at,result_id").in("athlete_id",ids).gte("measured_at",monISO).lt("measured_at",eindISO)
+    ]);
+    rs=rq.data||[];wc=cq.data||[];msgs=mq.data||[];mets=tq.data||[];
+    if(rq.error)toast(rq.error.message||"Resultaten laden mislukt");
+    // Records uit de krachtlog in deze week (per exact aantal reps; mislukte sets
+    // tellen niet). Die berekening loopt over de hele historie en duurt een paar
+    // seconden: de pagina tekent eerst, de PR-regels komen erbij zodra ze er zijn.
+    prsLater=db.rpc("lift_prs",{p_athletes:ids,p_from:monISO,p_to:ymd(addDays(mon,6))});
   }
   const DAGK=["zo","ma","di","wo","do","vr","za"];
   const wkDag=ts=>{const d=new Date(ts);return isNaN(d)?"":DAGK[d.getDay()];};
+  // Dag van een resultaat = de dag van de workout (niet wanneer het is ingevoerd)
+  const rsDag=r=>(r.workouts&&r.workouts.workout_date)?r.workouts.workout_date+"T12:00:00":r.created_at;
+  const teken=prs=>{
   const wkKlanten=[];
   klanten.forEach(p=>{
     const regels=[];let alarm=false;
@@ -478,7 +492,7 @@ async function ncWeek(){
       const tekst=[(r.note||"").trim(),wkSignaal(r.score_text)?String(r.score_text||"").trim():""].filter(Boolean).join(" · ");
       if(!tekst)return;
       if(wkSignaal(tekst))alarm=true;
-      regels.push('💬 '+wkDag(r.created_at)+' · '+esc(bron(r))+': “'+wkMarkeer(wkKort(tekst,150))+'”');
+      regels.push('💬 '+wkDag(rsDag(r))+' · '+esc(bron(r))+': “'+wkMarkeer(wkKort(tekst,150))+'”');
     });
     wc.filter(c=>c.author_id===p.id).forEach(c=>{
       if(wkSignaal(c.body))alarm=true;
@@ -517,6 +531,16 @@ async function ncWeek(){
           :'<div class="sm muted" style="margin:6px 0 0 33px">Niets gemeld deze week.</div>')+
       '</div>').join("")+'</div>'
     :'<div class="attn-card"><div class="cempty">Niets gemeld in deze week.<br>Zodra klanten loggen, reageren of een PR zetten, zie je het hier per klant bij elkaar.</div></div>');
+  };
+  teken([]);
+  if(prsLater){
+    const gen=ncGen;
+    prsLater.then(r=>{
+      if(gen!==ncGen||!document.getElementById("nc-body"))return; // intussen andere week/tab gekozen
+      if(r&&r.error){toast(r.error.message||"Records laden mislukt");return;}
+      teken((r&&r.data)||[]);
+    });
+  }
 }
 // Tab 2: het notificatiecentrum (de lijst van de bel, met filters)
 async function ncNotifs(){
