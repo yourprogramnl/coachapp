@@ -1,22 +1,18 @@
 // app/auth.js — inloggen, account maken, uitloggen en het opstarten van de app.
 // loadApp() bepaalt op basis van de rol welk scherm getoond wordt.
-// Zodra de FORGE-app publiek in de App Store staat: hier de link invullen; het
-// succes-scherm voor nieuwe leden toont dan een echte downloadknop.
-const APP_STORE_URL="";
-// Tot die tijd loopt de app via de openbare TestFlight-link van de groep "Pilot"
-// (dezelfde link als in de uitnodigingsmail, zie mail-send TESTFLIGHT_URL).
-const TESTFLIGHT_URL="https://testflight.apple.com/join/JqqZHVDp";
-// Installatie-uitleg voor leden: App Store-knop zodra die er is, anders de
-// TestFlight-stappen, zodat niemand de coach om een link hoeft te vragen.
+// De app staat sinds oktober 2026 in de App Store en Google Play (zelfde links als
+// in de uitnodigingsmail, zie mail-send APP_STORE_URL / PLAY_STORE_URL). Tot 1 nov
+// 2026 stond hier nog de TestFlight-uitleg; die was alleen voor iPhone en liep dood
+// voor Android-leden.
+const APP_STORE_URL="https://apps.apple.com/nl/app/id6792739065";
+const PLAY_STORE_URL="https://play.google.com/store/apps/details?id=nl.yourprogram.forge";
+// Installatie-uitleg voor leden: twee winkelknoppen, zodat niemand de coach om een
+// link hoeft te vragen.
 function appInstallHtml(){
-  if(APP_STORE_URL)return '<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+APP_STORE_URL+'">Download de YourProgram-app</a>';
-  return '<div class="muted" style="text-align:left;font-size:13px;line-height:1.55;margin-bottom:12px">'+
-      '<div style="margin-bottom:6px">De app is nog in test en loopt via TestFlight van Apple. Zo zet je hem op je iPhone:</div>'+
-      '<ol style="margin:0;padding-left:20px"><li>Installeer de app TestFlight uit de App Store.</li>'+
-      '<li>Open de link hieronder op je iPhone en tik op Accepteren en Installeren.</li>'+
-      '<li>Open de YourProgram-app en log in met dit e-mailadres en je wachtwoord.</li></ol></div>'+
-    '<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none" href="'+TESTFLIGHT_URL+'" target="_blank" rel="noopener">Open de TestFlight-link</a>'+
-    '<div class="muted" style="font-size:12px;line-height:1.5;margin-top:8px">Zit je nu op je computer? De link staat ook in je uitnodigingsmail.</div>';
+  const knop=(url,tekst)=>'<a class="btn" style="width:100%;display:block;text-align:center;box-sizing:border-box;text-decoration:none;margin-bottom:8px" href="'+url+'" target="_blank" rel="noopener">'+tekst+'</a>';
+  return '<div class="muted" style="font-size:13px;line-height:1.55;margin-bottom:12px">Zoek YourProgram in de App Store (iPhone) of Google Play (Android), of gebruik een van deze knoppen. Log daarna in met dit e-mailadres en je wachtwoord.</div>'+
+    knop(APP_STORE_URL,"Download in de App Store")+knop(PLAY_STORE_URL,"Download in Google Play")+
+    '<div class="muted" style="font-size:12px;line-height:1.5;margin-top:4px">Zit je nu op je computer? Open deze pagina op je telefoon, of gebruik de links in je uitnodigingsmail.</div>';
 }
 // Wachtwoord-eis, op één plek zodat de uitleg en de controle altijd gelijk lopen.
 const PW_EIS="Minimaal 8 tekens, met minstens één letter en één cijfer.";
@@ -233,7 +229,11 @@ async function checkRecovery(){
   }
   return false;
 }
-function toonNieuwWachtwoord(){
+// vanLid = geopend vanaf de sporterpagina (lid is al ingelogd en wil zonder
+// herstelmail een nieuw wachtwoord; sinds 1 nov 2026, zie renderAppOnly).
+let pwVanLid=false;
+function toonNieuwWachtwoord(vanLid){
+  pwVanLid=!!vanLid;
   show("login");
   const kaart=document.querySelector("#login .card");if(!kaart)return;
   if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
@@ -241,7 +241,8 @@ function toonNieuwWachtwoord(){
     '<div class="muted" style="font-size:13px;margin-bottom:14px">Kies een nieuw wachtwoord voor je account. '+PW_EIS+'</div>'+
     '<div class="field"><label>Nieuw wachtwoord</label><input id="rc-pw1" type="password" placeholder="••••••••"></div>'+
     '<div class="field"><label>Herhaal nieuw wachtwoord</label><input id="rc-pw2" type="password" placeholder="••••••••"></div>'+
-    '<button class="btn" id="rc-go" style="width:100%" onclick="nieuwWachtwoordOpslaan()">Opslaan en inloggen</button>'+
+    '<button class="btn" id="rc-go" style="width:100%" onclick="nieuwWachtwoordOpslaan()">'+(pwVanLid?"Opslaan":"Opslaan en inloggen")+'</button>'+
+    (pwVanLid?'<div style="text-align:center;margin-top:12px"><button class="lnk" onclick="renderAppOnly()">Terug</button></div>':'')+
     '<div class="msg" id="rc-msg"></div>';
 }
 async function nieuwWachtwoordOpslaan(){
@@ -256,7 +257,7 @@ async function nieuwWachtwoordOpslaan(){
   if(error){zeg(error.message||"Opslaan mislukt. Probeer het opnieuw.","err");document.getElementById("rc-go").disabled=false;return;}
   const kaart=document.querySelector("#login .card");
   if(kaart&&kaart.dataset.orig){kaart.innerHTML=kaart.dataset.orig;delete kaart.dataset.orig;}
-  toast("Wachtwoord aangepast, je bent ingelogd");
+  toast(pwVanLid?"Wachtwoord aangepast. Log hiermee in de app in.":"Wachtwoord aangepast, je bent ingelogd");
   await loadApp();
 }
 
@@ -369,7 +370,9 @@ function renderAppOnly(){
     '<h3 style="margin:0 0 10px;font-size:19px">Jouw omgeving zit in de app</h3>'+
     '<div class="muted" style="font-size:13.5px;line-height:1.65;margin-bottom:18px">Als sporter gebruik je de YourProgram-app op je telefoon. Daar staan je programma, je scores, de chat met je coach en het leaderboard. Deze website is voor coaches.</div>'+
     appInstallHtml()+
-    '<button class="lnk" style="margin-top:12px" onclick="lidUitloggen()">Uitloggen</button>');
+    '<div class="muted" style="font-size:12.5px;line-height:1.5;margin-top:14px">Wachtwoord kwijt? Je bent hier nog ingelogd, dus je kunt meteen een nieuw wachtwoord kiezen.</div>'+
+    '<div style="margin-top:6px"><button class="lnk" onclick="toonNieuwWachtwoord(true)">Nieuw wachtwoord kiezen</button>'+
+    ' · <button class="lnk" onclick="lidUitloggen()">Uitloggen</button></div>');
 }
 
 // Account zonder bedrijf (zelf aangemaakt, geen uitnodiging ingewisseld): twee

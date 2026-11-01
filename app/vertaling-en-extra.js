@@ -67,13 +67,14 @@ i18nLaad({
   "💬 {n} nieuwe berichten van {naam}": "💬 {n} new messages from {naam}",
   // Handleiding als PDF downloaden (help.js)
   "Download als PDF:": "Download as PDF:",
-  // App installeren via TestFlight (auth.js, appInstallHtml)
-  "De app is nog in test en loopt via TestFlight van Apple. Zo zet je hem op je iPhone:": "The app is still in testing and runs through Apple's TestFlight. Here's how to get it on your iPhone:",
-  "Installeer de app TestFlight uit de App Store.": "Install the TestFlight app from the App Store.",
-  "Open de link hieronder op je iPhone en tik op Accepteren en Installeren.": "Open the link below on your iPhone and tap Accept, then Install.",
-  "Open de YourProgram-app en log in met dit e-mailadres en je wachtwoord.": "Open the YourProgram app and log in with this email address and your password.",
-  "Open de TestFlight-link": "Open the TestFlight link",
-  "Zit je nu op je computer? De link staat ook in je uitnodigingsmail.": "On your computer right now? The link is also in your invitation email.",
+  // App installeren uit de winkels + nieuw wachtwoord vanaf de sporterpagina (auth.js, appInstallHtml / renderAppOnly)
+  "Zoek YourProgram in de App Store (iPhone) of Google Play (Android), of gebruik een van deze knoppen. Log daarna in met dit e-mailadres en je wachtwoord.": "Search for YourProgram in the App Store (iPhone) or Google Play (Android), or use one of these buttons. Then log in with this email address and your password.",
+  "Download in de App Store": "Download in the App Store",
+  "Download in Google Play": "Download in Google Play",
+  "Zit je nu op je computer? Open deze pagina op je telefoon, of gebruik de links in je uitnodigingsmail.": "On your computer right now? Open this page on your phone, or use the links in your invitation email.",
+  "Wachtwoord kwijt? Je bent hier nog ingelogd, dus je kunt meteen een nieuw wachtwoord kiezen.": "Lost your password? You're still logged in here, so you can pick a new password right away.",
+  "Nieuw wachtwoord kiezen": "Choose a new password",
+  "Wachtwoord aangepast. Log hiermee in de app in.": "Password changed. Use it to log in to the app.",
   // Zelf een omgeving starten (start_bedrijf)
   "Welkom! Hoe wil je verder?": "Welcome! How would you like to continue?",
   "Je account is nog nergens aan gekoppeld. Kies wat bij jou past.": "Your account isn't linked to anything yet. Pick what fits you.",
