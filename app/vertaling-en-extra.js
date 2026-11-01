@@ -74,6 +74,9 @@ i18nLaad({
   "Zit je nu op je computer? Open deze pagina op je telefoon, of gebruik de links in je uitnodigingsmail.": "On your computer right now? Open this page on your phone, or use the links in your invitation email.",
   "Wachtwoord kwijt? Je bent hier nog ingelogd, dus je kunt meteen een nieuw wachtwoord kiezen.": "Lost your password? You're still logged in here, so you can pick a new password right away.",
   "Nieuw wachtwoord kiezen": "Choose a new password",
+  // Herstel-link uit de mail op ons eigen domein (auth.js, toonHerstelStart)
+  "Je komt via de link uit de herstelmail. Klik op Doorgaan om een nieuw wachtwoord te kiezen.": "You followed the link from the password email. Click Continue to choose a new password.",
+  "Doorgaan": "Continue",
   "Wachtwoord aangepast. Log hiermee in de app in.": "Password changed. Use it to log in to the app.",
   // Zelf een omgeving starten (start_bedrijf)
   "Welkom! Hoe wil je verder?": "Welcome! How would you like to continue?",

@@ -178,9 +178,14 @@ function show(which){
 async function signOut(){if(typeof msgBadgeStop==="function")msgBadgeStop();if(typeof stopNotifs==="function")stopNotifs();if(typeof versWis==="function")versWis();await db.auth.signOut();document.getElementById("pw").value="";show("login");}
 
 // ---------- Wachtwoord vergeten / herstellen ----------
-// De herstel-mail van Supabase komt terug op deze pagina met tokens in de
-// #hash (type=recovery). detectSessionInUrl staat uit, dus we verwerken de
-// hash zelf: sessie zetten en een formulier tonen voor een nieuw wachtwoord.
+// De herstel-mail van Supabase komt terug op deze pagina. Sinds 1 nov 2026 linkt
+// het mailsjabloon (FORGE/mail-templates/auth-wachtwoord-herstel.html) naar ons
+// eigen domein: app.yourprogram.nl/?token_hash=…&type=recovery. Reden: de oude
+// supabase.co-link werd door Yahoo/Outlook als spam gezien (Resend: "link URL
+// does not match sending domain"). We ruilen de token pas in na een klik op
+// Doorgaan (verifyOtp), zodat een mailscanner die links vooraf opent hem niet
+// verbruikt. De oude vorm (tokens in de #hash) blijft werken voor mails die al
+// onderweg waren. detectSessionInUrl staat uit, dus we verwerken alles zelf.
 // "Wachtwoord vergeten?" krijgt zijn eigen scherm met alléén een e-mailveld
 // (verzoek Stefan, 26 juli): op het inlogscherm ernaast leek het alsof je ook
 // nog een wachtwoord moest invullen. Zelfde kaart-wissel als het
@@ -214,6 +219,13 @@ function vergetenTerug(){
   setMode("in");
 }
 async function checkRecovery(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("type")==="recovery"&&q.get("token_hash")){
+    herstelTokenHash=q.get("token_hash");
+    history.replaceState(null,"",location.pathname);
+    toonHerstelStart();
+    return true;
+  }
   const h=new URLSearchParams((location.hash||"").replace(/^#/,""));
   if(h.get("type")==="recovery"&&h.get("access_token")){
     const{error}=await db.auth.setSession({access_token:h.get("access_token"),refresh_token:h.get("refresh_token")||""});
@@ -228,6 +240,30 @@ async function checkRecovery(){
     setMsg("Deze link is verlopen of al gebruikt. Vraag zo nodig een nieuwe aan via 'Wachtwoord vergeten?'.","err");
   }
   return false;
+}
+// Tussenstap voor de link uit de mail: pas na een klik wordt de token ingeruild.
+let herstelTokenHash="";
+function toonHerstelStart(){
+  show("login");
+  const kaart=document.querySelector("#login .card");if(!kaart)return;
+  if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  kaart.innerHTML='<h3 style="margin:0 0 6px">Nieuw wachtwoord instellen</h3>'+
+    '<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Je komt via de link uit de herstelmail. Klik op Doorgaan om een nieuw wachtwoord te kiezen.</div>'+
+    '<button class="btn" id="hs-go" style="width:100%" onclick="herstelDoorgaan()">Doorgaan</button>'+
+    '<div style="text-align:center;margin-top:12px"><button class="lnk" onclick="vergetenTerug()">Terug naar inloggen</button></div>'+
+    '<div class="msg" id="hs-msg"></div>';
+}
+async function herstelDoorgaan(){
+  const go=document.getElementById("hs-go"),m=document.getElementById("hs-msg");
+  go.disabled=true;
+  const{error}=await db.auth.verifyOtp({type:"recovery",token_hash:herstelTokenHash});
+  if(error){
+    go.disabled=false;
+    m.textContent="Deze link is verlopen of al gebruikt. Vraag een nieuwe aan via 'Wachtwoord vergeten?'.";m.className="msg err";
+    return;
+  }
+  herstelTokenHash="";
+  toonNieuwWachtwoord();
 }
 // vanLid = geopend vanaf de sporterpagina (lid is al ingelogd en wil zonder
 // herstelmail een nieuw wachtwoord; sinds 1 nov 2026, zie renderAppOnly).
