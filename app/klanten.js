@@ -52,8 +52,10 @@ async function fillKlanten(){
     ids.length?db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
     ids.length?db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids):leeg,
     ids.length?db.from("consults").select("athlete_id,consult_date").in("athlete_id",ids):leeg,
-    // Open uitnodigingen (account bestaat al, klant heeft nog geen wachtwoord gekozen)
-    ids.length?db.from("invites").select("profile_id,expires_at").is("accepted_at",null).not("profile_id","is",null).in("profile_id",ids):leeg,
+    // Open uitnodigingen (account bestaat al, klant heeft nog geen wachtwoord gekozen).
+    // Wachtwoordlinks (bron 'wachtwoordlink', zie klantWachtwoordlink) tellen niet mee:
+    // dat account is al actief, de klant is alleen zijn wachtwoord kwijt.
+    ids.length?db.from("invites").select("profile_id,expires_at").is("accepted_at",null).not("profile_id","is",null).or("bron.is.null,bron.neq.wachtwoordlink").in("profile_id",ids):leeg,
   ]);
   let ws=[],rs=[];
   if(wq.error&&ids.length){
@@ -413,6 +415,7 @@ function openKlantMenu(ev,id,archived){
     '<button onclick="event.stopPropagation();klantIntake(\''+id+'\')">Intakeformulier</button>'+
     '<button onclick="event.stopPropagation();klantBericht(\''+id+'\')">Bericht sturen</button>'+
     '<button onclick="event.stopPropagation();klantResetlink(\''+id+'\')">Wachtwoordlink sturen</button>'+
+    '<button onclick="event.stopPropagation();klantWachtwoordlink(\''+id+'\')">Wachtwoordlink kopiëren</button>'+
     (staff?'<button onclick="event.stopPropagation();klantOverzetten(event,\''+id+'\')">Overzetten</button>':'')+
     (archived
       ? '<button onclick="event.stopPropagation();klantArchiveer(\''+id+'\',false)">Terughalen</button>'
@@ -431,6 +434,43 @@ async function klantResetlink(id){
   if(!confirm("Wachtwoord-herstellink mailen naar "+p.email+"?"))return;
   const{error}=await db.auth.resetPasswordForEmail(p.email,{redirectTo:location.origin+location.pathname});
   toast(error?(error.message||"Versturen mislukt"):"Herstel-link gestuurd naar "+p.email);
+}
+// Persoonlijke kies-je-wachtwoord-link (7 dagen geldig, werkt één keer) voor als de
+// herstelmail niet aankomt (Yahoo/Hotmail zetten hem soms in de spam): de coach appt
+// de link zelf. Er gaat geen mail uit; rpc wachtwoordlink_maken maakt een invites-rij
+// voor het bestaande account en zet de wachtrij-rij op skipped. De link loopt via
+// dezelfde route als een uitnodiging: ?invite=<token> -> "Kies je wachtwoord" ->
+// invite-account (actie wachtwoord). Sinds 2 nov 2026 (aanleiding: Zina, 1 nov).
+async function klantWachtwoordlink(id){
+  klantMenuWeg();
+  const p=coachClients.find(x=>x.id===id);
+  if(!p)return;
+  const{data,error}=await db.rpc("wachtwoordlink_maken",{p_profile_id:id});
+  const rij=Array.isArray(data)?data[0]:data;
+  if(error||!rij||!rij.token){toast((error&&error.message)||"Link maken mislukt");return;}
+  const link=location.origin+location.pathname+"?invite="+rij.token;
+  const tot=new Date(rij.expires_at).toLocaleDateString(LOCALE,{day:"numeric",month:"long"});
+  let m=document.getElementById("wlmodal");
+  if(!m){
+    m=document.createElement("div");m.className="lmodal";m.id="wlmodal";
+    m.innerHTML='<div class="box"><h3><span>Wachtwoordlink voor</span> <span id="wl-naam" data-notr></span></h3>'+
+      '<div class="sm muted" style="margin:-4px 0 10px;line-height:1.5">Stuur deze link zelf naar de klant, bijvoorbeeld via WhatsApp. De klant kiest ermee een nieuw wachtwoord en logt daarna in met zijn e-mailadres. De link werkt één keer. Er is geen mail verstuurd.</div>'+
+      '<div class="sm" style="margin-bottom:10px"><span>Geldig tot</span> <b id="wl-tot" data-notr></b> · <span id="wl-email" data-notr></span></div>'+
+      '<div style="display:flex;gap:6px;margin-bottom:12px"><input id="wl-link" readonly style="flex:1;font-size:11.5px"><button class="btn sm" onclick="kopieerWlLink()">Kopiëren</button></div>'+
+      '<div style="display:flex;justify-content:flex-end"><button class="btn ghost" onclick="document.getElementById(\'wlmodal\').classList.remove(\'show\')">Sluiten</button></div></div>';
+    document.body.appendChild(m);
+  }
+  document.getElementById("wl-naam").textContent=naamVan(p);
+  document.getElementById("wl-tot").textContent=tot;
+  document.getElementById("wl-email").textContent=rij.email||p.email||"";
+  document.getElementById("wl-link").value=link;
+  m.classList.add("show");
+  kopieerWlLink();
+}
+function kopieerWlLink(){
+  const i=document.getElementById("wl-link");if(!i)return;
+  i.select();
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(i.value).then(()=>toast("Link gekopieerd"),()=>toast("Kopiëren lukte niet, selecteer de link zelf"));
 }
 async function klantArchiveer(id,arch){
   klantMenuWeg();
