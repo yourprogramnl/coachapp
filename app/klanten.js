@@ -445,6 +445,18 @@ async function klantWachtwoordlink(id){
   klantMenuWeg();
   const p=coachClients.find(x=>x.id===id);
   if(!p)return;
+  await wachtwoordlinkVenster(id,naamVan(p),p.email);
+}
+// Zelfde knop op de Coaches-pagina: een eigenaar helpt zijn coaches, een beheerder
+// ook een andere beheerder (verzoek Stefan 2 nov; voor jezelf blijft het
+// "Wachtwoord vergeten"). De naam komt uit de rij (data-cnaam).
+function coachWachtwoordlink(ev,id){
+  ev.stopPropagation();
+  const row=ev.target.closest(".trow");
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  wachtwoordlinkVenster(id,row?row.dataset.cnaam||"":"","");
+}
+async function wachtwoordlinkVenster(id,naam,emailFallback){
   const{data,error}=await db.rpc("wachtwoordlink_maken",{p_profile_id:id});
   const rij=Array.isArray(data)?data[0]:data;
   if(error||!rij||!rij.token){toast((error&&error.message)||"Link maken mislukt");return;}
@@ -460,9 +472,9 @@ async function klantWachtwoordlink(id){
       '<div style="display:flex;justify-content:flex-end"><button class="btn ghost" onclick="document.getElementById(\'wlmodal\').classList.remove(\'show\')">Sluiten</button></div></div>';
     document.body.appendChild(m);
   }
-  document.getElementById("wl-naam").textContent=naamVan(p);
+  document.getElementById("wl-naam").textContent=naam;
   document.getElementById("wl-tot").textContent=tot;
-  document.getElementById("wl-email").textContent=rij.email||p.email||"";
+  document.getElementById("wl-email").textContent=rij.email||emailFallback||"";
   document.getElementById("wl-link").value=link;
   m.classList.add("show");
   kopieerWlLink();
@@ -582,6 +594,9 @@ function openCoachMenu(ev,id,rol,klanten){
   // Rechten uitdelen mag alleen een beheerder (eigenaar of platform_admin), en
   // niet op je eigen rij: je kunt jezelf niet degraderen of rechten afpakken.
   const magRechten=["platform_admin","eigenaar"].includes(ME.profile.role)&&id!==ME.user.id;
+  // Wachtwoordlink: eigenaar voor zijn coaches, beheerder voor iedereen (ook een
+  // andere beheerder); nooit op je eigen rij (de database weigert dat ook).
+  const magLink=id!==ME.user.id&&(ME.profile.role==="platform_admin"||(ME.profile.role==="eigenaar"&&rol!=="platform_admin"));
   m.innerHTML=(beheer
       ? (rol==="eigenaar"
         ? '<button onclick="event.stopPropagation();coachSetRole(\''+id+'\',\'coach\')">Zet terug naar coach</button>'
@@ -589,6 +604,7 @@ function openCoachMenu(ev,id,rol,klanten){
       : '')+
     (magRechten?'<button onclick="event.stopPropagation();rechtenOpen(\''+id+'\')">Rechten…</button>':'')+
     '<button onclick="event.stopPropagation();coachTraintMee(event,\''+id+'\')">Traint mee bij…</button>'+
+    (magLink?'<button onclick="event.stopPropagation();coachWachtwoordlink(event,\''+id+'\')">Wachtwoordlink kopiëren</button>':'')+
     (beheer?'<button class="danger" onclick="event.stopPropagation();coachWegOpen(\''+id+'\')">Archiveren of verwijderen…</button>':'');
   row.appendChild(m);
 }
