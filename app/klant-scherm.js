@@ -816,7 +816,7 @@ function gelogdHtml(bid){
   const sc=r?resultScoreVol(r):"";
   return '<div class="gelogd'+(miss?' miss':'')+'"><div class="gelogd-kop">'+(miss?'✕ Gemist':'✓ Gelogd door de sporter')+(r&&r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
     (sc?'<div class="gelogd-score">'+esc(sc)+'</div>':(r&&!miss?'<div class="gelogd-score muted">Voltooid zonder score</div>':''))+
-    ((r&&r.note)?'<div class="gelogd-noot">💬 '+esc(r.note)+'</div>':'')+
+    resultSplitsHtml(r,"gelogd-noot")+((r&&r.note)?'<div class="gelogd-noot">💬 '+esc(r.note)+'</div>':'')+
     (tegels?'<div class="gelogd-media">'+tegels+'<span class="sm muted">'+vids.length+(vids.length===1?' upload':' uploads')+' · klik om te bekijken</span></div>':'')+'</div>';
 }
 function gelogdInject(){
@@ -919,7 +919,7 @@ function mcardHtml(w){
     inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
-      ((r&&r.note)?'<div class="pr" style="font-style:italic;color:#8a919c" title="Notitie van het lid">💬 '+esc(r.note)+'</div>':'')+
+      resultSplitsHtml(r,"pr")+((r&&r.note)?'<div class="pr" style="font-style:italic;color:#8a919c" title="Notitie van het lid">💬 '+esc(r.note)+'</div>':'')+
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+
       '</div>';
   });
@@ -1237,7 +1237,7 @@ async function histZoek(){
   // Wat het lid erbij logde (score, gemist, notitie) — dat wil je als coach juist zien.
   const bids=oef.map(o=>o.blockId).filter(Boolean);
   if(bids.length){
-    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,rx,note").eq("athlete_id",calClient).in("block_id",bids);
+    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,rx,note,splits").eq("athlete_id",calClient).in("block_id",bids);
     const perBlok={};(rres||[]).forEach(r=>{perBlok[r.block_id]=r;});
     oef.forEach(o=>{o.result=perBlok[o.blockId]||null;});
   }
@@ -1293,7 +1293,7 @@ function histRender(){
         ?(r.status==="missed"
           ?'<div class="hsc miss">✕ Gemist</div>'
           :'<div class="hsc">✓ '+esc(resultScoreVol(r)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
-            (r.note?'<div class="hpr" style="font-style:italic">💬 '+esc(r.note)+'</div>':''))
+            resultSplitsHtml(r,"hpr")+(r.note?'<div class="hpr" style="font-style:italic">💬 '+esc(r.note)+'</div>':''))
         :'<div class="hsc leeg">Nog niet gelogd</div>';
       // Dag-reacties van die dag eronder: eerdere feedback direct terug te lezen.
       const cmts=(b.comments&&b.comments.length)?'<div class="hpr" style="margin-top:5px;border-top:1px dashed #e7e9ec;padding-top:5px">'+b.comments.map(c=>'💬 <b>'+(c.author_id===c.athlete_id?"Lid":"Coach")+':</b> '+esc(c.body)).join("<br>")+'</div>':'';
@@ -1824,6 +1824,7 @@ function openResults(wid){
       '<div class="resblok"><span class="reslabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
         (pr?'<div class="respr">'+esc(pr)+'</div>':'')+'</div>'+
       '<div class="resinvoer"><div style="flex:1;min-width:0"><input class="resval" style="width:100%" placeholder="'+(lift?"Sets, bijv. 95x5 100x5 105x1":"Resultaat…")+'" value="'+esc(val)+'"'+(missed?' disabled':'')+(lift?' oninput="resSetsLees(this)"':'')+'>'+
+        ((r&&!missed)?resultSplitsHtml(r,"sm muted"):'')+
         (lift?'<div class="res-gelezen">'+gelezen+'</div>':'')+'</div>'+
         '<button class="resmiss'+(missed?' on':'')+'" title="Gemist" onclick="resToggleMissed(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></div>'+
       '</div>';

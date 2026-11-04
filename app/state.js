@@ -42,6 +42,10 @@ function resultScoreTxt(r){if(!r)return"";if(r.time_seconds!=null)return Math.fl
 // tekst ("50,52,55,56 ging goed"); die staat in score_text naast het getal.
 // Feed/kalender/historie tonen de tekst; het leaderboard blijft compact (resultScoreTxt).
 function resultScoreVol(r){return r&&r.score_text?r.score_text:resultScoreTxt(r);}
+// Rondetijden uit de timer van de app (results.splits: seconden per ronde, sinds 4 nov 2026)
+// als "2:35 · 2:02 · 2:10"; leeg als de sporter de timer niet gebruikte.
+function resultSplitsTxt(r){if(!r||!Array.isArray(r.splits)||!r.splits.length)return"";return r.splits.map(s=>{s=Math.max(0,Math.round(Number(s)||0));return Math.floor(s/60)+":"+pad(s%60);}).join(" · ");}
+function resultSplitsHtml(r,cls){const t=resultSplitsTxt(r);return t?'<div class="'+(cls||"pr2")+'" style="color:#8a919c" title="Rondetijden uit de timer van de app">⏱ Rondetijden: '+esc(t)+'</div>':"";}
 const KLEUREN=[["","geen kleur"],["grijs","grijs"],["roze","roze"],["oranje","oranje"],["geel","geel"],["blauw","blauw"],["groen","groen"]];
 const SCORETYPES=[["text","vrije tekst"],["time","tijd"],["load","gewicht"],["reps","reps"],["rounds_reps","rondes+reps"],["none","geen score"]];
 const selOpts=(list,cur)=>list.map(o=>'<option value="'+o[0]+'"'+(o[0]===(cur||list[0][0])?" selected":"")+'>'+o[1]+'</option>').join("");
