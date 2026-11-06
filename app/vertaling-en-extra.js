@@ -765,7 +765,7 @@ i18nLaad({
   "Percentage van de 1RM van de sporter in de tekst zetten": "Put a percentage of the athlete's 1RM in the text",
   "Percentage van de 1RM van de sporter": "Percentage of the athlete's 1RM",
   "Sluiten zonder in te voegen": "Close without inserting",
-  "+ In bibliotheek": "+ Add to library",
+  "Opslaan + in bibliotheek": "Save and add to library",
   "Thema in de bibliotheek": "Theme in the library",
   "Zet dit blok op de dag én bewaar het als nieuwe template in de bibliotheek": "Puts this block on the day and also saves it as a new template in the library",
   "Warming-up (tab Warm-ups)": "Warm-up (Warm-ups tab)",

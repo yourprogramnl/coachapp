@@ -37,7 +37,7 @@ function ensureBlokModal(){
       '<div class="cwmedia" id="wm_blok" data-tekstvan="blk-titel,blk-omschr" data-oefid="" data-gmedia=""><div class="vschips"></div><div class="vidpop"></div></div>'+
       '<div class="sm muted" style="margin-top:4px">Blauwe chips zijn voorstellen uit de tekst: + is toevoegen, ✕ is niet meer voorstellen. De sporter krijgt de video\'s in de app.</div></div>'+
     '<div class="blk-veld"><label>Blokkleur</label><div class="blk-kleuren" id="blk-kleuren"></div></div>'+
-    '<div class="blk-voet"><div class="blk-bieb"><button class="btn ghost" id="blk-biebknop" title="Zet dit blok op de dag én bewaar het als nieuwe template in de bibliotheek" onclick="blokOpslaan(true)">+ In bibliotheek</button><select id="blk-biebthema" title="Thema in de bibliotheek" onchange="BLK.biebHand=true">'+blkBiebOpties()+'</select></div>'+
+    '<div class="blk-voet"><div class="blk-bieb"><button class="btn ghost" id="blk-biebknop" title="Zet dit blok op de dag én bewaar het als nieuwe template in de bibliotheek" onclick="blokOpslaan(true)">Opslaan + in bibliotheek</button><select id="blk-biebthema" title="Thema in de bibliotheek" onchange="BLK.biebHand=true">'+blkBiebOpties()+'</select></div>'+
       '<div class="blk-voet-rechts"><button class="btn ghost" onclick="closeBlok()">Annuleren</button><button class="btn" id="blk-save" onclick="blokOpslaan()">Opslaan</button></div></div>'+
     '<div class="msg" id="blk-msg" style="min-height:0"></div>'+
     '</div></div>';
