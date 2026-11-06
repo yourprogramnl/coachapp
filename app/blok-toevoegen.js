@@ -76,14 +76,19 @@ function closeBlok(){
   const vp=m.querySelector(".vidpop.show");if(vp)vp.classList.remove("show");
   m.classList.remove("show");
 }
-// Esc: eerst een open video-zoeker dicht, dan het venster.
+// Esc: eerst het berekening-paneel dicht, dan een open video-zoeker, dan het venster.
+// Capture-fase + stopPropagation: de algemene Esc-afhandeling in klant-scherm.js
+// sluit anders in één keer alles, ook een open bouwer met onopgeslagen werk.
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
   const m=document.getElementById("blokmodal");if(!m||!m.classList.contains("show"))return;
+  e.stopPropagation();
+  const slim=document.getElementById("blk-slim");
+  if(slim&&slim.style.display!=="none"){slim.style.display="none";return;}
   const vp=m.querySelector(".vidpop.show");
   if(vp){vp.classList.remove("show");return;}
   closeBlok();
-});
+},true);
 
 // "donderdag 5 november" naast de datumkiezer (Engels als het dashboard op Engels staat).
 function blkDatumLabel(){
@@ -163,7 +168,8 @@ function blkSlimToon(){
   const box=document.getElementById("blk-slim");
   if(box.style.display!=="none"){box.style.display="none";return;}
   box.style.display="";
-  box.innerHTML='<span class="sm" style="font-weight:700">Percentage van de 1RM van de sporter</span>'+
+  box.innerHTML='<span class="blk-slim-x" title="Sluiten zonder in te voegen" onclick="blkSlimDicht()">✕</span>'+
+    '<span class="sm" style="font-weight:700">Percentage van de 1RM van de sporter</span>'+
     '<input id="blk-pct" type="number" min="1" max="150" value="70"><span class="sm">%</span>'+
     '<span class="sm muted">van</span><select id="blk-slimlift"><option value="">lift uit de titel</option></select>'+
     '<button class="btn sm" onclick="blkSlimInvoeg()">Invoegen</button>'+
@@ -174,6 +180,13 @@ function blkSlimToon(){
   });
   const p=document.getElementById("blk-pct");if(p){p.focus();p.select();}
 }
+function blkSlimDicht(){const b=document.getElementById("blk-slim");if(b)b.style.display="none";}
+// Wegklikken (buiten het paneel en niet op de knop) sluit het paneel ook (feedback Stefan 6 nov).
+document.addEventListener("click",e=>{
+  const b=document.getElementById("blk-slim");if(!b||b.style.display==="none")return;
+  if(e.target.closest("#blk-slim")||e.target.closest(".blk-slim"))return;
+  b.style.display="none";
+});
 function blkSlimInvoeg(){
   const pct=parseInt((document.getElementById("blk-pct")||{}).value,10);
   if(!(pct>0)){toast("Vul een percentage in");return;}

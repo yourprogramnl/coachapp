@@ -1564,7 +1564,9 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .blk-omschr{position:relative}
 .blk-omschr textarea{min-height:120px;padding-bottom:42px}
 .blk-omschr .blk-slim{position:absolute;right:10px;bottom:10px;background:#f0f1f3;border-color:#f0f1f3}
-.blk-slim-rij{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;background:#f6f7f8;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.blk-slim-rij{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;background:#f6f7f8;border:1px solid var(--line);border-radius:10px;padding:10px 30px 10px 12px;position:relative}
+.blk-slim-x{position:absolute;top:9px;right:11px;cursor:pointer;color:#8a919c;font-size:12px;line-height:1}
+.blk-slim-x:hover{color:#e5484d}
 .blk-slim-rij input{width:70px;padding:6px 8px;font-size:12.5px}
 .blk-slim-rij select{width:auto;max-width:220px;padding:6px 8px;font-size:12.5px}
 .blk-liftrij{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}

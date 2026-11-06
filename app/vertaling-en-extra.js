@@ -758,6 +758,7 @@ i18nLaad({
   "⊞ Slimme berekening": "⊞ Add smart calculation",
   "Percentage van de 1RM van de sporter in de tekst zetten": "Put a percentage of the athlete's 1RM in the text",
   "Percentage van de 1RM van de sporter": "Percentage of the athlete's 1RM",
+  "Sluiten zonder in te voegen": "Close without inserting",
   "van": "of",
   "lift uit de titel": "lift from the title",
   "Komt als \"@ 70%\" achter de regel waar je cursor staat. De app rekent het om naar kilo's met de 1RM van de sporter.": "Goes in as \"@ 70%\" at the end of the line your cursor is on. The app converts it to kilos using the athlete's 1RM.",
