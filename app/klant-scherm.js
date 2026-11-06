@@ -358,7 +358,7 @@ function exZoek(inp){
     libLaad().then(()=>{if(document.contains(inp)&&inp.value.trim().toLowerCase()===v)exZoek(inp);});
     return;
   }
-  const hits=LIB.oef.filter(o=>(o.naam||"").toLowerCase().includes(v)||(o.tags||[]).join(" ").toLowerCase().includes(v));
+  const hits=oefZoek(v);
   if(!hits.length){drop.classList.remove("show");return;}
   // Alle resultaten tonen (de lijst scrollt); alleen bij extreem brede
   // zoekopdrachten afkappen zodat de dropdown vlot blijft.

@@ -39,6 +39,51 @@ function gmNorm(s){
 }
 const gmCompact=s=>gmNorm(s).replace(/ /g,"");
 
+// Zoeken in de oefeningenbibliotheek (verzoek Stefan 6 nov 2026). Alle zoekvelden
+// gebruiken deze ene zoeker, zodat een coach overal hetzelfde vindt. Hoofdletters,
+// koppeltekens, spaties, meervoud, afkortingen en woordvolgorde maken niet uit:
+// "pullups", "Pull-Up" en "pull up" vinden hetzelfde, net als "db row" en
+// "row dumbbell". Beste treffer bovenaan: exact, begint ermee, woorden op volgorde,
+// alle woorden los; daarna treffers midden in een woord en op tag.
+// OEF_SYN staat bewust los van GM_AFKO: dit zijn alleen zoekwoorden, de geleerde
+// koppelingen in media_aliassen blijven zo gelijk.
+const OEF_SYN={dumbell:"dumbbell",dumbel:"dumbbell",kettelbell:"kettlebell",flye:"fly",flie:"fly",med:"medicine",hipthrust:"hip thrust"};
+const oefNorm=s=>gmNorm(s).split(" ").map(w=>OEF_SYN[w]||w).join(" ");
+const OEF_CACHE=new WeakMap();
+function oefSleutels(o){
+  let k=OEF_CACHE.get(o);
+  if(k&&k.naam===o.naam)return k;
+  const norm=oefNorm(o.naam),tags=(o.tags||[]).join(" ");
+  k={naam:o.naam,norm,start:" "+norm,compact:norm.replace(/ /g,""),ruw:(o.naam||"").toLowerCase(),tags:oefNorm(tags),tagsRuw:tags.toLowerCase()};
+  OEF_CACHE.set(o,k);
+  return k;
+}
+function oefRang(k,ruw,nq,qc,woorden){
+  if(nq){
+    if(k.norm===nq||k.compact===qc)return 0;
+    if(k.norm.startsWith(nq)||k.compact.startsWith(qc))return 1;
+    if(k.start.includes(" "+nq))return 2;
+    if(woorden.every(w=>k.start.includes(" "+w)))return 3;
+    if(woorden.every(w=>k.compact.includes(w)))return 4;
+    if(woorden.every(w=>k.compact.includes(w)||k.tags.includes(w)))return 5;
+  }
+  return k.ruw.includes(ruw)||k.tagsRuw.includes(ruw)?6:-1;
+}
+// Geeft de treffers terug, beste eerst. Lege zoekterm = de lijst zoals hij was.
+function oefZoek(q,lijst){
+  lijst=lijst||LIB.oef||[];
+  const ruw=String(q||"").toLowerCase().trim();
+  if(!ruw)return lijst;
+  const nq=oefNorm(ruw),woorden=nq?nq.split(" "):[],qc=woorden.join("");
+  const hits=[];
+  for(const o of lijst){
+    const k=oefSleutels(o),r=oefRang(k,ruw,nq,qc,woorden);
+    if(r>=0)hits.push({o,r,l:k.norm.length});
+  }
+  hits.sort((a,b)=>a.r-b.r||a.l-b.l||(a.o.naam||"").localeCompare(b.o.naam||""));
+  return hits.map(h=>h.o);
+}
+
 let GM={index:null,indexVan:-1,aliassen:null,klaarPromise:null};
 
 // Zoekindex over de bibliotheek: alleen oefeningen met een afspeelbare
@@ -272,7 +317,7 @@ function vsKiesZoek(inp){
     return;
   }
   if(v.length<2){lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Typ minstens twee letters, of plak een YouTube-link.</div>';return;}
-  const zoek=q=>LIB.oef.filter(o=>o.youtube_id&&((o.naam||"").toLowerCase().includes(q)||(o.tags||[]).join(" ").toLowerCase().includes(q)));
+  const metVideo=LIB.oef.filter(o=>o.youtube_id),zoek=q=>oefZoek(q,metVideo);
   // Volledige bloknamen ("Rope Climb Technique programma") staan zelden zo in
   // de bibliotheek; dan zoeken we korter (woorden van achteren weghalen, daarna
   // per los woord) en zeggen dat erbij, zodat de kiezer nooit leeg lijkt.

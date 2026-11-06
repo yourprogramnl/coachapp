@@ -321,7 +321,7 @@ function libLijst(behoudKop){
   }
   if(thead)thead.innerHTML='<div style="width:74px">Media</div><div style="flex:2.6">Oefening</div><div style="flex:1.6">Tags</div><div style="flex:.8">Video</div><div style="width:70px"></div>';
   if(cnt)cnt.textContent=LIB.oef.length+" video's";
-  const hits=LIB.oef.filter(o=>!LIB.zoek||(o.naam||"").toLowerCase().includes(LIB.zoek)||(o.tags||[]).join(" ").toLowerCase().includes(LIB.zoek));
+  const hits=oefZoek(LIB.zoek);
   const pages=Math.max(1,Math.ceil(hits.length/LIB_PER));
   if(LIB.pag>=pages)LIB.pag=pages-1;
   const deel=hits.slice(LIB.pag*LIB_PER,(LIB.pag+1)*LIB_PER);
@@ -922,7 +922,7 @@ function tplVidZoek(inp){
   }
   // Alle treffers tonen in een scrolbare lijst (verzoek Stefan: "back" heeft
   // er veel meer dan 8); een zachte kap van 100 houdt het rap.
-  const hits=LIB.oef.filter(o=>o.youtube_id&&(o.naam||"").toLowerCase().includes(v)).slice(0,100);
+  const hits=oefZoek(v,LIB.oef.filter(o=>o.youtube_id)).slice(0,100);
   drop.innerHTML=hits.length?'<div style="border:1px solid #e5e8ec;border-radius:10px;margin-top:6px;overflow-y:auto;max-height:264px">'+
     hits.map(o=>'<div onclick="tplVidKies('+o.id+')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#f6f7f9\'" onmouseout="this.style.background=\'\'">'+
       '<div style="width:52px;height:32px;border-radius:6px;flex:none;background:#000 url(\'https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/mqdefault.jpg\') center/cover"></div>'+

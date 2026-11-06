@@ -140,7 +140,7 @@ function biebRender(behoudFilters){
   const v=BIEB.zoek;
   let kaarten=[],totaal=0,hint="";
   if(BIEB.tab==="oef"){
-    const hits=LIB.oef.filter(o=>biebBevat(o,v,["naam","tags"]));
+    const hits=oefZoek(v);
     totaal=hits.length;
     if(hits.length>80)hint='<div class="cempty">'+hits.length+' oefeningen; de eerste 80 staan hieronder. Zoek op naam om er sneller bij te komen.</div>';
     kaarten=hits.slice(0,80).map(o=>biebKaartOef(o));
