@@ -732,3 +732,69 @@ i18nLaad({
 });
 i18nRegel(/^Gekoppeld sinds (.+), maar er zijn nog geen dagen binnengekomen\. De app haalt ze op zodra het lid hem opent\.$/, "Linked since $1, but no days have come in yet. The app fetches them when the member opens it.");
 i18nRegel(/^Uit (Apple Health|Health Connect)( · gekoppeld sinds (.+))?\. Laatste 28 dagen, alleen lezen\.$/, "From $1$2. Last 28 days, read-only.");
+// Blok toevoegen in het dag-menu van de klantkalender (6 nov 2026, naar Strivee-voorbeeld)
+i18nLaad({
+  "Blok toevoegen": "Add block",
+  "Eén blok toevoegen op deze dag (zoals in Strivee)": "Add one block on this day (like in Strivee)",
+  "Op welke dag komt dit blok?": "Which day does this block go on?",
+  "Soort blok": "Type of block",
+  "Eigen workout": "Custom workout",
+  "Barbell-set": "Barbell set",
+  "Benchmark kiezen": "Choose a benchmark",
+  "Zoek een benchmark (Fran, Murph, Open 24.1…)": "Search a benchmark (Fran, Murph, Open 24.1…)",
+  "Benchmarks laden…": "Loading benchmarks…",
+  "Geen benchmark gevonden.": "No benchmark found.",
+  "Score": "Scoring",
+  "tijd": "time",
+  "rondes+reps": "rounds+reps",
+  "Scoretype: bepaalt het invoerveld van de sporter": "Scoring type: sets the athlete's input field",
+  "timecap mm:ss": "time cap mm:ss",
+  "Timecap (leeg = geen)": "Time cap (empty = none)",
+  "Wat logt wie de cap niet haalt?": "What does someone log who misses the cap?",
+  "gecapt: reps": "capped: reps",
+  "gecapt: rondes + reps": "capped: rounds + reps",
+  "Bijv. AMRAP 12'": "Ex: AMRAP 12'",
+  "Omschrijving van de workout": "Workout description",
+  "⊞ Slimme berekening": "⊞ Add smart calculation",
+  "Percentage van de 1RM van de sporter in de tekst zetten": "Put a percentage of the athlete's 1RM in the text",
+  "Percentage van de 1RM van de sporter": "Percentage of the athlete's 1RM",
+  "van": "of",
+  "lift uit de titel": "lift from the title",
+  "Komt als \"@ 70%\" achter de regel waar je cursor staat. De app rekent het om naar kilo's met de 1RM van de sporter.": "Goes in as \"@ 70%\" at the end of the line your cursor is on. The app converts it to kilos using the athlete's 1RM.",
+  "Vul een percentage in": "Enter a percentage",
+  "Percentage ingevoegd. Zet een lift in de titel (of kies Barbell-set) zodat de app de kilo's kan uitrekenen.": "Percentage inserted. Put a lift in the title (or choose Barbell set) so the app can work out the kilos.",
+  "🏋️ Lift": "🏋️ Lift",
+  "Lift voor records en de krachtlog": "Lift for records and the strength log",
+  "geen lift (telt niet mee voor records)": "no lift (does not count for records)",
+  "wordt herkend uit de titel; kies zelf als dat misgaat": "detected from the title; pick one yourself if that goes wrong",
+  "Liften laden…": "Loading lifts…",
+  "Cijfers laden…": "Loading figures…",
+  "Coachingtips": "Coaching tips",
+  "Aanwijzingen voor de sporter; staan in de app onder de omschrijving": "Pointers for the athlete; shown in the app below the description",
+  "Coachingtips: de sporter ziet ze in de app onder de omschrijving": "Coaching tips: the athlete sees them in the app below the description",
+  "Bijv. rustig opbouwen, focus op de adem…": "Ex: build up slowly, focus on breathing…",
+  "Media": "Media",
+  "(optioneel)": "(optional)",
+  "+ Media toevoegen": "+ Add media",
+  "Zoek een demo-video in de bibliotheek of plak een YouTube-link": "Search a demo video in the library or paste a YouTube link",
+  "✦ Voorstellen overnemen": "✦ Use suggestions",
+  "Alle herkende oefeningen uit de tekst in één keer toevoegen": "Add every exercise recognised in the text at once",
+  "Blauwe chips zijn voorstellen uit de tekst: + is toevoegen, ✕ is niet meer voorstellen. De sporter krijgt de video's in de app.": "Blue chips are suggestions from the text: + adds, ✕ stops suggesting. The athlete gets the videos in the app.",
+  "Typ eerst een titel of omschrijving; dan herkennen we de oefeningen": "Type a title or description first; then we recognise the exercises",
+  "Geen oefeningen herkend in de tekst; zoek zelf via + Media toevoegen": "No exercises recognised in the text; search yourself via + Add media",
+  "De bibliotheek laadt nog, probeer het zo opnieuw": "The library is still loading, try again in a moment",
+  "Alle voorstellen stonden er al bij": "All suggestions were already added",
+  "Blokkleur": "Block color",
+  "Geen kleur": "No color",
+  "Geef het blok een titel.": "Give the block a title.",
+  "Kies een datum.": "Choose a date.",
+  "Open eerst een klant.": "Open a client first.",
+  "Open eerst een klant": "Open a client first",
+  "Opslaan mislukt.": "Saving failed."
+});
+i18nRegel(/^"(.+)" overgenomen; pas gerust aan$/, '"$1" copied over; adjust as you like');
+i18nRegel(/^"(.+)" onderaan in de bouwer gezet; sla de workout op als je klaar bent$/, '"$1" added at the bottom of the builder; save the workout when you are done');
+i18nRegel(/^Blok ([A-Z]\d?) "(.+)" onder "(.+)" gezet$/, 'Block $1 "$2" added under "$3"');
+i18nRegel(/^"(.+)" als nieuwe workout op (\d\d-\d\d) gezet$/, '"$1" added as a new workout on $2');
+i18nRegel(/^(\d+) demo-video('s)? toegevoegd$/, "$1 demo video(s) added");
+i18nRegel(/^Nog (\d+) meer; typ om te verfijnen\.$/, "$1 more; type to narrow down.");

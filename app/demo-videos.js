@@ -195,6 +195,8 @@ function vsTekst(host){
   if(vsIsRow(host)){
     return [".exn",".f-presc",".f-desc"].map(s=>{const el=host.querySelector(s);return el?el.value:"";}).join("\n");
   }
+  // Een strook met data-tekstvan="id1,id2" leest die velden (venster Blok toevoegen: titel + omschrijving).
+  if(host.dataset.tekstvan)return host.dataset.tekstvan.split(",").map(id=>{const el=document.getElementById(id.trim());return el?el.value:"";}).join("\n");
   const ta=document.getElementById("w_"+host.id.replace("wm_",""));return ta?ta.value:"";
 }
 // De via de naam-zoeker gekoppelde bibliotheek-oefening (data-oefid) als chip.
@@ -204,7 +206,8 @@ function vsOefChip(host){
   if(o)return{oefening_id:o.id,youtube_id:o.youtube_id||"",titel:o.naam};
   const n=host.querySelector(".exn");return{oefening_id:parseInt(id,10),youtube_id:"",titel:(n&&n.value)||"Demo-video"};
 }
-function vsVuil(){if(typeof bouwerDirty!=="undefined")bouwerDirty=true;}
+// Alleen een strook ín de bouwer maakt de bouwer "vies"; het venster Blok toevoegen niet.
+function vsVuil(host){if(host&&host.closest&&!host.closest(".ib2"))return;if(typeof bouwerDirty!=="undefined")bouwerDirty=true;}
 
 function vsChipHtml(m,i){
   const speel=m.youtube_id?'onclick="event.stopPropagation();ytSpeel(\''+esc(m.youtube_id)+'\')"':'';
@@ -251,7 +254,7 @@ function vsWeg(el,i){
     media.splice(i,1);vsMediaZet(host,media);
     if(w&&w.term&&w.oefening_id)gmLeer(w.term,w.oefening_id,-1);
   }
-  vsVuil();vsRender(host);
+  vsVuil(host);vsRender(host);
 }
 // Voorstel aannemen: in de lijst zetten (gaat mee voor het lid) en leren.
 function vsNeem(el){
@@ -260,7 +263,7 @@ function vsNeem(el){
   if(!media.some(m=>m.youtube_id===yt))media.push({youtube_id:yt,titel:chip.dataset.naam,oefening_id:oef,term:chip.dataset.term});
   vsMediaZet(host,media);
   gmLeer(chip.dataset.term,oef,1);
-  vsVuil();vsRender(host);
+  vsVuil(host);vsRender(host);
 }
 // Voorstel afwijzen: in deze bouwer niet meer tonen, en de koppeling -1
 // (bij -2 wordt hij voor dit bedrijf niet meer voorgesteld).
@@ -274,7 +277,7 @@ function vsAllesWeg(el){
   const host=vsHost(el);if(!host)return;
   vsMediaLees(host).forEach(w=>{if(w.term&&w.oefening_id)gmLeer(w.term,w.oefening_id,-1);});
   host.dataset.oefid="";vsMediaZet(host,[]);
-  vsVuil();vsRender(host);
+  vsVuil(host);vsRender(host);
   toast("Alle demo-video's van dit onderdeel weggehaald");
 }
 
@@ -335,7 +338,7 @@ function vsVoegToe(host,m){
   const media=vsMediaLees(host);
   if(media.some(x=>x.youtube_id===m.youtube_id)||(host.dataset.oefid&&vsOefChip(host).youtube_id===m.youtube_id)){toast("Deze video staat er al bij");return false;}
   media.push(m);vsMediaZet(host,media);
-  vsVuil();vsRender(host);
+  vsVuil(host);vsRender(host);
   const vid=host.querySelector(".vidpop");if(vid)vid.classList.remove("show");
   toast("Demo-video toegevoegd, gaat mee voor het lid");
   return true;
@@ -371,8 +374,12 @@ function gmStripVoegToe(kind,nieuwe){
 // Typen in een vak: de voorstellen van dat onderdeel na een korte pauze verversen.
 document.addEventListener("input",e=>{
   const t=e.target;if(!t||!t.matches)return;
-  if(!t.matches("#w_warmup,#w_cooldown,.exrow .exn,.exrow .f-presc,.exrow .f-desc"))return;
-  const host=t.matches("#w_warmup,#w_cooldown")?document.getElementById("wm_"+t.id.slice(2)):t.closest(".exrow");
+  let host=null;
+  if(t.dataset&&t.dataset.vshost)host=document.getElementById(t.dataset.vshost); // veld met data-vshost (venster Blok toevoegen)
+  else{
+    if(!t.matches("#w_warmup,#w_cooldown,.exrow .exn,.exrow .f-presc,.exrow .f-desc"))return;
+    host=t.matches("#w_warmup,#w_cooldown")?document.getElementById("wm_"+t.id.slice(2)):t.closest(".exrow");
+  }
   if(!host||!host.querySelector(".vschips"))return;
   clearTimeout(host._vsT);host._vsT=setTimeout(()=>{if(document.contains(host))vsRender(host);},350);
 });

@@ -68,7 +68,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"1 blader per maand. 2 spring terug naar vandaag. 3 kies dag-, week- of maandweergave. 4 wissel naar een andere klant zonder terug te gaan naar de lijst; ben je eigenaar, dan kun je met de chip ernaast ook van coach wisselen. 5 verberg de gelogde scores, handig als je alleen de programmering wilt zien. 6 exporteer de kalender als PDF."},
       {titel:"Een dag vullen",
        img:"img/help/klant-03-dagmenu.png",
-       tekst:"Klik op een lege dag en je krijgt vier keuzes. Workout opent de bouwer zodat je zelf iets maakt. Rustdag zet de dag dicht. Programma opent je templates en eerdere YP Showdowns om er een in te voegen. Plakken zet een workout die je eerder kopieerde op deze dag."},
+       tekst:"Klik op een lege dag en je krijgt vijf keuzes. Workout opent de bouwer zodat je zelf iets maakt. Rustdag zet de dag dicht. Invoegen opent je templates en eerdere YP Showdowns om er een in te voegen. Plakken zet een workout die je eerder kopieerde op deze dag. Blok toevoegen zet in één venster één onderdeel op de dag: titel, omschrijving, score, coachingtips, demo-video's en kleur."},
       {titel:"De workout-bouwer",
        img:"img/help/klant-04-bouwer.png",
        tekst:"1 typ de naam van de oefening; de bibliotheek zoekt mee en koppelt zelf de demo-video. 2 zet in gewone tekst wat je klant moet doen: sets, reps, tempo en rust. 3 kies de kleur van het blok (rood is weightlifting/primers, blauw conditioning, groen gymnastics, geel accessory/special strength, paars workout met leaderboard, oranje overig). 4 koppel of wissel de demo-video. 5 voeg een oefening, een conditioning-blok of een hele template toe. 6 opslaan, en de workout staat bij je klant in de app."},

@@ -1542,3 +1542,47 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .lb-alle{display:flex;justify-content:flex-end;margin:4px 0 0}
 .bl-rxbar .lb-allebtn{margin-left:auto}
 .bl-onderdelen{font-size:11px;color:#8a919c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:560px}
+
+/* Blok toevoegen in het dag-menu (6 nov 2026, naar Strivee-voorbeeld; app/blok-toevoegen.js) */
+.daymenu button.breed{grid-column:1/-1;flex-direction:row;padding:10px 6px}
+.lmodal .box.blk-box{width:640px;max-width:94vw;padding:22px 24px 18px}
+.blk-kop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.blk-datum{display:flex;align-items:center;gap:10px}
+.blk-datum input{width:auto;padding:7px 10px;font-size:13px;font-weight:600;border-radius:8px}
+.blk-datumlbl{font-size:13px;color:#8a919c;font-weight:600}
+.blk-x{cursor:pointer;color:#8a919c;font-size:24px;line-height:1}
+.blk-x:hover{color:#1d2129}
+.blk-veld{margin-bottom:14px}
+.blk-veld>label{display:block;margin-bottom:6px;font-size:12.5px;color:#4a4f57}
+.blk-seg{display:grid;grid-template-columns:1fr 1fr 1fr}
+.blk-seg button{padding:8px 10px}
+.blk-scorerij{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.blk-scorerij select{width:auto;min-width:190px;padding:8px 10px;font-size:13px}
+.blk-scorerij #blk-cap{width:130px;padding:8px 10px;font-size:13px}
+.blk-scorerij #blk-capst{width:auto;min-width:0;padding:8px 10px;font-size:13px}
+.blk-box input:not([type=date]):not([type=number]),.blk-box textarea{padding:9px 12px;font-size:13.5px}
+.blk-omschr{position:relative}
+.blk-omschr textarea{min-height:120px;padding-bottom:42px}
+.blk-omschr .blk-slim{position:absolute;right:10px;bottom:10px;background:#f0f1f3;border-color:#f0f1f3}
+.blk-slim-rij{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;background:#f6f7f8;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.blk-slim-rij input{width:70px;padding:6px 8px;font-size:12.5px}
+.blk-slim-rij select{width:auto;max-width:220px;padding:6px 8px;font-size:12.5px}
+.blk-liftrij{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.blk-liftrij select{width:auto;max-width:260px;padding:6px 8px;font-size:12.5px}
+.blk-liftlbl{font-size:12px;font-weight:700}
+#blk-tips{border-style:dashed;min-height:58px}
+.blk-mediaknoppen{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.blk-mediaknoppen .blk-auto{color:#16a34a;background:#e9f8ee;border-color:#e9f8ee}
+.blk-kleuren{display:flex;gap:12px;align-items:center}
+.blk-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 22%,#fff);cursor:pointer;display:inline-block;box-sizing:border-box}
+.blk-dot.geen{background:#fff}
+.blk-dot.aan{outline:2px solid #171719;outline-offset:2px}
+.blk-voet{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.blk-benchlijst{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px}
+.blk-benchrij{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f1f3;font-size:12.5px}
+.blk-benchrij:last-child{border-bottom:none}
+.blk-benchrij:hover,.blk-benchrij.aan{background:#f4f8fb}
+.blk-help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;border:1px solid #c9cfd6;font-size:10px;color:#8a919c;margin-left:4px;cursor:help;vertical-align:1px}
+#wm_blok .vschips{margin-top:4px}
+#wm_blok .vidpop{right:auto;left:0}
+.ib2 textarea.f-tips{color:#5d6570;font-style:italic}
