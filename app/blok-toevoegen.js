@@ -37,7 +37,8 @@ function ensureBlokModal(){
       '<div class="cwmedia" id="wm_blok" data-tekstvan="blk-titel,blk-omschr" data-oefid="" data-gmedia=""><div class="vschips"></div><div class="vidpop"></div></div>'+
       '<div class="sm muted" style="margin-top:4px">Blauwe chips zijn voorstellen uit de tekst: + is toevoegen, ✕ is niet meer voorstellen. De sporter krijgt de video\'s in de app.</div></div>'+
     '<div class="blk-veld"><label>Blokkleur</label><div class="blk-kleuren" id="blk-kleuren"></div></div>'+
-    '<div class="blk-voet"><button class="btn ghost" onclick="closeBlok()">Annuleren</button><button class="btn" id="blk-save" onclick="blokOpslaan()">Opslaan</button></div>'+
+    '<div class="blk-voet"><div class="blk-bieb"><button class="btn ghost" id="blk-biebknop" title="Zet dit blok op de dag én bewaar het als nieuwe template in de bibliotheek" onclick="blokOpslaan(true)">+ In bibliotheek</button><select id="blk-biebthema" title="Thema in de bibliotheek" onchange="BLK.biebHand=true">'+blkBiebOpties()+'</select></div>'+
+      '<div class="blk-voet-rechts"><button class="btn ghost" onclick="closeBlok()">Annuleren</button><button class="btn" id="blk-save" onclick="blokOpslaan()">Opslaan</button></div></div>'+
     '<div class="msg" id="blk-msg" style="min-height:0"></div>'+
     '</div></div>';
   document.body.appendChild(d.firstChild);
@@ -49,7 +50,7 @@ function pickBlok(ev){ev.stopPropagation();openBlokModal(curDay);}
 function openBlokModal(ds){
   if(!calClient){toast("Open eerst een klant");return;}
   ensureBlokModal();
-  BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:ds||todayStr()};
+  BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:ds||todayStr(),biebHand:false};
   const g=id=>document.getElementById(id);
   g("blk-datum").value=BLK.datum;blkDatumLabel();
   ["blk-titel","blk-omschr","blk-tips","blk-cap","blk-benchzoek"].forEach(id=>{g(id).value="";});
@@ -58,7 +59,7 @@ function openBlokModal(ds){
   g("blk-benchveld").style.display="none";g("blk-benchlijst").innerHTML="";
   g("blk-slim").style.display="none";g("blk-liftrij").style.display="none";
   g("blk-cijfers").style.display="none";g("blk-cijfers").innerHTML="";
-  g("blk-msg").textContent="";g("blk-msg").className="msg";g("blk-save").disabled=false;
+  g("blk-msg").textContent="";g("blk-msg").className="msg";g("blk-save").disabled=false;g("blk-biebknop").disabled=false;blkBiebThemaSync();
   // Mediastrook leeg beginnen (de chips tekenen zichzelf via app/demo-videos.js).
   const host=g("wm_blok");host.dataset.gmedia="";host.dataset.oefid="";host.dataset.vsweg="";
   const vp=host.querySelector(".vidpop");if(vp)vp.classList.remove("show");
@@ -269,12 +270,42 @@ function blkKleurenRender(){
   const host=document.getElementById("blk-kleuren");if(!host)return;
   host.innerHTML=BLK_KLEUREN.map(k=>'<span class="blk-dot'+(k===BLK.kleur?' aan':'')+(k?'':' geen')+'" title="'+esc(k?(LEGNAAM[k]||k):"Geen kleur")+'" style="--c:'+(k?TPLKLEUR[k]:"#4a4f57")+'" onclick="blkKleur(\''+k+'\')"></span>').join("");
 }
-function blkKleur(k){BLK.kleur=k||"";blkKleurenRender();}
+function blkKleur(k){BLK.kleur=k||"";blkKleurenRender();blkBiebThemaSync();}
+
+// ---------- "+ In bibliotheek": het blok ook als template bewaren (verzoek Stefan 6 nov 2026) ----------
+// Thema = de kleur/legenda van de bibliotheek (Accessory, Conditioning, …), plus de
+// tabs Warm-ups en Cooldowns als type. De keuze volgt de blokkleur tot de coach
+// hem zelf verzet.
+function blkBiebOpties(){
+  const kleuren=(typeof TPLKLEUREN!=="undefined"?TPLKLEUREN:["yellow","blue","purple","red","green","orange"]);
+  return kleuren.map(k=>'<option value="kleur:'+k+'">'+esc((typeof LEGNAAM!=="undefined"&&LEGNAAM[k])||k)+'</option>').join("")+
+    '<option value="type:warmup">Warming-up (tab Warm-ups)</option><option value="type:cooldown">Cooldown (tab Cooldowns)</option>';
+}
+function blkBiebThemaSync(){
+  const sel=document.getElementById("blk-biebthema");if(!sel||BLK.biebHand)return;
+  sel.value=BLK.kleur?"kleur:"+BLK.kleur:"kleur:orange";
+}
+async function blkBiebBewaar(titel,omschr,media){
+  const keuze=((document.getElementById("blk-biebthema")||{}).value||"kleur:orange").split(":");
+  const velden={naam:titel,instructies:omschr||"",type:keuze[0]==="type"?keuze[1]:"other",kleur:keuze[0]==="kleur"?keuze[1]:"yellow",media:(media||[]).filter(m=>m&&m.youtube_id),onderdelen:null,tags:[],coach:(ME.profile&&ME.profile.first_name)||""};
+  const{error}=await db.from("templates").insert(velden);
+  if(error)return {ok:false,fout:error.message||"onbekende fout"};
+  // Bibliotheek opnieuw laden, zodat Invoegen en het bibliotheek-venster de template meteen tonen.
+  if(typeof LIB!=="undefined"){LIB.geladen=false;if(typeof libLaad==="function")libLaad();}
+  return {ok:true};
+}
+// Afronden na een geslaagde opslag: evt. ook als template, dan venster dicht en melding.
+async function blkKlaar(metBieb,titel,omschr,media,melding){
+  let extra="";
+  if(metBieb){const r=await blkBiebBewaar(titel,omschr,media);extra=r.ok?"; ook als template in de bibliotheek":". Template bewaren mislukt: "+r.fout;}
+  closeBlok();toast(melding+extra);
+}
 
 // ---------- Opslaan ----------
-async function blokOpslaan(){
+// metBieb = via "+ In bibliotheek": zelfde opslag, daarna ook een template.
+async function blokOpslaan(metBieb){
   const g=id=>document.getElementById(id),msg=g("blk-msg");
-  const fout=t=>{msg.textContent=t;msg.className="msg err";g("blk-save").disabled=false;};
+  const fout=t=>{msg.textContent=t;msg.className="msg err";g("blk-save").disabled=false;g("blk-biebknop").disabled=false;};
   const titel=g("blk-titel").value.trim();
   if(!titel){fout("Geef het blok een titel.");g("blk-titel").focus();return;}
   const ds=g("blk-datum").value;
@@ -286,7 +317,7 @@ async function blokOpslaan(){
   const timecap_seconds=score_type==="time"?tijdNaarSec(g("blk-cap").value):null;
   const cap_score_type=g("blk-capst").value||"reps";
   const host=g("wm_blok");const media=vsMediaLees(host);
-  g("blk-save").disabled=true;msg.textContent="";msg.className="msg";
+  g("blk-save").disabled=true;g("blk-biebknop").disabled=true;msg.textContent="";msg.className="msg";
   await liftsLaad();
   // Lift: gekozen (Barbell-set) of herkend uit de titel; bewust "geen lift" = geen_lift,
   // zodat de database hem niet opnieuw invult. Een benchmark krijgt geen lift.
@@ -302,7 +333,7 @@ async function blokOpslaan(){
     const rows=document.getElementById("exrows");
     if(bouwerDag===ds&&rows){
       rows.insertAdjacentHTML("beforeend",exRow(blok));relabel();groei();bouwerDirty=true;
-      closeBlok();toast('"'+titel+'" onderaan in de bouwer gezet; sla de workout op als je klaar bent');return;
+      await blkKlaar(metBieb,titel,omschr,media,'"'+titel+'" onderaan in de bouwer gezet; sla de workout op als je klaar bent');return;
     }
     // 2. Staat er al een workout op die dag (geen rustdag)? Dan eronder als volgend blok.
     // Vers uit de database, want de gekozen dag kan buiten de geladen kalender vallen.
@@ -315,13 +346,13 @@ async function blokOpslaan(){
       const label=String.fromCharCode(65+Math.min(blokken.length,25));
       const{error}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label,sort},blok));
       if(error)throw error;
-      closeBlok();toast('Blok '+label+' "'+titel+'" onder "'+(w.title||"workout")+'" gezet');renderMonth();return;
+      await blkKlaar(metBieb,titel,omschr,media,'Blok '+label+' "'+titel+'" onder "'+(w.title||"workout")+'" gezet');renderMonth();return;
     }
     // 3. Lege dag (of alleen een rustdag): nieuwe workout met deze titel en dit als blok A.
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:ds,title:titel}).select().single();
     if(error)throw error;
     const{error:be}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:"A",sort:1},blok));
     if(be)throw be;
-    closeBlok();toast('"'+titel+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');renderMonth();
+    await blkKlaar(metBieb,titel,omschr,media,'"'+titel+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');renderMonth();
   }catch(e){fout(e.message||"Opslaan mislukt.");}
 }
