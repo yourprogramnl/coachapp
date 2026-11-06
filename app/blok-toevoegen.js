@@ -37,7 +37,7 @@ function ensureBlokModal(){
       '<div class="cwmedia" id="wm_blok" data-tekstvan="blk-titel,blk-omschr" data-oefid="" data-gmedia=""><div class="vschips"></div><div class="vidpop"></div></div>'+
       '<div class="sm muted" style="margin-top:4px">Blauwe chips zijn voorstellen uit de tekst: + is toevoegen, ✕ is niet meer voorstellen. De sporter krijgt de video\'s in de app.</div></div>'+
     '<div class="blk-veld"><label>Blokkleur</label><div class="blk-kleuren" id="blk-kleuren"></div></div>'+
-    '<div class="blk-voet"><div class="blk-bieb"><button class="btn ghost" id="blk-biebknop" title="Zet dit blok op de dag én bewaar het als nieuwe template in de bibliotheek" onclick="blokOpslaan(true)">Opslaan + in bibliotheek</button><select id="blk-biebthema" title="Thema in de bibliotheek" onchange="BLK.biebHand=true">'+blkBiebOpties()+'</select></div>'+
+    '<div class="blk-voet"><div class="blk-bieb"><button class="btn" id="blk-biebknop" title="Zet dit blok op de dag én bewaar het als nieuwe template in de bibliotheek (kies eerst een thema)" onclick="blokOpslaan(true)">Opslaan + in bibliotheek</button><select id="blk-biebthema" title="Thema in de bibliotheek (alleen nodig voor Opslaan + in bibliotheek)">'+blkBiebOpties()+'</select></div>'+
       '<div class="blk-voet-rechts"><button class="btn ghost" onclick="closeBlok()">Annuleren</button><button class="btn" id="blk-save" onclick="blokOpslaan()">Opslaan</button></div></div>'+
     '<div class="msg" id="blk-msg" style="min-height:0"></div>'+
     '</div></div>';
@@ -50,7 +50,7 @@ function pickBlok(ev){ev.stopPropagation();openBlokModal(curDay);}
 function openBlokModal(ds){
   if(!calClient){toast("Open eerst een klant");return;}
   ensureBlokModal();
-  BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:ds||todayStr(),biebHand:false};
+  BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:ds||todayStr()};
   const g=id=>document.getElementById(id);
   g("blk-datum").value=BLK.datum;blkDatumLabel();
   ["blk-titel","blk-omschr","blk-tips","blk-cap","blk-benchzoek"].forEach(id=>{g(id).value="";});
@@ -270,23 +270,23 @@ function blkKleurenRender(){
   const host=document.getElementById("blk-kleuren");if(!host)return;
   host.innerHTML=BLK_KLEUREN.map(k=>'<span class="blk-dot'+(k===BLK.kleur?' aan':'')+(k?'':' geen')+'" title="'+esc(k?(LEGNAAM[k]||k):"Geen kleur")+'" style="--c:'+(k?TPLKLEUR[k]:"#4a4f57")+'" onclick="blkKleur(\''+k+'\')"></span>').join("");
 }
-function blkKleur(k){BLK.kleur=k||"";blkKleurenRender();blkBiebThemaSync();}
+function blkKleur(k){BLK.kleur=k||"";blkKleurenRender();}
 
-// ---------- "+ In bibliotheek": het blok ook als template bewaren (verzoek Stefan 6 nov 2026) ----------
+// ---------- "Opslaan + in bibliotheek": het blok ook als template bewaren (verzoek Stefan 6 nov 2026) ----------
 // Thema = de kleur/legenda van de bibliotheek (Accessory, Conditioning, …), plus de
-// tabs Warm-ups en Cooldowns als type. De keuze volgt de blokkleur tot de coach
-// hem zelf verzet.
+// tabs Warm-ups en Cooldowns als type. De keuzelijst begint bewust leeg en is
+// alleen verplicht voor deze knop (de gewone Opslaan-knop maakt geen template),
+// zodat een template nooit per ongeluk in het verkeerde thema belandt.
 function blkBiebOpties(){
   const kleuren=(typeof TPLKLEUREN!=="undefined"?TPLKLEUREN:["yellow","blue","purple","red","green","orange"]);
-  return kleuren.map(k=>'<option value="kleur:'+k+'">'+esc((typeof LEGNAAM!=="undefined"&&LEGNAAM[k])||k)+'</option>').join("")+
+  return '<option value="">Kies een thema…</option>'+
+    kleuren.map(k=>'<option value="kleur:'+k+'">'+esc((typeof LEGNAAM!=="undefined"&&LEGNAAM[k])||k)+'</option>').join("")+
     '<option value="type:warmup">Warming-up (tab Warm-ups)</option><option value="type:cooldown">Cooldown (tab Cooldowns)</option>';
 }
-function blkBiebThemaSync(){
-  const sel=document.getElementById("blk-biebthema");if(!sel||BLK.biebHand)return;
-  sel.value=BLK.kleur?"kleur:"+BLK.kleur:"kleur:orange";
-}
+function blkBiebThemaSync(){const sel=document.getElementById("blk-biebthema");if(sel)sel.value="";}
 async function blkBiebBewaar(titel,omschr,media){
-  const keuze=((document.getElementById("blk-biebthema")||{}).value||"kleur:orange").split(":");
+  const keuze=((document.getElementById("blk-biebthema")||{}).value||"").split(":");
+  if(!keuze[1])return {ok:false,fout:"geen thema gekozen"};
   const velden={naam:titel,instructies:omschr||"",type:keuze[0]==="type"?keuze[1]:"other",kleur:keuze[0]==="kleur"?keuze[1]:"yellow",media:(media||[]).filter(m=>m&&m.youtube_id),onderdelen:null,tags:[],coach:(ME.profile&&ME.profile.first_name)||""};
   const{error}=await db.from("templates").insert(velden);
   if(error)return {ok:false,fout:error.message||"onbekende fout"};
@@ -311,6 +311,8 @@ async function blokOpslaan(metBieb){
   const ds=g("blk-datum").value;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(ds||"")){fout("Kies een datum.");return;}
   if(!calClient){fout("Open eerst een klant.");return;}
+  // Alleen voor "Opslaan + in bibliotheek": zonder thema geen template (en dus ook geen opslag).
+  if(metBieb&&!g("blk-biebthema").value){fout("Kies eerst een thema voor de bibliotheek (de keuzelijst naast de knop).");g("blk-biebthema").focus();return;}
   const omschr=g("blk-omschr").value.trim()||null;
   const tips=g("blk-tips").value.trim()||null;
   const score_type=g("blk-score").value||"text";

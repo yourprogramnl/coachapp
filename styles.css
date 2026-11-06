@@ -1582,6 +1582,7 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .blk-voet{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px;flex-wrap:wrap}
 .blk-bieb{display:flex;gap:6px;align-items:center}
 .blk-bieb select{width:auto;max-width:230px;padding:8px 10px;font-size:12.5px}
+.blk-bieb select:invalid,.blk-bieb select option[value=""]{color:#8a919c}
 .blk-voet-rechts{display:flex;gap:8px;margin-left:auto}
 .blk-benchlijst{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px}
 .blk-benchrij{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f1f3;font-size:12.5px}
