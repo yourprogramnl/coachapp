@@ -215,7 +215,7 @@ function expScore(D,b){
   const r=D.results[b.id],m=D.media[b.id]||[];
   if(!r&&!m.length)return null;
   const miss=!!(r&&r.status==="missed");
-  let sc=r?resultScoreVol(r):"";
+  let sc=r?resultScoreVol(r,b.score_type):"";
   if(!sc&&r&&Array.isArray(r.sets)&&r.sets.length&&typeof setsTekst==="function")sc=setsTekst(r.sets);
   if(r&&r.rx)sc=(sc?sc+" · ":"")+(r.rx==="scaled"?"Scaled":"Rx");
   const fotos=m.filter(x=>isFotoUpload(x.storage_path)).length,videos=m.length-fotos;

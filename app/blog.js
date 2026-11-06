@@ -428,7 +428,7 @@ function blogBoardHtml(wid){
     if(!br.length)return h+'<div class="sm muted" style="padding:4px 0 6px">Nog geen '+(rx==="rx"?"Rx":"Scaled")+'-scores op dit onderdeel.</div>';
     [["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]].forEach(cat=>{
       const groep=br.filter(r=>{const g=(r.gender==="man"||r.gender==="vrouw")?r.gender:"overig";return g===cat[0];}).sort(wwCmp(st));
-      if(groep.length)h+='<div class="sm muted" style="margin:8px 0 4px;font-weight:700">'+cat[1]+'</div><div class="card">'+groep.map((r,i)=>blogRij(r,i+1)).join("")+'</div>';
+      if(groep.length)h+='<div class="sm muted" style="margin:8px 0 4px;font-weight:700">'+cat[1]+'</div><div class="card">'+groep.map((r,i)=>blogRij(r,i+1,st)).join("")+'</div>';
     });
     return h;
   }).join("")+schakel;
@@ -436,7 +436,7 @@ function blogBoardHtml(wid){
 function blogBoardAlles(){if(!BLOGBOARD)return;BLOGBOARD.alles=!BLOGBOARD.alles;const host=document.getElementById("blogboard-body");if(host)host.innerHTML=blogBoardHtml(BLOGBOARD.wid);}
 // Regels op het bord: precies zoals op de Showdown (wwRij in weekworkout.js): score
 // vooraan, naam = knop, notitie dicht tot je klikt.
-function blogRij(r,rank){return wwRij(r,rank);}
+function blogRij(r,rank,st){return wwRij(r,rank,st);}
 function blogBoardDicht(){document.getElementById("blogboardmodal").classList.remove("show");BLOGBOARD=null;}
 // ---------- Aanmeldlink (gratis blog-lid via een link, zoals Strivee's Subscribe) ----------
 const blogJoinUrl=p=>p&&p.join_token?location.origin+location.pathname+"?blog="+p.join_token:"";

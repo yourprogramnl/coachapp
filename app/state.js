@@ -37,17 +37,21 @@ const MAANDKORT=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","no
 function toast(t,ms){let e=document.getElementById("toast2");if(!e){e=document.createElement("div");e.id="toast2";e.className="toast2";document.body.appendChild(e);}e.textContent=t;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),ms||2600);}
 // Upload van een lid: foto of video? Het opslagpad eindigt op de extensie.
 const isFotoUpload=p=>/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(p||"");
-function resultScoreTxt(r){if(!r)return"";if(r.time_seconds!=null)return Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60);if(r.load_kg!=null)return r.load_kg+" kg";if(r.rounds!=null)return r.rounds+" rondes"+(r.reps!=null?" + "+r.reps:"");if(r.reps!=null)return r.reps+" reps";return r.score_text||"";}
+function resultScoreTxt(r,st){if(!r)return"";if(r.score_value!=null)return scoreGetalTxt(r.score_value,st||r.score_type);if(r.time_seconds!=null)return Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60);if(r.load_kg!=null)return r.load_kg+" kg";if(r.rounds!=null)return r.rounds+" rondes"+(r.reps!=null?" + "+r.reps:"");if(r.reps!=null)return r.reps+" reps";return r.score_text||"";}
 // Volledige weergave: sinds 4 aug typt de sporter bij kg/reps/tijd-blokken vrije
 // tekst ("50,52,55,56 ging goed"); die staat in score_text naast het getal.
 // Feed/kalender/historie tonen de tekst; het leaderboard blijft compact (resultScoreTxt).
-function resultScoreVol(r){return r&&r.score_text?r.score_text:resultScoreTxt(r);}
+function resultScoreVol(r,st){return r&&r.score_text?r.score_text:resultScoreTxt(r,st);}
 // Rondetijden uit de timer van de app (results.splits: seconden per ronde, sinds 4 nov 2026)
 // als "2:35 · 2:02 · 2:10"; leeg als de sporter de timer niet gebruikte.
 function resultSplitsTxt(r){if(!r||!Array.isArray(r.splits)||!r.splits.length)return"";return r.splits.map(s=>{s=Math.max(0,Math.round(Number(s)||0));return Math.floor(s/60)+":"+pad(s%60);}).join(" · ");}
 function resultSplitsHtml(r,cls){const t=resultSplitsTxt(r);return t?'<div class="'+(cls||"pr2")+'" style="color:#8a919c" title="Rondetijden uit de timer van de app">⏱ Rondetijden: '+esc(t)+'</div>':"";}
 const KLEUREN=[["","geen kleur"],["grijs","grijs"],["roze","roze"],["oranje","oranje"],["geel","geel"],["blauw","blauw"],["groen","groen"]];
-const SCORETYPES=[["text","vrije tekst"],["time","tijd"],["load","gewicht"],["reps","reps"],["rounds_reps","rondes+reps"],["none","geen score"]];
+const SCORETYPES=[["text","vrije tekst"],["time","tijd"],["load","gewicht"],["reps","reps"],["rounds_reps","rondes+reps"],["calories","calorieën"],["meters","meters"],["km","kilometers"],["cm","centimeters"],["watt","watt"],["rpm","rpm"],["bpm","bpm"],["spm","spm"],["none","geen score"]];
+// Getal-scoretypes (naar Strivee, 6 nov 2026): één getal in results.score_value; de eenheid volgt uit het type. Hoger = beter.
+const SCORE_EENHEID={calories:"cal",meters:"m",km:"km",cm:"cm",watt:"W",rpm:"rpm",bpm:"bpm",spm:"spm"};
+const scoreIsGetal=st=>!!SCORE_EENHEID[st];
+const scoreGetalTxt=(v,st)=>String(v).replace(".",",")+(SCORE_EENHEID[st]?" "+SCORE_EENHEID[st]:"");
 const selOpts=(list,cur)=>list.map(o=>'<option value="'+o[0]+'"'+(o[0]===(cur||list[0][0])?" selected":"")+'>'+o[1]+'</option>').join("");
 const AVKLEUREN=["linear-gradient(135deg,#38bdf8,#6366f1)","linear-gradient(135deg,#f472b6,#a855f7)","linear-gradient(135deg,#fb923c,#ef4444)","linear-gradient(135deg,#34d399,#0d9488)","linear-gradient(135deg,#a78bfa,#6366f1)","linear-gradient(135deg,#facc15,#f97316)"];
 const avStijl=naam=>{let h=0;for(const c of String(naam||"?"))h=(h*31+c.charCodeAt(0))>>>0;return "background:"+AVKLEUREN[h%AVKLEUREN.length];};

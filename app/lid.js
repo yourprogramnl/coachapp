@@ -181,6 +181,7 @@ function lidVeldHtml(st,prefix){
   if(st==="reps")return '<input class="lid-in" id="'+prefix+'-reps" type="number" min="0" placeholder="reps" style="width:110px">';
   if(st==="load")return '<input class="lid-in" id="'+prefix+'-kg" type="number" min="0" step="0.5" placeholder="kg" style="width:110px">';
   if(st==="none")return "";
+  if(scoreIsGetal(st))return '<input class="lid-in" id="'+prefix+'-getal" type="number" min="0" step="any" placeholder="'+esc(SCORE_EENHEID[st])+'" style="width:120px">'; // calorieën, meters, watt…
   return '<input class="lid-in" id="'+prefix+'-tekst" placeholder="jouw score" style="width:220px">';
 }
 // Leest en valideert de invoer voor een scoretype; vult rec en geeft een foutmelding terug (of null).
@@ -190,6 +191,7 @@ function lidLeesScore(st,prefix,rec){
   else if(st==="rounds_reps"){const ro=parseInt(val("rondes"),10),re=parseInt(val("reps")||"0",10);if(isNaN(ro))return "Vul het aantal rondes in.";rec.rounds=ro;rec.reps=isNaN(re)?0:re;}
   else if(st==="reps"){const re=parseInt(val("reps"),10);if(isNaN(re))return "Vul het aantal reps in.";rec.reps=re;}
   else if(st==="load"){const kg=parseFloat(String(val("kg")).replace(",","."));if(isNaN(kg))return "Vul het gewicht in kg in.";rec.load_kg=kg;}
+  else if(scoreIsGetal(st)){const v=parseFloat(String(val("getal")).replace(",","."));if(isNaN(v))return "Vul je score in als getal ("+SCORE_EENHEID[st]+").";rec.score_value=v;}
   else if(st==="none"){/* geen score, alleen voltooid */}
   else{const s=(val("tekst")||"").trim();if(!s)return "Vul je score in.";rec.score_text=s;}
   return null;
@@ -204,7 +206,7 @@ function lidVindBlok(bid){
 }
 function lidDagRec(w,b,status){
   const oud=LID.dagRes[b.id];
-  return {block_id:b.id,workout_id:w.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status,rx:null,is_public:false,note:(oud&&oud.note)||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null};
+  return {block_id:b.id,workout_id:w.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status,rx:null,is_public:false,note:(oud&&oud.note)||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null,score_value:null};
 }
 async function lidBlokOpslaan(bid){
   const vondst=lidVindBlok(bid);if(!vondst)return;
@@ -231,7 +233,7 @@ function lidDagVul(){
   Object.entries(LID.dagRes).forEach(([bid,r])=>{
     const set=(suffix,v)=>{const el=document.getElementById("bl-"+bid+"-"+suffix);if(el&&v!=null)el.value=v;};
     if(r.time_seconds!=null)set("tijd",Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60));
-    set("rondes",r.rounds);set("reps",r.reps);set("kg",r.load_kg);set("tekst",r.score_text);
+    set("rondes",r.rounds);set("reps",r.reps);set("kg",r.load_kg);set("tekst",r.score_text);set("getal",r.score_value);
   });
 }
 async function lidEigenLaad(){
@@ -278,7 +280,7 @@ function lidFormVul(){
   const e=LID.eigen;if(!e)return;
   const set=(id,v)=>{const el=document.getElementById(id);if(el&&v!=null)el.value=v;};
   if(e.time_seconds!=null)set("lid-tijd",Math.floor(e.time_seconds/60)+":"+pad(e.time_seconds%60));
-  set("lid-rondes",e.rounds);set("lid-reps",e.reps);set("lid-kg",e.load_kg);set("lid-tekst",e.score_text);set("lid-note",e.note);
+  set("lid-rondes",e.rounds);set("lid-reps",e.reps);set("lid-kg",e.load_kg);set("lid-tekst",e.score_text);set("lid-getal",e.score_value);set("lid-note",e.note);
 }
 function lidRx(v){LID.rx=v;document.querySelectorAll("#lid-rxseg button").forEach((b,i)=>b.classList.toggle("on",(i===0)===(v==="rx")));}
 function lidParseTijd(s){
@@ -292,7 +294,7 @@ async function lidOpslaan(){
   const st=blk.score_type||"text";
   const msg=document.getElementById("lid-msg");msg.textContent="";
   const val=id=>{const el=document.getElementById(id);return el?el.value:"";};
-  const rec={block_id:blk.id,workout_id:LID.blog.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status:"completed",rx:LID.rx,is_public:LID.openbaar,note:(val("lid-note")||"").trim()||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null};
+  const rec={block_id:blk.id,workout_id:LID.blog.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status:"completed",rx:LID.rx,is_public:LID.openbaar,note:(val("lid-note")||"").trim()||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null,score_value:null};
   const fout=lidLeesScore(st,"lid",rec);
   if(fout){msg.textContent=fout;msg.className="msg err";return;}
   const{error}=await db.from("results").upsert(rec,{onConflict:"block_id,athlete_id"});

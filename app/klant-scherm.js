@@ -809,13 +809,15 @@ document.addEventListener("focusout",e=>{if(e.target&&e.target.matches&&e.target
 // de sporter logde (score, notitie, video's, gemist) stond alleen op het
 // kleine kalenderkaartje. Nu staat het als strook onder elk blok in de bouwer,
 // zodat de coach de hele sessie mét resultaten voor zich heeft.
+// Scoretype van een blok op de geladen kalender (voor de eenheid bij een getal-score).
+function blokScoreType(bid){for(const wid in monthWorkouts){const b=(monthWorkouts[wid].blocks||[]).find(x=>String(x.id)===String(bid));if(b)return b.score_type||"text";}return null;}
 function gelogdHtml(bid){
   const r=monthResults[bid],vids=monthMedia[bid]||[];
   if(!r&&!vids.length)return "";
   const miss=!!(r&&r.status==="missed");
   const padLijst=vids.map(v=>v.storage_path).join("|");
   const tegels=vids.map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
-  const sc=r?resultScoreVol(r):"";
+  const sc=r?resultScoreVol(r,blokScoreType(bid)):"";
   return '<div class="gelogd'+(miss?' miss':'')+'"><div class="gelogd-kop">'+(miss?'✕ Gemist':'✓ Gelogd door de sporter')+(r&&r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
     (sc?'<div class="gelogd-score">'+esc(sc)+'</div>':(r&&!miss?'<div class="gelogd-score muted">Voltooid zonder score</div>':''))+
     resultSplitsHtml(r,"gelogd-noot")+((r&&r.note)?'<div class="gelogd-noot">💬 '+esc(r.note)+'</div>':'')+
@@ -914,7 +916,7 @@ function mcardHtml(w){
     const kleur=b.color?' k-'+esc(b.color):'';
     const lk=b.linked?' linked2':'';
     const pr=composePresc(b);
-    const sc=resultScoreVol(r);
+    const sc=resultScoreVol(r,b.score_type);
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
     const padLijst=(monthMedia[b.id]||[]).map(v=>v.storage_path).join("|");
     const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
@@ -1224,8 +1226,8 @@ async function histZoek(){
   if(host)host.innerHTML='<div class="cempty">Zoeken…</div>';
   const pat=exact?q:"%"+q+"%";
   // Oefeningen: workouts van dit lid met een blok waarvan de oefeningsnaam matcht (blocks!inner filtert de blokken).
-  const{data:wrows}=await db.from("workouts").select("id,title,workout_date,blocks!inner(id,label,exercise,prescription,notes)").eq("client_id",calClient).ilike("blocks.exercise",pat).order("workout_date",{ascending:false}).limit(60);
-  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({workoutId:w.id,blockId:b.id,title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes})));
+  const{data:wrows}=await db.from("workouts").select("id,title,workout_date,blocks!inner(id,label,exercise,prescription,notes,score_type)").eq("client_id",calClient).ilike("blocks.exercise",pat).order("workout_date",{ascending:false}).limit(60);
+  const oef=[];(wrows||[]).forEach(w=>(w.blocks||[]).forEach(b=>oef.push({workoutId:w.id,blockId:b.id,title:w.title,date:w.workout_date,label:b.label,exercise:b.exercise,prescription:b.prescription,notes:b.notes,score_type:b.score_type})));
   // Reacties van die dagen erbij (dag-reacties horen bij de workout, niet bij
   // het blok) + de techniek-notitie bovenaan — zo vind je eerdere feedback
   // over een oefening terug (verzoek Stefan, 17 aug).
@@ -1240,7 +1242,7 @@ async function histZoek(){
   // Wat het lid erbij logde (score, gemist, notitie) — dat wil je als coach juist zien.
   const bids=oef.map(o=>o.blockId).filter(Boolean);
   if(bids.length){
-    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,rx,note,splits").eq("athlete_id",calClient).in("block_id",bids);
+    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,score_value,rx,note,splits").eq("athlete_id",calClient).in("block_id",bids);
     const perBlok={};(rres||[]).forEach(r=>{perBlok[r.block_id]=r;});
     oef.forEach(o=>{o.result=perBlok[o.blockId]||null;});
   }
@@ -1295,7 +1297,7 @@ function histRender(){
       const sc=r
         ?(r.status==="missed"
           ?'<div class="hsc miss">✕ Gemist</div>'
-          :'<div class="hsc">✓ '+esc(resultScoreVol(r)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
+          :'<div class="hsc">✓ '+esc(resultScoreVol(r,b.score_type)||"Voltooid (geen score)")+(r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
             resultSplitsHtml(r,"hpr")+(r.note?'<div class="hpr" style="font-style:italic">💬 '+esc(r.note)+'</div>':''))
         :'<div class="hsc leeg">Nog niet gelogd</div>';
       // Dag-reacties van die dag eronder: eerdere feedback direct terug te lezen.
@@ -1819,13 +1821,13 @@ function openResults(wid){
   document.getElementById("res-body").innerHTML=blocks.map(b=>{
     const r=monthResults[b.id]||null;
     const missed=!!(r&&r.status==="missed");
-    const val=(r&&!missed)?(r.score_text||resultScoreTxt(r)):"";
+    const val=(r&&!missed)?(r.score_text||resultScoreTxt(r,b.score_type)):"";
     const pr=composePresc(b);
     // Krachtblok (lift): de tekst wordt ook als sets gelezen voor de krachtlog, net als in de app
     const lift=!!b.lift_id&&!(b.lift_scheme&&b.lift_scheme.geen_lift);
     const scheme=lift?((b.lift_scheme&&b.lift_scheme.hand)?b.lift_scheme:(schemaLees(b.prescription||"")||b.lift_scheme||null)):null;
     const gelezen=lift?resSetsHtml(val,(r&&!missed)?r.sets:null,scheme,{stang:resOpties().stang,oefening:b.exercise||""}):"";
-    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'" data-lift="'+(lift?"1":"0")+'" data-oefening="'+esc(b.exercise||"")+'" data-scheme="'+esc(scheme?JSON.stringify(scheme):"")+'">'+
+    return '<div class="resrow'+(missed?' missed':'')+'" data-block="'+esc(b.id)+'" data-st="'+esc(b.score_type||"text")+'" data-lift="'+(lift?"1":"0")+'" data-oefening="'+esc(b.exercise||"")+'" data-scheme="'+esc(scheme?JSON.stringify(scheme):"")+'">'+
       '<div class="resblok"><span class="reslabel">'+esc(b.label||"")+'</span>'+esc(b.exercise||"")+
         (pr?'<div class="respr">'+esc(pr)+'</div>':'')+'</div>'+
       '<div class="resinvoer"><div style="flex:1;min-width:0"><input class="resval" style="width:100%" placeholder="'+(lift?"Sets, bijv. 95x5 100x5 105x1":"Resultaat…")+'" value="'+esc(val)+'"'+(missed?' disabled':'')+(lift?' oninput="resSetsLees(this)"':'')+'>'+
@@ -1868,12 +1870,14 @@ async function saveResults(){
     const blockId=row.dataset.block;
     const missed=row.classList.contains("missed");
     const val=(row.querySelector(".resval").value||"").trim();
-    const base={block_id:blockId,workout_id:wid,athlete_id:calClient,company_id:ME.profile.company_id,time_seconds:null,load_kg:null,reps:null,rounds:null};
+    const base={block_id:blockId,workout_id:wid,athlete_id:calClient,company_id:ME.profile.company_id,time_seconds:null,load_kg:null,reps:null,rounds:null,score_value:null};
     const lift=row.dataset.lift==="1";
     if(lift)base.sets=null; // krachtblok: de sets volgen de tekst (of worden gewist)
     if(missed)upserts.push(Object.assign({},base,{status:"missed",score_text:null}));
     else if(val){
       const rec=Object.assign({},base,{status:"completed",score_text:val});
+      // Getal-scoretype (calorieën, meters, watt…): het eerste getal uit de tekst telt voor het leaderboard.
+      if(scoreIsGetal(row.dataset.st)){const m=val.match(/\d+(?:[.,]\d+)?/);if(m)rec.score_value=parseFloat(m[0].replace(",","."));}
       if(lift){let s=null;try{s=row.dataset.scheme?JSON.parse(row.dataset.scheme):null;}catch(e){}const sets=setsNaarRec(setsUitTekst(val,s,resOpties(row)).rows);if(sets.length)rec.sets=sets;}
       upserts.push(rec);
     }

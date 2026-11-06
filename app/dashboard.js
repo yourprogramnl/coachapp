@@ -223,8 +223,8 @@ function dashRender(){
     const p=byId[w.client_id]||{};
     const blocks=(d.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     let done=0;
-    const rij=(badge,titel,tekst,r,vids)=>{
-      const sc=resultScoreVol(r);
+    const rij=(badge,titel,tekst,r,vids,st)=>{
+      const sc=resultScoreVol(r,st);
       // Video-uploads van het lid bij dit blok (result_media): inline in de feed
       // zoals CoachRx; klik = direct afspelen, geen apart scherm. De src (signed
       // URL) wordt na het renderen in één keer gezet door dashVidSrcs().
@@ -246,7 +246,7 @@ function dashRender(){
     blocks.forEach(b=>{
       const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
       const vids=(md||[]).filter(m=>m.block_id===b.id&&m.athlete_id===w.client_id);
-      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r,vids);
+      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r,vids,b.score_type);
     });
     return '<div class="feedcard"><div class="fh" style="cursor:pointer" title="Open het programma van '+esc(naamVan(p))+'" onclick="openClient(\''+esc(w.client_id)+'\')"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div>'+effortChip(ef.find(e=>e.workout_id===w.id&&e.athlete_id===w.client_id))+'</div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+

@@ -24,7 +24,7 @@ function wwMainBlock(w){return ((w&&w.blocks)||[]).slice().sort((a,b)=>(a.sort||
 // (aanpasbaar in het naamveld; later evt. per bedrijf instelbaar).
 const WW_NAAM_PREFIX="YP Showdown";
 function wwStandaardNaam(){const d=new Date();return WW_NAAM_PREFIX+" "+d.getDate()+" "+MAANDVOL[d.getMonth()];}
-const WW_SCORES=[["time","tijd (For Time)"],["rounds_reps","rondes + reps (AMRAP)"],["reps","reps"],["load","gewicht (kg)"],["text","vrije tekst"]];
+const WW_SCORES=[["time","tijd (For Time)"],["rounds_reps","rondes + reps (AMRAP)"],["reps","reps"],["load","gewicht (kg)"],["calories","calorieën"],["meters","meters"],["km","kilometers"],["cm","centimeters"],["watt","watt"],["rpm","rpm"],["bpm","bpm"],["spm","spm"],["text","vrije tekst"]];
 
 function wwRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
@@ -89,6 +89,7 @@ function wwCmp(st){
     if(st==="load")return n(b.load_kg,-1)-n(a.load_kg,-1);
     if(st==="reps")return n(b.reps,-1)-n(a.reps,-1);
     if(st==="rounds_reps")return (n(b.rounds,-1)-n(a.rounds,-1))||(n(b.reps,-1)-n(a.reps,-1));
+    if(scoreIsGetal(st))return n(b.score_value,-1e9)-n(a.score_value,-1e9); // calorieën, meters, watt…: hoger = beter
     return new Date(a.created_at)-new Date(b.created_at);
   };
 }
@@ -107,7 +108,7 @@ function wwBoardInner(id){
       }).sort(wwCmp(st));
       if(!groep.length)return;
       html+='<div class="lbcat" style="margin-top:12px">'+cat[1]+' / '+(rx==="rx"?'<span>Rx</span>':'<span style="color:var(--purple)">Scaled</span>')+'</div>'+
-        '<div class="card">'+groep.map((r,i)=>wwRij(r,i+1)).join("")+'</div>';
+        '<div class="card">'+groep.map((r,i)=>wwRij(r,i+1,st)).join("")+'</div>';
     });
   });
   return html;
@@ -116,9 +117,9 @@ function wwBoardInner(id){
 // de notitie van de sporter is dicht tot je op de naam klikt (verzoek Stefan 22 okt:
 // "scores wil ik zien, wat ze typen is alleen handig als ik het wil uitklappen").
 let LB_OPEN=new Set(); // result_id's waarvan de notitie open staat
-function wwRij(r,rank){
+function wwRij(r,rank,st){
   const p={first_name:r.first_name,last_name:r.last_name,avatar_url:r.avatar_url,email:""};
-  const score=(r.capped?"CAP · ":"")+(resultScoreTxt(r)||"–"); // gecapt: reps/rondes binnen de timecap
+  const score=(r.capped?"CAP · ":"")+(resultScoreTxt(r,st)||"–"); // gecapt: reps/rondes binnen de timecap
   const lid=r.membership_type==="one_on_one"?"1-op-1 klant":(r.membership_type==="free_blog"?"blog-lid":"");
   const rest=[lid,(r.media_url?"video":"")].filter(Boolean).join(" · ");
   const open=LB_OPEN.has(r.result_id);
