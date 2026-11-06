@@ -282,10 +282,10 @@ function kiesBlokKleur(el,k){
   const row=el.closest(".exrow");row.dataset.kleur=k;
   [...row.querySelectorAll(".blokkleur span")].forEach((s,i)=>{s.style.outline=TPLKLEUREN[i]===k?"2px solid #171719":"none";s.style.outlineOffset="1.5px";});
 }
-// Scoretype + timecap staan alleen in de bouwer van een BLOGprogramma: die
-// workouts krijgen een leaderboard per blok (keuze Stefan 15 sep, naar
-// Strivee-voorbeeld). In de 1-op-1 bouwer blijft het scoreveld weg (12 juli).
-const scoreVakken=()=>typeof coachSection!=="undefined"&&coachSection==="blog";
+// Scoretype + timecap op elk blok, in alle bouwers (klantkalender, programma-editor,
+// blog). Tot 6 nov 2026 alleen in de blog-bouwer (keuze 12 juli / 15 sep); sinds de
+// Strivee-scoretypes (calorieën, meters, watt…) wil Stefan het overal kunnen kiezen.
+const scoreVakken=()=>true;
 // "20:00", "20" (= minuten) of "1200" (seconden als > 300) -> seconden
 function tijdNaarSec(s){
   s=String(s||"").trim();if(!s)return null;
