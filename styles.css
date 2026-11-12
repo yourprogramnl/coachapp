@@ -1637,3 +1637,11 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .ib2 .exrow.ss-dicht>.schemarow{margin-top:1px;font-size:11px;color:#8a919c}
 .ib2 .exrow.ss-dicht>.schemarow .schemalbl{display:none}
 .sslink.ss-weg{display:none}
+/* Concept-workouts (status draft): alleen de coach ziet ze, de sporter pas na goedkeuren */
+.mcard.concept{border:1.5px dashed #d9a441;background:#fffaf0}
+.conceptpill{font-size:10px;font-weight:800;color:#8a5a00;background:#fde9bf;border-radius:999px;padding:1px 7px;text-transform:uppercase;letter-spacing:.03em}
+.conceptbtn{display:block;width:100%;margin-top:6px;border:none;border-radius:7px;background:#d9a441;color:#fff;font-weight:800;font-size:12px;padding:6px 8px;cursor:pointer;font-family:inherit}
+.conceptbtn:hover{background:#c18f2f}
+.btn.conceptalle{background:#d9a441;border-color:#d9a441;color:#fff}
+.btn.conceptalle b{background:rgba(255,255,255,.28);border-radius:999px;padding:0 6px;margin-left:4px}
+@media print{.conceptbtn,.conceptalle{display:none!important}}

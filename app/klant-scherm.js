@@ -952,10 +952,10 @@ function ssKaartHtml(g){
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
-    return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-      '<div class="msc"><span style="color:#27b376">Rustdag</span></div>'+
+    return '<div class="mcard planned'+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+      '<div class="msc"><span style="color:#27b376">Rustdag</span>'+conceptPill(w)+'</div>'+
       '<div class="cblk"><div class="pr" style="color:#8a919c">Geen instructies</div></div>'+
-      cardComBtn(w)+'</div>';
+      conceptKnop(w)+cardComBtn(w)+'</div>';
   }
   let done=0,total=0,inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
@@ -984,9 +984,29 @@ function mcardHtml(w){
     else g.forEach(losBlok);
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
-    cardComBtn(w)+'</div>';
+  return '<div class="mcard'+(done===0?' planned':'')+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+conceptPill(w)+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
+    conceptKnop(w)+cardComBtn(w)+'</div>';
+}
+// Concepten (workouts.status='draft'): de coach ziet ze met een label, de sporter pas na goedkeuren.
+// De database dwingt dat af (regel workouts_draft_hidden), dus ook oude app-versies tonen ze niet.
+function conceptPill(w){return w.status==="draft"?'<span class="conceptpill" title="Concept: de sporter ziet deze workout pas na goedkeuren">Concept</span>':'';}
+function conceptKnop(w){return w.status==="draft"?'<button class="conceptbtn" onclick="event.stopPropagation();conceptGoedkeuren(\''+w.id+'\')">Goedkeuren</button>':'';}
+function conceptIds(){return Object.values(monthWorkouts||{}).filter(w=>w.status==="draft").map(w=>w.id);}
+function conceptKopKnop(){const n=conceptIds().length;return n?'<button class="btn sm conceptalle" title="Alle concepten in deze kalender zichtbaar maken voor de sporter" onclick="conceptenGoedkeuren()">Concepten goedkeuren <b>'+n+'</b></button>':'';}
+async function conceptGoedkeuren(wid){
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:"published"}).eq("id",wid);
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Goedgekeurd, de sporter ziet deze workout nu");renderMonth();
+}
+async function conceptenGoedkeuren(){
+  if(!(await autoSaveBouwer()))return;
+  const ids=conceptIds();if(!ids.length)return;
+  if(!confirm(tf("{n} concept(en) goedkeuren? De sporter ziet ze daarna meteen.",{n:ids.length})))return;
+  const{error}=await db.from("workouts").update({status:"published"}).in("id",ids);
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
 }
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
 function cardTools(w){
@@ -1452,7 +1472,7 @@ async function renderMonth(opts){
       '<div id="kd-blogs"></div>'+
       dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '</div></div></div>'+
-    '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
+    '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+conceptKopKnop()+
     '<button class="btn ghost sm" title="Exporteer workouts, scores, metrics en meer als PDF of tekstbestand" onclick="openExport()"><svg class="i sm-i"><use href="#i-dl"/></svg> Exporteren</button>'+
     '</div>';
   const headDays=calView==="dag"?[DAGEN[(gridStart.getDay()+6)%7]]:DAGEN;

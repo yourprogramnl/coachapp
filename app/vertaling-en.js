@@ -1798,3 +1798,15 @@ i18nLaad({
 "Een gratis programma op de etalage heeft de aanmeldlink nodig: zet 'Iedereen met de link kan zich zelf aanmelden' aan, of vul een prijs in.":"A free program on the storefront needs the sign-up link: switch on 'Anyone with the link can sign up', or enter a price.",
 "Vul een winkelprijs in van minstens €1 (bijv. 39,00), of laat de prijs leeg voor een gratis programma.":"Enter a shop price of at least €1 (e.g. 39.00), or leave the price empty for a free program."
 });
+// Conceptstatus op workouts (12 nov 2026)
+i18nLaad({
+"Concept":"Draft",
+"Goedkeuren":"Approve",
+"Concepten goedkeuren":"Approve drafts",
+"Goedkeuren mislukt":"Approval failed",
+"Goedgekeurd, de sporter ziet deze workout nu":"Approved, the athlete can see this workout now",
+"Goedgekeurd, de sporter ziet de workouts nu":"Approved, the athlete can see the workouts now",
+"{n} concept(en) goedkeuren? De sporter ziet ze daarna meteen.":"Approve {n} draft(s)? The athlete will see them right away.",
+"Concept: de sporter ziet deze workout pas na goedkeuren":"Draft: the athlete only sees this workout after approval",
+"Alle concepten in deze kalender zichtbaar maken voor de sporter":"Make all drafts in this calendar visible to the athlete"
+});
