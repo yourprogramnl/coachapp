@@ -836,5 +836,8 @@ i18nLaad({
   "in week {n} op dag {n}": "in week {n} on day {n}",
   "{n} geplakt, {n} buiten de weken van dit programma": "{n} pasted, {n} outside the weeks of this program",
   "Past niet: de kopie valt buiten de weken van dit programma": "Does not fit: the copy falls outside the weeks of this program",
-  "Weekworkout als gewone workout in het programma gezet (zonder gedeeld leaderboard)": "Weekly workout placed in the program as a regular workout (without shared leaderboard)"
+  "Weekworkout als gewone workout in het programma gezet (zonder gedeeld leaderboard)": "Weekly workout placed in the program as a regular workout (without shared leaderboard)",
+  // Feedbackronde 6 punt 4 (12 nov 2026): gelogde meting aanpassen
+  "Resultaat aanpassen": "Edit result",
+  "Resultaat aangepast": "Result updated"
 });

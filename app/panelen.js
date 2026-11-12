@@ -191,6 +191,9 @@ let mxData=[],mxOpen={},balKeuze="Deadlift",mxZoek="";
 // Detailscherm-state + koppeling naar Assessment (zodat je deze waarden maar op één plek invult).
 // [sectie, veld] verwijst naar assessments.data[sectie][veld] (body = Body, move = Move).
 let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
+// Rij die in het detailscherm wordt aangepast (id), null = nieuw resultaat (feedback coach, 12 nov 2026).
+let mxDetailEdit=null;
+const MX_EENHEDEN=["kg","reps","sec","min","cal","%","m"];
 const MX_ASS_VELD={
   "Weight":["body","gewicht"],"Bodyfat Percentage":["body","vet"],"Skeletal Muscle Mass":["body","spier"],"Basal Metabolic Rate":["body","metab"],
   "Air Squat":["move","airsquat"],"Front Leaning Rest":["move","frontplank"],"Reverse Plank":["move","reverseplank"],"Side Plank Left":["move","sideplank_l"],"Side Plank Right":["move","sideplank_r"],"Push-up":["move","pushup"],
@@ -380,7 +383,7 @@ function mxVid(ev,naam){
 }
 // ---------- Metric-detailscherm (in het hoofdvlak; historie + resultaat toevoegen, zoals CoachRx) ----------
 async function mxOpenDetail(naam){
-  mxDetailNaam=naam;mxDetailForm=false;activePanel="metric-detail";
+  mxDetailNaam=naam;mxDetailForm=false;mxDetailEdit=null;activePanel="metric-detail";
   if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient+"/metric/"+encodeURIComponent(naam));
   const m=document.getElementById("cmain");if(m)m.innerHTML='<div class="spin">Laden…</div>';
   await Promise.all([mxLaad(),klLaad(calClient)]);
@@ -404,23 +407,31 @@ function mxDetailRender(){
   }else{
     const hist=mxHist(naam),w=mxWaarde(naam),t=mxType(naam);
     if(w)curTxt=esc(mxFmtRij(w.cur,naam));
-    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><svg class="i sm-i" style="cursor:pointer;color:#b3b9c2" onclick="mxDetailVerwijder(\''+mm.id+'\')"><use href="#i-trash"/></svg></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
+    histRows=hist.slice().reverse().map(mm=>'<div class="mh-row'+(mxDetailEdit===mm.id?' bewerk':'')+'"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><span class="mh-knop" title="Aanpassen" onclick="mxDetailBewerk(\''+mm.id+'\')"><svg class="i sm-i"><use href="#i-pen"/></svg></span><span class="mh-knop" title="Verwijderen" onclick="mxDetailVerwijder(\''+mm.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></span></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
     if(mxDetailForm){
+      // Aanpassen van een bestaande rij: het formulier is vooraf gevuld met die rij.
+      const ed=mxDetailEdit?hist.find(x=>x.id===mxDetailEdit):null;
+      if(mxDetailEdit&&!ed)mxDetailEdit=null; // rij bestaat niet meer
+      const edW=ed&&ed.value!=null?String(ed.value):"";
       // Invoerveld afhankelijk van het type: kg (getal), tijd (mm:ss) of pass/fail
       let invoer;
       if(t==="passfail"){
-        invoer='<div class="mxd-pf"><label><input type="radio" name="mxd-pf" value="pass"> Pass</label><label><input type="radio" name="mxd-pf" value="fail"> Fail</label></div>';
+        const pf=ed?String(ed.value_text||"").toLowerCase():"";
+        invoer='<div class="mxd-pf"><label><input type="radio" name="mxd-pf" value="pass"'+(pf==="pass"?" checked":"")+'> Pass</label><label><input type="radio" name="mxd-pf" value="fail"'+(pf==="fail"?" checked":"")+'> Fail</label></div>';
       }else if(t==="time"){
-        invoer='<input id="mxd-waarde" placeholder="mm:ss (bijv. 1:30)" style="width:150px">';
+        invoer='<input id="mxd-waarde" placeholder="mm:ss (bijv. 1:30)" style="width:150px" value="'+(ed&&ed.value!=null?esc(mxSecNaarTijd(ed.value)):"")+'">';
       }else if(t==="vrij"){
-        invoer='<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:130px"><select id="mxd-unit" style="width:90px">'+["kg","reps","sec","min","cal","%","m"].map(u=>'<option'+(((hist[hist.length-1]||{}).unit||"kg")===u?" selected":"")+'>'+u+'</option>').join("")+'</select>';
+        // Eenheid: die van de rij zelf (ook als hij niet in de lijst staat), anders die van de laatste meting.
+        const kies=(ed?ed.unit:(hist[hist.length-1]||{}).unit)||"kg";
+        const eenh=MX_EENHEDEN.includes(kies)?MX_EENHEDEN:MX_EENHEDEN.concat([kies]);
+        invoer='<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:130px" value="'+esc(edW)+'"><select id="mxd-unit" style="width:90px">'+eenh.map(u=>'<option'+(kies===u?" selected":"")+'>'+esc(u)+'</option>').join("")+'</select>';
       }else{
         // Vaste eenheid (kg, m, cal, …)
-        invoer='<div style="display:flex;align-items:center;gap:6px"><input id="mxd-waarde" placeholder="Resultaat" inputmode="decimal" style="width:130px"><span style="color:#5d6570;font-weight:600">'+esc(t)+'</span></div>';
+        invoer='<div style="display:flex;align-items:center;gap:6px"><input id="mxd-waarde" placeholder="Resultaat" inputmode="decimal" style="width:130px" value="'+esc(edW)+'"><span style="color:#5d6570;font-weight:600">'+esc(t)+'</span></div>';
       }
-      actie='<div class="bp-sec" style="max-width:640px"><b>Nieuw resultaat</b><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px">'+
-        invoer+'<input id="mxd-datum" type="date" value="'+todayStr()+'" style="width:160px"></div>'+
-        '<textarea id="mxd-note" placeholder="Notitie (optioneel)" style="margin-top:8px;min-height:60px"></textarea>'+
+      actie='<div class="bp-sec" id="mxd-form" style="max-width:640px"><b>'+(ed?"Resultaat aanpassen":"Nieuw resultaat")+'</b><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px">'+
+        invoer+'<input id="mxd-datum" type="date" value="'+esc((ed&&ed.measured_at)||todayStr())+'" style="width:160px"></div>'+
+        '<textarea id="mxd-note" placeholder="Notitie (optioneel)" style="margin-top:8px;min-height:60px">'+esc((ed&&ed.note)||"")+'</textarea>'+
         '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="mxDetailOpslaan()">Opslaan</button><button class="btn ghost" onclick="mxDetailFormSluit()">Annuleren</button></div>'+
         '<div class="msg" id="mxd-msg"></div></div>';
     }else{
@@ -439,8 +450,14 @@ function mxDetailRender(){
     '</div>';
 }
 function mxDetailTerug(){mxDetailNaam=null;if(typeof calClient!=="undefined"&&calClient)setHash("klant/"+calClient);renderClient("kalender");}
-function mxDetailFormOpen(){mxDetailForm=true;mxDetailRender();const el=document.getElementById("mxd-waarde");if(el)el.focus();}
-function mxDetailFormSluit(){mxDetailForm=false;mxDetailRender();}
+function mxDetailFormOpen(){mxDetailEdit=null;mxDetailForm=true;mxDetailRender();const el=document.getElementById("mxd-waarde");if(el)el.focus();}
+// Potloodje in de geschiedenis: dezelfde rij aanpassen (waarde, datum, notitie) in plaats van verwijderen en opnieuw invoeren.
+function mxDetailBewerk(id){
+  mxDetailEdit=id;mxDetailForm=true;mxDetailRender();
+  const fm=document.getElementById("mxd-form");if(fm&&fm.scrollIntoView)fm.scrollIntoView({block:"nearest"});
+  const el=document.getElementById("mxd-waarde");if(el){el.focus();if(el.select)el.select();}
+}
+function mxDetailFormSluit(){mxDetailForm=false;mxDetailEdit=null;mxDetailRender();}
 async function mxDetailOpslaan(){
   const naam=mxDetailNaam,t=mxType(naam),msg=document.getElementById("mxd-msg");
   const g=id=>{const e=document.getElementById(id);return e?e.value:"";};
@@ -463,16 +480,20 @@ async function mxDetailOpslaan(){
     if(isNaN(w)){if(msg)msg.textContent="Vul een getal in ("+t+").";return;}
     velden.value=w;velden.unit=t;
   }
-  const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:velden.value,value_text:velden.value_text,unit:velden.unit,measured_at:g("mxd-datum")||todayStr(),note:(g("mxd-note")||"").trim()||null,created_by:ME.user.id});
+  const datum=g("mxd-datum")||todayStr(),notitie=(g("mxd-note")||"").trim()||null;
+  const{error}=mxDetailEdit
+    ?await db.from("metrics").update({value:velden.value,value_text:velden.value_text,unit:velden.unit,measured_at:datum,note:notitie}).eq("id",mxDetailEdit)
+    :await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:velden.value,value_text:velden.value_text,unit:velden.unit,measured_at:datum,note:notitie,created_by:ME.user.id});
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
-  toast("Resultaat toegevoegd");
-  await mxLaad();mxDetailForm=false;mxDetailRender();
+  toast(mxDetailEdit?"Resultaat aangepast":"Resultaat toegevoegd");
+  await mxLaad();mxDetailForm=false;mxDetailEdit=null;mxDetailRender();
   if(document.getElementById("mx-groepen"))mxRender();
 }
 async function mxDetailVerwijder(id){
   if(!confirm("Dit resultaat verwijderen?"))return;
   const{error}=await db.from("metrics").delete().eq("id",id);
   if(error){toast(error.message);return;}
+  if(mxDetailEdit===id){mxDetailEdit=null;mxDetailForm=false;}
   await mxLaad();mxDetailRender();
   if(document.getElementById("mx-groepen"))mxRender();
 }

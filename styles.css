@@ -692,7 +692,11 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .mh-v{flex:1;font-weight:700}
 .mh-d{flex:1;color:#5d6570}
 .mh-n{flex:2;color:#5d6570;white-space:pre-line}
-.mh-x{width:26px;text-align:right;flex:none}
+.mh-x{width:56px;text-align:right;flex:none;white-space:nowrap}
+.mh-knop{cursor:pointer;color:#b3b9c2;margin-left:10px;display:inline-flex;vertical-align:middle}
+.mh-knop:hover{color:#3eb3e0}
+.mh-row.bewerk{background:#f0f8fc;box-shadow:inset 3px 0 0 #3eb3e0}
+.mh-row.bewerk .mh-v{padding-left:10px}
 .mxd-pf{display:flex;gap:18px;align-items:center}
 .mxd-pf label{display:flex;align-items:center;gap:6px;font-size:14px;color:#1d2129;font-weight:600;cursor:pointer}
 .mxd-pf input{width:auto}
