@@ -822,3 +822,11 @@ i18nRegel(/^"(.+)" als nieuwe workout op (\d\d-\d\d) gezet$/, '"$1" added as a n
 i18nRegel(/^"(.+)" als nieuwe workout in week (\d+) op dag (\d+) gezet$/, '"$1" added as a new workout in week $2 on day $3');
 i18nRegel(/^(\d+) demo-video('s)? toegevoegd$/, "$1 demo video(s) added");
 i18nRegel(/^Nog (\d+) meer; typ om te verfijnen\.$/, "$1 more; type to narrow down.");
+// Superset als één blokje in de bouwer (12 nov 2026)
+i18nLaad({
+  "Per oefening instellen": "Set up per exercise",
+  "Inklappen": "Collapse",
+  "Toon per oefening de tekst, de lift, het schema en de video's": "Show the text, lift, scheme and videos per exercise",
+  "Toon deze oefeningen weer als één blokje": "Show these exercises as one block again",
+  "{n} oefeningen op één kaart; de sporter logt per oefening.": "{n} exercises on one card; the athlete logs per exercise."
+});

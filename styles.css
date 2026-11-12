@@ -1596,3 +1596,40 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 #wm_blok .vschips{margin-top:4px}
 #wm_blok .vidpop{right:auto;left:0}
 .ib2 textarea.f-tips{color:#5d6570;font-style:italic}
+
+/* Superset met kaarttitel als één blokje (12 nov 2026, wens coach): kalenderkaart en bouwer.
+   De blokken blijven apart in de database (de sporter logt per oefening); dit is alleen de weergave. */
+.cblk .ssrij{display:flex;align-items:center;gap:6px;margin-top:4px;padding-top:4px;border-top:1px dashed rgba(15,18,22,.14);font-weight:700;font-size:10.5px}
+.cblk .ssrij .ssnaam{flex:1;min-width:0}
+.cblk .ssrij .okc{position:static;flex:none}
+.gt-letter{display:none}
+.gt-wissel{font-size:11px;color:var(--accent);cursor:pointer;flex:none;white-space:nowrap}
+.gt-wissel:hover{text-decoration:underline}
+.ib2 .exrow.ss-dicht .gtitle-row{background:none;border:none;padding:0;margin:0 0 2px}
+.ib2 .exrow.ss-dicht .gtlbl{display:none}
+.ib2 .exrow.ss-dicht .gt-letter{display:inline;color:#2a9fce;font-weight:800;font-size:12.5px;flex:none}
+.ib2 .exrow.ss-dicht .gt-letter::after{content:")"}
+.ib2 .exrow.ss-dicht .gtitle{background:none;border:none;padding:3px 0;font-size:12px;font-weight:700}
+.ib2 .exrow.ss-dicht .gtitle-uitleg{color:#8a919c;margin-top:0}
+.ib2 .exrow.ss-eerste{display:flex;flex-direction:column;border-radius:9px 9px 0 0;padding-bottom:3px}
+.ib2 .exrow.ss-eerste>.gtitle-row{order:0}
+.ib2 .exrow.ss-eerste>.f-presc{order:1}
+.ib2 .exrow.ss-eerste>.f-tips{order:2}
+.ib2 .exrow.ss-eerste>.f-opts{order:3}
+.ib2 .exrow.ss-eerste>.vschips{order:4}
+.ib2 .exrow.ss-eerste>.exhead{order:5}
+.ib2 .exrow.ss-eerste>.schemarow{order:6}
+.ib2 .exrow.ss-eerste>.gelogd-host{order:7}
+.ib2 .exrow.ss-volg{border-radius:0;padding-top:0;padding-bottom:3px}
+.ib2 .exrow.ss-laatste{border-radius:0 0 9px 9px;padding-bottom:9px}
+.ib2 .exrow.ss-dicht>.liftrow,.ib2 .exrow.ss-dicht>.klcijfers,.ib2 .exrow.ss-dicht>.exnote,.ib2 .exrow.ss-volg>.f-presc,.ib2 .exrow.ss-volg>.f-tips,.ib2 .exrow.ss-volg>.f-opts,.ib2 .exrow.ss-volg>.vschips{display:none}
+.ib2 .exrow.ss-dicht>.exhead{border-top:1px dashed #e1e4e8;margin-top:0;padding-top:5px}
+.ib2 .exrow.ss-eerste>.exhead{margin-top:6px}
+.ib2 .exrow.ss-dicht .exhead .lbl-badge{color:#8a919c;font-size:11.5px}
+.ib2 .exrow.ss-dicht .exhead .lbl-badge::after{content:""}
+.ib2 .exrow.ss-dicht .exhead input{font-weight:600;font-size:11.5px}
+.ib2 .exrow.ss-dicht .extools{display:none}
+.ib2 .exrow.ss-dicht .exhead:hover .extools{display:flex}
+.ib2 .exrow.ss-dicht>.schemarow{margin-top:1px;font-size:11px;color:#8a919c}
+.ib2 .exrow.ss-dicht>.schemarow .schemalbl{display:none}
+.sslink.ss-weg{display:none}

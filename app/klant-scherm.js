@@ -303,7 +303,7 @@ function scoreVakHtml(b){
 }
 function scoreSelWissel(sel){const vak=sel.closest(".scorevak").querySelector(".capvak");if(vak)vak.style.display=sel.value==="time"?"":"none";bouwerDirty=true;}
 function rowOpts(b){return '<div class="f-opts" style="align-items:center;flex-wrap:wrap;gap:8px"><div class="blokkleur">'+blokKleurDots(b.color||"")+'</div>'+scoreVakHtml(b)+'</div>';}
-function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-lift="'+esc(b.lift_id||"")+'" data-liftauto="1" data-liftvoor="'+esc(b.exercise||"")+'" data-geenlift="'+(b.lift_scheme&&b.lift_scheme.geen_lift?'1':'0')+'" data-scheme="'+esc(b.lift_scheme?JSON.stringify(b.lift_scheme):"")+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="gtitle-row" style="display:none"><div class="gtitle-kop"><span class="gtlbl">Kaart in de app</span><input class="gtitle" placeholder="Titel van de kaart, bijv. Special Strength" value="'+esc(b.group_title||"")+'"></div><div class="gtitle-uitleg">De sporter ziet de gekoppelde oefeningen hieronder als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.</div></div><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onblur="liftAuto(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+((b.oefening_id||(b.media&&b.media.length))?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust" oninput="schemaVernieuw(this)">'+esc(b.prescription||composePresc(b))+'</textarea>'+(b.notes?'<textarea class="f-tips" rows="1" placeholder="Coachingtips" title="Coachingtips: de sporter ziet ze in de app onder de omschrijving">'+esc(b.notes)+'</textarea>':'')+rowOpts(b)+liftRowHtml(b)+'<div class="vschips"></div><div class="exdrop"></div><div class="vidpop"></div></div>';}
+function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-lift="'+esc(b.lift_id||"")+'" data-liftauto="1" data-liftvoor="'+esc(b.exercise||"")+'" data-geenlift="'+(b.lift_scheme&&b.lift_scheme.geen_lift?'1':'0')+'" data-scheme="'+esc(b.lift_scheme?JSON.stringify(b.lift_scheme):"")+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'"><div class="gtitle-row" style="display:none"><div class="gtitle-kop"><b class="gt-letter"></b><span class="gtlbl">Kaart in de app</span><input class="gtitle" placeholder="Titel van de kaart, bijv. Special Strength" value="'+esc(b.group_title||"")+'"><span class="gt-wissel" onclick="ssWissel(this)"></span></div><div class="gtitle-uitleg">De sporter ziet de gekoppelde oefeningen hieronder als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.</div></div><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onblur="liftAuto(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+((b.oefening_id||(b.media&&b.media.length))?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust" oninput="schemaVernieuw(this)">'+esc(b.prescription||composePresc(b))+'</textarea>'+(b.notes?'<textarea class="f-tips" rows="1" placeholder="Coachingtips" title="Coachingtips: de sporter ziet ze in de app onder de omschrijving">'+esc(b.notes)+'</textarea>':'')+rowOpts(b)+liftRowHtml(b)+'<div class="vschips"></div><div class="exdrop"></div><div class="vidpop"></div></div>';}
 // Demo-video's op een blok: de chip-rij (app/demo-videos.js) toont gekoppelde
 // video's en voorstellen uit de tekst; "+ Zoek video" zoekt in de bibliotheek
 // of neemt een geplakte YouTube-link aan. Het lid krijgt dezelfde video's in de app.
@@ -594,17 +594,32 @@ function relabel(){
   // Kaarttitel alleen op het eerste blok van een superset (de app toont de groep
   // als één kaart). Met uitleg erbij, zodat de coach ziet wat de sporter straks
   // ziet (feedbackronde 5, 20 okt: "mijn titel is eruit gehaald").
-  groups.forEach(g=>{g.forEach((r,pos)=>{
-    const gt=r.querySelector(".gtitle-row");if(!gt)return;
-    gt.style.display=(pos===0&&g.length>1)?"":"none";
-    const u=gt.querySelector(".gtitle-uitleg");
-    if(u&&pos===0&&g.length>1)u.textContent="De sporter ziet deze "+g.length+" gekoppelde oefeningen als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.";
-  });});
+  // Superset als één blokje (12 nov 2026, wens coach): heeft de groep een kaarttitel
+  // (template met twee krachtoefeningen), dan start hij ingeklapt. De coach ziet de
+  // titel, de tekst en per oefening één regel: hetzelfde als de ene kaart die de
+  // sporter in de app krijgt. Uitklappen kan altijd; de blokken zelf blijven apart.
+  groups.forEach((g,gi)=>{
+    const groep=g.length>1,eerste=g[0];
+    if(groep&&eerste.dataset.ssopen===undefined){const ti=eerste.querySelector(".gtitle");eerste.dataset.ssopen=(ti&&ti.value.trim())?"0":"1";}
+    const dicht=groep&&eerste.dataset.ssopen==="0";
+    g.forEach((r,pos)=>{
+      if(!(groep&&pos===0))delete r.dataset.ssopen;
+      r.classList.toggle("ss-dicht",dicht);r.classList.toggle("ss-eerste",dicht&&pos===0);r.classList.toggle("ss-volg",dicht&&pos>0);r.classList.toggle("ss-laatste",dicht&&pos===g.length-1);
+      const gt=r.querySelector(".gtitle-row");if(!gt)return;
+      gt.style.display=(pos===0&&groep)?"":"none";
+      if(!(pos===0&&groep))return;
+      const le=gt.querySelector(".gt-letter");if(le)le.textContent=String.fromCharCode(65+gi);
+      const wi=gt.querySelector(".gt-wissel");
+      if(wi){wi.textContent=dicht?"Per oefening instellen":"Inklappen";wi.title=dicht?"Toon per oefening de tekst, de lift, het schema en de video's":"Toon deze oefeningen weer als één blokje";}
+      const u=gt.querySelector(".gtitle-uitleg");
+      if(u)u.textContent=dicht?g.length+" oefeningen op één kaart; de sporter logt per oefening.":"De sporter ziet deze "+g.length+" gekoppelde oefeningen als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.";
+    });
+  });
   // superset-cirkels tussen de blokken (zoals het ontwerp)
   rows.forEach((r,i)=>{
     if(i===rows.length-1)return;
     const d=document.createElement("div");
-    d.className="sslink"+(rows[i+1].dataset.linked==="1"?" aan":"");
+    d.className="sslink"+(rows[i+1].dataset.linked==="1"?" aan":"")+(rows[i+1].dataset.linked==="1"&&rows[i+1].classList.contains("ss-dicht")?" ss-weg":"");
     d.title="Koppel als superset";
     d.innerHTML='<svg class="i sm-i"><use href="#i-link"/></svg>';
     d.onclick=ev=>{ev.stopPropagation();const nxt=rows[i+1];const on=nxt.dataset.linked!=="1";nxt.dataset.linked=on?"1":"0";nxt.classList.toggle("linked",on);relabel();};
@@ -612,6 +627,8 @@ function relabel(){
   });
   liftAutoAlle(); // liftchips en schema's bijwerken (krachtlog)
 }
+// Superset in- of uitklappen: alleen de weergave in de bouwer, er verandert niets aan de blokken.
+function ssWissel(el){const row=el.closest(".exrow");if(!row)return;row.dataset.ssopen=row.dataset.ssopen==="0"?"1":"0";relabel();groei();}
 function delRow(btn){btn.closest(".exrow").remove();relabel();bouwerDirty=true;}
 // Blok omhoog/omlaag in de bouwer (pijltjes in de blok-kop). Tussen de rijen
 // staan superset-koppeltekens (.sslink), dus stap door tot de echte buur-rij;
@@ -899,6 +916,39 @@ function cardComBtn(w){
   const dot=onge?'<span class="wcdot">'+onge+'</span>':'';
   return '<button class="combtn" onclick="event.stopPropagation();openDayComments(\''+w.id+'\',\''+esc(calClient)+'\')"><svg class="i sm-i"><use href="#i-chat"/></svg> Reacties'+(cmts.length?' ('+cmts.length+')':'')+dot+'</button>';
 }
+// ---------- Superset als één blokje op de kalenderkaart (12 nov 2026, wens coach) ----------
+// Blokken in groepen: een los blok, of gekoppelde blokken (superset).
+function blokGroepen(blocks){
+  const uit=[];
+  (blocks||[]).forEach((b,i)=>{if(i>0&&b.linked&&uit.length)uit[uit.length-1].push(b);else uit.push([b]);});
+  return uit;
+}
+// Een superset met kaarttitel (template met twee krachtoefeningen) als één blokje:
+// titel en tekst van het eerste blok, daaronder per oefening één regel met wat de
+// sporter logde. Zo ziet de coach hetzelfde als de sporter in de app: één kaart.
+// De blokken zelf blijven apart (per oefening loggen, eigen records).
+function ssKaartHtml(g){
+  const b0=g[0],kleur=b0.color?' k-'+esc(b0.color):'';
+  const letter=String(b0.label||"").replace(/\d+$/,"");
+  let done=0,total=0;
+  let h='<div class="cblk'+kleur+' ssblok"><div class="n">'+esc(letter)+') '+esc((b0.group_title||"").trim())+(g.some(b=>b.media&&b.media.length)?' 🎥':'')+'</div>';
+  const pr=composePresc(b0);
+  if(pr)h+='<div class="pr">'+esc(pr)+'</div>';
+  if(b0.notes)h+='<div class="pr" style="font-style:italic" title="Coachingtips">💡 '+esc(b0.notes)+'</div>';
+  g.forEach(b=>{
+    total++;
+    const r=monthResults[b.id];
+    if(r&&r.status==="completed")done++;
+    const sc=resultScoreVol(r,b.score_type);
+    const padLijst=(monthMedia[b.id]||[]).map(v=>v.storage_path).join("|");
+    const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
+    h+='<div class="ssrij"><span class="ssnaam">'+esc(b.label||"")+' '+esc(b.exercise||"")+'</span>'+
+      (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+'</div>'+
+      ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
+      resultSplitsHtml(r,"pr")+((r&&r.note)?'<div class="pr" style="font-style:italic;color:#8a919c" title="Notitie van het lid">💬 '+esc(r.note)+'</div>':'');
+  });
+  return {html:h+'</div>',done,total};
+}
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
@@ -909,7 +959,7 @@ function mcardHtml(w){
   }
   let done=0,total=0,inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
-  blocks.forEach(b=>{
+  const losBlok=b=>{
     total++;
     const r=monthResults[b.id];
     if(r&&r.status==="completed")done++;
@@ -927,6 +977,11 @@ function mcardHtml(w){
       resultSplitsHtml(r,"pr")+((r&&r.note)?'<div class="pr" style="font-style:italic;color:#8a919c" title="Notitie van het lid">💬 '+esc(r.note)+'</div>':'')+
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+
       '</div>';
+  };
+  // Superset met kaarttitel = één blokje op de kaart, zoals de sporter het in de app ziet; de rest per blok.
+  blokGroepen(blocks).forEach(g=>{
+    if(g.length>1&&(g[0].group_title||"").trim()){const k=ssKaartHtml(g);inner+=k.html;done+=k.done;total+=k.total;}
+    else g.forEach(losBlok);
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
