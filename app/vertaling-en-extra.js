@@ -839,5 +839,15 @@ i18nLaad({
   "Weekworkout als gewone workout in het programma gezet (zonder gedeeld leaderboard)": "Weekly workout placed in the program as a regular workout (without shared leaderboard)",
   // Feedbackronde 6 punt 4 (12 nov 2026): gelogde meting aanpassen
   "Resultaat aanpassen": "Edit result",
-  "Resultaat aangepast": "Result updated"
+  "Resultaat aangepast": "Result updated",
+  // Feedbackronde 6 punt 5 (12 nov 2026): eigen metrics per bedrijf
+  "Eigen metric: ook bij al je andere klanten tonen": "Custom metric: also show for all your other clients",
+  "Meting opgeslagen; deze eigen metric staat nu bij al je klanten": "Metric saved; this custom metric now shows for all your clients",
+  "Eigen metric, staat bij alle klanten van je bedrijf.": "Custom metric, shown for all clients of your company.",
+  "Eigen metric, staat alleen bij klanten met een meting.": "Custom metric, only shown for clients with a measurement.",
+  "Uit de lijst halen": "Remove from the list",
+  "Bij alle klanten tonen": "Show for all clients",
+  "Deze metric staat nu bij al je klanten": "This metric now shows for all your clients",
+  "Uit de lijst gehaald": "Removed from the list",
+  "Deze eigen metric uit de lijst van het bedrijf halen? De metingen blijven staan. De metric is daarna alleen nog te zien bij klanten die er een meting van hebben.": "Remove this custom metric from the company list? The measurements stay. After that the metric only shows for clients who have a measurement for it."
 });

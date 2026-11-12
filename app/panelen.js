@@ -193,7 +193,16 @@ let mxData=[],mxOpen={},balKeuze="Deadlift",mxZoek="";
 let mxDetailNaam=null,mxDetailForm=false,mxAss=[];
 // Rij die in het detailscherm wordt aangepast (id), null = nieuw resultaat (feedback coach, 12 nov 2026).
 let mxDetailEdit=null;
-const MX_EENHEDEN=["kg","reps","sec","min","cal","%","m"];
+const MX_EENHEDEN=["kg","reps","sec","min","cal","%","m","watt"];
+// Eigen metrics van het bedrijf (tabel company_metrics; feedback coach, 12 nov 2026): een naam die
+// een coach bij één klant toevoegt, staat daarna bij alle klanten onder "Eigen metrics". De metingen
+// zelf staan gewoon in metrics; deze lijst bevat alleen de naam en de standaardeenheid.
+let mxEigen=[];
+const mxKlantBedrijf=()=>((((typeof coachClients!=="undefined"?coachClients:[])||[]).find(c=>c.id===calClient)||{}).company_id)||ME.profile.company_id;
+const mxNorm=n=>String(n||"").trim().toLowerCase();
+const mxEigenVan=naam=>mxEigen.find(e=>mxNorm(e.name)===mxNorm(naam))||null;
+// De vaste naam uit de standaardlijst bij deze invoer (ook met andere hoofdletters), of null.
+const mxStandaardNaam=naam=>Object.values(METRICS_DEF).flat().find(n=>mxNorm(n)===mxNorm(naam))||null;
 const MX_ASS_VELD={
   "Weight":["body","gewicht"],"Bodyfat Percentage":["body","vet"],"Skeletal Muscle Mass":["body","spier"],"Basal Metabolic Rate":["body","metab"],
   "Air Squat":["move","airsquat"],"Front Leaning Rest":["move","frontplank"],"Reverse Plank":["move","reverseplank"],"Side Plank Left":["move","sideplank_l"],"Side Plank Right":["move","sideplank_r"],"Push-up":["move","pushup"],
@@ -219,6 +228,8 @@ async function mxLaad(){
   mxData=data||[];
   const{data:ass}=await db.from("assessments").select("*").eq("athlete_id",calClient).order("assessed_on");
   mxAss=ass||[];
+  // Eigen metrics van het bedrijf; lukt het laden niet, dan gewoon een lege lijst.
+  try{const{data:eig}=await db.from("company_metrics").select("*").eq("company_id",mxKlantBedrijf()).order("name");mxEigen=eig||[];}catch(e){mxEigen=[];}
 }
 // Metingen van een aan Assessment gekoppelde metric: [{v,d}] uit de assessments (oplopend op datum).
 function mxAssPunten(naam){
@@ -231,7 +242,10 @@ function mxGroepen(){
   const uit={};
   for(const g in METRICS_DEF)uit[g]=METRICS_DEF[g].slice();
   const bekend=new Set(Object.values(METRICS_DEF).flat());
-  const eigen=[...new Set(mxData.map(m=>m.metric))].filter(n=>!bekend.has(n));
+  // Eigen metrics: wat deze klant zelf al heeft plus de lijst van het bedrijf (geen dubbelen op hoofdletters).
+  const gezien=new Set(),eigen=[];
+  mxData.map(m=>m.metric).concat(mxEigen.map(e=>e.name)).forEach(n=>{if(!n||bekend.has(n))return;const k=mxNorm(n);if(gezien.has(k))return;gezien.add(k);eigen.push(n);});
+  eigen.sort((a,b)=>a.localeCompare(b));
   if(eigen.length)uit["Eigen metrics"]=eigen;
   return uit;
 }
@@ -397,7 +411,7 @@ async function mxAanpassenInAss(){
 function mxDetailRender(){
   const m=document.getElementById("cmain");if(!m||activePanel!=="metric-detail"||!mxDetailNaam)return;
   const naam=mxDetailNaam,assVeld=MX_ASS_VELD[naam];
-  let curTxt="—",histRows="",actie="";
+  let curTxt="—",histRows="",actie="",eigenRegel="";
   if(assVeld){
     const blok={body:"Body",move:"Move",work:"Work"}[assVeld[0]]||"Assessment";
     const punten=mxAssPunten(naam);
@@ -406,6 +420,11 @@ function mxDetailRender(){
     actie='<div class="sm muted" style="margin-bottom:8px">Deze waarde vul je in bij Assessment ('+blok+'), zodat je het maar op één plek bijhoudt.</div><button class="btn" onclick="mxAanpassenInAss()">Aanpassen in Assessment</button>';
   }else{
     const hist=mxHist(naam),w=mxWaarde(naam),t=mxType(naam);
+    if(!mxStandaardNaam(naam)){
+      eigenRegel='<div class="sm muted" style="margin:-8px 0 16px">'+(mxEigenVan(naam)
+        ?'<span>Eigen metric, staat bij alle klanten van je bedrijf.</span> <span class="demolink" onclick="mxEigenUit()">Uit de lijst halen</span>'
+        :'<span>Eigen metric, staat alleen bij klanten met een meting.</span> <span class="demolink" onclick="mxEigenAan()">Bij alle klanten tonen</span>')+'</div>';
+    }
     if(w)curTxt=esc(mxFmtRij(w.cur,naam));
     histRows=hist.slice().reverse().map(mm=>'<div class="mh-row'+(mxDetailEdit===mm.id?' bewerk':'')+'"><div class="mh-v">'+esc(mxFmtRij(mm,naam))+(t==="kg"&&w&&mm.id===w.cur.id?' <span class="prbadge">PR</span>':'')+'</div><div class="mh-d">'+esc(assDatumNL(mm.measured_at))+'</div><div class="mh-n">'+esc(mm.note||"")+'</div><div class="mh-x"><span class="mh-knop" title="Aanpassen" onclick="mxDetailBewerk(\''+mm.id+'\')"><svg class="i sm-i"><use href="#i-pen"/></svg></span><span class="mh-knop" title="Verwijderen" onclick="mxDetailVerwijder(\''+mm.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></span></div></div>').join("")||'<div class="sm muted" style="padding:12px 0">Nog geen resultaten. Voeg het eerste toe.</div>';
     if(mxDetailForm){
@@ -422,7 +441,7 @@ function mxDetailRender(){
         invoer='<input id="mxd-waarde" placeholder="mm:ss (bijv. 1:30)" style="width:150px" value="'+(ed&&ed.value!=null?esc(mxSecNaarTijd(ed.value)):"")+'">';
       }else if(t==="vrij"){
         // Eenheid: die van de rij zelf (ook als hij niet in de lijst staat), anders die van de laatste meting.
-        const kies=(ed?ed.unit:(hist[hist.length-1]||{}).unit)||"kg";
+        const kies=(ed?ed.unit:(hist[hist.length-1]||{}).unit)||(mxEigenVan(naam)||{}).unit||"kg";
         const eenh=MX_EENHEDEN.includes(kies)?MX_EENHEDEN:MX_EENHEDEN.concat([kies]);
         invoer='<input id="mxd-waarde" placeholder="Resultaat (getal)" inputmode="decimal" style="width:130px" value="'+esc(edW)+'"><select id="mxd-unit" style="width:90px">'+eenh.map(u=>'<option'+(kies===u?" selected":"")+'>'+esc(u)+'</option>').join("")+'</select>';
       }else{
@@ -445,7 +464,7 @@ function mxDetailRender(){
   m.innerHTML='<div class="calhead"><span class="back" style="margin:0" onclick="mxDetailTerug()">‹ Terug naar kalender</span><span class="month" style="margin-left:12px">'+esc(naam)+dTip+'</span></div>'+
     '<div style="padding:22px 24px;max-width:820px;overflow:auto">'+
     '<div style="margin-bottom:20px"><div class="sm muted">Huidig</div><div style="font-size:26px;font-weight:800;color:var(--accent)">'+curTxt+'</div></div>'+
-    klLink+actie+
+    klLink+eigenRegel+actie+
     '<h3 style="margin-top:26px">Geschiedenis</h3><div class="mh-head"><span class="mh-v">Resultaat</span><span class="mh-d">Datum</span><span class="mh-n">Notitie</span><span class="mh-x"></span></div>'+histRows+
     '</div>';
 }
@@ -497,15 +516,46 @@ async function mxDetailVerwijder(id){
   await mxLaad();mxDetailRender();
   if(document.getElementById("mx-groepen"))mxRender();
 }
+// Eigen metric op de lijst van het bedrijf zetten of eraf halen. De metingen zelf blijven altijd staan.
+async function mxEigenAan(naam,unit,stil){
+  naam=String(naam||mxDetailNaam||"").trim();
+  if(!naam||mxStandaardNaam(naam)||mxEigenVan(naam))return false;
+  if(!unit){const h=mxHist(naam);unit=(h[h.length-1]||{}).unit||null;}
+  const{error}=await db.from("company_metrics").insert({company_id:mxKlantBedrijf(),name:naam,unit:unit||null,created_by:ME.user.id});
+  if(error&&error.code!=="23505"){if(!stil)toast(error.message||"Mislukt");return false;} // 23505 = stond er al
+  await mxLaad();
+  if(!stil){toast("Deze metric staat nu bij al je klanten");mxDetailRender();if(document.getElementById("mx-groepen"))mxRender();}
+  return true;
+}
+async function mxEigenUit(){
+  const e=mxEigenVan(mxDetailNaam);if(!e)return;
+  if(!confirm("Deze eigen metric uit de lijst van het bedrijf halen? De metingen blijven staan. De metric is daarna alleen nog te zien bij klanten die er een meting van hebben."))return;
+  const{error}=await db.from("company_metrics").delete().eq("id",e.id);
+  if(error){toast(error.message||"Mislukt");return;}
+  await mxLaad();toast("Uit de lijst gehaald");mxDetailRender();if(document.getElementById("mx-groepen"))mxRender();
+}
+// Tijdens het typen in "Meting toevoegen": bij een onbekende naam het vinkje tonen; bestaat de naam
+// al als eigen metric, dan zijn eenheid alvast kiezen.
+function mxNaamTyp(){
+  const naam=(document.getElementById("mx-naam").value||"").trim();
+  const e=mxEigenVan(naam),rij=document.getElementById("mx-eigenrij");
+  if(rij)rij.style.display=(naam&&!e&&!mxStandaardNaam(naam))?"flex":"none";
+  // Eenheid die bij deze naam hoort: laatste meting van deze klant, anders die van de eigen metric, anders kg bij een lift.
+  const sel=document.getElementById("mx-unit"),sn=mxStandaardNaam(naam);
+  const laatste=mxData.filter(m=>mxNorm(m.metric)===mxNorm(naam)).slice(-1)[0];
+  const wil=(laatste&&laatste.unit)||(e&&e.unit)||(sn&&mxType(sn)==="kg"?"kg":null);
+  if(wil&&sel&&[...sel.options].some(o=>o.value===wil))sel.value=wil;
+}
 function ensureMxModal(){
   if(document.getElementById("mxmodal"))return;
   const alle=Object.values(METRICS_DEF).flat();
   const d=document.createElement("div");
   d.innerHTML='<div class="lmodal" id="mxmodal"><div class="box"><h3>Meting toevoegen</h3>'+
-    '<div class="field"><label>Metric</label><input id="mx-naam" list="mxlijst" placeholder="Bijv. Deadlift"><datalist id="mxlijst">'+alle.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist></div>'+
+    '<div class="field"><label>Metric</label><input id="mx-naam" list="mxlijst" placeholder="Bijv. Deadlift" oninput="mxNaamTyp()"><datalist id="mxlijst">'+alle.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist></div>'+
     '<div class="field"><label>Waarde (alleen een getal, bijv. 141 of 13.45)</label><input id="mx-waarde" inputmode="decimal"></div>'+
-    '<div class="field"><label>Eenheid</label><select id="mx-unit"><option>kg</option><option>reps</option><option>sec</option><option>min</option><option>cal</option><option>%</option><option>m</option></select></div>'+
+    '<div class="field"><label>Eenheid</label><select id="mx-unit">'+MX_EENHEDEN.map(u=>'<option>'+esc(u)+'</option>').join("")+'</select></div>'+
     '<div class="field"><label>Datum</label><input id="mx-datum" type="date"></div>'+
+    '<label id="mx-eigenrij" style="display:none;gap:8px;align-items:center;font-size:13px;color:#3a4150;margin:0 0 14px;cursor:pointer"><input type="checkbox" id="mx-eigen" checked style="width:auto;margin:0"> <span>Eigen metric: ook bij al je andere klanten tonen</span></label>'+
     '<div style="display:flex;gap:8px"><button class="btn" onclick="mxOpslaan()">Opslaan</button><button class="btn ghost" onclick="document.getElementById(\'mxmodal\').classList.remove(\'show\')">Annuleren</button></div>'+
     '<div class="msg" id="mx-msg"></div></div></div>';
   document.body.appendChild(d.firstChild);
@@ -516,11 +566,16 @@ function openMxModal(naam){
   document.getElementById("mx-waarde").value="";
   document.getElementById("mx-datum").value=todayStr();
   document.getElementById("mx-msg").textContent="";
+  // Keuzelijst met de standaardnamen plus de eigen metrics van het bedrijf.
+  const dl=document.getElementById("mxlijst");if(dl)dl.innerHTML=Object.values(METRICS_DEF).flat().concat(mxEigen.map(e=>e.name)).map(n=>'<option value="'+esc(n)+'">').join("");
+  document.getElementById("mx-eigen").checked=true;mxNaamTyp();
   document.getElementById("mxmodal").classList.add("show");
   document.getElementById(naam?"mx-waarde":"mx-naam").focus();
 }
 async function mxOpslaan(){
-  const naam=document.getElementById("mx-naam").value.trim();
+  let naam=document.getElementById("mx-naam").value.trim();
+  // Zelfde naam met andere hoofdletters is dezelfde metric (geen dubbelen).
+  naam=mxStandaardNaam(naam)||(mxEigenVan(naam)||{}).name||(mxData.find(m=>mxNorm(m.metric)===mxNorm(naam))||{}).metric||naam;
   const ruw=document.getElementById("mx-waarde").value.trim().replace(",",".");
   const waarde=parseFloat(ruw);
   const msg=document.getElementById("mx-msg");
@@ -529,7 +584,10 @@ async function mxOpslaan(){
   const{error}=await db.from("metrics").insert({athlete_id:calClient,company_id:ME.profile.company_id,metric:naam,value:waarde,unit:document.getElementById("mx-unit").value,measured_at:document.getElementById("mx-datum").value||todayStr(),created_by:ME.user.id});
   if(error){msg.textContent=error.message||"Opslaan mislukt";return;}
   document.getElementById("mxmodal").classList.remove("show");
-  toast("Meting opgeslagen");
+  // Onbekende naam met het vinkje aan: op de lijst van het bedrijf, zodat hij bij alle klanten staat.
+  let erbij=false;const vink=document.getElementById("mx-eigen");
+  if(!mxStandaardNaam(naam)&&!mxEigenVan(naam)&&vink&&vink.checked)erbij=await mxEigenAan(naam,document.getElementById("mx-unit").value,true);
+  toast(erbij?"Meting opgeslagen; deze eigen metric staat nu bij al je klanten":"Meting opgeslagen");
   await mxLaad();
   mxRender();
   if(activePanel==="metrics")metricsRender();
