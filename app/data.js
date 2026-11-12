@@ -897,7 +897,8 @@ function wdWorkouts(h){
           (st.maxSkill===3?'<span class="wd-tag skill">elite-skill</span>':'')+'</div>'+
         '<div style="margin-top:10px;display:flex;gap:14px;align-items:center">'+
           (w.bron_url?'<a class="sm" href="'+esc(w.bron_url)+'" target="_blank" rel="noopener" style="color:var(--accent)">Bron / rulebook ↗</a>':'')+
-          '<button class="btn ghost sm" style="color:var(--bad);margin-left:auto" onclick="wdVerwijder(\''+w.id+'\')">Verwijderen</button></div>'+
+          '<button class="btn ghost sm" style="margin-left:auto" title="Zet deze workout op het klembord. Kies daarna Plakken op een dag bij een klant, in de blog of in een programma." onclick="wdKopieer(\''+w.id+'\')"><svg class="i"><use href="#i-copy"/></svg> Kopiëren</button>'+
+          '<button class="btn ghost sm" style="color:var(--bad)" onclick="wdVerwijder(\''+w.id+'\')">Verwijderen</button></div>'+
       '</div>';}).join(""):'<div class="cempty">Geen workouts in deze selectie.</div>');
 }
 async function wdVerwijder(id){
@@ -906,6 +907,17 @@ async function wdVerwijder(id){
   if(error){toast(error.message||"Verwijderen mislukt");return;}
   WD.wods=WD.wods.filter(w=>w.id!==id);
   wdRenderView();
+}
+// Kopiëren (feedback coach, 12 nov 2026): de wedstrijdworkout gaat als één blok op
+// het sessie-klembord, in dezelfde vorm als Invoegen in de kalender. Plakken in de
+// klantkalender, de blog-kalender en de programma-editor zet hem daarna neer.
+async function wdKopieer(id){
+  const c=(WD.wods||[]).find(w=>String(w.id)===String(id));if(!c)return;
+  try{if(typeof liftsLaad==="function")await liftsLaad();}catch(e){}
+  const o=compItemVanRij(c,false);
+  const blokken=blokkenMetLabels(itemBlokken(o),"A",1).map(b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",oefening_id:null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+  klembordZet([{date:null,title:o.naam,coach_notes:null,warmup:null,cooldown:null,warmup_oefening_id:null,cooldown_oefening_id:null,warmup_media:null,cooldown_media:null,blocks:blokken}]);
+  toast("Workout gekopieerd, ga naar een dag in een kalender of programma en kies Plakken");
 }
 
 // ---------- Invoer + bulk-import ----------

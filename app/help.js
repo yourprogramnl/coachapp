@@ -107,7 +107,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"De officiële omschrijvingen van de bekende workouts: alle CrossFit Open-onderdelen vanaf 2011, de Quarterfinals, de Girls en de Hero-workouts. Filter op categorie, jaar, format of divisie. Handig als je een benchmark wilt herhalen en de tekst exact goed wilt hebben."},
       {titel:"Programma's van meerdere weken",
        img:"img/help/bibliotheek-04-programmas.png",
-       tekst:"Een programma is een blok van meerdere weken dat je een keer bouwt en daarna aan klanten toewijst. Klik op een programma om de weken te vullen; elke week heeft zeven dagen en per dag bouw je de workout zoals bij een klant. Met Programma toewijzen kies je een klant en een startdatum, en dan worden de workouts op zijn kalender gezet. Via Beheer toewijzingen zie je wie het programma volgt en kun je het vanaf vandaag terugdraaien. Staat er een slotje bij een programma, dan mag je het wel bekijken maar niet aanpassen: dat programma is van een collega. Een beheerder kan je er rechten op geven."},
+       tekst:"Een programma is een blok van meerdere weken dat je een keer bouwt en daarna aan klanten toewijst. Klik op een programma om de weken te vullen; elke week heeft zeven dagen en per dag bouw je de workout zoals bij een klant. Op een dag kun je ook een template of wedstrijdworkout invoegen, of een gekopieerde workout plakken. Met Programma toewijzen kies je een klant en een startdatum, en dan worden de workouts op zijn kalender gezet. Via Beheer toewijzingen zie je wie het programma volgt en kun je het vanaf vandaag terugdraaien. Staat er een slotje bij een programma, dan mag je het wel bekijken maar niet aanpassen: dat programma is van een collega. Een beheerder kan je er rechten op geven."},
     ],
   },
   {
@@ -167,7 +167,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"Hier houd je de testresultaten van je atleten bij: liften, benchmarks en lichaamsgewicht. Met de knoppen kies je het hele team, één atleet, een vergelijking tussen atleten of de ranglijst. Een atleet die je aan een klant koppelt, pakt zijn 1RM's automatisch uit zijn dossier."},
       {titel:"Wedstrijden",
        img:"img/help/data-02-wedstrijden.png",
-       tekst:"Bijna duizend workouts van de Benelux-wedstrijden, van Amsterdam Throwdown tot Marbella. Bovenin schakel je tussen het overzicht, de losse workouts en zelf invoeren. Met de filters kies je wedstrijd, jaar, kwalificatie of finale, divisie en structuur. Het overzicht laat zien wat er echt getest wordt: welke bewegingen, welke tijdsdomeinen en hoe zwaar. Zo weet je wat je moet programmeren voor een atleet die meedoet."},
+       tekst:"Bijna duizend workouts van de Benelux-wedstrijden, van Amsterdam Throwdown tot Marbella. Bovenin schakel je tussen het overzicht, de losse workouts en zelf invoeren. Met de filters kies je wedstrijd, jaar, kwalificatie of finale, divisie en structuur. Het overzicht laat zien wat er echt getest wordt: welke bewegingen, welke tijdsdomeinen en hoe zwaar. Zo weet je wat je moet programmeren voor een atleet die meedoet. Met Kopiëren bij een workout zet je hem op het klembord; kies daarna Plakken op een dag bij een klant, in de blog of in een programma."},
       {titel:"CrossFit Open",
        img:"img/help/data-03-open.png",
        tekst:"De volledige omschrijving van elk Open-onderdeel vanaf 2011, met de top-tien scores van de wereld erbij. Kies het jaar en mannen of vrouwen. De Analyse-knop rekent over alle jaren heen uit welke bewegingen en formats het vaakst terugkomen."},

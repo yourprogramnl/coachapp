@@ -750,6 +750,8 @@ function progDayMenu(ev,week,day){
   const d=document.createElement("div");d.className="daymenu";
   d.innerHTML='<button onclick="event.stopPropagation();progOpenBuilder('+week+','+day+',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
     '<button onclick="event.stopPropagation();progRustdag('+week+','+day+')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>'+
+    '<button title="Template of weekworkout invoegen" onclick="event.stopPropagation();progPickInsert('+week+','+day+')"><svg class="i"><use href="#i-doc"/></svg> Invoegen</button>'+
+    '<button title="Gekopieerde workout plakken" onclick="event.stopPropagation();progPlak('+week+','+day+')"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>'+
     (typeof blokMenuKnopHtml==="function"?blokMenuKnopHtml("progPickBlok("+week+","+day+")"):"");
   cell.prepend(d);
 }
@@ -761,6 +763,51 @@ async function progRustdag(week,day){
   if(error){toast(error.message||"Mislukt");return;}
   await progReloadWorkouts();
   progSyncNa([{week,day}]);
+}
+// Invoegen en Plakken in het dag-menu (feedback coach, 12 nov 2026): zelfde
+// invoegvenster en zelfde klembord als de klantkalender, maar het landt in het
+// programma. insInvoegen/insWeekwod in klant-scherm.js kennen het doel "progcel".
+let progInsDag=null;
+async function progPickInsert(week,day){
+  if(!progMagOfMeld())return;
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  if(!(await progAutoSave()))return; // open bouwer eerst netjes opslaan
+  insDoel="progcel";progInsDag={week,day};
+  await openInsModal("in week "+week+" op dag "+((week-1)*7+day));
+}
+// Blokken in de vorm van blocks -> rijen voor program_blocks (die kent geen source_blog_workout_id).
+function progBlokRijen(pwid,blokken){
+  return (blokken||[]).map((b,i)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind||"exercise",label:b.label||String.fromCharCode(65+Math.min(i,25)),linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort||i+1,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+}
+// Eén workout met blokken in het programma zetten; true = gelukt.
+async function progZetWorkout(week,day,velden,blokken){
+  const{data:w,error}=await db.from("program_workouts").insert(Object.assign({program_id:PROG.id,company_id:ME.profile.company_id,week,day},velden)).select().single();
+  if(error){toast(error.message||"Mislukt");return false;}
+  if(blokken&&blokken.length){const{error:be}=await db.from("program_blocks").insert(progBlokRijen(w.id,blokken));if(be){toast(be.message||"Mislukt");return false;}}
+  return true;
+}
+async function progPlak(week,day){
+  if(!progMagOfMeld())return;
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  const kb=klembordLees();
+  if(!kb||!kb.length){toast("Klembord is leeg. Kopieer eerst een workout (bij een klant, in de blog of bij Data › Wedstrijden).");return;}
+  if(!(await progAutoSave()))return;
+  // Onderlinge dag-afstand behouden, zoals in de kalender. Wat voorbij de laatste week valt, slaan we over.
+  const base=kb.map(t=>t.date).filter(Boolean).sort()[0]||null;
+  const start=(week-1)*7+day,max=Math.max(1,PROG.weeks||1)*7;
+  let gezet=0,over=0;const dagen=[];
+  for(const t of kb){
+    const n=start+((t.date&&base)?dagenTussen(t.date,base):0);
+    if(n<1||n>max){over++;continue;}
+    const wk=Math.floor((n-1)/7)+1,dg=((n-1)%7)+1;
+    if(!(await progZetWorkout(wk,dg,{title:t.title||null,coach_notes:t.coach_notes||null,warmup:t.warmup||null,cooldown:t.cooldown||null},t.blocks||[])))break;
+    gezet++;dagen.push({week:wk,day:dg});
+  }
+  if(gezet&&over)toast(gezet+" geplakt, "+over+" buiten de weken van dit programma");
+  else if(gezet)toast(gezet>1?gezet+" workouts geplakt":"Workout geplakt");
+  else if(over)toast("Past niet: de kopie valt buiten de weken van dit programma");
+  await progReloadWorkouts();
+  if(dagen.length)progSyncNa(dagen); // gekoppelde klanten krijgen de wijziging, zoals na Opslaan
 }
 // Workout-kaart in exact dezelfde stijl als in de klant-kalender (mcard/cblk + blokkleuren).
 function progCard(w){

@@ -1627,7 +1627,7 @@ async function pickRest(ev){
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
 function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
-  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
+  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
   if(!wos.length){toast("Geen workout op deze dag om te kopiëren");return;}
@@ -1766,6 +1766,11 @@ async function insInvoegen(id){
     if(be){toast(be.message);return;}
     closeIns();toast("Template ingevoegd");await blogHerlaad();return;
   }
+  if(insDoel==="progcel"){ // invoegen op een dag in de programma-editor (bibliotheek.js)
+    await liftsLaad();
+    if(!(await progZetWorkout(progInsDag.week,progInsDag.day,{title:o.naam},blokkenMetLabels(itemBlokken(o),"A",1))))return;
+    closeIns();toast("Template ingevoegd");await progReloadWorkouts();progSyncNa([progInsDag]);return;
+  }
   const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:curDay,title:o.naam}).select().single();
   if(error){toast(error.message||"Invoegen mislukt");return;}
   await liftsLaad();
@@ -1777,6 +1782,10 @@ async function insWeekwod(id){
   if(String(insDoel||"").indexOf("veld:")===0){toast("Een weekworkout past niet in dit vak; voeg hem toe als blok via + Programma.");return;}
   const w=insBlog.find(x=>x.id===id);if(!w)return;
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  if(insDoel==="progcel"){ // in een programma: gewone kopie, een programma kent de koppeling met het gedeelde leaderboard niet
+    if(!(await progZetWorkout(progInsDag.week,progInsDag.day,{title:w.title||null,warmup:w.warmup||null,cooldown:w.cooldown||null},blocks)))return;
+    closeIns();toast("Weekworkout als gewone workout in het programma gezet (zonder gedeeld leaderboard)");await progReloadWorkouts();progSyncNa([progInsDag]);return;
+  }
   if(insDoel==="bouwer"){
     const txt=blocks.map(b=>{const pr=composePresc(b);return (b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n"+pr:"");}).join("\n\n");
     const wwMedia=blocks.flatMap(b=>b.media||[]);

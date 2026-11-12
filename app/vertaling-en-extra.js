@@ -828,5 +828,13 @@ i18nLaad({
   "Inklappen": "Collapse",
   "Toon per oefening de tekst, de lift, het schema en de video's": "Show the text, lift, scheme and videos per exercise",
   "Toon deze oefeningen weer als één blokje": "Show these exercises as one block again",
-  "{n} oefeningen op één kaart; de sporter logt per oefening.": "{n} exercises on one card; the athlete logs per exercise."
+  "{n} oefeningen op één kaart; de sporter logt per oefening.": "{n} exercises on one card; the athlete logs per exercise.",
+  // Feedbackronde 6 punt 3 (12 nov 2026): wedstrijdworkout kopiëren, Invoegen/Plakken in de programma-editor
+  "Zet deze workout op het klembord. Kies daarna Plakken op een dag bij een klant, in de blog of in een programma.": "Put this workout on the clipboard. Then choose Paste on a day for a client, in the blog or in a program.",
+  "Workout gekopieerd, ga naar een dag in een kalender of programma en kies Plakken": "Workout copied, go to a day in a calendar or program and choose Paste",
+  "Klembord is leeg. Kopieer eerst een workout (bij een klant, in de blog of bij Data › Wedstrijden).": "Clipboard is empty. Copy a workout first (from a client, in the blog or under Data › Competitions).",
+  "in week {n} op dag {n}": "in week {n} on day {n}",
+  "{n} geplakt, {n} buiten de weken van dit programma": "{n} pasted, {n} outside the weeks of this program",
+  "Past niet: de kopie valt buiten de weken van dit programma": "Does not fit: the copy falls outside the weeks of this program",
+  "Weekworkout als gewone workout in het programma gezet (zonder gedeeld leaderboard)": "Weekly workout placed in the program as a regular workout (without shared leaderboard)"
 });
