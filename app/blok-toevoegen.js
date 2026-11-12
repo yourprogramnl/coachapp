@@ -1,19 +1,27 @@
-// app/blok-toevoegen.js — "Blok toevoegen" in het dag-menu van de klantkalender
-// (verzoek Stefan 6 nov 2026, naar het voorbeeld van Strivee). Eén venster met:
-// datum, soort blok (Eigen workout / Barbell-set / Benchmark), score, titel,
-// omschrijving met slimme berekening (% van de 1RM van de sporter), coachingtips,
-// media (demo-video's: voorstellen uit de tekst met + en ✕, zelf zoeken; zelfde
-// chips als bij de warming-up, app/demo-videos.js) en de blokkleur.
+// app/blok-toevoegen.js — "Blok toevoegen": één blok in één venster (verzoek Stefan
+// 6 nov 2026, naar het voorbeeld van Strivee). Het venster heeft: datum, soort blok
+// (Eigen workout / Barbell-set / Benchmark), score, titel, omschrijving met slimme
+// berekening (% van de 1RM van de sporter), coachingtips, media (demo-video's:
+// voorstellen uit de tekst met + en ✕, zelf zoeken; zelfde chips als bij de
+// warming-up, app/demo-videos.js) en de blokkleur.
 //
-// Opslaan zet het blok onder de workout van die dag; is de dag leeg (of alleen
-// een rustdag), dan komt er een nieuwe workout met deze titel en dit als blok A.
-// Staat de bouwer open op die dag, dan komt het blok onderaan in de bouwer.
+// Waar het venster opent (BLK.ctx), sinds 12 nov 2026 op vier plekken:
+//   klant  — dag-menu van de klantkalender (datum te kiezen)
+//   blog   — dag-menu van een blogprogramma (datum te kiezen)
+//   prog   — dag-menu van de programma-editor in de bibliotheek (week + dag)
+//   bouwer — knop "+ Blok toevoegen" in een open bouwer (alle drie de bouwers):
+//            het blok komt onderaan in die sessie en gaat mee bij het opslaan
+//
+// Opslaan vanuit een dag-menu zet het blok onder de workout van die dag; is de dag
+// leeg (of alleen een rustdag), dan komt er een nieuwe workout met deze titel en dit
+// als blok A. Staat de bouwer open op die dag, dan komt het blok onderaan in de bouwer.
 // Het blok is een gewoon blocks-rijtje (kind exercise, zoals bij Invoegen):
 // titel = exercise, omschrijving = prescription, coachingtips = notes (de app
 // toont notes onder de omschrijving), media = media, kleur = color.
 
-let BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:null};
+let BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:null,ctx:"klant",week:null,day:null};
 const BLK_KLEUREN=["","red","orange","yellow","green","blue","purple"];
+const BLK_PLUS='<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 
 function ensureBlokModal(){
   if(document.getElementById("blokmodal"))return;
@@ -44,15 +52,41 @@ function ensureBlokModal(){
   document.body.appendChild(d.firstChild);
 }
 
-// Vanuit het dag-menu (klantkalender).
+// ---------- Waar het venster opent ----------
+// Dag-menu van de klantkalender.
 function pickBlok(ev){ev.stopPropagation();openBlokModal(curDay);}
+// Dag-menu van een blogprogramma (Blog-sectie).
+function blogPickBlok(datum){document.querySelectorAll(".daymenu").forEach(x=>x.remove());openBlokModal(datum,{ctx:"blog"});}
+// Dag-menu van de programma-editor (Bibliotheek › Programma's): week + dag in plaats van een datum.
+function progPickBlok(week,day){
+  if(typeof progMagOfMeld==="function"&&!progMagOfMeld())return;
+  document.querySelectorAll(".daymenu").forEach(x=>x.remove());
+  openBlokModal(null,{ctx:"prog",week,day});
+}
+// Knop in een open bouwer (klantkalender, blogprogramma of programma-editor):
+// het blok komt onderaan in die sessie.
+function openBlokBouwer(){
+  if(!document.getElementById("exrows")){toast("Open eerst een workout in de bouwer");return;}
+  openBlokModal(null,{ctx:"bouwer"});
+}
+// De knoppen zelf, zodat de drie bouwers en de dag-menu's dezelfde tekst en stijl delen.
+// De bouwer-knop staat op een eigen rij boven + Oefening / + Conditioning, zodat die rij blijft zoals hij was.
+function blokKnopHtml(){return '<div class="addbtns blokrij"><button class="blokknop" title="Eén blok in één venster: titel, omschrijving, score, coachingtips, video\'s en kleur. Komt onderaan in deze sessie." onclick="openBlokBouwer()">+ Blok toevoegen</button></div>';}
+function blokMenuKnopHtml(actie){return '<button class="breed" title="Eén blok toevoegen op deze dag (zoals in Strivee)" onclick="event.stopPropagation();'+actie+'">'+BLK_PLUS+' Blok toevoegen</button>';}
 
-function openBlokModal(ds){
-  if(!calClient){toast("Open eerst een klant");return;}
+function openBlokModal(ds,opts){
+  const ctx=(opts&&opts.ctx)||"klant";
+  if(ctx==="klant"&&!calClient){toast("Open eerst een klant");return;}
+  if(ctx==="blog"&&!(typeof BLOG!=="undefined"&&BLOG.cur)){toast("Open eerst een blogprogramma");return;}
+  if(ctx==="prog"&&!(typeof PROG!=="undefined"&&PROG)){toast("Open eerst een programma");return;}
   ensureBlokModal();
-  BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:ds||todayStr()};
+  BLK={soort:"custom",kleur:"",lift:"",liftAuto:true,bench:null,datum:ds||todayStr(),ctx,week:(opts&&opts.week)||null,day:(opts&&opts.day)||null};
   const g=id=>document.getElementById(id);
-  g("blk-datum").value=BLK.datum;blkDatumLabel();
+  // Kop: een datumkiezer (klant, blog) of een vaste regel (programma: week en dag; bouwer: de open sessie).
+  const metDatum=ctx==="klant"||ctx==="blog";
+  g("blk-datum").style.display=metDatum?"":"none";
+  if(metDatum){g("blk-datum").value=BLK.datum;blkDatumLabel();}
+  else g("blk-datumlbl").textContent=ctx==="prog"?"Week "+BLK.week+" · dag "+((BLK.week-1)*7+BLK.day):"Komt onderaan in de open sessie";
   ["blk-titel","blk-omschr","blk-tips","blk-cap","blk-benchzoek"].forEach(id=>{g(id).value="";});
   g("blk-score").value="text";g("blk-capst").value="reps";blkScoreWissel();
   document.querySelectorAll("#blk-soort button").forEach((b,i)=>b.classList.toggle("on",i===0));
@@ -146,19 +180,28 @@ function blkLiftAuto(){
     blkCijfers();
   });
 }
+// Voor welke klant tonen we cijfers? Alleen in de klantkalender (dag-menu of de
+// bouwer daar); een blogprogramma of programma-template heeft geen ene sporter.
+function blkKlantId(){
+  if(typeof calClient==="undefined"||!calClient)return null;
+  if(BLK.ctx==="klant")return calClient;
+  if(BLK.ctx==="bouwer"&&document.querySelector("#calwrap #exrows"))return calClient;
+  return null;
+}
 // Cijfers van de sporter onder de omschrijving: 1RM, beste set, vorige keer en
 // de kilo's bij een percentage (zelfde regel als in de bouwer, app/klant-scherm.js).
 function blkCijfers(){
   const box=document.getElementById("blk-cijfers");if(!box)return;
-  const liftId=BLK.lift;
-  if(!liftId||!calClient||typeof klLaad!=="function"){box.style.display="none";box.innerHTML="";return;}
+  const liftId=BLK.lift,klant=blkKlantId();
+  if(!liftId||!klant||typeof klLaad!=="function"){box.style.display="none";box.innerHTML="";return;}
   box.style.display="";
-  if(!(KL.client===calClient&&KL.geladen))box.innerHTML='<span class="muted">Cijfers laden…</span>';
-  klLaad(calClient).then(()=>{
+  if(!(KL.client===klant&&KL.geladen))box.innerHTML='<span class="muted">Cijfers laden…</span>';
+  klLaad(klant).then(()=>{
     const m=document.getElementById("blokmodal");
     if(BLK.lift!==liftId||!m||!m.classList.contains("show"))return;
     const s=schemaLees((document.getElementById("blk-omschr")||{}).value||"");
-    box.innerHTML=cijfersHtml(liftId,s,BLK.datum);
+    const dag=BLK.ctx==="bouwer"?(typeof editDay!=="undefined"?editDay:null):BLK.datum;
+    box.innerHTML=cijfersHtml(liftId,s,dag);
   });
 }
 
@@ -302,15 +345,95 @@ async function blkKlaar(metBieb,titel,omschr,media,melding){
 }
 
 // ---------- Opslaan ----------
-// metBieb = via "+ In bibliotheek": zelfde opslag, daarna ook een template.
+const blkIsRust=w=>/^rest ?day$/i.test((w.title||"").trim());
+// Volgende letter en volgorde achter de bestaande blokken van een workout.
+function blkVolgende(blokken){
+  blokken=blokken||[];
+  return {label:String.fromCharCode(65+Math.min(blokken.length,25)),sort:blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1};
+}
+// Staat de bouwer open op de plek waar dit blok heen moet? Dan gaat het blok
+// daarin (en mee met het opslaan van die sessie), niet rechtstreeks de database in.
+function blkBouwerOpen(ctx,ds){
+  if(!document.getElementById("exrows"))return false;
+  if(ctx==="bouwer")return true;
+  if(ctx==="klant"){
+    const bd=editDay||(editWid&&monthWorkouts[editWid]?monthWorkouts[editWid].workout_date:null);
+    return bd===ds&&!!document.querySelector("#calwrap #exrows");
+  }
+  if(ctx==="blog")return typeof BLOG!=="undefined"&&BLOG.editDay===ds;
+  if(ctx==="prog")return typeof progEditDay!=="undefined"&&!!progEditDay&&progEditDay.week===BLK.week&&progEditDay.day===BLK.day;
+  return false;
+}
+function blkInBouwer(blok,titel){
+  const rows=document.getElementById("exrows");
+  // Een verse bouwer begint met één lege rij: die maakt plaats voor het blok.
+  [...rows.querySelectorAll(".exrow")].forEach(r=>{
+    const naam=((r.querySelector(".exn")||{}).value||"").trim();
+    const tekst=((r.querySelector(".f-presc,.f-desc")||{}).value||"").trim();
+    if(!naam&&!tekst&&!r.dataset.bid&&!r.dataset.media&&!r.dataset.oefid)r.remove();
+  });
+  rows.insertAdjacentHTML("beforeend",exRow(blok));relabel();groei();bouwerDirty=true;
+  // Een sessie zonder titel krijgt de naam van het blok (zoals een nieuwe workout via het dag-menu).
+  const t=document.getElementById("w_title");if(t&&!t.value.trim())t.value=titel;
+  const alle=rows.querySelectorAll(".exrow"),nieuw=alle[alle.length-1];
+  if(nieuw&&nieuw.scrollIntoView)nieuw.scrollIntoView({block:"nearest",behavior:"smooth"});
+  if(typeof exNotesInject==="function")exNotesInject();
+}
+// Blogprogramma: zelfde regels als de klantkalender, maar de workout hoort bij het programma.
+async function blkOpslaanBlog(ds,blok,titel,klaar){
+  // Een open bouwer op een ándere dag verdwijnt als de kalender herlaadt: eerst die afronden.
+  if(BLOG.editDay&&document.getElementById("exrows"))throw new Error("Er staat nog een sessie open in de bouwer. Sla die eerst op of annuleer, daarna kan dit blok erbij.");
+  const{data:dagWos,error:de}=await db.from("workouts").select("id,title,created_at,blocks(id,sort)").eq("audience","blog").eq("blog_program_id",BLOG.cur.id).eq("workout_date",ds).order("created_at");
+  if(de)throw de;
+  const dag=(dagWos||[]).filter(w=>!blkIsRust(w));
+  if(dag.length){
+    const w=dag[dag.length-1],n=blkVolgende(w.blocks);
+    const{error}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:n.label,sort:n.sort},blok));
+    if(error)throw error;
+    await klaar('Blok '+n.label+' "'+titel+'" onder "'+(w.title||"workout")+'" gezet');
+  }else{
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:ds,title:titel}).select().single();
+    if(error)throw error;
+    const{error:be}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:"A",sort:1},blok));
+    if(be)throw be;
+    await klaar('"'+titel+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');
+  }
+  await blogHerlaad();
+}
+// Programma-editor: program_workouts / program_blocks op week + dag.
+async function blkOpslaanProg(blok,titel,klaar){
+  const week=BLK.week,day=BLK.day;
+  // Een open bouwer op een andere dag eerst stil opslaan (zelfde afspraak als Rustdag daar).
+  if(!(await progAutoSave()))throw new Error("De open sessie kon niet worden opgeslagen. Los dat eerst op, daarna kan dit blok erbij.");
+  // program_blocks kent geen source_blog_workout_id; verder dezelfde velden als de programma-bouwer.
+  const pb=(pwid,label,sort)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:blok.kind,label,linked:false,exercise:blok.exercise,prescription:blok.prescription,notes:blok.notes,sort,color:blok.color,score_type:blok.score_type,timecap_seconds:blok.timecap_seconds,cap_score_type:blok.cap_score_type,oefening_id:null,media:blok.media,lift_id:blok.lift_id,lift_scheme:blok.lift_scheme,group_title:null});
+  const dag=(PROG.workouts||[]).filter(w=>w.week===week&&w.day===day&&!blkIsRust(w)).sort((a,b)=>(a.sort||0)-(b.sort||0));
+  if(dag.length){
+    const w=dag[dag.length-1],n=blkVolgende(w.program_blocks);
+    const{error}=await db.from("program_blocks").insert(pb(w.id,n.label,n.sort));
+    if(error)throw error;
+    await klaar('Blok '+n.label+' "'+titel+'" onder "'+(w.title||"workout")+'" gezet');
+  }else{
+    const{data:w,error}=await db.from("program_workouts").insert({program_id:PROG.id,company_id:ME.profile.company_id,week,day,title:titel}).select().single();
+    if(error)throw error;
+    const{error:be}=await db.from("program_blocks").insert(pb(w.id,"A",1));
+    if(be)throw be;
+    await klaar('"'+titel+'" als nieuwe workout in week '+week+' op dag '+((week-1)*7+day)+' gezet');
+  }
+  await progReloadWorkouts();
+  progSyncNa([{week,day}]); // gekoppelde klanten krijgen de wijziging, zoals na Opslaan in de editor
+}
+// metBieb = via "Opslaan + in bibliotheek": zelfde opslag, daarna ook een template.
 async function blokOpslaan(metBieb){
   const g=id=>document.getElementById(id),msg=g("blk-msg");
   const fout=t=>{msg.textContent=t;msg.className="msg err";g("blk-save").disabled=false;g("blk-biebknop").disabled=false;};
   const titel=g("blk-titel").value.trim();
   if(!titel){fout("Geef het blok een titel.");g("blk-titel").focus();return;}
-  const ds=g("blk-datum").value;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(ds||"")){fout("Kies een datum.");return;}
-  if(!calClient){fout("Open eerst een klant.");return;}
+  const ctx=BLK.ctx,metDatum=ctx==="klant"||ctx==="blog";
+  const ds=metDatum?g("blk-datum").value:null;
+  if(metDatum&&!/^\d{4}-\d{2}-\d{2}$/.test(ds||"")){fout("Kies een datum.");return;}
+  if(ctx==="klant"&&!calClient){fout("Open eerst een klant.");return;}
+  if(ctx==="prog"&&typeof progMagOfMeld==="function"&&!progMagOfMeld()){fout("Alleen kijken: je hebt geen rechten op dit programma. Vraag een beheerder.");return;}
   // Alleen voor "Opslaan + in bibliotheek": zonder thema geen template (en dus ook geen opslag).
   if(metBieb&&!g("blk-biebthema").value){fout("Kies eerst een thema voor de bibliotheek (de keuzelijst naast de knop).");g("blk-biebthema").focus();return;}
   const omschr=g("blk-omschr").value.trim()||null;
@@ -329,32 +452,32 @@ async function blokOpslaan(metBieb){
     if(BLK.soort==="barbell"&&!BLK.lift&&!BLK.liftAuto)lift_scheme=Object.assign(lift_scheme||{},{geen_lift:true});
   }
   const blok={kind:"exercise",linked:false,exercise:titel,prescription:omschr,notes:tips,color:BLK.kleur||null,score_type,timecap_seconds,cap_score_type,oefening_id:null,source_blog_workout_id:null,media:media.length?media:null,lift_id:lift?lift.id:null,lift_scheme:lift_scheme||null,group_title:null};
+  const klaar=melding=>blkKlaar(metBieb,titel,omschr,media,melding);
   try{
-    // 1. Bouwer open op deze dag? Dan onderaan in de bouwer (opslaan met "Workout opslaan").
-    const bouwerDag=editDay||(editWid&&monthWorkouts[editWid]?monthWorkouts[editWid].workout_date:null);
-    const rows=document.getElementById("exrows");
-    if(bouwerDag===ds&&rows){
-      rows.insertAdjacentHTML("beforeend",exRow(blok));relabel();groei();bouwerDirty=true;
-      await blkKlaar(metBieb,titel,omschr,media,'"'+titel+'" onderaan in de bouwer gezet; sla de workout op als je klaar bent');return;
+    // 1. Bouwer open op deze plek? Dan onderaan in de bouwer (opslaan met de knop van de sessie).
+    if(blkBouwerOpen(ctx,ds)){
+      blkInBouwer(blok,titel);
+      await klaar('"'+titel+'" onderaan in de bouwer gezet; sla de workout op als je klaar bent');return;
     }
-    // 2. Staat er al een workout op die dag (geen rustdag)? Dan eronder als volgend blok.
+    if(ctx==="bouwer")throw new Error("De bouwer is intussen gesloten. Open de sessie opnieuw en probeer het nog eens.");
+    if(ctx==="blog"){await blkOpslaanBlog(ds,blok,titel,klaar);return;}
+    if(ctx==="prog"){await blkOpslaanProg(blok,titel,klaar);return;}
+    // 2. Klantkalender: staat er al een workout op die dag (geen rustdag)? Dan eronder als volgend blok.
     // Vers uit de database, want de gekozen dag kan buiten de geladen kalender vallen.
     const{data:dagWos,error:de}=await db.from("workouts").select("id,title,created_at,blocks(id,sort)").eq("client_id",calClient).eq("workout_date",ds).order("created_at");
     if(de)throw de;
-    const dag=(dagWos||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+    const dag=(dagWos||[]).filter(w=>!blkIsRust(w));
     if(dag.length){
-      const w=dag[dag.length-1],blokken=w.blocks||[];
-      const sort=blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1;
-      const label=String.fromCharCode(65+Math.min(blokken.length,25));
-      const{error}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label,sort},blok));
+      const w=dag[dag.length-1],n=blkVolgende(w.blocks);
+      const{error}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:n.label,sort:n.sort},blok));
       if(error)throw error;
-      await blkKlaar(metBieb,titel,omschr,media,'Blok '+label+' "'+titel+'" onder "'+(w.title||"workout")+'" gezet');renderMonth();return;
+      await klaar('Blok '+n.label+' "'+titel+'" onder "'+(w.title||"workout")+'" gezet');renderMonth();return;
     }
     // 3. Lege dag (of alleen een rustdag): nieuwe workout met deze titel en dit als blok A.
     const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:ds,title:titel}).select().single();
     if(error)throw error;
     const{error:be}=await db.from("blocks").insert(Object.assign({workout_id:w.id,label:"A",sort:1},blok));
     if(be)throw be;
-    await blkKlaar(metBieb,titel,omschr,media,'"'+titel+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');renderMonth();
+    await klaar('"'+titel+'" als nieuwe workout op '+ds.slice(8,10)+"-"+ds.slice(5,7)+' gezet');renderMonth();
   }catch(e){fout(e.message||"Opslaan mislukt.");}
 }

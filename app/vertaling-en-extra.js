@@ -735,6 +735,15 @@ i18nRegel(/^Uit (Apple Health|Health Connect)( · gekoppeld sinds (.+))?\. Laats
 // Blok toevoegen in het dag-menu van de klantkalender (6 nov 2026, naar Strivee-voorbeeld)
 i18nLaad({
   "Blok toevoegen": "Add block",
+  "+ Blok toevoegen": "+ Add block",
+  "Eén blok in één venster: titel, omschrijving, score, coachingtips, video's en kleur. Komt onderaan in deze sessie.": "One block in a single window: title, description, scoring, coaching tips, videos and color. Goes at the bottom of this session.",
+  "Komt onderaan in de open sessie": "Goes at the bottom of the open session",
+  "Week {n} · dag {n}": "Week {n} · day {n}",
+  "Open eerst een blogprogramma": "Open a blog program first",
+  "Open eerst een programma": "Open a program first",
+  "Er staat nog een sessie open in de bouwer. Sla die eerst op of annuleer, daarna kan dit blok erbij.": "A session is still open in the builder. Save or cancel it first, then this block can be added.",
+  "De bouwer is intussen gesloten. Open de sessie opnieuw en probeer het nog eens.": "The builder was closed in the meantime. Open the session again and try once more.",
+  "De open sessie kon niet worden opgeslagen. Los dat eerst op, daarna kan dit blok erbij.": "The open session could not be saved. Fix that first, then this block can be added.",
   "Eén blok toevoegen op deze dag (zoals in Strivee)": "Add one block on this day (like in Strivee)",
   "Op welke dag komt dit blok?": "Which day does this block go on?",
   "Soort blok": "Type of block",
@@ -810,5 +819,6 @@ i18nRegel(/^"(.+)" overgenomen; pas gerust aan$/, '"$1" copied over; adjust as y
 i18nRegel(/^"(.+)" onderaan in de bouwer gezet; sla de workout op als je klaar bent$/, '"$1" added at the bottom of the builder; save the workout when you are done');
 i18nRegel(/^Blok ([A-Z]\d?) "(.+)" onder "(.+)" gezet$/, 'Block $1 "$2" added under "$3"');
 i18nRegel(/^"(.+)" als nieuwe workout op (\d\d-\d\d) gezet$/, '"$1" added as a new workout on $2');
+i18nRegel(/^"(.+)" als nieuwe workout in week (\d+) op dag (\d+) gezet$/, '"$1" added as a new workout in week $2 on day $3');
 i18nRegel(/^(\d+) demo-video('s)? toegevoegd$/, "$1 demo video(s) added");
 i18nRegel(/^Nog (\d+) meer; typ om te verfijnen\.$/, "$1 more; type to narrow down.");

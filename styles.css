@@ -1545,6 +1545,10 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 
 /* Blok toevoegen in het dag-menu (6 nov 2026, naar Strivee-voorbeeld; app/blok-toevoegen.js) */
 .daymenu button.breed{grid-column:1/-1;flex-direction:row;padding:10px 6px}
+/* Zelfde venster vanuit een open bouwer (12 nov 2026): eigen rij boven + Oefening / + Conditioning, zodat hij opvalt */
+.ib2 .addbtns.blokrij{margin-bottom:6px}
+.ib2 .addbtns .blokknop{color:var(--accent);border-color:#cfd5dc}
+.ib2 .addbtns .blokknop:hover{border-color:var(--accent)}
 .lmodal .box.blk-box{width:640px;max-width:94vw;padding:22px 24px 18px}
 .blk-kop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .blk-datum{display:flex;align-items:center;gap:10px}

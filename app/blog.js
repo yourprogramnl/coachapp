@@ -526,7 +526,7 @@ function blogSelBar(){
     '<button class="ic" title="Klaarzetten om te plakken" onclick="blogSelKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button class="ic" title="Verwijderen" onclick="blogSelVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
 }
-// Dag-menu met dezelfde vier opties als de klant-kalender.
+// Dag-menu met dezelfde opties als de klant-kalender (Blok toevoegen sinds 12 nov 2026: app/blok-toevoegen.js).
 let insBlogDatum=null;
 function blogDayMenu(ev,datum){
   ev.stopPropagation();
@@ -536,7 +536,8 @@ function blogDayMenu(ev,datum){
   d.innerHTML='<button title="Workout toevoegen" onclick="event.stopPropagation();blogOpenBuilder(\''+datum+'\',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
     '<button title="Dag op rustdag zetten" onclick="event.stopPropagation();blogRustdag(\''+datum+'\')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>'+
     '<button title="Template of weekworkout invoegen" onclick="event.stopPropagation();blogPickProgram(\''+datum+'\')"><svg class="i"><use href="#i-doc"/></svg> Invoegen</button>'+
-    '<button title="Gekopieerde workout plakken" onclick="event.stopPropagation();blogPlak(\''+datum+'\')"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>';
+    '<button title="Gekopieerde workout plakken" onclick="event.stopPropagation();blogPlak(\''+datum+'\')"><svg class="i"><use href="#i-copy"/></svg> Plakken</button>'+
+    (typeof blokMenuKnopHtml==="function"?blokMenuKnopHtml("blogPickBlok('"+datum+"')"):"");
   const addrow=cell.querySelector(".addrow2");
   if(addrow)addrow.insertAdjacentElement("afterend",d);else cell.prepend(d);
 }
@@ -583,7 +584,7 @@ function blogBuilderHtml(w){
   return '<div class="sec">'+avbOogHtml()+'<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+cwMediaHtml("warmup",w.warmup_oefening_id,w.warmup_media)+
     '</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    (typeof blokKnopHtml==="function"?blokKnopHtml():"")+'<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+cwMediaHtml("cooldown",w.cooldown_oefening_id,w.cooldown_media)+'</div>'+
     '<div class="foot"><button class="save" onclick="blogSaveWorkout()">Opslaan</button><button class="cancel" onclick="blogCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="blogDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
 }

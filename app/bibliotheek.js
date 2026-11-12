@@ -749,7 +749,8 @@ function progDayMenu(ev,week,day){
   const cell=ev.target.closest(".pe-cell");if(!cell)return;
   const d=document.createElement("div");d.className="daymenu";
   d.innerHTML='<button onclick="event.stopPropagation();progOpenBuilder('+week+','+day+',null)"><svg class="i"><use href="#i-link"/></svg> Workout</button>'+
-    '<button onclick="event.stopPropagation();progRustdag('+week+','+day+')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>';
+    '<button onclick="event.stopPropagation();progRustdag('+week+','+day+')"><svg class="i"><use href="#i-walk"/></svg> Rustdag</button>'+
+    (typeof blokMenuKnopHtml==="function"?blokMenuKnopHtml("progPickBlok("+week+","+day+")"):"");
   cell.prepend(d);
 }
 async function progRustdag(week,day){
@@ -793,7 +794,7 @@ function progBuilderHtml(w){
   return '<div class="sec">'+(typeof avbOogHtml==="function"?avbOogHtml():"")+'<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
       '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("warmup"):"")+'</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    '<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof blokKlembordSoort==="function"&&blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    (typeof blokKnopHtml==="function"?blokKnopHtml():"")+'<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof blokKlembordSoort==="function"&&blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+
       '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("cooldown"):"")+'</div>'+
     '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
