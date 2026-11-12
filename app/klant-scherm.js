@@ -64,7 +64,7 @@ function renderClient(panel){
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
 async function vulKlantStats(p){
   const[wq,rq,ciq,cq]=await Promise.all([
-    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id),
+    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id).neq("status","draft"),
     db.from("results").select("workout_id,status").eq("athlete_id",p.id),
     db.from("client_info").select("data").eq("athlete_id",p.id).limit(1),
     // naam van de coach voor de kalender-kop, meteen in dezelfde ronde
@@ -1008,6 +1008,32 @@ async function conceptenGoedkeuren(){
   if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
   toast("Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
 }
+// Een workout waarop het lid al iets logde kan niet meer op concept (die zou voor het lid verdwijnen).
+function conceptHeeftLog(w){return (w.blocks||[]).some(b=>monthResults[b.id]);}
+async function conceptZet(wid){
+  const w=monthWorkouts[wid];if(!w)return;
+  if(conceptHeeftLog(w)){toast("Dit lid heeft hier al iets gelogd, deze workout kan niet meer op concept");return;}
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:"draft"}).eq("id",wid);
+  if(error){toast(t("Op concept zetten mislukt")+": "+error.message);return;}
+  toast("Op concept gezet, de sporter ziet deze workout niet meer");renderMonth();
+}
+function selConceptKnoppen(){
+  const ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean);
+  if(!ws.length||ws.some(w=>!w.client_id))return "";
+  return (ws.some(w=>w.status!=="draft")?'<button class="lnk" onclick="selConcept(true)">Op concept</button>':'')+(ws.some(w=>w.status==="draft")?'<button class="lnk" onclick="selConcept(false)">Goedkeuren</button>':'');
+}
+async function selConcept(naarConcept){
+  let ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean).filter(w=>naarConcept?w.status!=="draft":w.status==="draft");
+  let overgeslagen=0;
+  if(naarConcept){const n=ws.length;ws=ws.filter(w=>!conceptHeeftLog(w));overgeslagen=n-ws.length;}
+  if(!ws.length){toast(overgeslagen?"Op deze workouts is al gelogd, die kunnen niet op concept":"Niets te wijzigen");return;}
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:naarConcept?"draft":"published"}).in("id",ws.map(w=>w.id));
+  if(error){toast(t("Wijzigen mislukt")+": "+error.message);return;}
+  selClear();
+  toast(naarConcept?(overgeslagen?"Op concept gezet; workouts met een log zijn overgeslagen":"Op concept gezet, de sporter ziet ze niet meer"):"Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
+}
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
 function cardTools(w){
   // Op vandaag of een dag die al is geweest laat het potloodje de coach scores invoeren voor de klant
@@ -1025,7 +1051,7 @@ function cardTools(w){
     '<button title="Voorbeeld: zo ziet de sporter het in de app" onclick="event.stopPropagation();appVoorbeeldVanKaart(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-eye"/></svg></button>'+
     '<button title="'+(scoreDag?'Scores invoeren':'Bewerken')+'" onclick="event.stopPropagation();'+(scoreDag?'openResults(\''+w.id+'\')':'editWorkout(\''+w.id+'\',0)')+'"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
-    '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    (w.status!=="draft"&&w.client_id?'<button title="Op concept zetten: verbergen voor de sporter tot je goedkeurt" onclick="event.stopPropagation();conceptZet(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-doc"/></svg></button>':'')+'<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button title="Verwijderen" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
     '</span>';
 }
@@ -1056,7 +1082,7 @@ function selBarUpdate(){
   if(!selWids.size){if(bar)bar.remove();return;}
   if(!bar){bar=document.createElement("div");bar.id="selbar";document.body.appendChild(bar);}
   bar.innerHTML='<span class="n">'+selWids.size+'</span><span>geselecteerd</span><button class="lnk" onclick="selClear()">Selectie wissen</button>'+
-    '<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    selConceptKnoppen()+'<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button class="ic" title="Verwijderen" onclick="selVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
 }
 // Volgorde van workouts binnen één dag wisselen (pijltjes op de kaart).
@@ -1646,7 +1672,7 @@ async function pickRest(ev){
   toast("Dag ingesteld als rustdag");renderMonth();
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
-function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
+function wTemplate(w){return {date:w.workout_date,status:w.status==="draft"?"draft":"published",title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
   blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
@@ -1673,7 +1699,7 @@ async function pickPaste(ev){
   for(const t of kb){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const datum=off?ymdPlus(curDay,off):curDay;
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null,status:t.status==="draft"?"draft":"published"}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }

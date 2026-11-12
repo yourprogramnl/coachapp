@@ -48,7 +48,7 @@ async function fillKlanten(){
   const[tq,wq,mq,pq,cq,iq]=await Promise.all([
     ME.profile.company_id?db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name"):leeg,
     // Resultaten meteen mee-ophalen bij de workouts: één aanroep, en geen lange lijst workout-id's in de link
-    ids.length?db.from("workouts").select("id,client_id,workout_date,title,results(workout_id,status)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date"):leeg,
+    ids.length?db.from("workouts").select("id,client_id,workout_date,title,results(workout_id,status)").in("client_id",ids).neq("status","draft").gte("workout_date",from90).lte("workout_date",plus14).order("workout_date"):leeg,
     ids.length?db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
     ids.length?db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids):leeg,
     ids.length?db.from("consults").select("athlete_id,consult_date").in("athlete_id",ids):leeg,
@@ -60,7 +60,7 @@ async function fillKlanten(){
   let ws=[],rs=[];
   if(wq.error&&ids.length){
     // Terugvalroute: workouts en resultaten los ophalen (zoals vroeger).
-    ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
+    ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).neq("status","draft").gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
   }else{
@@ -529,7 +529,7 @@ async function fillCoaches(){
   const td=todayStr(),from30=ymd(addDays(new Date(),-29));
   let ws=[],rs=[],msgs=[],cons=[];
   if(ids.length){
-    ws=((await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).gte("workout_date",from30).lte("workout_date",td)).data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+    ws=((await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).neq("status","draft").gte("workout_date",from30).lte("workout_date",td)).data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
     const wids=ws.map(w=>w.id);
     if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
     msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];

@@ -151,7 +151,7 @@ async function expLaad(id,van,tot,sel){
   taken.push(db.rpc("company_coaches").then(r=>{D.staf={};(r.data||[]).forEach(c=>{D.staf[c.id]=[c.first_name,c.last_name].filter(Boolean).join(" ");});}).catch(()=>{D.staf={};}));
   if(sel.workouts){
     taken.push((async()=>{
-      const{data:ws,error}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).gte("workout_date",van).lte("workout_date",tot).order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
+      const{data:ws,error}=await db.from("workouts").select("*, blocks(*)").eq("client_id",id).neq("status","draft").gte("workout_date",van).lte("workout_date",tot).order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
       if(error)throw error;
       D.workouts=ws||[];
       D.results={};D.media={};D.comments={};D.dagnoten={};

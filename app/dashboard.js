@@ -23,7 +23,7 @@ async function fillDashboard(){
   // reacties en inspanning komen apart, alleen voor de kaarten die de feed echt
   // toont (dashLaadDetail).
   const[wq,mq,cq,tq,pq,taq,sq,bq]=await Promise.all([
-    heeft?db.from("workouts").select("id,client_id,workout_date,title, results(status)").in("client_id",ids).gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
+    heeft?db.from("workouts").select("id,client_id,workout_date,title, results(status)").in("client_id",ids).neq("status","draft").gte("workout_date",from90).lte("workout_date",td).order("workout_date",{ascending:false}):leeg,
     heeft?db.from("messages").select("athlete_id,created_at").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
     // Check-ins-tab in de feed: de vastgelegde consults (klant-scherm > Check-ins & consults)
     heeft?db.from("consults").select("*").in("athlete_id",ids).order("consult_date",{ascending:false}).limit(40):leeg,
