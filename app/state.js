@@ -45,7 +45,39 @@ function resultScoreVol(r,st){return r&&r.score_text?r.score_text:resultScoreTxt
 // Rondetijden uit de timer van de app (results.splits: seconden per ronde, sinds 4 nov 2026)
 // als "2:35 · 2:02 · 2:10"; leeg als de sporter de timer niet gebruikte.
 function resultSplitsTxt(r){if(!r||!Array.isArray(r.splits)||!r.splits.length)return"";return r.splits.map(s=>{s=Math.max(0,Math.round(Number(s)||0));return Math.floor(s/60)+":"+pad(s%60);}).join(" · ");}
-function resultSplitsHtml(r,cls){const t=resultSplitsTxt(r);return t?'<div class="'+(cls||"pr2")+'" style="color:#8a919c" title="Rondetijden uit de timer van de app">⏱ Rondetijden: '+esc(t)+'</div>':"";}
+// Samenvatting uit de timer van de app (results.timer + splits, sinds 15 nov 2026): welke timer,
+// snelste en langzaamste ronde, het verloop, tijd over na de laatste ronde, eerder gestopt en de
+// pauzes. De sporter ziet dit op het eindscherm van de timer; de coach hier, als tweede regel onder
+// de rondetijden. Leeg als de sporter de timer niet gebruikte. De tekst wordt hier zelf in de
+// gekozen taal gemaakt (te veel losse delen voor het woordenboek).
+const TIMER_NAMEN={fortime:"For Time",amrap:"AMRAP",emom:"EMOM",tabata:"Tabata",interval:"Interval"};
+function timerMmss(s){s=Math.max(0,Math.round(Number(s)||0));return Math.floor(s/60)+":"+pad(s%60);}
+function resultTimerTxt(r){
+  if(!r)return"";
+  const tm=r.timer&&typeof r.timer==="object"&&!Array.isArray(r.timer)?r.timer:null;
+  const sp=Array.isArray(r.splits)?r.splits.map(x=>Math.max(0,Math.round(Number(x)||0))):[];
+  if(!tm&&sp.length<2)return"";
+  const en=typeof LANG!=="undefined"&&LANG==="en",d=[];
+  if(tm&&TIMER_NAMEN[tm.type])d.push(TIMER_NAMEN[tm.type]);
+  if(sp.length>=2){
+    let snel=0,traag=0;sp.forEach((x,i)=>{if(x<sp[snel])snel=i;if(x>sp[traag])traag=i;});
+    d.push((en?"fastest round ":"snelste ronde ")+timerMmss(sp[snel])+" ("+(en?"round ":"ronde ")+(snel+1)+")");
+    d.push((en?"slowest ":"langzaamste ")+timerMmss(sp[traag])+" ("+(en?"round ":"ronde ")+(traag+1)+")");
+    if(sp[0]>0){const pct=Math.round((sp[sp.length-1]-sp[0])/sp[0]*100);d.push((en?"last vs first ":"laatste t.o.v. eerste ")+(pct>0?"+":pct<0?"−":"")+Math.abs(pct)+"%");}
+  }
+  if(tm){
+    if(tm.over!=null)d.push(timerMmss(tm.over)+(en?" left after the last round":" over na de laatste ronde"));
+    if(tm.vroeg&&tm.sec!=null)d.push((en?"stopped early after ":"eerder gestopt na ")+timerMmss(tm.sec));
+    const p=Math.max(0,Math.round(Number(tm.pauzes)||0));
+    d.push(p>0?p+"× "+(en?"paused":"gepauzeerd")+" ("+timerMmss(tm.pauze_sec)+")":(en?"no pauses":"zonder pauze"));
+  }
+  return d.join(" · ");
+}
+function resultSplitsHtml(r,cls){
+  const t=resultSplitsTxt(r),s=resultTimerTxt(r),open='<div class="'+(cls||"pr2")+'" style="color:#8a919c" title="';
+  return (t?open+'Rondetijden uit de timer van de app">⏱ Rondetijden: '+esc(t)+'</div>':"")+
+         (s?open+'Samenvatting uit de timer van de app">⏱ Timer: '+esc(s)+'</div>':"");
+}
 const KLEUREN=[["","geen kleur"],["grijs","grijs"],["roze","roze"],["oranje","oranje"],["geel","geel"],["blauw","blauw"],["groen","groen"]];
 const SCORETYPES=[["text","vrije tekst"],["time","tijd"],["load","gewicht"],["reps","reps"],["rounds_reps","rondes+reps"],["calories","calorieën"],["meters","meters"],["km","kilometers"],["cm","centimeters"],["watt","watt"],["rpm","rpm"],["bpm","bpm"],["spm","spm"],["none","geen score"]];
 // Getal-scoretypes (naar Strivee, 6 nov 2026): één getal in results.score_value; de eenheid volgt uit het type. Hoger = beter.

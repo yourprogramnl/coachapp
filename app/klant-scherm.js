@@ -1297,7 +1297,7 @@ async function histZoek(){
   // Wat het lid erbij logde (score, gemist, notitie) — dat wil je als coach juist zien.
   const bids=oef.map(o=>o.blockId).filter(Boolean);
   if(bids.length){
-    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,score_value,rx,note,splits").eq("athlete_id",calClient).in("block_id",bids);
+    const{data:rres}=await db.from("results").select("block_id,status,score_text,time_seconds,load_kg,reps,rounds,score_value,rx,note,splits,timer").eq("athlete_id",calClient).in("block_id",bids);
     const perBlok={};(rres||[]).forEach(r=>{perBlok[r.block_id]=r;});
     oef.forEach(o=>{o.result=perBlok[o.blockId]||null;});
   }

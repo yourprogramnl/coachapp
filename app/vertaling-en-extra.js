@@ -4,6 +4,9 @@
 i18nLaad({
   "App-meldingen verschijnen direct in het dashboard én als pushmelding op je telefoon in de YourProgram-app (vanaf de build van oktober 2026). E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.": "App notifications appear directly in the dashboard and as a push notification on your phone in the YourProgram app (from the October 2026 build). Email works for comments on a workout day; the other emails will follow soon.",
   // Feedbackronde 5, ronde C (20 okt 2026): bijlagen en emoji's bij dagreacties
+  // Timer van de app (15 nov 2026)
+  "Rondetijden uit de timer van de app": "Round times from the timer in the app",
+  "Samenvatting uit de timer van de app": "Summary from the timer in the app",
   "Jouw reactie weghalen": "Remove your reaction",
   "Ook zo reageren": "React the same way",
   "Weghalen mislukt": "Removing failed",
@@ -168,6 +171,9 @@ i18nLaad({
 if (typeof i18nRegel === "function") {
   i18nRegel(/^(Warming-up|Cooldown) gekopieerd\. Open een andere workout of een programma \(ook bij een andere klant of in een ander tabblad\) en klik daar op "Plak gekopieerde (warming-up|cooldown)"\.$/, (m, a, b) => (a === "Warming-up" ? "Warm-up" : "Cool-down") + " copied. Open another workout or a program (also for another client or in another tab) and click \"Paste copied " + (b === "warming-up" ? "warm-up" : "cool-down") + "\" there.");
   i18nRegel(/^💬 Reacties \((\d+)\)$/, "💬 Comments ($1)");
+  // Timer van de app (15 nov 2026): rondetijden onder een score. De samenvatting ("⏱ Timer: …")
+  // maakt state.js zelf in de gekozen taal.
+  i18nRegel(/^⏱ Rondetijden: (.+)$/, "⏱ Round times: $1");
   i18nRegel(/^(\d+) uploads? · klik om te bekijken$/, (m, n) => n + (n === "1" ? " upload" : " uploads") + " · click to view");
 }
 // Samengestelde regels (worden na het woordenboek geprobeerd)
