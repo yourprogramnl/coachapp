@@ -6,7 +6,7 @@ let calClient=null,calRef=new Date(),activePanel="kalender",editDay=null,editWid
 let coachList=[],coachFilterId=null;
 // Scores invoeren door de coach (vandaag of een dag die al is geweest): welke workout staat open.
 let resWid=null;
-const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["gezondheid","i-chart","Gezondheid",true],["data","i-chart","Data",false],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["bieb","i-book","Bibliotheek",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
+const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["gezondheid","i-chart","Gezondheid",true],["data","i-chart","Data",false],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["bieb","i-book","Bibliotheek",false],["weekcheck","i-check","Weekcheck",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 async function openClient(id,opts){
   opts=opts||{};
   if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return;
@@ -36,7 +36,7 @@ function renderClient(panel){
   const p=coachClients.find(x=>x.id===calClient);if(!p)return renderCoach("clients");
   const lidType=p.membership_type==="one_on_one"?"1-op-1 klant":(p.membership_type==="free_blog"?"Blog-lid":"Lid");
   const side=SIDE.map(s=>{
-    const acties={assessment:"openAssess()",metrics:"openMx()",gezondheid:"openGezondheid()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",coachrx:"openCoachRx()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()",bieb:"openBiebVenster()"};
+    const acties={assessment:"openAssess()",metrics:"openMx()",gezondheid:"openGezondheid()",doelen:"openGoals()",notities:"openNotes()",schema:"openSchema()",prioriteiten:"openPrio()",materiaal:"openEquip()",coachrx:"openCoachRx()",berichten:"openChatPop()",planning:"openPlan()",checkins:"openCheckin()",sneltoetsen:"openKeys()",bieb:"openBiebVenster()",weekcheck:"openWeekcheckVenster()"};
     const actie=acties[s[0]]||("renderClient('"+s[0]+"')");
     const later=acties[s[0]]?false:s[3];
     return '<button class="'+(s[0]===panel?'on':'')+'" data-tip="'+esc(s[2])+'"'+(s[0]==="sneltoetsen"?' style="margin-top:14px"':'')+' onclick="'+actie+'"><svg class="i"><use href="#'+s[1]+'"/></svg> '+s[2]+(later?'<span class="soon">later</span>':'')+'</button>';
@@ -1327,6 +1327,8 @@ function biebKanaal(){
   biebKanaalObj.onmessage=async(ev)=>{
     const m=ev.data||{};
     if(m.type==="vraag"){biebDoelZend();return;}
+    // Het Weekcheck-venster vraagt om een klant (of zijn chat) hier te openen.
+    if(m.type==="open"&&m.id){try{window.focus();}catch(e){}await openClient(m.id);if(m.chat&&typeof openChatPop==="function")openChatPop();return;}
     // In het bibliotheek-venster is iets toegevoegd of bewerkt: de bibliotheek hier
     // (invoegvenster, oefeningen-zoeker in de bouwer) opnieuw ophalen als hij al geladen was.
     if(m.type==="lib"){
@@ -1360,7 +1362,7 @@ function biebDoelZend(){
   const k=biebKanaal();if(!k||!calClient)return;
   const p=(coachClients||[]).find(x=>x.id===calClient);
   const ds=biebDoelHuidig();
-  k.postMessage({type:"doel",van:BIEB_ID,klant:p?[p.first_name,p.last_name].filter(Boolean).join(" "):"",dag:ds,dagLabel:ds?biebDagLabel(ds):"",bouwer:!!(editDay||editWid)});
+  k.postMessage({type:"doel",van:BIEB_ID,klantId:calClient,klant:p?[p.first_name,p.last_name].filter(Boolean).join(" "):"",dag:ds,dagLabel:ds?biebDagLabel(ds):"",bouwer:!!(editDay||editWid)});
 }
 // ---------- GESCHIEDENIS-ZOeker (History-knop): wat deed dit lid eerder? ----------
 let histTabF="oef",histTimer=null,histData={oef:[],wo:[],mx:[]};

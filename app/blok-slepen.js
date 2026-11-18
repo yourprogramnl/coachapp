@@ -28,35 +28,41 @@ let bsMerk=null;  // element dat nu als doel gemarkeerd is
 const bsRust=w=>/^rest ?day$/i.test(((w&&w.title)||"").trim());
 const bsSort=bl=>(bl||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
 
+// Per plek: hoe vind je een workout, hoe maak je er een, en hoe teken je opnieuw.
+// "teken" tekent uit het geheugen (geen database-oproep, dus direct); "herlaad"
+// haalt alles opnieuw op en is alleen het vangnet als opslaan mislukt.
 const BS_CTX={
   klant:{
     tabel:"blocks",fk:"workout_id",scores:true,
     workout:id=>monthWorkouts[id]||null,
     blokken:w=>bsSort(w.blocks),
+    zetBlokken:(w,l)=>{w.blocks=l;},
     mag:()=>true,
     bouwerOp:wid=>!!editWid&&editWid===wid,
-    bouwerOpen:()=>false, // de klantbouwer blijft staan bij verversen; alleen bron/doel telt
+    bouwerOpen:()=>false, // de klantbouwer blijft staan bij opnieuw tekenen; alleen bron/doel telt
     gelogd:b=>!!monthResults[b.id],
     dag:w=>w.workout_date,
     opDag:d=>Object.values(monthWorkouts).filter(w=>w.workout_date===d&&!bsRust(w)).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))),
     nieuw:async(d,titel)=>{
       if(!calClient)throw new Error("Open eerst een klant");
       const{data,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:d,title:titel}).select().single();
-      if(error)throw error;return data.id;
+      if(error)throw error;
+      data.blocks=[];monthWorkouts[data.id]=data;(monthByDate[d]=monthByDate[d]||[]).push(data);
+      return data;
     },
     // Een leeggesleepte workout ruimen we alleen op als er echt niets meer aan hangt.
-    leegWeg:async w=>{
-      if(w.warmup||w.cooldown||w.coach_notes)return;
-      if(w.workout_date<todayStr())return; // het verleden laten we staan
-      if((monthComments||[]).some(c=>c.workout_id===w.id)||monthEffort[w.id])return;
-      await db.from("workouts").delete().eq("id",w.id);
-    },
-    na:async()=>{await renderMonth();},
+    magLeegWeg:w=>!(w.warmup||w.cooldown||w.coach_notes)&&w.workout_date>=todayStr()&&!(monthComments||[]).some(c=>c.workout_id===w.id)&&!monthEffort[w.id],
+    lokaalWeg:w=>{delete monthWorkouts[w.id];if(monthByDate[w.workout_date])monthByDate[w.workout_date]=monthByDate[w.workout_date].filter(x=>x.id!==w.id);},
+    wis:w=>db.from("workouts").delete().eq("id",w.id),
+    teken:()=>{renderMonth({skipFetch:true});},
+    klaar:()=>{},
+    herlaad:async()=>{await renderMonth();},
   },
   blog:{
     tabel:"blocks",fk:"workout_id",scores:true,
     workout:id=>(BLOG.workouts||[]).find(w=>w.id===id)||null,
     blokken:w=>bsSort(w.blocks),
+    zetBlokken:(w,l)=>{w.blocks=l;},
     mag:()=>true,
     bouwerOp:()=>false,
     bouwerOpen:()=>!!BLOG.editDay,
@@ -65,19 +71,22 @@ const BS_CTX={
     opDag:d=>(BLOG.workouts||[]).filter(w=>w.workout_date===d&&!bsRust(w)).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))),
     nieuw:async(d,titel)=>{
       const{data,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:d,title:titel}).select().single();
-      if(error)throw error;return data.id;
+      if(error)throw error;
+      data.blocks=[];BLOG.workouts.push(data);
+      return data;
     },
-    leegWeg:async w=>{
-      if(w.warmup||w.cooldown||w.coach_notes)return;
-      if(w.workout_date<todayStr())return;
-      await db.from("workouts").delete().eq("id",w.id);
-    },
-    na:async()=>{await blogHerlaad();},
+    magLeegWeg:w=>!(w.warmup||w.cooldown||w.coach_notes)&&w.workout_date>=todayStr(),
+    lokaalWeg:w=>{BLOG.workouts=BLOG.workouts.filter(x=>x.id!==w.id);},
+    wis:w=>db.from("workouts").delete().eq("id",w.id),
+    teken:()=>{blogRender();},
+    klaar:()=>{},
+    herlaad:async()=>{await blogHerlaad();},
   },
   prog:{
     tabel:"program_blocks",fk:"program_workout_id",scores:false,
     workout:id=>((PROG&&PROG.workouts)||[]).find(w=>w.id===id)||null,
     blokken:w=>bsSort(w.program_blocks),
+    zetBlokken:(w,l)=>{w.program_blocks=l;},
     mag:()=>progMagOfMeld(),
     bouwerOp:()=>false,
     bouwerOpen:()=>!!progEditDay,
@@ -87,18 +96,17 @@ const BS_CTX={
     nieuw:async(d,titel)=>{
       const[wk,dg]=d.split(":").map(Number);
       const{data,error}=await db.from("program_workouts").insert({program_id:PROG.id,company_id:ME.profile.company_id,week:wk,day:dg,title:titel}).select().single();
-      if(error)throw error;return data.id;
+      if(error)throw error;
+      data.program_blocks=[];PROG.workouts.push(data);
+      return data;
     },
-    leegWeg:async w=>{
-      if(w.warmup||w.cooldown||w.coach_notes)return;
-      await db.from("program_workouts").delete().eq("id",w.id);
-    },
-    // Na het herladen ook doorzetten naar klanten die dit programma volgen (als dat aan staat).
-    na:async dagen=>{
-      await progReloadWorkouts();
-      const uniek=[...new Set(dagen)].map(d=>{const[wk,dg]=d.split(":").map(Number);return {week:wk,day:dg};});
-      progSyncNa(uniek);
-    },
+    magLeegWeg:w=>!(w.warmup||w.cooldown||w.coach_notes),
+    lokaalWeg:w=>{PROG.workouts=PROG.workouts.filter(x=>x.id!==w.id);},
+    wis:w=>db.from("program_workouts").delete().eq("id",w.id),
+    teken:()=>{progRender();},
+    // Na het opslaan ook doorzetten naar klanten die dit programma volgen (als dat aan staat).
+    klaar:dagen=>{progSyncNa([...new Set(dagen)].map(d=>{const[wk,dg]=d.split(":").map(Number);return {week:wk,day:dg};}));},
+    herlaad:async()=>{await progReloadWorkouts();},
   },
 };
 
@@ -172,13 +180,19 @@ function bsPlan(bron,doel,bid,refBid,pos,zelfde){
 }
 
 // ---------- Uitvoeren ----------
+// Eerst het scherm, dan de database: het blok staat meteen op zijn nieuwe plek
+// (getekend uit het geheugen) en het opslaan gebeurt erachteraan. Meerdere
+// verplaatsingen achter elkaar worden in volgorde opgeslagen (bsRij). Mislukt
+// het opslaan, dan wordt de kalender opnieuw opgehaald, zodat het scherm nooit
+// iets anders laat zien dan wat er echt staat.
+let bsRij=Promise.resolve();
 async function bsVerplaats(sleep,doel){
   const C=BS_CTX[sleep.ctx];if(!C)return;
   if(!C.mag())return;
   if(C.bouwerOpen()){toast("Sla eerst de open workout op (of sluit hem), daarna kun je blokken slepen");return;}
   const bronW=C.workout(sleep.wid);
   if(!bronW){toast("Workout niet gevonden; ververs de pagina");return;}
-  let doelWid=doel.wid||null,nieuwGemaakt=false;
+  let doelWid=doel.wid||null;
   if(!doelWid){
     const opDag=C.opDag(doel.dag);
     if(opDag.length)doelWid=opDag[opDag.length-1].id;
@@ -187,49 +201,67 @@ async function bsVerplaats(sleep,doel){
   if(zelfde&&doel.refBid==null&&!doel.wid)return; // losgelaten op de eigen dag, naast de kaart: niets doen
   if(C.bouwerOp(sleep.wid)||(doelWid&&C.bouwerOp(doelWid))){toast("Deze workout staat open in de bouwer. Sla hem eerst op, daarna kun je blokken slepen");return;}
   const bron=C.blokken(bronW);
-  const eenheid=bsEenheid(bron,sleep.bid);
-  if(!eenheid.length){toast("Blok niet gevonden; ververs de pagina");return;}
-  if(!zelfde&&C.scores&&eenheid.some(C.gelogd)){
+  if(!bsEenheid(bron,sleep.bid).length){toast("Blok niet gevonden; ververs de pagina");return;}
+  if(!zelfde&&C.scores&&bsEenheid(bron,sleep.bid).some(C.gelogd)){
     if(!confirm("Dit blok heeft al een gelogde score. Toch verplaatsen?\n\nDe score gaat mee naar de nieuwe plek."))return;
   }
-  try{
-    if(!doelWid){doelWid=await C.nieuw(doel.dag,bronW.title||"Training");nieuwGemaakt=true;}
-    const doelW=nieuwGemaakt?null:C.workout(doelWid);
-    if(!nieuwGemaakt&&!doelW){toast("Doel-workout niet gevonden; ververs de pagina");return;}
-    const plan=bsPlan(bron,nieuwGemaakt?[]:C.blokken(doelW),sleep.bid,doel.refBid==null?null:doel.refBid,doel.pos,zelfde);
-    if(!plan)return;
-    const oud={};bron.concat(doelW&&!zelfde?C.blokken(doelW):[]).forEach(b=>{oud[b.id]=b;});
-    const verhuisd=new Set(plan.eenheid.map(b=>String(b.id)));
-    const schrijf=async(lijst,wid)=>{
-      for(const r of bsNummer(lijst)){
-        const o=oud[r.id]||{};
-        const patch={};
-        if(!zelfde&&verhuisd.has(String(r.id)))patch[C.fk]=wid;
-        if((o.sort||0)!==r.sort)patch.sort=r.sort;
-        if((o.label||"")!==r.label)patch.label=r.label;
-        if(!!o.linked!==r.linked)patch.linked=r.linked;
-        if(!Object.keys(patch).length)continue;
-        const{error}=await db.from(C.tabel).update(patch).eq("id",r.id);
-        if(error)throw error;
-      }
-    };
-    await schrijf(plan.doelNa,doelWid);
-    if(plan.bronNa)await schrijf(plan.bronNa,sleep.wid);
-    // De scores en video's van het lid wijzen ook naar de workout: meeverhuizen.
-    if(!zelfde&&C.scores){
-      for(const id of verhuisd){
-        try{
-          await db.from("results").update({workout_id:doelWid}).eq("block_id",id);
-          await db.from("result_media").update({workout_id:doelWid}).eq("block_id",id);
-        }catch(e){}
-      }
-    }
-    if(plan.bronNa&&!plan.bronNa.length){try{await C.leegWeg(bronW);}catch(e){}}
-    toast(zelfde?"Blok verplaatst":(nieuwGemaakt?"Blok verplaatst naar een nieuwe workout":"Blok verplaatst naar \""+((doelW&&doelW.title)||"workout")+"\""));
-  }catch(e){
-    toast((e&&e.message)||"Verplaatsen mislukt");
+  let doelW=doelWid?C.workout(doelWid):null,nieuwGemaakt=false;
+  if(doelWid&&!doelW){toast("Doel-workout niet gevonden; ververs de pagina");return;}
+  if(!doelW){
+    // Lege dag: de nieuwe workout moet eerst bestaan (we hebben zijn id nodig).
+    try{doelW=await C.nieuw(doel.dag,bronW.title||"Training");}catch(e){toast((e&&e.message)||"Verplaatsen mislukt");return;}
+    doelWid=doelW.id;nieuwGemaakt=true;
   }
-  await C.na([C.dag(bronW),doel.dag||(C.workout(doelWid)?C.dag(C.workout(doelWid)):C.dag(bronW))].filter(Boolean));
+  const plan=bsPlan(bron,zelfde?bron:C.blokken(doelW),sleep.bid,doel.refBid==null?null:doel.refBid,doel.pos,zelfde);
+  if(!plan)return;
+  const dagen=[C.dag(bronW),C.dag(doelW)];
+  // Wat moet er per blok anders in de database, en hoe zien de lijsten er straks uit?
+  const oud={};bron.concat(zelfde?[]:C.blokken(doelW)).forEach(b=>{oud[b.id]=b;});
+  const verhuisd=new Set(plan.eenheid.map(b=>String(b.id)));
+  const patches=[];
+  const nieuweLijst=(lijst,wid)=>{
+    const num=bsNummer(lijst);
+    return lijst.map((b,i)=>{
+      const o=oud[b.id]||{},r=num[i],patch={};
+      if(!zelfde&&verhuisd.has(String(b.id)))patch[C.fk]=wid;
+      if((o.sort||0)!==r.sort)patch.sort=r.sort;
+      if((o.label||"")!==r.label)patch.label=r.label;
+      if(!!o.linked!==r.linked)patch.linked=r.linked;
+      if(Object.keys(patch).length)patches.push([b.id,patch]);
+      return Object.assign({},o,{sort:r.sort,label:r.label,linked:r.linked,[C.fk]:wid});
+    });
+  };
+  C.zetBlokken(doelW,nieuweLijst(plan.doelNa,doelWid));
+  let leegWeg=false;
+  if(plan.bronNa){
+    C.zetBlokken(bronW,nieuweLijst(plan.bronNa,sleep.wid));
+    leegWeg=!plan.bronNa.length&&C.magLeegWeg(bronW);
+    if(leegWeg)C.lokaalWeg(bronW);
+  }
+  C.teken();
+  toast(zelfde?"Blok verplaatst":(nieuwGemaakt?"Blok verplaatst naar een nieuwe workout":"Blok verplaatst naar \""+(doelW.title||"workout")+"\""));
+  // Opslaan, achter het scherm en in volgorde.
+  bsRij=bsRij.then(async()=>{
+    try{
+      await Promise.all(patches.map(async([id,patch])=>{const{error}=await db.from(C.tabel).update(patch).eq("id",id);if(error)throw error;}));
+      // De scores en video's van het lid wijzen ook naar de workout: meeverhuizen.
+      if(!zelfde&&C.scores){
+        await Promise.all([...verhuisd].map(async id=>{
+          try{
+            await db.from("results").update({workout_id:doelWid}).eq("block_id",id);
+            await db.from("result_media").update({workout_id:doelWid}).eq("block_id",id);
+          }catch(e){}
+        }));
+      }
+      // Pas als de blokken echt verhuisd zijn mag de lege workout weg (anders gaan ze mee weg).
+      if(leegWeg){const{error}=await C.wis(bronW);if(error)throw error;}
+      C.klaar(dagen);
+    }catch(e){
+      toast("Opslaan van de verplaatsing mislukte ("+((e&&e.message)||"onbekende fout")+"). De kalender is opnieuw geladen.",5000);
+      try{await C.herlaad();}catch(e2){}
+    }
+  });
+  return bsRij;
 }
 
 // ---------- Slepen afvangen (één keer, op het hele document) ----------
@@ -295,4 +327,5 @@ if(typeof i18nLaad==="function")i18nLaad({
   "Blok verplaatst naar een nieuwe workout":"Block moved to a new workout",
   "Blok verplaatst naar \"{naam}\"":"Block moved to \"{naam}\"",
   "Verplaatsen mislukt":"Move failed",
+  "Opslaan van de verplaatsing mislukte ({naam}). De kalender is opnieuw geladen.":"Saving the move failed ({naam}). The calendar has been reloaded.",
 });

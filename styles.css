@@ -1722,3 +1722,27 @@ body.biebvenster #cpage{max-width:none;margin:0;padding:0}
 .wc-ta{width:100%;margin-top:12px;font:inherit;font-size:13px}
 .wc-acties{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .wc-afgkop{margin:14px 0 8px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer}
+
+/* Weekcheck, ronde 2 (18 nov 2026): korte samenvatting, "Alles tonen" en het losse venster */
+.wc-punt{display:flex;gap:10px;align-items:baseline;padding:3px 0}
+.wc-tag{flex:none;min-width:118px;font-size:11px;font-weight:800;border-radius:6px;padding:2px 8px;text-align:center;background:#eef0f3;color:#5d6570}
+.wc-tag.niet,.wc-tag.signaal{background:rgba(229,72,77,.1);color:#d23c41}
+.wc-tag.wacht{background:#fff3d6;color:#9a6700}
+.wc-tag.record,.wc-tag.goed{background:#e3f6ec;color:#1c8a57}
+.wc-rest{margin-top:6px;color:#6b7280}
+.wc-meer{margin-top:8px}
+.wc-meer a{color:#2a9fce;font-weight:700;text-decoration:none}
+.wc-alles{margin-top:8px;padding-top:6px;border-top:1px solid #eceef1}
+.wc-vid{display:inline-block;margin-left:8px;padding:0 7px;border-radius:999px;background:#eef2f7;color:#4b5563;font-size:11px;font-weight:700;cursor:pointer}
+.wc-vid:hover{background:#dfe6ee}
+.wc-rij.wc-focus{box-shadow:inset 3px 0 0 #2a9fce;background:#f7fbfd}
+body.wcvenster #content{padding:18px 16px 60px;min-width:0}
+body.wcvenster .wrap,body.wcvenster .cwrap{min-width:0;max-width:none}
+
+/* Bouwer in een smalle dagkolom (feedback Stefan 18 nov): knopteksten braken af
+   ("+" boven "Conditioning") en de naam van een blok werd weggedrukt door de icoontjes. */
+.ib2 .addbtns{flex-wrap:wrap}
+.ib2 .addbtns button{flex:1 1 auto;white-space:nowrap;padding:8px 7px}
+.ib2 .exhead{flex-wrap:wrap}
+.ib2 .exhead .exn{flex:1 1 140px;min-width:140px}
+.ib2 .exrow.ss-dicht .exhead .exn{flex:1 1 90px;min-width:90px}
