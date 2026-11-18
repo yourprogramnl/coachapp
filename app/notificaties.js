@@ -441,9 +441,10 @@ async function fillNotifCentrum(){
   ncGen++;
   cp.innerHTML='<h1>Meldingen</h1>'+
     '<div class="ctabs" style="margin-bottom:14px"><button class="'+(ncTab==="week"?"on":"")+'" onclick="ncTabZet(\'week\')">Deze week per klant</button>'+
+    '<button class="'+(ncTab==="check"?"on":"")+'" onclick="ncTabZet(\'check\')">Weekcheck</button>'+
     '<button class="'+(ncTab==="notifs"?"on":"")+'" onclick="ncTabZet(\'notifs\')">Notificaties</button></div>'+
     '<div id="nc-body"><div class="spin">Laden…</div></div>';
-  if(ncTab==="week")await ncWeek();else await ncNotifs();
+  if(ncTab==="week")await ncWeek();else if(ncTab==="check")await wcVul();else await ncNotifs();
 }
 // Tab 1: wat speelt er deze week, per klant of voor iedereen tegelijk
 async function ncWeek(){

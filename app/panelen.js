@@ -854,9 +854,14 @@ async function openCheckin(){
     '<div class="sp-field"><label>Notitie (wat is er besproken?)</label><textarea id="consult-notes" placeholder="Bijv. voortgangsgesprek: doelen bijgesteld, blessure besproken"></textarea></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="sp-btn" style="width:auto;padding:9px 16px" id="consult-saveknop" onclick="consultOpslaan()">Opslaan</button><button class="sp-btn ghost" style="width:auto;padding:9px 16px" onclick="consultReset()">Annuleren</button></div>'+
     '<div class="sp-info">Alleen zichtbaar voor coaches. Nieuwste bovenaan.</div>'+
-    '<div id="consult-lijst"></div>';
+    '<div id="consult-lijst"></div>'+
+    // Afgevinkte weken uit de Weekcheck (app/weekcheck.js)
+    '<div class="sp-head" style="margin-top:18px"><h3>Weekchecks</h3></div>'+
+    '<div class="sp-info">Wat er per week is afgevinkt in de Weekcheck (Meldingen), met de notitie van de coach.</div>'+
+    '<div id="weekcheck-lijst"><div class="sm" style="color:#8b919b">Laden…</div></div>';
   document.getElementById("consult-datum").value=ymd(new Date());
   consultRender();
+  if(typeof wcDossierLaad==="function")wcDossierLaad();
 }
 function consultRender(){
   const host=document.getElementById("consult-lijst");if(!host)return;

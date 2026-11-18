@@ -1679,3 +1679,46 @@ body.biebvenster #cpage{max-width:none;margin:0;padding:0}
 .tagsel-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
 .tagsel .pn{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kopkiezers{display:flex;align-items:center;gap:10px;margin-left:auto}
+
+/* Weekcheck per trainingsdag (app/weekcheck.js, 18 nov 2026) */
+.wc-knoppen{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.wc-dagknop{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;color:#4b5563;cursor:pointer}
+.wc-dagknop span{font-weight:600;color:#8a919c;margin-left:4px}
+.wc-dagknop.vandaag{border-color:#6ec4e8}
+.wc-dagknop.klaar span{color:#27b376}
+.wc-dagknop.on{background:#17181b;border-color:#17181b;color:#fff}
+.wc-dagknop.on span{color:#c9cdd3}
+.wc-dagknop.zonder{border-color:rgba(229,72,77,.45);color:#d23c41}
+.wc-dagknop.zonder span{color:#d23c41}
+.wc-dagknop.zonder.on{background:#e5484d;border-color:#e5484d;color:#fff}
+.wc-dagknop.zonder.on span{color:#fff}
+.wc-balk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.wc-balk .sqbtn[disabled]{opacity:.35;cursor:default}
+.wc-rij{border-bottom:1px solid #f0f1f3}
+.wc-rij:last-child{border-bottom:none}
+.wc-kop{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.wc-kop:hover{background:#fafbfc}
+.wc-pijl{width:12px;color:#8a919c;font-size:12px;flex:none}
+.wc-naam{flex:1;min-width:0}
+.wc-rij.klaar .wc-naam b{color:#6b7280}
+.wc-sigchip{display:inline-block;margin-left:7px;padding:1px 8px;border-radius:999px;background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.4);color:#d23c41;font-size:11px;font-weight:700}
+.wc-sig{color:#c0392b}
+.wc-detail{padding:2px 14px 14px 46px;font-size:12.5px;line-height:1.5}
+.wc-dag{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;padding:6px 0;border-top:1px dashed #eceef1}
+.wc-dag:first-child{border-top:none}
+.wc-datum{color:#8a919c;font-weight:700}
+.wc-wo+.wc-wo{margin-top:8px}
+.wc-eff{color:#8a919c;font-size:11.5px;margin-left:6px}
+.wc-blok{margin-top:2px}
+.wc-lbl{color:#4b5563;margin-right:8px}
+.wc-score{font-weight:700}
+.wc-ok{color:#27b376;font-weight:700}
+.wc-mis{color:#e5484d;font-weight:700}
+.wc-niet{color:#a3a9b3}
+.wc-blok .vidtile{margin-left:6px}
+.wc-noot{font-style:italic;color:#6b7280;margin:1px 0 2px 0}
+.wc-reactie{margin-top:3px}
+.wc-sub{margin-top:12px;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#8a919c}
+.wc-ta{width:100%;margin-top:12px;font:inherit;font-size:13px}
+.wc-acties{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.wc-afgkop{margin:14px 0 8px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer}
