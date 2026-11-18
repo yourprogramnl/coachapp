@@ -857,3 +857,7 @@ i18nLaad({
   "Uit de lijst gehaald": "Removed from the list",
   "Deze eigen metric uit de lijst van het bedrijf halen? De metingen blijven staan. De metric is daarna alleen nog te zien bij klanten die er een meting van hebben.": "Remove this custom metric from the company list? The measurements stay. After that the metric only shows for clients who have a measurement for it."
 });
+// Blog in het coach-menu (18 nov 2026)
+i18nLaad({
+  "Blogprogramma": "Blog program",
+});

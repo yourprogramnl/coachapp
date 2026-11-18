@@ -1578,6 +1578,26 @@ function filterKlantDrop(v){const z=(v||"").toLowerCase();document.querySelector
 // Verzoek Stefan (22 okt): weg, naar een blog springen doen we vanuit de Blog-sectie zelf.
 // kalBlogs blijft bestaan omdat blog.js het nog bijvult.
 let kalBlogs=null;
+// Sinds 18 nov 2026 (verzoek Stefan en Michel): "Blog" staat als keuze in het
+// coach-menu. Wie dat kiest krijgt in het tweede menu de blogprogramma's in
+// plaats van klantnamen en landt op dezelfde blogkalender als via de sectie
+// Blog. Het is één scherm met twee ingangen: wat je via de ene ingang
+// aanpast, staat er via de andere ook.
+async function laadBlogKort(){
+  if(kalBlogs)return;
+  const{data}=await db.from("blog_programs").select("*").eq("company_id",ME.profile.company_id).order("name");
+  let l=data||[];
+  if(myRole()==="coach")l=l.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id));
+  kalBlogs=l;
+}
+function opBlogScherm(){return !!(typeof BLOG!=="undefined"&&BLOG.cur&&document.querySelector(".bloglay"));}
+async function naarBlogVanuitMenu(){
+  if(opBlogScherm())return;
+  if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return; // open bouwer eerst netjes opslaan
+  let pid=null;try{pid=localStorage.getItem("forge_blog_laatst");}catch(e){}
+  BLOG.openNaId=pid||"eerste"; // fillBlog kiest het laatst geopende programma, anders het eerste
+  coachGo("blog");
+}
 async function vulBlogDrop(){
   const host=document.getElementById("kd-blogs");if(host)host.innerHTML="";
 }
@@ -1590,12 +1610,16 @@ async function laadCoaches(){
 }
 function vulCoachDrop(){
   const host=document.getElementById("cd-lijst");if(!host)return;
+  const opBlog=opBlogScherm();
   const rows=coachList.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
     const n=actieveKlanten().filter(k=>k.coach_id===c.id).length;
     const rol=c.role==="eigenaar"?" · eigenaar":"";
-    return '<div class="pd-row'+(c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+    return '<div class="pd-row'+(!opBlog&&c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   }).join("");
-  host.innerHTML=rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>';
+  // Onder de coaches: Blog. Daarmee wissel je naar de blogprogramma's.
+  const nBlog=(kalBlogs||[]).length;
+  const blogRij='<div class="pd-sep"></div><div class="pd-row'+(opBlog?' actief':'')+'" onclick="kiesCoach(\'blog\')"><div class="pd-badge" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div class="pd-naam">Blog <span class="muted" style="font-weight:500">('+nBlog+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+  host.innerHTML=(rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>')+blogRij;
 }
 async function toggleCoachDrop(ev){
   ev.stopPropagation();
@@ -1604,11 +1628,12 @@ async function toggleCoachDrop(ev){
   document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));
   if(!openNu)return;
   d.classList.add("show");
-  await laadCoaches();
+  await Promise.all([laadCoaches(),laadBlogKort()]);
   if(document.getElementById("coachdrop")&&document.getElementById("coachdrop").classList.contains("show"))vulCoachDrop();
 }
 function kiesCoach(id){
   const d=document.getElementById("coachdrop");if(d)d.classList.remove("show");
+  if(id==="blog"){naarBlogVanuitMenu();return;}
   const klanten=coachClients.filter(k=>k.coach_id===id).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
   if(!klanten.length){
     const c=coachList.find(x=>x.id===id);
