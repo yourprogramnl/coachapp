@@ -761,7 +761,7 @@ function progDayCel(week,day){
   if(editing){
     let inner=wos.filter(w=>w.id!==progEditWid).map(progCard).join("");
     const w=progEditWid?wos.find(x=>x.id===progEditWid):null;
-    const wObj=w?{id:w.id,title:w.title,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
+    const wObj=w?{id:w.id,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
     return '<div class="pe-cell">'+inner+'</div>';
   }
@@ -827,7 +827,7 @@ async function progPlak(week,day){
     const n=start+((t.date&&base)?dagenTussen(t.date,base):0);
     if(n<1||n>max){over++;continue;}
     const wk=Math.floor((n-1)/7)+1,dg=((n-1)%7)+1;
-    if(!(await progZetWorkout(wk,dg,{title:t.title||null,coach_notes:t.coach_notes||null,warmup:t.warmup||null,cooldown:t.cooldown||null},t.blocks||[])))break;
+    if(!(await progZetWorkout(wk,dg,{title:t.title||null,coach_notes:t.coach_notes||null,warmup:t.warmup||null,cooldown:t.cooldown||null,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null},t.blocks||[])))break;
     gezet++;dagen.push({week:wk,day:dg});
   }
   if(gezet&&over)toast(gezet+" geplakt, "+over+" buiten de weken van dit programma");
@@ -842,9 +842,12 @@ function progCard(w){
   const isRest=!blocks.length&&/^rest ?day$/i.test((w.title||"").trim());
   if(isRest)return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span style="color:#27b376">Rustdag</span></div></div>';
   let inner="";
-  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup</div><div class="pr">'+esc(w.warmup)+'</div></div>';
+  // Instructies van de coach (bijv. de uitleg bij een week): ingekort op de kaart, volledig in de bouwer.
+  if(w.coach_notes)inner+='<div class="cblk k-grijs"><div class="n">Instructies</div><div class="pr pe-kort" title="Klik op de kaart om alles te lezen">'+esc(w.coach_notes)+'</div></div>';
+  const vids=m=>(m&&m.length)?' <span class="muted" style="font-weight:500" title="'+m.length+' video\'s">🎥 '+m.length+'</span>':'';
+  if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+vids(w.warmup_media)+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
-  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
+  if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+vids(w.cooldown_media)+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
 // Wegklikken uit een open programma-bouwer slaat eerst stil op (zelfde
@@ -865,7 +868,7 @@ function progCloseBuilder(){bouwerDirty=false;progEditDay=null;progEditWid=null;
 function progBuilderHtml(w){
   w=w||{};const blocks=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
   const rows=blocks.length?blocks.map(b=>b.kind==="conditioning"?condRow(b):exRow(b)).join(""):exRow({});
-  return '<div class="sec">'+(typeof avbOogHtml==="function"?avbOogHtml():"")+'<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
+  return '<div class="sec">'+(typeof avbOogHtml==="function"?avbOogHtml():"")+'<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_notes" rows="1" placeholder="Notities van de coach">'+esc(w.coach_notes||"")+'</textarea><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
       '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("warmup"):"")+'</div>'+
     '<div id="exrows">'+rows+'</div>'+
     (typeof blokKnopHtml==="function"?blokKnopHtml():"")+'<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof blokKlembordSoort==="function"&&blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
@@ -883,6 +886,10 @@ async function progSaveWorkout(){
   const title=(g("w_title").value||"").trim();
   const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
   const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progEditDay.week,day:progEditDay.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
+  if(g("w_notes"))wf.coach_notes=g("w_notes").value.trim()||null;
+  // Warming-up of cooldown leeggemaakt? Dan horen de video's er ook niet meer bij.
+  if(!wf.warmup)wf.warmup_media=null;
+  if(!wf.cooldown)wf.cooldown_media=null;
   const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
   try{
     if(progEditWid){
@@ -1198,7 +1205,7 @@ async function progSyncDagen(dagen){
     const blocksAll=[];let k=0;
     for(const pw of pws){
       k++;
-      const{data:nw,error:we}=await db.from("workouts").insert({company_id:prof.company_id||ME.profile.company_id,coach_id:prof.coach_id||ME.user.id,client_id:d.a.athlete_id,workout_date:d.datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,audience:"client",assignment_id:d.a.id,day_sort:k}).select("id").single();
+      const{data:nw,error:we}=await db.from("workouts").insert({company_id:prof.company_id||ME.profile.company_id,coach_id:prof.coach_id||ME.user.id,client_id:d.a.athlete_id,workout_date:d.datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,warmup_media:pw.warmup_media||null,cooldown_media:pw.cooldown_media||null,audience:"client",assignment_id:d.a.id,day_sort:k}).select("id").single();
       if(we)throw we;
       (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
     }

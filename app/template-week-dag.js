@@ -47,7 +47,7 @@ async function progZetBijKlant(o){
   const blocksAll=[];
   for(const pw of wos){
     const datum=ymdPlus(o.start,(pw.week-van)*7+(pw.day-1));
-    const{data:nw,error:we}=await db.from("workouts").insert({company_id:o.client.company_id||ME.profile.company_id,coach_id:o.client.coach_id||ME.user.id,client_id:o.client.id,workout_date:datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,audience:"client",assignment_id:asg.id}).select("id").single();
+    const{data:nw,error:we}=await db.from("workouts").insert({company_id:o.client.company_id||ME.profile.company_id,coach_id:o.client.coach_id||ME.user.id,client_id:o.client.id,workout_date:datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,warmup_media:pw.warmup_media||null,cooldown_media:pw.cooldown_media||null,audience:"client",assignment_id:asg.id}).select("id").single();
     if(we)throw we;
     (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push(Object.assign({workout_id:nw.id},progBlokVelden(b))));
   }
@@ -63,7 +63,7 @@ function progKopieer(week,day){
   const wos=(PROG.workouts||[]).filter(w=>w.week===week&&(day==null||w.day===day)).sort(progSorteer);
   if(!wos.length){toast(day==null?"Week "+week+" is nog leeg":"Geen workout op deze dag om te kopiëren");return;}
   const basis="2001-01-01"; // een maandag; bij plakken telt alleen de afstand tussen de dagen
-  klembordZet(wos.map(w=>({date:ymdPlus(basis,(w.week-1)*7+(w.day-1)),title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+  klembordZet(wos.map(w=>({date:ymdPlus(basis,(w.week-1)*7+(w.day-1)),title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
     blocks:(w.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(progBlokVelden)})));
   toast(day==null?"Week "+week+" gekopieerd ("+wos.length+" workout"+(wos.length===1?"":"s")+"). Kies Plakken op de dag waar de eerste workout moet komen."
     :(wos.length>1?wos.length+" workouts":"Workout")+" gekopieerd, ga naar een dag en kies Plakken");
@@ -135,7 +135,7 @@ async function tplOpslaanDoen(){
     const teller={};
     for(const x of bron){
       const t=wTemplate(x.w);teller[x.day]=(teller[x.day]||0)+1;
-      const{data:pw,error:we}=await db.from("program_workouts").insert({program_id:prog.id,company_id:ME.profile.company_id,week:1,day:x.day,title:t.title||null,coach_notes:t.coach_notes||null,warmup:t.warmup||null,cooldown:t.cooldown||null,sort:teller[x.day]}).select().single();
+      const{data:pw,error:we}=await db.from("program_workouts").insert({program_id:prog.id,company_id:ME.profile.company_id,week:1,day:x.day,title:t.title||null,coach_notes:t.coach_notes||null,warmup:t.warmup||null,cooldown:t.cooldown||null,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null,sort:teller[x.day]}).select().single();
       if(we)throw we;
       if(t.blocks.length){const{error:be}=await db.from("program_blocks").insert(progBlokRijen(pw.id,t.blocks));if(be)throw be;}
     }
