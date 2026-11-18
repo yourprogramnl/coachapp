@@ -125,6 +125,7 @@ try{if(!/type=recovery/.test(location.hash))for(let i=0;i<localStorage.length;i+
 <script src="app/help.js"></script>
 <script src="app/meldingen.js"></script>
 <script src="app/rechten.js"></script>
+<script src="app/claude-api.js"></script>
 <script>
 
 (async()=>{if(await checkRecovery())return;const{data:{session}}=await db.auth.getSession();if(session)await loadApp();else{show("login");const qs=new URLSearchParams(location.search);initInvite(qs.get("invite"));initBlogJoin(qs.get("blog"));}})();
