@@ -17,7 +17,7 @@
 //
 // Openklikken toont eerst alleen wat opvalt (feedback Stefan na de eerste test:
 // alle scores onder elkaar is te veel). "Alles tonen" geeft de hele week.
-const WC={dag:null,terug:0,coach:"",open:new Set(),alles:new Set(),notities:{},afgOpen:false,gen:0,data:null,coaches:null,fout:"",focus:null,win:null,kanaal:null};
+const WC={dag:null,terug:0,coach:"",open:new Set(),alles:new Set(),notities:{},afgOpen:false,gen:0,data:null,bezig:new Set(),coaches:null,fout:"",focus:null,win:null,kanaal:null};
 const WC_DAG=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
 const WC_DAGK=["ma","di","wo","do","vr","za","zo"];
 const WC_ZONDER=-1; // de knop "Zonder dag"
@@ -94,7 +94,7 @@ async function wcVul(){
     if(WC.dag==null){const v=wcVandaagIdx();WC.dag=wcTag(v)?v:(WC_DAG.map((_,i)=>i).find(i=>wcTag(i))??v);}
     if(myRole()!=="coach"&&!WC.coaches){try{const{data}=await db.rpc("company_coaches");WC.coaches=data||[];}catch(e){WC.coaches=[];}}
     const alleIds=wcBasisKlanten().map(p=>p.id);
-    const D={workouts:[],results:[],effort:[],media:[],comments:[],msgs:[],metrics:[],prs:null,checks:[]};
+    const D={workouts:[],results:[],effort:[],media:[],comments:[],msgs:[],metrics:[],prs:null,checks:[],sams:[]};
     // Afgevinkte weken: voor de tellers op de dagknoppen en voor de gekozen periode.
     if(alleIds.length){
       const oudste=ymd(addDays(new Date(),-9-7*WC.terug));
@@ -113,6 +113,8 @@ async function wcVul(){
         wcIn("metrics","athlete_id,metric,value,unit,measured_at,result_id","athlete_id",ids,q=>q.gte("measured_at",per.van).lte("measured_at",per.tot)),
       ]);
       D.workouts=wos;D.metrics=mets;
+      // Eerder gemaakte samenvattingen in gewone zinnen (tabel week_summaries); mislukt dit, dan gewoon zonder.
+      try{D.sams=await wcIn("week_summaries","*","athlete_id",ids,q=>q.eq("period_to",per.tot));}catch(e){D.sams=[];}
       const wids=wos.map(w=>w.id),widSet=new Set(wids);
       // Reacties horen bij de periode als ze bij een workout uit de periode staan; chat op datum.
       D.comments=com.filter(c=>widSet.has(c.workout_id));
@@ -239,6 +241,90 @@ function wcOpvallendHtml(p){
     (rest.length?'<div class="wc-rest">Verder: '+esc(rest.join(" · "))+'.</div>':'');
 }
 
+// ---------- Samenvatting in gewone zinnen (AI) ----------
+// De knop "Samenvatten" stuurt de week als platte tekst naar de Edge Function
+// weekcheck-samenvatting; die laat het AI-model een paar korte regels schrijven
+// en bewaart ze in week_summaries. De naam van de atleet gaat niet mee (de
+// functie haalt hem ook nog uit de tekst). Kost alleen iets bij een klik.
+const wcSamVan=id=>((WC.data&&WC.data.sams)||[]).find(x=>x.athlete_id===id)||null;
+function wcWeekTekst(p){
+  const D=WC.data,id=p.id,per=wcPeriode(WC.dag,WC.terug),r=[];
+  const wie=aid=>aid===id?"atleet":"coach";
+  const plat=t=>String(t||"").replace(/\s+/g," ").trim();
+  for(let d=new Date(per.van+"T12:00:00");ymd(d)<=per.tot;d=addDays(d,1)){
+    const ds=ymd(d);
+    D.workouts.filter(w=>w.client_id===id&&w.workout_date===ds).forEach(w=>{
+      const bl=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
+      if(!bl.length){r.push(wcDatum(ds)+": "+(/^rest ?day$/i.test((w.title||"").trim())?"rustdag":plat(w.title)));return;}
+      const ef=D.effort.find(e=>e.workout_id===w.id&&e.athlete_id===id);
+      r.push(wcDatum(ds)+": workout \""+plat(w.title||"Workout")+"\""+(ef&&ef.rpe!=null?", inspanning "+ef.rpe+"/10":"")+(ef&&ef.minutes?", "+ef.minutes+" min":""));
+      bl.forEach(b=>{
+        const x=D.results.find(y=>y.block_id===b.id&&y.athlete_id===id);
+        const sc=x?plat(resultScoreVol(x,b.score_type)):"";
+        const vids=D.media.filter(m=>m.block_id===b.id&&m.athlete_id===id).length;
+        r.push("  - "+plat((b.label?b.label+") ":"")+(b.exercise||"onderdeel"))+": "+(!x?"niet gelogd":(x.status==="missed"?"gemist":(sc||"gedaan")))+
+          ((x&&plat(x.note))?" | opmerking atleet: "+plat(x.note):"")+(vids?" | "+vids+(vids===1?" video":" video's")+" geüpload":""));
+      });
+      D.comments.filter(c=>c.workout_id===w.id).forEach(c=>r.push("  reactie "+wie(c.author_id)+": "+plat(c.body)));
+    });
+  }
+  const prs=(D.prs||[]).filter(x=>x.athlete_id===id);
+  if(prs.length){r.push("");r.push("Records deze week:");prs.forEach(x=>r.push("  - "+x.lift+": "+kgTxt(x.kg)+" kg x "+x.reps+" ("+wcDatum(x.workout_date)+")"));}
+  const mets=D.metrics.filter(m=>m.athlete_id===id&&!m.result_id);
+  if(mets.length){r.push("");r.push("Nieuwe metingen:");mets.forEach(m=>r.push("  - "+m.metric+": "+String(m.value==null?"":m.value).replace(".",",")+" "+(m.unit||"kg")));}
+  const chat=(D.msgsAlle||D.msgs).filter(m=>m.athlete_id===id).slice(-25);
+  if(chat.length){r.push("");r.push("Chat (oud naar nieuw):");chat.forEach(m=>r.push("  "+wcDatum(wcDatumVan(m.created_at))+" "+wie(m.sender_id)+": "+plat(wkKort(m.body,600))));}
+  return r.join("\n");
+}
+const WC_AI={"ging goed":"goed","let op":"wacht","lichaam":"signaal","vraag":"wacht","advies":""};
+function wcAiRegelsHtml(tekst){
+  return String(tekst||"").split(/\n+/).map(x=>x.trim()).filter(Boolean).map(regel=>{
+    const m=regel.replace(/^[-•*]\s*/,"").match(/^([A-Za-zÀ-ÿ ]{3,14}):\s*(.+)$/);
+    const lbl=m?m[1].trim():"",kl=m?WC_AI[lbl.toLowerCase()]:undefined;
+    if(!m||kl===undefined)return '<div class="wc-punt"><span>'+esc(regel)+'</span></div>';
+    return '<div class="wc-punt"><span class="wc-tag '+kl+'">'+esc(lbl)+'</span><span>'+esc(m[2])+'</span></div>';
+  }).join("");
+}
+function wcAiHtml(p){
+  const id=p.id,sam=wcSamVan(id);
+  if(WC.bezig.has(id))return '<div class="wc-ai"><div class="wc-aikop">Samenvatting</div><div class="sm muted">Bezig met samenvatten… dit duurt een paar seconden.</div></div>';
+  if(!sam)return '<div class="wc-ai leeg"><button class="btn ghost sm" onclick="wcSamenvatten(\''+id+'\')">✦ Samenvatten in gewone zinnen</button>'+
+    '<span class="sm muted">Het AI-model leest de week (zonder naam) en schrijft een paar regels. De samenvatting wordt bewaard.</span></div>';
+  return '<div class="wc-ai"><div class="wc-aikop">Samenvatting <span>door AI op '+wcDatum(wcDatumVan(sam.created_at))+' · lees bij twijfel de hele week via Alles tonen · <a href="#" onclick="wcSamenvatten(\''+id+'\');return false">opnieuw</a></span></div>'+
+    wcAiRegelsHtml(sam.summary)+'</div>';
+}
+// De aanroep van de Edge Function, los gehouden zodat hij te testen is.
+async function wcSamenvatRoep(body){
+  const{data:s}=await db.auth.getSession();
+  const token=s&&s.session&&s.session.access_token;
+  const r=await fetch(SUPABASE_URL+"/functions/v1/weekcheck-samenvatting",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+token,"apikey":SUPABASE_KEY},
+    body:JSON.stringify(body),
+  });
+  return await r.json();
+}
+async function wcSamenvatten(id){
+  const p=actieveKlanten().find(x=>x.id===id);
+  if(!p||!WC.data||WC.dag===WC_ZONDER||WC.bezig.has(id))return;
+  const per=wcPeriode(WC.dag,WC.terug),gen=WC.gen;
+  const week=wcWeekTekst(p);
+  if(!week.trim()){toast("Er is in deze periode niets om samen te vatten");return;}
+  WC.bezig.add(id);wcTeken();
+  let uit=null;
+  try{uit=await wcSamenvatRoep({athlete_id:id,period_from:per.van,period_to:per.tot,week});}
+  catch(e){uit={error:"netwerk",detail:"Geen verbinding met de server."};}
+  WC.bezig.delete(id);
+  if(uit&&uit.summary&&uit.summary.summary&&gen===WC.gen&&WC.data){
+    WC.data.sams=WC.data.sams.filter(x=>x.athlete_id!==id).concat([Object.assign({athlete_id:id,period_to:per.tot,created_at:new Date().toISOString()},uit.summary)]);
+  }
+  if(uit&&uit.error){
+    toast(uit.error==="geen_sleutel"?"Samenvatten staat nog niet aan: er is geen API-sleutel ingesteld."
+      :"Samenvatten mislukt: "+(uit.detail||uit.error),5000);
+  }
+  if(gen===WC.gen)wcTeken();
+}
+
 // ---------- Tekenen ----------
 function wcTeken(){
   const host=document.getElementById("nc-body");if(!host||ncTab!=="check")return;
@@ -346,7 +432,7 @@ function wcDetailHtml(r){
   const p=r.p,id=p.id,alles=WC.alles.has(id);
   const voornaam=esc(p.first_name||"de atleet");
   const noot=r.check?(r.check.note||""):(WC.notities[id]||"");
-  return '<div class="wc-detail">'+wcOpvallendHtml(p)+
+  return '<div class="wc-detail">'+wcAiHtml(p)+wcOpvallendHtml(p)+
     '<div class="wc-meer"><a href="#" onclick="wcAlles(\''+id+'\');return false">'+(alles?"▾ Alleen de samenvatting":"▸ Alles tonen: de hele week, dag voor dag")+'</a></div>'+
     (alles?wcAllesHtml(r):'')+
     (r.check
@@ -380,6 +466,7 @@ async function wcVink(id){
   const p=actieveKlanten().find(x=>x.id===id);if(!p||!WC.data||WC.dag===WC_ZONDER)return;
   const per=wcPeriode(WC.dag,WC.terug);
   const s=wcSamenvat(p);s.dag=WC_DAG[WC.dag];
+  const sam=wcSamVan(id);if(sam&&sam.summary)s.ai=sam.summary;
   const rec={company_id:p.company_id||ME.profile.company_id,athlete_id:id,checked_by:ME.user.id,period_from:per.van,period_to:per.tot,note:(WC.notities[id]||"").trim()||null,summary:s};
   const{data,error}=await db.from("week_checks").upsert(rec,{onConflict:"athlete_id,period_to"}).select().single();
   if(error){toast(error.message||"Afvinken mislukt");return;}
@@ -458,7 +545,8 @@ async function wcDossierLaad(){
   host.innerHTML=(data||[]).map(c=>'<div class="sp-note"><div class="nh">'+esc(wcDatum(c.period_from)+" t/m "+wcDatum(c.period_to))+
     ' <span>'+esc("afgevinkt "+wcDatum(wcDatumVan(c.created_at)))+'</span></div>'+
     '<div class="nb">'+esc(wcSamenvatTekst(c.summary))+((c.summary&&c.summary.signalen&&c.summary.signalen.length)?'<br>Signaalwoorden: '+esc(c.summary.signalen.join(", ")):'')+
-    (c.note?'<br><br>'+esc(c.note).replace(/\n/g,"<br>"):'')+'</div></div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen weken afgevinkt.</div>';
+    ((c.summary&&c.summary.ai)?'<br><br><i>Samenvatting (AI):</i><br>'+esc(c.summary.ai).replace(/\n/g,"<br>"):'')+
+    (c.note?'<br><br><i>Notitie van de coach:</i><br>'+esc(c.note).replace(/\n/g,"<br>"):'')+'</div></div>').join("")||'<div class="sm" style="color:#8b919b">Nog geen weken afgevinkt.</div>';
 }
 
 // Engelse teksten (sleutel = exacte Nederlandse tekst, zie app/i18n.js).
@@ -502,6 +590,13 @@ if(typeof i18nLaad==="function")i18nLaad({
   "Weekchecks laden mislukt.":"Loading week checks failed.",
   "Opnieuw proberen":"Try again",
   "Wat er per week is afgevinkt in de Weekcheck (Meldingen), met de notitie van de coach.":"What was checked off per week in the Week check (Notifications), with the coach's note.",
+  "Samenvatting":"Summary",
+  "✦ Samenvatten in gewone zinnen":"✦ Summarise in plain sentences",
+  "Het AI-model leest de week (zonder naam) en schrijft een paar regels. De samenvatting wordt bewaard.":"The AI model reads the week (without the name) and writes a few lines. The summary is saved.",
+  "Bezig met samenvatten… dit duurt een paar seconden.":"Summarising… this takes a few seconds.",
+  "Er is in deze periode niets om samen te vatten":"There is nothing to summarise in this period",
+  "Samenvatten staat nog niet aan: er is geen API-sleutel ingesteld.":"Summarising isn't switched on yet: no API key has been set.",
+  "opnieuw":"again",
   "Dit venster volgt de klant die je in het andere venster open hebt.":"This window follows the client you have open in the other window.",
   "Geopend in het hoofdvenster":"Opened in the main window",
   "Chat geopend in het hoofdvenster":"Chat opened in the main window",
