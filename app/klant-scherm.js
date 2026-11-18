@@ -1217,6 +1217,13 @@ function biebKanaal(){
   biebKanaalObj.onmessage=async(ev)=>{
     const m=ev.data||{};
     if(m.type==="vraag"){biebDoelZend();return;}
+    // In het bibliotheek-venster is iets toegevoegd of bewerkt: de bibliotheek hier
+    // (invoegvenster, oefeningen-zoeker in de bouwer) opnieuw ophalen als hij al geladen was.
+    if(m.type==="lib"){
+      if(typeof TPLKORT!=="undefined")TPLKORT=null;
+      if(LIB.geladen&&!LIB.busy){LIB.geladen=false;await libLaad();const im=document.getElementById("insmodal");if(im&&im.classList.contains("show"))insRender();}
+      return;
+    }
     if(m.type==="plaats"&&m.voor===BIEB_ID&&m.item){
       const ds=biebDoelHuidig();
       if(!ds||!calClient){biebKanaalObj.postMessage({type:"melding",tekst:"Kies eerst een dag: klik het speldje 📌 op een dag in de kalender (of open de bouwer)."});return;}

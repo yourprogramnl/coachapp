@@ -350,6 +350,17 @@ function libLijst(behoudKop){
   pag.innerHTML=kn;
 }
 function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");const pm=document.getElementById("progmodal");if(pm)pm.classList.remove("show");const bm=document.getElementById("bmmodal");if(bm)bm.classList.remove("show");LIB.editOef=null;LIB.editTpl=null;LIB.editProgram=null;LIB.editBm=null;}
+// Na opslaan of verwijderen in de bibliotheek: het andere venster bijwerken (los
+// bibliotheek-venster <-> hoofdvenster, via het BroadcastChannel "yp_bieb"). In het
+// losse venster zelf ook de kaarten opnieuw tekenen (biebNaWijziging).
+function libMeldWijziging(){
+  try{
+    if(typeof inBiebVenster==="function"&&inBiebVenster()){
+      if(BIEB.kanaal)BIEB.kanaal.postMessage({type:"lib"});
+      biebNaWijziging();
+    }else if(typeof biebKanaal==="function"){const k=biebKanaal();if(k)k.postMessage({type:"lib"});}
+  }catch(e){}
+}
 function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else if(LIB.mode==="programs"||LIB.mode==="progdag")programNieuw();else if(LIB.mode==="benchmarks")bmBewerk(null);else tplBewerk(null);}
 
 // ---------- Benchmarks (Girls/Heroes/Open/Notable + eigen Custom) ----------
@@ -413,7 +424,7 @@ async function bmOpslaan(){
   if(fout){msg.textContent=fout.message||"Opslaan mislukt";msg.className="msg err";return;}
   const{data:bms}=await db.from("benchmarks").select("*").order("naam");
   LIB.bm=bms||LIB.bm;
-  libModalDicht();toast("Benchmark opgeslagen");libLijst();
+  libModalDicht();toast("Benchmark opgeslagen");libLijst();libMeldWijziging();
 }
 async function bmVerwijder(){
   if(!LIB.editBm)return;
@@ -422,7 +433,7 @@ async function bmVerwijder(){
   const{error}=await db.from("benchmarks").delete().eq("id",LIB.editBm);
   if(error){toast(error.message||"Verwijderen mislukt");return;}
   LIB.bm=LIB.bm.filter(x=>String(x.id)!==String(LIB.editBm));
-  libModalDicht();toast("Benchmark verwijderd");libLijst();
+  libModalDicht();toast("Benchmark verwijderd");libLijst();libMeldWijziging();
 }
 
 // ---------- Programma's (herbruikbare programma-templates) ----------
@@ -506,13 +517,13 @@ async function programOpslaan(){
   if(eid){
     const{error}=await db.from("program_templates").update(rec).eq("id",eid);
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
-    libModalDicht();toast("Template bijgewerkt");await programLaad();
+    libModalDicht();toast("Template bijgewerkt");await programLaad();libMeldWijziging();
     if(PROG&&PROG.id===eid){Object.assign(PROG,rec);progRender();}
   }else{
     rec.company_id=ME.profile.company_id;rec.created_by=ME.user.id;
     const{data,error}=await db.from("program_templates").insert(rec).select("*, creator:created_by(id,first_name,last_name,avatar_url)").single();
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
-    libModalDicht();toast("Template aangemaakt");await programLaad();
+    libModalDicht();toast("Template aangemaakt");await programLaad();libMeldWijziging();
     openProgramEditor(data.id); // meteen door naar de workouts
   }
 }
@@ -530,6 +541,7 @@ async function openProgramEditor(id){
   PROG=Object.assign({},prog,{workouts:pws||[],assignments:asgs||[]});progWeek=1;progEditDay=null;progEditWid=null;
   try{localStorage.setItem("forge_tpl_laatst",id);}catch(e){} // voor "Templates" in het coach-menu
   ensureLibModals();progRender();
+  if(typeof biebEditorToon==="function")biebEditorToon(); // in het losse bibliotheek-venster: editor in beeld
 }
 async function progReloadAssignments(){
   const{data}=await db.from("program_assignments").select("*").eq("program_id",PROG.id);
@@ -668,7 +680,7 @@ async function asgOngedaan(id){
   await progReloadAssignments(); // tellers in de editor + programma-lijst verversen
 }
 
-function progBack(){PROG=null;coachRenderSection();}
+function progBack(){if(typeof biebEditorTerug==="function"&&biebEditorTerug())return;PROG=null;coachRenderSection();}
 // Weektab: alle weken staan onder elkaar (zoals de klant-kalender); de tab scrolt ernaartoe.
 function progWeekTab(w){
   progWeek=w;
@@ -920,7 +932,7 @@ async function programVerwijder(id){
   const{error}=await db.from("program_templates").delete().eq("id",id);
   if(error){toast(error.message||"Verwijderen mislukt");return;}
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
-  libModalDicht();toast("Template verwijderd");await programLaad();
+  libModalDicht();toast("Template verwijderd");await programLaad();libMeldWijziging();
 }
 function openProgramMenu(ev,id){
   ev.stopPropagation();
@@ -960,14 +972,14 @@ async function exOpslaan(){
   else{velden.tags=["eigen"];velden.bron="eigen";const{error}=await db.from("oefeningen").insert(velden);fout=error;}
   if(fout){msg.textContent=fout.message||"Opslaan mislukt.";msg.className="msg err";return;}
   LIB.geladen=false;libModalDicht();toast(wasEdit?"Oefening bijgewerkt":"Oefening toegevoegd");
-  await libLaad();
+  await libLaad();libMeldWijziging();
 }
 async function oefVerwijder(){
   if(!LIB.editOef||!confirm("Deze oefening verwijderen?"))return;
   const{error}=await db.from("oefeningen").delete().eq("id",LIB.editOef);
   if(error){const msg=document.getElementById("exmodal-msg");msg.textContent=error.message;msg.className="msg err";return;}
   LIB.geladen=false;libModalDicht();toast("Oefening verwijderd");
-  await libLaad();
+  await libLaad();libMeldWijziging();
 }
 function tplKleurDots(){
   document.getElementById("tpl-kleuren").innerHTML=TPLKLEUREN.map(k=>'<span class="'+(k===LIB.tplKleur?"aan":"")+'" title="'+LEGNAAM[k]+'" onclick="LIB.tplKleur=\''+k+'\';tplKleurDots()" style="background:'+TPLKLEUR[k]+'"></span>').join("");
@@ -1073,7 +1085,7 @@ async function tplOpslaan(){
   else{velden.tags=[];velden.coach=ME.profile.first_name||"";const{error}=await db.from("templates").insert(velden);fout=error;}
   if(fout){msg.textContent=fout.message||"Opslaan mislukt.";msg.className="msg err";return;}
   LIB.geladen=false;libModalDicht();toast(wasEdit?"Template bijgewerkt":"Template toegevoegd");
-  await libLaad();
+  await libLaad();libMeldWijziging();
   const im=document.getElementById("insmodal");if(im&&im.classList.contains("show"))insRender();
 }
 // ---------- Onderdelen van een superset-template (krachtlog, stap 2) ----------
@@ -1134,7 +1146,7 @@ async function tplVerwijder(){
   const{error}=await db.from("templates").delete().eq("id",LIB.editTpl);
   if(error){const msg=document.getElementById("tplmodal-msg");msg.textContent=error.message;msg.className="msg err";return;}
   LIB.geladen=false;libModalDicht();toast("Template verwijderd");
-  await libLaad();
+  await libLaad();libMeldWijziging();
 }
 
 // ---------- Programma-sync (naar "Sync program changes" in CoachRx, 28 okt 2026) ----------

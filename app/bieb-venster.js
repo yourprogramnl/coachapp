@@ -41,12 +41,18 @@ async function renderBiebVenster(){
   const tb=document.querySelector(".topbar");if(tb)tb.style.display="none";
   try{BIEB.kolommen=localStorage.getItem("bieb_kolommen")||"auto";}catch(e){}
   const c=document.getElementById("content");
-  c.innerHTML='<div class="cwrap bieb">'+
+  // Twee delen: de kaarten (bieb-lijstdeel) en, verborgen, #cpage voor de editor van
+  // een Template week/dag. Die editor uit app/bibliotheek.js tekent in #cpage.
+  c.innerHTML='<div class="cwrap bieb"><div id="bieb-lijstdeel">'+
     '<div class="bieb-kop">'+
       '<div><h1 style="margin:0">Bibliotheek</h1><div class="sm muted">Sleep een kaart naar een dag op de kalender van je klant in het andere venster. Lege dag = nieuwe workout, dag met workout = blok eronder.</div></div>'+
-      '<div class="bieb-kolknop" title="Weergave: automatisch (meer kolommen op een breed venster) of alles onder elkaar">'+
-        '<button class="'+(BIEB.kolommen==="auto"?"on":"")+'" onclick="biebKolommen(\'auto\')">Kolommen</button>'+
-        '<button class="'+(BIEB.kolommen==="1"?"on":"")+'" onclick="biebKolommen(\'1\')">1 kolom</button>'+
+      '<div class="bieb-acties">'+
+        '<button class="btn sm" id="bieb-addbtn" onclick="biebNieuw()">+ Template toevoegen</button>'+
+        '<button class="btn ghost sm" onclick="biebNieuweOef()">+ Oefening toevoegen</button>'+
+        '<div class="bieb-kolknop" title="Weergave: automatisch (meer kolommen op een breed venster) of alles onder elkaar">'+
+          '<button class="'+(BIEB.kolommen==="auto"?"on":"")+'" onclick="biebKolommen(\'auto\')">Kolommen</button>'+
+          '<button class="'+(BIEB.kolommen==="1"?"on":"")+'" onclick="biebKolommen(\'1\')">1 kolom</button>'+
+        '</div>'+
       '</div>'+
     '</div>'+
     '<div class="bieb-doel" id="bieb-doel">Dubbelklik op een kaart zet hem op de doeldag. Open een klant in het hoofdvenster en klik daar het speldje 📌 op een dag.</div>'+
@@ -57,12 +63,102 @@ async function renderBiebVenster(){
     '</div>'+
     '<div id="bieb-filters" class="bieb-filters"></div>'+
     '<div id="bieb-grid" class="bieb-grid'+(BIEB.kolommen==="1"?" een":"")+'"><div class="cempty">Bibliotheek laden…</div></div>'+
-  '</div>';
+  '</div><div id="cpage" style="display:none"></div></div>';
+  ensureLibModals(); // dezelfde popups als op de gewone Bibliotheek-pagina
   biebTabsRender();
+  biebModeZet();
   biebKanaalStart();
   await Promise.all([LIB.geladen?Promise.resolve():libLaad(),biebWeekLaad()]);
+  await programLaad(); // wie welke template mag aanpassen (program_editors), net als op de gewone pagina
   await biebProgLaad(); // workouts van de templates, voor de tekst op de kaarten
   biebRender();
+}
+const inBiebVenster=()=>document.body.classList.contains("biebvenster");
+// LIB.mode volgt de tab, zodat de bestaande editors de juiste soort kiezen
+// (tplBewerk(null) pakt warming-up/cooldown/workout uit LIB.mode, progModalOpen week of dag).
+const BIEB_MODE={workout:"workout",warmup:"warmup",cooldown:"cooldown",benchmarks:"benchmarks",tplweek:"programs",tpldag:"progdag"};
+function biebModeZet(){
+  if(BIEB_MODE[BIEB.tab])LIB.mode=BIEB_MODE[BIEB.tab];
+  const a=document.getElementById("bieb-addbtn");if(!a)return;
+  // Zelfde tekst als de knop op de gewone Bibliotheek-pagina (libKop). YP Showdown
+  // beheer je onder YP Showdown in het hoofdvenster, dus daar geen knop.
+  const tekst={workout:"+ Template toevoegen",warmup:"+ Template toevoegen",cooldown:"+ Template toevoegen",benchmarks:"+ Benchmark toevoegen",tplweek:"+ Template week toevoegen",tpldag:"+ Template dag toevoegen"}[BIEB.tab];
+  a.style.display=tekst?"":"none";
+  if(tekst)a.textContent=tekst;
+}
+function biebNieuw(){if(!BIEB_MODE[BIEB.tab])return;biebModeZet();libNieuw();}
+function biebNieuweOef(){oefBewerk(null);}
+
+// Na opslaan of verwijderen (aangeroepen via libMeldWijziging in app/bibliotheek.js):
+// de kaarten opnieuw tekenen met dezelfde tab, filters, zoektekst en scrollstand.
+async function biebNaWijziging(){
+  if(!inBiebVenster())return;
+  const y=window.scrollY;
+  if(biebIsProg()||BIEB.progW){BIEB.progW=null;await biebProgLaad();}
+  biebRender();
+  window.scrollTo(0,y);
+}
+// Het andere venster heeft iets in de bibliotheek gewijzigd: hier vers ophalen.
+async function biebLibVers(){
+  LIB.geladen=false;
+  await libLaad();
+  await programLaad();
+  await biebNaWijziging();
+}
+
+// ⋮-menu op een kaart: bewerken (en bij een template week/dag ook verwijderen),
+// met dezelfde rechten als op de gewone Bibliotheek-pagina. Het menu hangt aan
+// <body> (de kaart knipt alles af wat buiten de rand valt) en sleept niet mee.
+function biebBewerkActies(soort,id){
+  if(soort==="item"){
+    const o=libItemVind(id);if(!o)return [];
+    if(o.bron==="tpl")return [["Bewerken","tplBewerk("+(typeof o.id==="number"?o.id:"'"+esc(String(o.id))+"'")+")"]];
+    if(o.bron==="bench"&&o.eigen)return [["Bewerken","bmBewerk('"+esc(String(o.id))+"')"]];
+    return [];
+  }
+  if(soort==="benchmark"){const b=LIB.bm.find(x=>String(x.id)===String(id));return b&&b.categorie==="custom"?[["Bewerken","bmBewerk('"+esc(String(b.id))+"')"]]:[];}
+  if(soort==="progtpl"){
+    const mag=progMagIk(id);
+    return [[mag?"Bewerken":"Bekijken","biebProgOpen('"+esc(String(id))+"')"]].concat(mag?[["Details bewerken","programDetails('"+esc(String(id))+"')"],["Verwijderen","programVerwijder('"+esc(String(id))+"')","danger"]]:[]);
+  }
+  return [];
+}
+function biebMenu(ev,soort,id){
+  ev.stopPropagation();ev.preventDefault();
+  const knop=ev.currentTarget;
+  const bestond=document.querySelector(".coachmenu.bieb-menu[data-voor='"+soort+":"+id+"']");
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  if(bestond)return;
+  const acties=biebBewerkActies(soort,id);if(!acties.length)return;
+  if(acties.length===1){(new Function(acties[0][1]))();return;} // alleen Bewerken: meteen de editor
+  const m=document.createElement("div");m.className="coachmenu bieb-menu";m.dataset.voor=soort+":"+id;
+  m.innerHTML=acties.map(([tekst,actie,klas])=>'<button'+(klas?' class="'+klas+'"':'')+' onclick="event.stopPropagation();document.querySelectorAll(\'.coachmenu\').forEach(x=>x.remove());'+actie+'">'+tekst+'</button>').join("");
+  const r=knop.getBoundingClientRect();
+  m.style.position="fixed";m.style.top=(r.bottom+4)+"px";m.style.right=Math.max(8,window.innerWidth-r.right)+"px";m.style.left="auto";
+  document.body.appendChild(m);
+}
+window.addEventListener("scroll",()=>{if(inBiebVenster())document.querySelectorAll(".coachmenu.bieb-menu").forEach(x=>x.remove());},{passive:true});
+
+// Template week/dag bewerken in dit venster: dezelfde editor als in de Bibliotheek,
+// in #cpage; de kaarten gaan zolang aan de kant.
+async function biebProgOpen(id){
+  await openProgramEditor(id); // roept biebEditorToon aan zodra de editor staat
+}
+function biebEditorToon(){
+  if(!inBiebVenster())return;
+  const l=document.getElementById("bieb-lijstdeel"),c=document.getElementById("cpage");
+  if(l&&l.style.display!=="none"){BIEB.scrollY=window.scrollY;window.scrollTo(0,0);} // bij wisselen van template blijft de stand
+  if(l)l.style.display="none";if(c)c.style.display="";
+}
+// "‹ Terug" in de editor (progBack): true = afgehandeld in het venster.
+function biebEditorTerug(){
+  if(!inBiebVenster())return false;
+  PROG=null;progEditDay=null;progEditWid=null;
+  const l=document.getElementById("bieb-lijstdeel"),c=document.getElementById("cpage");
+  if(c){c.style.display="none";c.innerHTML="";}if(l)l.style.display="";
+  const y=BIEB.scrollY||0;
+  programLaad().then(()=>biebNaWijziging()).then(()=>window.scrollTo(0,y));
+  return true;
 }
 // Verbinding met het hoofdvenster (zie "doeldag" in app/klant-scherm.js).
 function biebKanaalStart(){
@@ -74,6 +170,7 @@ function biebKanaalStart(){
     if(m.type==="doel"){BIEB.bron=m.van;BIEB.doel=m;biebDoelToon();}
     else if(m.type==="melding"&&m.tekst)toast(m.tekst);
     else if(m.type==="progs")biebProgVers(); // in het hoofdvenster is een template opgeslagen
+    else if(m.type==="lib")biebLibVers(); // in het hoofdvenster is iets in de bibliotheek gewijzigd
   };
   BIEB.kanaal.postMessage({type:"vraag"});
 }
@@ -96,7 +193,7 @@ function biebTabsRender(){
   const h=document.getElementById("bieb-tabs");if(!h)return;
   h.innerHTML=BIEB_TABS.map(([k,n])=>'<button class="'+(BIEB.tab===k?"on":"")+'" onclick="biebTab(\''+k+'\')">'+n+'</button>').join("");
 }
-function biebTab(k){BIEB.tab=k;BIEB.kleur="";BIEB.sub="";BIEB.subTekst="";BIEB.bmCat="";biebTabsRender();biebRender();}
+function biebTab(k){BIEB.tab=k;BIEB.kleur="";BIEB.sub="";BIEB.subTekst="";BIEB.bmCat="";biebTabsRender();biebModeZet();biebRender();}
 function biebZoek(v){BIEB.zoek=(v||"").toLowerCase().trim();biebRender(true);}
 function biebKleur(k){BIEB.kleur=BIEB.kleur===k?"":k;BIEB.sub="";BIEB.subTekst="";biebRender();}
 function biebSub(k){BIEB.sub=BIEB.sub===k?"":k;biebRender();}
@@ -168,9 +265,13 @@ function biebRender(behoudFilters){
   if(cnt)cnt.textContent=totaal+(biebIsProg()?(totaal===1?" template":" templates"):BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?(totaal===1?" Showdown":" Showdowns"):(BIEB.tab==="workout"?" workouts":" templates"))));
   g.innerHTML=hint+(kaarten.join("")||'<div class="cempty">Niets gevonden.</div>');
 }
-function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra,onder){
-  return '<div class="bieb-card" draggable="true" ondragstart="biebDragStart(event,\''+soort+'\',\''+esc(String(id))+'\')" ondragend="biebDragEnd(event)" ondblclick="biebDubbel(event,\''+soort+'\',\''+esc(String(id))+'\')" title="Sleep naar een dag op de kalender, of dubbelklik voor de doeldag">'+
-    '<div class="bk-kop"><span class="bk-dot" style="background:'+kleurHex+'"></span><div style="flex:1;min-width:0"><b>'+kop+'</b>'+(sub?'<div class="sm muted" style="margin-top:2px">'+sub+'</div>':'')+'</div><span class="bk-grip" title="Slepen">⋮⋮</span></div>'+
+// menu=true: een ⋮-knop voor bewerken (zie biebMenu). De knop is zelf "draggable"
+// met een geannuleerde dragstart, zodat slepen vanaf de knop nooit de kaart meeneemt.
+function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra,onder,menu){
+  const sid=esc(String(id));
+  const knop=menu?'<button class="bk-menu" draggable="true" ondragstart="event.preventDefault();event.stopPropagation()" ondblclick="event.stopPropagation()" onclick="biebMenu(event,\''+soort+'\',\''+sid+'\')" title="Bewerken"><svg class="i"><use href="#i-pen"/></svg></button>':'';
+  return '<div class="bieb-card" draggable="true" ondragstart="biebDragStart(event,\''+soort+'\',\''+sid+'\')" ondragend="biebDragEnd(event)" ondblclick="biebDubbel(event,\''+soort+'\',\''+sid+'\')" title="Sleep naar een dag op de kalender, of dubbelklik voor de doeldag">'+
+    '<div class="bk-kop"><span class="bk-dot" style="background:'+kleurHex+'"></span><div style="flex:1;min-width:0"><b>'+kop+'</b>'+(sub?'<div class="sm muted" style="margin-top:2px">'+sub+'</div>':'')+'</div>'+knop+'<span class="bk-grip" title="Slepen">⋮⋮</span></div>'+
     (extra||"")+
     (tekst?'<div class="bk-tekst">'+esc(tekst)+'</div>'+(biebLang(tekst)?'<span class="bk-meer" onclick="event.stopPropagation();biebMeer(this)">Meer</span>':''):'<div class="bk-tekst muted" style="font-style:italic">Geen tekst</div>')+
     (onder||"")+
@@ -195,12 +296,12 @@ function biebMeer(el){const k=el.closest(".bieb-card");if(!k)return;k.classList.
 // Kaart voor een item uit libItems (template, wedstrijdworkout of benchmark).
 function biebKaartItem(o){
   const vids=(o.media||[]).filter(m=>m&&m.youtube_id).length;
-  return biebKaart("item",o.key,kleurHex(o.kleur),esc(o.naam),esc(itemSoort(o)+" · "+(o.info||kleurNaam(o.kleur)))+(vids?" · 🎥 "+vids:""),o.instructies||"",null,biebVariantenHtml(o));
+  return biebKaart("item",o.key,kleurHex(o.kleur),esc(o.naam),esc(itemSoort(o)+" · "+(o.info||kleurNaam(o.kleur)))+(vids?" · 🎥 "+vids:""),o.instructies||"",null,biebVariantenHtml(o),o.bron==="tpl"||(o.bron==="bench"&&o.eigen));
 }
 function biebKaartBm(b){
   const rx=b.rx_men?(b.rx_men===b.rx_women?b.rx_men:"Rx "+b.rx_men+" / "+b.rx_women):null;
   const info=[BM_CATNAAM[b.categorie]||b.categorie,b.format,b.time_cap?"cap "+b.time_cap:null,rx].filter(Boolean).join(" · ");
-  return biebKaart("benchmark",b.id,TPLKLEUR.purple,esc(b.naam)+(b.badge?' <span class="cpill" style="background:#eef1f4;color:#5d6570;text-transform:lowercase">'+esc(b.badge)+'</span>':''),esc(info),b.tekst||"");
+  return biebKaart("benchmark",b.id,TPLKLEUR.purple,esc(b.naam)+(b.badge?' <span class="cpill" style="background:#eef1f4;color:#5d6570;text-transform:lowercase">'+esc(b.badge)+'</span>':''),esc(info),b.tekst||"",null,null,b.categorie==="custom");
 }
 function biebKaartWeek(w){
   const d=w.workout_date?new Date(w.workout_date+"T12:00:00"):null;

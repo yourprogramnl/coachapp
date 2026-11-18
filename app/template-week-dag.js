@@ -206,7 +206,7 @@ function biebProgKaarten(v){
   const kaarten=hits.map(x=>{
     const n=x.wos.length,wk=Math.max(1,x.p.weeks||1),wo=n+" workout"+(n===1?"":"s");
     const sub=dag?"template dag · "+wo:"template week · "+(wk===1?"1 week":wk+" weken")+" · "+wo;
-    return biebKaart("progtpl",x.p.id,dag?TPLKLEUR.green:TPLKLEUR.orange,esc(x.p.name),esc(sub)+(x.p.description?"<br>"+esc(x.p.description):""),x.tekst);
+    return biebKaart("progtpl",x.p.id,dag?TPLKLEUR.green:TPLKLEUR.orange,esc(x.p.name),esc(sub)+(x.p.description?"<br>"+esc(x.p.description):""),x.tekst,null,null,true);
   });
   let hint='<div class="cempty" style="padding:4px 10px 10px;text-align:left">'+(dag?"Sleep een template dag naar een dag bij je klant: alle workouts van die dag komen daar te staan.":"Sleep een template week naar een dag bij je klant: hij komt in die week te staan, met dag 1 op maandag.")+'</div>';
   if(!lijst.length)hint='<div class="cempty">'+(dag?"Nog geen template dagen.":"Nog geen template weken.")+" Sla bij een klant een dag of week op als template (het bladwijzertje naast + Toevoegen), of maak er een in de Bibliotheek.</div>";
@@ -297,7 +297,8 @@ async function tplSwitch(id){
 function tplKopChips(){
   if(!PROG)return "";
   const n=tplLijstKort().length,wk=Math.max(1,PROG.weeks||1);
-  const coachChip=myRole()!=="coach"?
+  // In het losse bibliotheek-venster geen coach-menu: dat wisselt het hoofdscherm.
+  const coachChip=myRole()!=="coach"&&!(typeof inBiebVenster==="function"&&inBiebVenster())?
     '<div class="progsel" id="coachsel" onclick="toggleCoachDrop(event)"><div class="pav" style="background:linear-gradient(135deg,#b8860b,#d9b44a)">T</div><div><div class="pn">Templates</div><div class="pt">'+n+(n===1?' template':' templates')+'</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="coachdrop" style="width:260px;left:auto;right:0" onclick="event.stopPropagation()"><div class="pd-lijst" id="cd-lijst"><div class="cempty" style="padding:10px">Coaches laden…</div></div></div></div>'
     :'';
