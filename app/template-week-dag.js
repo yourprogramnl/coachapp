@@ -70,7 +70,12 @@ function progKopieer(week,day){
 }
 
 // ---------- Opslaan als template vanuit de kalender van een klant ----------
-let TPLO={ds:null,soort:"dag"};
+// bron: "klant" (kalender van een klant) of "blog" (kalender van een blogprogramma, de zichtbare week).
+let TPLO={ds:null,soort:"dag",bron:"klant"};
+function tplDagWorkouts(ds){
+  if(TPLO.bron==="blog")return (BLOG.workouts||[]).filter(w=>w.workout_date===ds).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  return monthByDate[ds]||[];
+}
 function tplOpslaanModal(){
   if(document.getElementById("tplomodal"))return;
   const d=document.createElement("div");
@@ -87,15 +92,15 @@ function tplOpslaanModal(){
 function tplOpslaanDicht(){const m=document.getElementById("tplomodal");if(m)m.classList.remove("show");}
 // De workouts die meegaan: [{w, day}] met day 1 = maandag bij een week, en altijd 1 bij een dag.
 function tplOpslaanBron(){
-  if(TPLO.soort==="dag")return (monthByDate[TPLO.ds]||[]).map(w=>({w,day:1}));
+  if(TPLO.soort==="dag")return tplDagWorkouts(TPLO.ds).map(w=>({w,day:1}));
   const ma=mondayOf(new Date(TPLO.ds+"T12:00:00")),uit=[];
-  for(let i=0;i<7;i++)(monthByDate[ymd(addDays(ma,i))]||[]).forEach(w=>uit.push({w,day:i+1}));
+  for(let i=0;i<7;i++)tplDagWorkouts(ymd(addDays(ma,i))).forEach(w=>uit.push({w,day:i+1}));
   return uit;
 }
-function tplOpslaanOpen(ds){
+function tplOpslaanOpen(ds,bron){
   tplOpslaanModal();
-  TPLO={ds,soort:"dag"};
-  const eerste=(monthByDate[ds]||[]).find(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+  TPLO={ds,soort:"dag",bron:bron==="blog"?"blog":"klant"};
+  const eerste=tplDagWorkouts(ds).find(w=>!/^rest ?day$/i.test((w.title||"").trim()));
   TPLO.voorstel=eerste&&eerste.title?eerste.title:""; // naam van de dag als voorstel; bij "Deze week" halen we die weer weg
   document.getElementById("tplo-naam").value=TPLO.voorstel;
   document.getElementById("tplo-desc").value="";
@@ -104,6 +109,7 @@ function tplOpslaanOpen(ds){
   tplOpslaanSoort("dag");
   document.getElementById("tplomodal").classList.add("show");
 }
+function tplGeenScores(){return TPLO.bron==="blog"?"Scores en reacties gaan niet mee.":"Scores en reacties van de klant gaan niet mee.";}
 function tplOpslaanSoort(s){
   TPLO.soort=s;
   document.querySelectorAll("#tplo-seg button").forEach((b,i)=>b.classList.toggle("on",(i===0)===(s==="dag")));
@@ -112,11 +118,11 @@ function tplOpslaanSoort(s){
   if(s==="week"&&TPLO.voorstel&&naam.value===TPLO.voorstel)naam.value="";
   else if(s==="dag"&&!naam.value.trim()&&TPLO.voorstel)naam.value=TPLO.voorstel;
   if(s==="dag"){
-    info.textContent=biebDagLabel(TPLO.ds)+" · "+wo+". Komt in de bibliotheek onder Template dag. Scores en reacties van de klant gaan niet mee.";
+    info.textContent=biebDagLabel(TPLO.ds)+" · "+wo+". Komt in de bibliotheek onder Template dag. "+tplGeenScores();
     naam.placeholder="bijv. Testdag 1";
   }else{
     const ma=mondayOf(new Date(TPLO.ds+"T12:00:00")),dagen=new Set(bron.map(x=>x.day)).size;
-    info.textContent=biebDagLabel(ymd(ma))+" t/m "+biebDagLabel(ymd(addDays(ma,6)))+" · "+wo+" op "+dagen+(dagen===1?" dag":" dagen")+". Komt in de bibliotheek onder Template week, met maandag als dag 1. Scores en reacties van de klant gaan niet mee.";
+    info.textContent=biebDagLabel(ymd(ma))+" t/m "+biebDagLabel(ymd(addDays(ma,6)))+" · "+wo+" op "+dagen+(dagen===1?" dag":" dagen")+". Komt in de bibliotheek onder Template week, met maandag als dag 1. "+tplGeenScores();
     naam.placeholder="bijv. Testweek, of Off season week 1";
   }
 }

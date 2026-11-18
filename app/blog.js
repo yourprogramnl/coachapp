@@ -387,7 +387,8 @@ function blogDayCel(datum){
     return '<div class="pe-cell" style="'+stijl+'"'+dragAttrs+'>'+inner+'</div>';
   }
   return '<div class="pe-cell" style="'+stijl+'"'+dragAttrs+'><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();blogDayMenu(event,\''+datum+'\')">+ Toevoegen</button>'+
-    (wos.length?'<button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();blogKopieerDag(\''+datum+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>':'')+
+    (wos.length?'<button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();blogKopieerDag(\''+datum+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+      '<button class="sqbtn" title="Deze dag of deze week opslaan als template" onclick="event.stopPropagation();tplOpslaanOpen(\''+datum+'\',\'blog\')"><svg class="i sm-i"><use href="#i-bookmark"/></svg></button>':'')+
     '</div>'+wos.map(blogCard).join("")+'</div>';
 }
 // Zweefmenu op elke blog-kaart: zelfde bediening als de klant-kalender
