@@ -473,7 +473,7 @@ function lanceringHtml(taal: Taal, naam: string, accent: string): string {
 type Bestelling = {
   taal: Taal; accent: string; logoUrl: string | null; bedrijfsNaam: string; voornaam: string; naar: string;
   programma: string; prijs: string | null; interval: string; besteldOp: string; bedenkTot: string; orderId: string;
-  account: string | null; voorwaardenHtml: string | null; versie: string;
+  account: string | null; voorwaardenHtml: string | null; versie: string; toegang: string | null;
 };
 function bestellingHtml(o: Bestelling): string {
   const a = o.accent, en = o.taal === "en";
@@ -499,6 +499,7 @@ function bestellingHtml(o: Bestelling): string {
 
   const abonnement = en
     ? rij("Programme", wit(o.programma)) +
+      (o.toegang ? rij("Access", `${wit(o.toegang)}, plus programmes added later`) : "") +
       (o.prijs ? rij("Price", `${wit(o.prijs + " per " + periode)}, including VAT`) : "") +
       rij("Payment", `You pay the first ${periode} when ordering. After that our payment partner Stripe collects the amount automatically every ${periode}.`) +
       rij("Term", `Per ${periode}, renews automatically. No minimum term.`) +
@@ -506,6 +507,7 @@ function bestellingHtml(o: Bestelling): string {
       rij("Ordered on", esc(o.besteldOp)) +
       rij("Order number", `<span style="color:#8a919c;font-size:12px">${esc(o.orderId)}</span>`)
     : rij("Programma", wit(o.programma)) +
+      (o.toegang ? rij("Toegang", `${wit(o.toegang)}, en programma's die er later bijkomen`) : "") +
       (o.prijs ? rij("Prijs", `${wit(o.prijs + " per " + periode)}, inclusief btw`) : "") +
       rij("Betaling", `De eerste ${periode} betaal je bij het bestellen. Daarna schrijft onze betaalpartner Stripe het bedrag elke ${periode} automatisch af.`) +
       rij("Looptijd", `Per ${periode}, verlengt automatisch. Geen minimale looptijd.`) +
@@ -642,7 +644,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     }
     const [{ data: prof }, { data: prog }, { data: bedrijfB }] = await Promise.all([
       o.profile_id ? db.from("profiles").select("first_name,lang").eq("id", o.profile_id).maybeSingle() : Promise.resolve({ data: null }),
-      o.blog_program_id ? db.from("blog_programs").select("name,price_cents,price_interval").eq("id", o.blog_program_id).maybeSingle() : Promise.resolve({ data: null }),
+      o.blog_program_id ? db.from("blog_programs").select("name,price_cents,price_interval,in_abonnement,hidden").eq("id", o.blog_program_id).maybeSingle() : Promise.resolve({ data: null }),
       db.from("companies").select("name,theme,logo_url").eq("id", o.company_id).maybeSingle(),
     ]);
     const taalB: Taal = taalVan(prof?.lang);
@@ -650,6 +652,17 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const programma = prog?.name || (enB ? "your programme" : "je programma");
     const cents = Number(prog?.price_cents || 0);
     const prijs = cents > 0 ? "€" + (cents / 100).toFixed(2).replace(".", enB ? "." : ",") : null;
+    // Eén abonnement = alle programma's (18 nov 2026): noem welke programma's de koper ziet, als het
+    // gekochte programma bij het abonnement hoort. Namen uit de database, dus een nieuw programma
+    // staat er vanzelf bij. Lukt het ophalen niet, dan gewoon zonder deze regel.
+    let toegang: string | null = null;
+    if (o.blog_program_id && prog && prog.in_abonnement !== false && !prog.hidden) {
+      const { data: alle } = await db.from("blog_programs").select("name")
+        .eq("company_id", o.company_id).eq("in_abonnement", true).eq("hidden", false)
+        .order("sort").order("name");
+      const namen = (alle || []).map((x: { name: string }) => x.name).filter(Boolean);
+      if (namen.length > 1) toegang = namen.slice(0, -1).join(", ") + (enB ? " and " : " en ") + namen[namen.length - 1];
+    }
     const start = new Date(String(o.terms_accepted_at || o.created_at));
     const locale = enB ? "en-GB" : "nl-NL";
     const besteldOp = start.toLocaleString(locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: TZ });
@@ -659,7 +672,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       taal: taalB, accent: accentVan(bedrijfB?.theme), logoUrl: bedrijfB?.logo_url || null, bedrijfsNaam: bedrijfsNaamB,
       voornaam: prof?.first_name || "", naar, programma, prijs, interval: prog?.price_interval || "month",
       besteldOp, bedenkTot, orderId: o.id, account: o.account_state || null,
-      voorwaardenHtml: vw?.html || null, versie: (o.terms_version as string) || vw?.versie || "",
+      voorwaardenHtml: vw?.html || null, versie: (o.terms_version as string) || vw?.versie || "", toegang,
     });
     const onderwerpB = enB ? `Order confirmation: ${programma}` : `Bevestiging van je bestelling: ${programma}`;
     const rB = await verstuur(naar, bedrijfsNaamB, onderwerpB, html, ingevuld(BEDRIJF.email) ? BEDRIJF.email : undefined);
