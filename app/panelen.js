@@ -1183,6 +1183,7 @@ function pfRenderProfiel(p){
       '<label class="pf-toggle" title="Na het afronden van een workout vraagt de app hoe zwaar het was (RPE 1-10) en hoe lang het duurde. Jij ziet het op de kaart en in de feed."><input type="checkbox" id="pf-effort"'+(p.effort_rating?" checked":"")+'><span class="pf-sw"></span> Inspanning vragen na elke workout (RPE + duur)</label>'+
       '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px"><span style="font-size:12.5px">Workouts zichtbaar tot</span><input type="number" id="pf-daysahead" min="0" value="'+esc(p.workouts_days_ahead!=null?p.workouts_days_ahead:"")+'" style="width:80px"><span class="sm muted">dagen vooruit (0 = geen limiet)</span></div>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-weekonly"'+(p.future_workouts_week_only?" checked":"")+'><span class="pf-sw"></span> Alleen toekomstige workouts tonen als ze in de huidige week vallen</label>'+
+      '<label class="pf-toggle" title="Zet dit aan als de klant niet wil dat zijn trainingsweek door AI wordt samengevat. De knop Samenvatten in de Weekcheck verdwijnt dan voor deze klant, en wat er al door AI over deze klant is geschreven wordt verwijderd."><input type="checkbox" id="pf-aiuit"'+(p.ai_summary_optout?" checked":"")+'><span class="pf-sw"></span> Niet laten samenvatten door AI (Weekcheck)</label>'+
       '<label class="pf-toggle"><input type="checkbox" id="pf-hideww"'+(p.hide_weekworkout?" checked":"")+'><span class="pf-sw"></span> '+esc(SHOWDOWN)+' verbergen (lid ziet de gedeelde workout en het leaderboard niet)</label>'+
     '</div>'+
     '<div class="mfoot" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:16px">'+
@@ -1219,6 +1220,8 @@ async function profielOpslaan(){
     future_workouts_week_only:document.getElementById("pf-weekonly").checked,
     hide_weekworkout:document.getElementById("pf-hideww").checked
   };
+  // Uitzetknop voor Samenvatten met AI (app/weekcheck.js); de database ruimt bij aanzetten zelf op.
+  const aiUit=document.getElementById("pf-aiuit");if(aiUit)upd.ai_summary_optout=aiUit.checked;
   const{data,error}=await db.from("profiles").update(upd).eq("id",calClient).select().single();
   if(error){toast(error.message||"Opslaan mislukt");return;}
   const p=coachClients.find(x=>x.id===calClient);

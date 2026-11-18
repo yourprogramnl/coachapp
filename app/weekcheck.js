@@ -288,6 +288,8 @@ function wcAiRegelsHtml(tekst){
 }
 function wcAiHtml(p){
   const id=p.id,sam=wcSamVan(id);
+  // De klant wil dit niet (vinkje bij Profiel): geen knop en ook geen oude samenvatting tonen.
+  if(p.ai_summary_optout)return '<div class="wc-ai leeg"><span class="sm muted">Samenvatten met AI staat uit voor deze atleet (in te stellen bij zijn Profiel).</span></div>';
   if(WC.bezig.has(id))return '<div class="wc-ai"><div class="wc-aikop">Samenvatting</div><div class="sm muted">Bezig met samenvatten… dit duurt een paar seconden.</div></div>';
   if(!sam)return '<div class="wc-ai leeg"><button class="btn ghost sm" onclick="wcSamenvatten(\''+id+'\')">✦ Samenvatten in gewone zinnen</button>'+
     '<span class="sm muted">Het AI-model leest de week (zonder naam) en schrijft een paar regels. De samenvatting wordt bewaard.</span></div>';
@@ -308,6 +310,7 @@ async function wcSamenvatRoep(body){
 async function wcSamenvatten(id){
   const p=actieveKlanten().find(x=>x.id===id);
   if(!p||!WC.data||WC.dag===WC_ZONDER||WC.bezig.has(id))return;
+  if(p.ai_summary_optout){toast("Samenvatten met AI staat uit voor deze atleet");return;}
   const per=wcPeriode(WC.dag,WC.terug),gen=WC.gen;
   const week=wcWeekTekst(p);
   if(!week.trim()){toast("Er is in deze periode niets om samen te vatten");return;}
@@ -467,7 +470,7 @@ async function wcVink(id){
   const p=actieveKlanten().find(x=>x.id===id);if(!p||!WC.data||WC.dag===WC_ZONDER)return;
   const per=wcPeriode(WC.dag,WC.terug);
   const s=wcSamenvat(p);s.dag=WC_DAG[WC.dag];
-  const sam=wcSamVan(id);if(sam&&sam.summary)s.ai=sam.summary;
+  const sam=wcSamVan(id);if(sam&&sam.summary&&!p.ai_summary_optout)s.ai=sam.summary;
   const rec={company_id:p.company_id||ME.profile.company_id,athlete_id:id,checked_by:ME.user.id,period_from:per.van,period_to:per.tot,note:(WC.notities[id]||"").trim()||null,summary:s};
   const{data,error}=await db.from("week_checks").upsert(rec,{onConflict:"athlete_id,period_to"}).select().single();
   if(error){toast(error.message||"Afvinken mislukt");return;}
@@ -592,6 +595,10 @@ if(typeof i18nLaad==="function")i18nLaad({
   "Opnieuw proberen":"Try again",
   "Wat er per week is afgevinkt in de Weekcheck (Meldingen), met de notitie van de coach.":"What was checked off per week in the Week check (Notifications), with the coach's note.",
   "Samenvatting":"Summary",
+  "Samenvatten met AI staat uit voor deze atleet (in te stellen bij zijn Profiel).":"Summarising with AI is switched off for this athlete (set in their Profile).",
+  "Samenvatten met AI staat uit voor deze atleet":"Summarising with AI is switched off for this athlete",
+  "Niet laten samenvatten door AI (Weekcheck)":"Don't summarise with AI (Week check)",
+  "Zet dit aan als de klant niet wil dat zijn trainingsweek door AI wordt samengevat. De knop Samenvatten in de Weekcheck verdwijnt dan voor deze klant, en wat er al door AI over deze klant is geschreven wordt verwijderd.":"Switch this on if the client doesn't want their training week summarised by AI. The Summarise button in the Week check then disappears for this client, and anything AI already wrote about this client is deleted.",
   "✦ Samenvatten in gewone zinnen":"✦ Summarise in plain sentences",
   "Het AI-model leest de week (zonder naam) en schrijft een paar regels. De samenvatting wordt bewaard.":"The AI model reads the week (without the name) and writes a few lines. The summary is saved.",
   "Bezig met samenvatten… dit duurt een paar seconden.":"Summarising… this takes a few seconds.",

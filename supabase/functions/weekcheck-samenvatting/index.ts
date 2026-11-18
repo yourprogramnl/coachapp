@@ -73,12 +73,14 @@ Deno.serve(async (req) => {
   if (week.length > MAX_TEKENS) return json(200, { error: "te_lang", detail: "Deze week bevat te veel tekst om in één keer samen te vatten." });
 
   // Mag de aanvrager deze atleet zien? Zelfde regels als in de rest van de app.
-  const { data: atleet } = await db.from("profiles").select("id,coach_id,company_id,first_name,last_name").eq("id", athleteId).single();
+  const { data: atleet } = await db.from("profiles").select("id,coach_id,company_id,first_name,last_name,ai_summary_optout").eq("id", athleteId).single();
   if (!atleet) return json(404, { error: "atleet niet gevonden" });
   const mag = ik.role === "platform_admin" ||
     (ik.role === "eigenaar" && atleet.company_id === ik.company_id) ||
     (ik.role === "coach" && atleet.coach_id === ik.id);
   if (!mag) return json(403, { error: "geen toegang tot deze atleet" });
+  // De atleet wil niet door AI worden samengevat (vinkje bij Profiel): er gaat dan niets naar het model.
+  if (atleet.ai_summary_optout) return json(200, { error: "uitgezet", detail: "Voor deze atleet staat samenvatten met AI uit." });
 
   const sleutel = Deno.env.get("ANTHROPIC_API_KEY");
   if (!sleutel) return json(200, { error: "geen_sleutel" });
