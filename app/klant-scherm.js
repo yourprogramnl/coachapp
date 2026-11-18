@@ -985,7 +985,7 @@ function mcardHtml(w){
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard'+(done===0?' planned':'')+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+conceptPill(w)+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
+    conceptPill(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     conceptKnop(w)+cardComBtn(w)+'</div>';
 }
 // Concepten (workouts.status='draft'): de coach ziet ze met een label, de sporter pas na goedkeuren.
