@@ -931,7 +931,7 @@ function ssKaartHtml(g){
   const b0=g[0],kleur=b0.color?' k-'+esc(b0.color):'';
   const letter=String(b0.label||"").replace(/\d+$/,"");
   let done=0,total=0;
-  let h='<div class="cblk'+kleur+' ssblok"><div class="n">'+esc(letter)+') '+esc((b0.group_title||"").trim())+(g.some(b=>b.media&&b.media.length)?' 🎥':'')+'</div>';
+  let h='<div class="cblk'+kleur+' ssblok"'+bsBlokAttr(b0.id)+'><div class="n">'+esc(letter)+') '+esc((b0.group_title||"").trim())+(g.some(b=>b.media&&b.media.length)?' 🎥':'')+'</div>';
   const pr=composePresc(b0);
   if(pr)h+='<div class="pr">'+esc(pr)+'</div>';
   if(b0.notes)h+='<div class="pr" style="font-style:italic" title="Coachingtips">💡 '+esc(b0.notes)+'</div>';
@@ -970,7 +970,7 @@ function mcardHtml(w){
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
     const padLijst=(monthMedia[b.id]||[]).map(v=>v.storage_path).join("|");
     const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
-    inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
+    inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((b.kind!=="conditioning"&&b.notes)?'<div class="pr" style="font-style:italic" title="Coachingtips">💡 '+esc(b.notes)+'</div>':'')+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
@@ -984,7 +984,7 @@ function mcardHtml(w){
     else g.forEach(losBlok);
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'"'+bsKaartAttr("klant",w.id)+' onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
     '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
     cardComBtn(w)+'</div>';
 }
@@ -1489,7 +1489,7 @@ async function renderMonth(opts){
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
       }
-      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+(ds===doelDag?' doeldag':'')+'" data-d="'+ds+'" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
+      cells+='<div class="mday'+(selectable?' selectable':'')+(calView!=="maand"?" tall":"")+(isToday?' today-cell':'')+(dim?' dim2':'')+(ds===doelDag?' doeldag':'')+'" data-d="'+ds+'"'+bsDagAttr("klant",ds)+' ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropDay(event,\''+ds+'\')"'+(selectable?' onclick="openDayMenu(event,\''+ds+'\')" onmouseenter="openDayMenu(event,\''+ds+'\')" onmouseleave="dagLeave(this)"':'')+'>'+inner+'</div>';
     }
     // maand-scheidingsbalk vóór de week waarin een nieuwe maand begint (zoals CoachRx)
     if(calView==="maand"&&wk>0){

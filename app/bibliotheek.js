@@ -763,9 +763,9 @@ function progDayCel(week,day){
     const w=progEditWid?wos.find(x=>x.id===progEditWid):null;
     const wObj=w?{id:w.id,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
-    return '<div class="pe-cell">'+inner+'</div>';
+    return '<div class="pe-cell"'+bsDagAttr("prog",week+":"+day)+'>'+inner+'</div>';
   }
-  return '<div class="pe-cell"><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button>'+
+  return '<div class="pe-cell"'+bsDagAttr("prog",week+":"+day)+'><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button>'+
     (wos.length?'<button class="sqbtn" title="Kopieer deze dag om hem bij een klant of op een andere dag te plakken" onclick="event.stopPropagation();progKopieer('+week+','+day+')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>':'')+
     '</div>'+wos.map(progCard).join("")+'</div>';
 }
@@ -846,9 +846,9 @@ function progCard(w){
   if(w.coach_notes)inner+='<div class="cblk k-grijs"><div class="n">Instructies</div><div class="pr pe-kort" title="Klik op de kaart om alles te lezen">'+esc(w.coach_notes)+'</div></div>';
   const vids=m=>(m&&m.length)?' <span class="muted" style="font-weight:500" title="'+m.length+' video\'s">🎥 '+m.length+'</span>':'';
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+vids(w.warmup_media)+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
-  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
+  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+vids(w.cooldown_media)+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard planned" onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
+  return '<div class="mcard planned"'+bsKaartAttr("prog",w.id)+' onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
 // Wegklikken uit een open programma-bouwer slaat eerst stil op (zelfde
 // afspraak als de klant-bouwer; pilotfeedback 17 aug: op een andere dag

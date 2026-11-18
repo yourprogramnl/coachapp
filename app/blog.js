@@ -378,7 +378,7 @@ function blogDayCel(datum){
   const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
   const vandaag=datum===todayStr();
   const stijl="min-height:420px;"+(vandaag?"outline:2px solid #6ec4e8;outline-offset:-2px;":"");
-  const dragAttrs=' ondragover="blogDragOver(event,this)" ondragleave="blogDragLeave(this)" ondrop="blogDropDay(event,\''+datum+'\')"';
+  const dragAttrs=' ondragover="blogDragOver(event,this)" ondragleave="blogDragLeave(this)" ondrop="blogDropDay(event,\''+datum+'\')"'+bsDagAttr("blog",datum);
   if(BLOG.editDay===datum){
     let inner=wos.filter(w=>w.id!==BLOG.editWid).map(blogCard).join("");
     const w=BLOG.editWid?wos.find(x=>x.id===BLOG.editWid):null;
@@ -510,9 +510,9 @@ function blogCard(w){
   if(isRest)return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span style="color:#27b376">Rustdag</span></div></div>';
   let inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
-  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
+  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
+  return '<div class="mcard planned'+sel+'"'+bsKaartAttr("blog",w.id)+' onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
 // ---------- Slepen, dag kopiëren en selecteren (zelfde gedrag als de klant-kalender) ----------
 let blogDragWid=null,blogSel=new Set();

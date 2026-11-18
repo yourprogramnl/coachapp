@@ -1643,3 +1643,12 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .ib2 .exrow.ss-dicht>.schemarow{margin-top:1px;font-size:11px;color:#8a919c}
 .ib2 .exrow.ss-dicht>.schemarow .schemalbl{display:none}
 .sslink.ss-weg{display:none}
+
+/* Losse blokken slepen op de kalenderkaarten (app/blok-slepen.js, 18 nov 2026) */
+.cblk[draggable="true"]{cursor:grab}
+.cblk[draggable="true"]:active{cursor:grabbing}
+.cblk.bs-sleep{opacity:.4}
+.cblk.bs-voor{box-shadow:0 -3px 0 0 #2a9fce}
+.cblk.bs-na{box-shadow:0 3px 0 0 #2a9fce}
+.mcard.bs-doel{outline:2px dashed #3eb3e0;outline-offset:2px;background:#f0f8fc}
+.mday.bs-doel,.pe-cell.bs-doel{background:#eaf7fd;box-shadow:inset 0 0 0 2px #6ec4e8}
