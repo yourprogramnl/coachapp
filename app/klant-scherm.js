@@ -64,7 +64,7 @@ function renderClient(panel){
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
 async function vulKlantStats(p){
   const[wq,rq,ciq,cq]=await Promise.all([
-    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id),
+    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id).neq("status","draft"),
     db.from("results").select("workout_id,status").eq("athlete_id",p.id),
     db.from("client_info").select("data").eq("athlete_id",p.id).limit(1),
     // naam van de coach voor de kalender-kop, meteen in dezelfde ronde
@@ -952,10 +952,10 @@ function ssKaartHtml(g){
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
-    return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-      '<div class="msc"><span style="color:#27b376">Rustdag</span></div>'+
+    return '<div class="mcard planned'+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+      '<div class="msc"><span style="color:#27b376">Rustdag</span>'+conceptPill(w)+'</div>'+
       '<div class="cblk"><div class="pr" style="color:#8a919c">Geen instructies</div></div>'+
-      cardComBtn(w)+'</div>';
+      conceptKnop(w)+cardComBtn(w)+'</div>';
   }
   let done=0,total=0,inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
@@ -984,9 +984,55 @@ function mcardHtml(w){
     else g.forEach(losBlok);
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
-    cardComBtn(w)+'</div>';
+  return '<div class="mcard'+(done===0?' planned':'')+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+    conceptPill(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
+    conceptKnop(w)+cardComBtn(w)+'</div>';
+}
+// Concepten (workouts.status='draft'): de coach ziet ze met een label, de sporter pas na goedkeuren.
+// De database dwingt dat af (regel workouts_draft_hidden), dus ook oude app-versies tonen ze niet.
+function conceptPill(w){return w.status==="draft"?'<span class="conceptpill" title="Concept: de sporter ziet deze workout pas na goedkeuren">Concept</span>':'';}
+function conceptKnop(w){return w.status==="draft"?'<button class="conceptbtn" onclick="event.stopPropagation();conceptGoedkeuren(\''+w.id+'\')">Goedkeuren</button>':'';}
+function conceptIds(){return Object.values(monthWorkouts||{}).filter(w=>w.status==="draft").map(w=>w.id);}
+function conceptKopKnop(){const n=conceptIds().length;return n?'<button class="btn sm conceptalle" title="Alle concepten in deze kalender zichtbaar maken voor de sporter" onclick="conceptenGoedkeuren()">Concepten goedkeuren <b>'+n+'</b></button>':'';}
+async function conceptGoedkeuren(wid){
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:"published"}).eq("id",wid);
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Goedgekeurd, de sporter ziet deze workout nu");renderMonth();
+}
+async function conceptenGoedkeuren(){
+  if(!(await autoSaveBouwer()))return;
+  const ids=conceptIds();if(!ids.length)return;
+  if(!confirm(tf("{n} concept(en) goedkeuren? De sporter ziet ze daarna meteen.",{n:ids.length})))return;
+  const{error}=await db.from("workouts").update({status:"published"}).in("id",ids);
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
+}
+// Een workout waarop het lid al iets logde kan niet meer op concept (die zou voor het lid verdwijnen).
+function conceptHeeftLog(w){return (w.blocks||[]).some(b=>monthResults[b.id]);}
+async function conceptZet(wid){
+  const w=monthWorkouts[wid];if(!w)return;
+  if(conceptHeeftLog(w)){toast("Dit lid heeft hier al iets gelogd, deze workout kan niet meer op concept");return;}
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:"draft"}).eq("id",wid);
+  if(error){toast(t("Op concept zetten mislukt")+": "+error.message);return;}
+  toast("Op concept gezet, de sporter ziet deze workout niet meer");renderMonth();
+}
+function selConceptKnoppen(){
+  const ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean);
+  if(!ws.length||ws.some(w=>!w.client_id))return "";
+  return (ws.some(w=>w.status!=="draft")?'<button class="lnk" onclick="selConcept(true)">Op concept</button>':'')+(ws.some(w=>w.status==="draft")?'<button class="lnk" onclick="selConcept(false)">Goedkeuren</button>':'');
+}
+async function selConcept(naarConcept){
+  let ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean).filter(w=>naarConcept?w.status!=="draft":w.status==="draft");
+  let overgeslagen=0;
+  if(naarConcept){const n=ws.length;ws=ws.filter(w=>!conceptHeeftLog(w));overgeslagen=n-ws.length;}
+  if(!ws.length){toast(overgeslagen?"Op deze workouts is al gelogd, die kunnen niet op concept":"Niets te wijzigen");return;}
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:naarConcept?"draft":"published"}).in("id",ws.map(w=>w.id));
+  if(error){toast(t("Wijzigen mislukt")+": "+error.message);return;}
+  selClear();
+  toast(naarConcept?(overgeslagen?"Op concept gezet; workouts met een log zijn overgeslagen":"Op concept gezet, de sporter ziet ze niet meer"):"Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
 }
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
 function cardTools(w){
@@ -1005,7 +1051,7 @@ function cardTools(w){
     '<button title="Voorbeeld: zo ziet de sporter het in de app" onclick="event.stopPropagation();appVoorbeeldVanKaart(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-eye"/></svg></button>'+
     '<button title="'+(scoreDag?'Scores invoeren':'Bewerken')+'" onclick="event.stopPropagation();'+(scoreDag?'openResults(\''+w.id+'\')':'editWorkout(\''+w.id+'\',0)')+'"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
-    '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    (w.status!=="draft"&&w.client_id?'<button title="Op concept zetten: verbergen voor de sporter tot je goedkeurt" onclick="event.stopPropagation();conceptZet(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-doc"/></svg></button>':'')+'<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button title="Verwijderen" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
     '</span>';
 }
@@ -1036,7 +1082,7 @@ function selBarUpdate(){
   if(!selWids.size){if(bar)bar.remove();return;}
   if(!bar){bar=document.createElement("div");bar.id="selbar";document.body.appendChild(bar);}
   bar.innerHTML='<span class="n">'+selWids.size+'</span><span>geselecteerd</span><button class="lnk" onclick="selClear()">Selectie wissen</button>'+
-    '<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    selConceptKnoppen()+'<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button class="ic" title="Verwijderen" onclick="selVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
 }
 // Volgorde van workouts binnen één dag wisselen (pijltjes op de kaart).
@@ -1163,6 +1209,7 @@ function biebInBouwer(item){
 }
 async function biebDropOpDag(item,ds){
   if(!calClient){toast("Open eerst een klant");return;}
+  if(item.soort==="progtpl")return await progTplOpDag(item,ds); // hele dag of week uit een template
   // Bouwer open op deze dag? Dan als nieuwe regel onderaan in de bouwer.
   const bouwerDag=editDay||(editWid&&monthWorkouts[editWid]?monthWorkouts[editWid].workout_date:null);
   if(bouwerDag===ds&&biebInBouwer(item))return;
@@ -1188,6 +1235,7 @@ async function biebDropOpDag(item,ds){
   renderMonth();
 }
 async function biebDropOpWorkout(item,wid){
+  if(item.soort==="progtpl"){const w0=monthWorkouts[wid];if(w0)await biebDropOpDag(item,w0.workout_date);return;}
   const w=monthWorkouts[wid];if(!w){toast("Workout niet gevonden");return;}
   if(editWid===wid&&biebInBouwer(item))return; // deze workout staat open in de bouwer
   const blokken=w.blocks||[];
@@ -1218,7 +1266,7 @@ function biebKanaal(){
     if(m.type==="plaats"&&m.voor===BIEB_ID&&m.item){
       const ds=biebDoelHuidig();
       if(!ds||!calClient){biebKanaalObj.postMessage({type:"melding",tekst:"Kies eerst een dag: klik het speldje 📌 op een dag in de kalender (of open de bouwer)."});return;}
-      await biebDropOpDag(m.item,ds);
+      if((await biebDropOpDag(m.item,ds))===false)return; // niets geplaatst (geannuleerd)
       biebKanaalObj.postMessage({type:"melding",tekst:'"'+m.item.naam+'" op '+biebDagLabel(ds)+' gezet'});
     }
   };
@@ -1452,7 +1500,7 @@ async function renderMonth(opts){
       '<div id="kd-blogs"></div>'+
       dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
       '</div></div></div>'+
-    '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
+    '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+conceptKopKnop()+
     '<button class="btn ghost sm" title="Exporteer workouts, scores, metrics en meer als PDF of tekstbestand" onclick="openExport()"><svg class="i sm-i"><use href="#i-dl"/></svg> Exporteren</button>'+
     '</div>';
   const headDays=calView==="dag"?[DAGEN[(gridStart.getDay()+6)%7]]:DAGEN;
@@ -1482,7 +1530,7 @@ async function renderMonth(opts){
         // bouwer-element nog bij dezelfde dag/workout hoort (zie onderaan renderMonth)
         inner+='<div class="ib2" data-eday="'+ds+'" data-ewid="'+esc(editWid||"")+'" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else if(dayWos.length){
-        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Toevoegen</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
+        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Toevoegen</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="sqbtn" title="Deze dag of deze week opslaan als template" onclick="event.stopPropagation();tplOpslaanOpen(\''+ds+'\')"><svg class="i sm-i"><use href="#i-bookmark"/></svg></button></div>';
         inner+=dayWos.map(mcardHtml).join("");
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
@@ -1578,24 +1626,56 @@ function filterKlantDrop(v){const z=(v||"").toLowerCase();document.querySelector
 // Verzoek Stefan (22 okt): weg, naar een blog springen doen we vanuit de Blog-sectie zelf.
 // kalBlogs blijft bestaan omdat blog.js het nog bijvult.
 let kalBlogs=null;
+// Sinds 18 nov 2026 (verzoek Stefan en Michel): "Blog" staat als keuze in het
+// coach-menu. Wie dat kiest krijgt in het tweede menu de blogprogramma's in
+// plaats van klantnamen en landt op dezelfde blogkalender als via de sectie
+// Blog. Het is één scherm met twee ingangen: wat je via de ene ingang
+// aanpast, staat er via de andere ook.
+async function laadBlogKort(){
+  if(kalBlogs)return;
+  const{data}=await db.from("blog_programs").select("*").eq("company_id",ME.profile.company_id).order("name");
+  let l=data||[];
+  if(myRole()==="coach")l=l.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id));
+  kalBlogs=l;
+}
+function opBlogScherm(){return !!(typeof BLOG!=="undefined"&&BLOG.cur&&document.querySelector(".bloglay"));}
+async function naarBlogVanuitMenu(){
+  if(opBlogScherm())return;
+  if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return; // open bouwer eerst netjes opslaan
+  let pid=null;try{pid=localStorage.getItem("forge_blog_laatst");}catch(e){}
+  BLOG.openNaId=pid||"eerste"; // fillBlog kiest het laatst geopende programma, anders het eerste
+  coachGo("blog");
+}
 async function vulBlogDrop(){
   const host=document.getElementById("kd-blogs");if(host)host.innerHTML="";
 }
 // ---------- Coach wisselen (alleen eigenaar/platform_admin) ----------
 async function laadCoaches(){
   if(coachList.length)return;
-  let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
+  // Ook platform_admin (18 nov 2026, verzoek Michel): Michel is platform_admin én
+  // coacht zelf klanten, maar stond niet in het menu. Welke admins je ziet, bepaalt
+  // coachMenuLijst() pas bij het tonen (dan zijn de klanten zeker geladen).
+  let q=db.from("profiles").select("*").in("role",["coach","eigenaar","platform_admin"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
   const{data}=await q;coachList=(data||[]).filter(c=>!c.archived);
 }
+// Coaches en eigenaren altijd; een platform_admin alleen als hij zelf klanten
+// heeft (anders staan lege beheer-accounts in het menu).
+function coachMenuLijst(){
+  return coachList.filter(c=>c.role!=="platform_admin"||actieveKlanten().some(k=>k.coach_id===c.id));
+}
 function vulCoachDrop(){
   const host=document.getElementById("cd-lijst");if(!host)return;
-  const rows=coachList.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
+  const opBlog=opBlogScherm(),opTpl=typeof opTplScherm==="function"&&opTplScherm();
+  const rows=coachMenuLijst().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
     const n=actieveKlanten().filter(k=>k.coach_id===c.id).length;
     const rol=c.role==="eigenaar"?" · eigenaar":"";
-    return '<div class="pd-row'+(c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+    return '<div class="pd-row'+(!opBlog&&!opTpl&&c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   }).join("");
-  host.innerHTML=rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>';
+  // Onder de coaches: Blogprogramma's (heette tot 18 nov 2026 "Blog", verzoek Michel).
+  const nBlog=(kalBlogs||[]).length;
+  const blogRij='<div class="pd-sep"></div><div class="pd-row'+(opBlog?' actief':'')+'" onclick="kiesCoach(\'blog\')"><div class="pd-badge" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div class="pd-naam">Blogprogramma\'s <span class="muted" style="font-weight:500">('+nBlog+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+  host.innerHTML=(rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>')+blogRij+(typeof tplMenuRij==="function"?tplMenuRij(opTpl):""); // Templates: het werkblad van de coach
 }
 async function toggleCoachDrop(ev){
   ev.stopPropagation();
@@ -1604,11 +1684,13 @@ async function toggleCoachDrop(ev){
   document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));
   if(!openNu)return;
   d.classList.add("show");
-  await laadCoaches();
+  await Promise.all([laadCoaches(),laadBlogKort(),typeof laadTplKort==="function"?laadTplKort():null]);
   if(document.getElementById("coachdrop")&&document.getElementById("coachdrop").classList.contains("show"))vulCoachDrop();
 }
 function kiesCoach(id){
   const d=document.getElementById("coachdrop");if(d)d.classList.remove("show");
+  if(id==="blog"){naarBlogVanuitMenu();return;}
+  if(id==="tpl"){naarTemplatesVanuitMenu();return;}
   const klanten=coachClients.filter(k=>k.coach_id===id).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
   if(!klanten.length){
     const c=coachList.find(x=>x.id===id);
@@ -1626,7 +1708,7 @@ async function pickRest(ev){
   toast("Dag ingesteld als rustdag");renderMonth();
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
-function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
+function wTemplate(w){return {date:w.workout_date,status:w.status==="draft"?"draft":"published",title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
   blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
@@ -1653,7 +1735,7 @@ async function pickPaste(ev){
   for(const t of kb){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const datum=off?ymdPlus(curDay,off):curDay;
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null,status:t.status==="draft"?"draft":"published"}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }

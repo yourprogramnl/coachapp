@@ -25,8 +25,11 @@ async function fillBlog(){
   if(BLOG.cur){const v=BLOG.list.find(p=>p.id===BLOG.cur.id);if(v)BLOG.cur=v;else BLOG.cur=null;}
   // Vanuit het wisselmenu op het klant-scherm: direct door naar dit programma.
   if(BLOG.openNaId){
-    const pid=BLOG.openNaId;BLOG.openNaId=null;
-    if(BLOG.list.some(p=>p.id===pid)){blogOpen(pid);return;}
+    let pid=BLOG.openNaId;BLOG.openNaId=null;
+    // Via "Blog" in het coach-menu: het laatst geopende programma; bestaat dat
+    // niet (meer), dan het eerste eigen programma (buiten de groepen).
+    if(!BLOG.list.some(p=>p.id===pid)){const eerste=BLOG.list.find(p=>!p.groep)||BLOG.list[0];pid=eerste?eerste.id:null;}
+    if(pid){blogOpen(pid);return;}
   }
   blogRender();
 }
@@ -228,6 +231,7 @@ async function blogOpen(id){
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   const p=BLOG.list.find(x=>x.id===id);if(!p){toast("Programma niet gevonden");return;}
   BLOG.cur=p;BLOG.paneel="kalender";
+  try{localStorage.setItem("forge_blog_laatst",id);}catch(e){}
   BLOG.weekStart=mondayOf(new Date());
   BLOG.editDay=null;BLOG.editWid=null;
   await blogLaadWeek();
@@ -253,21 +257,48 @@ function isoWeek(d){
   return 1+Math.round(((x-w1)/864e5-3+((w1.getDay()+6)%7))/7);
 }
 const DAGENVOL=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
-// Programma-wissel in de kop (zoals rechtsboven in Strivee).
+// Wisselmenu's in de kop (18 nov 2026), zelfde opzet als coach + klant op het
+// klant-scherm: links het coach-menu (staat hier op "Blog"), rechts alle
+// blogprogramma's met een zoekveld. Eigen programma's bovenaan, daarna per groep.
 function blogSwitchMenu(ev){
   ev.stopPropagation();
-  document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
-  const d=document.createElement("div");d.className="coachmenu wwmenu";
-  d.style.cssText="top:44px;right:0;left:auto;max-height:320px;overflow:auto;min-width:240px";
-  d.innerHTML=BLOG.list.filter(p=>(p.groep||"")===(BLOG.cur.groep||"")).map(p=>'<button onclick="event.stopPropagation();blogSwitch(\''+p.id+'\')">'+(p.id===BLOG.cur.id?"✓ ":"")+esc(p.name)+' <span class="muted" style="font-size:11px">· '+esc(blogTypeNL(p.type))+'</span></button>').join("");
-  const host=ev.target.closest(".blog-switch");if(!host)return;
-  host.appendChild(d);
-  setTimeout(()=>document.addEventListener("click",function h(){d.remove();document.removeEventListener("click",h);}),0);
+  const d=document.getElementById("blogdrop");if(!d)return;
+  const openNu=!d.classList.contains("show");
+  document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));
+  if(!openNu)return;
+  d.classList.add("show");
+  const z=d.querySelector("input");if(z){z.value="";blogDropFilter("");z.focus();}
+}
+function blogDropRij(p){
+  return '<div class="pd-row'+(p.id===BLOG.cur.id?' actief':'')+'" data-n="'+esc(((p.name||"")+" "+(p.groep||"")).toLowerCase())+'" onclick="blogSwitch(\''+p.id+'\')"><div class="pd-badge" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div><div class="pd-naam">'+esc(p.name)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+}
+function blogDropHtml(){
+  const per={};BLOG.list.forEach(p=>{if(p.groep)(per[p.groep]=per[p.groep]||[]).push(p);});
+  return BLOG.list.filter(p=>!p.groep).map(blogDropRij).join("")+
+    Object.keys(per).sort((x,y)=>x.localeCompare(y)).map(g=>'<div class="pd-kop">'+esc(g)+'</div>'+per[g].map(blogDropRij).join("")).join("");
+}
+function blogDropFilter(v){
+  const z=(v||"").toLowerCase().trim();
+  document.querySelectorAll("#bd-lijst .pd-row").forEach(r=>{r.style.display=(r.dataset.n||"").includes(z)?"":"none";});
+  document.querySelectorAll("#bd-lijst .pd-kop").forEach(k=>{k.style.display=z?"none":"";});
+}
+function blogKopChips(){
+  const p=BLOG.cur,n=BLOG.list.length;
+  // Coach-menu alleen voor eigenaar/platform_admin, net als op het klant-scherm.
+  const coachChip=myRole()!=="coach"?
+    '<div class="progsel" id="coachsel" onclick="toggleCoachDrop(event)"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div><div class="pn">Blogprogramma\'s</div><div class="pt">'+n+(n===1?' programma':' programma\'s')+'</div></div><span class="car">▾</span>'+
+      '<div class="progdrop" id="coachdrop" style="width:260px;left:auto;right:0" onclick="event.stopPropagation()"><div class="pd-lijst" id="cd-lijst"><div class="cempty" style="padding:10px">Coaches laden…</div></div></div></div>'
+    :'';
+  return '<div style="margin-left:auto;display:flex;gap:10px;align-items:center;font-weight:400">'+coachChip+
+    '<div class="progsel" id="blogsel" onclick="blogSwitchMenu(event)"><div class="pav" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div><div><div class="pn">'+esc(p.name)+'</div><div class="pt">Blogprogramma</div></div><span class="car">▾</span>'+
+      '<div class="progdrop" id="blogdrop" style="left:auto;right:0" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een programma…" oninput="blogDropFilter(this.value)"></div><div class="pd-lijst" id="bd-lijst">'+blogDropHtml()+'</div></div></div>'+
+  '</div>';
 }
 async function blogSwitch(id){
-  document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
+  document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));
   if(BLOG.cur&&BLOG.cur.id===id)return;
   const p=BLOG.list.find(x=>x.id===id);if(!p)return;
+  try{localStorage.setItem("forge_blog_laatst",id);}catch(e){}
   BLOG.cur=p;BLOG.editDay=null;BLOG.editWid=null;
   await blogLaadWeek();blogRender();
 }
@@ -337,10 +368,7 @@ function blogKalenderHtml(){
       '<button class="btn ghost sm" style="margin-left:14px" onclick="blogWeekGa(0)">Vandaag</button>'+
       '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(-1)">‹</button>'+
       '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(1)">›</button>'+
-      '<div class="blog-switch" style="margin-left:auto;position:relative"><button class="progsel" style="cursor:pointer;font-family:inherit" onclick="blogSwitchMenu(event)">'+
-        '<span class="pav" style="'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</span>'+
-        '<span style="text-align:left"><span class="pn" style="display:block">'+esc(p.name)+'</span><span class="pt">'+esc(blogTypeNL(p.type))+'</span></span>'+
-        '<span style="color:#8a919c">▾</span></button></div>'+
+      blogKopChips()+
     '</div>'+
     '<div class="pe-cal"><div class="pe-hd7" style="grid-template-columns:'+cols+'">'+koppen+'</div>'+
     '<div class="pe-row" style="grid-template-columns:'+cols+'">'+dagen.map(d=>blogDayCel(d)).join("")+'</div></div>'+
@@ -359,7 +387,8 @@ function blogDayCel(datum){
     return '<div class="pe-cell" style="'+stijl+'"'+dragAttrs+'>'+inner+'</div>';
   }
   return '<div class="pe-cell" style="'+stijl+'"'+dragAttrs+'><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();blogDayMenu(event,\''+datum+'\')">+ Toevoegen</button>'+
-    (wos.length?'<button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();blogKopieerDag(\''+datum+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>':'')+
+    (wos.length?'<button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();blogKopieerDag(\''+datum+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+      '<button class="sqbtn" title="Deze dag of deze week opslaan als template" onclick="event.stopPropagation();tplOpslaanOpen(\''+datum+'\',\'blog\')"><svg class="i sm-i"><use href="#i-bookmark"/></svg></button>':'')+
     '</div>'+wos.map(blogCard).join("")+'</div>';
 }
 // Zweefmenu op elke blog-kaart: zelfde bediening als de klant-kalender

@@ -857,3 +857,20 @@ i18nLaad({
   "Uit de lijst gehaald": "Removed from the list",
   "Deze eigen metric uit de lijst van het bedrijf halen? De metingen blijven staan. De metric is daarna alleen nog te zien bij klanten die er een meting van hebben.": "Remove this custom metric from the company list? The measurements stay. After that the metric only shows for clients who have a measurement for it."
 });
+// Blog in het coach-menu (18 nov 2026)
+i18nLaad({
+  "Blogprogramma": "Blog program",
+});
+// Template week en Template dag (18 nov 2026)
+i18nLaad({
+  "Template week": "Template week", "Template dag": "Template day", "Templates": "Templates",
+  "+ Template week toevoegen": "+ Add template week", "+ Template dag toevoegen": "+ Add template day",
+  "Bij een klant zetten": "Put on a client's calendar", "Bij klant zetten": "Put on client",
+  "Op de kalender zetten": "Put on the calendar", "Welke weken": "Which weeks", "Op welke dag": "On which day",
+  "Opslaan als template": "Save as template", "Deze dag": "This day", "Deze week": "This week",
+  "Omschrijving (mag leeg blijven)": "Description (optional)", "Zoek een template…": "Search a template…",
+  "Omvang": "Size", "Soort": "Kind", "Template bijgewerkt": "Template updated", "Template aangemaakt": "Template created",
+  "Template verwijderd": "Template deleted", "Geef de template een naam.": "Give the template a name.",
+  "Je klant ziet niets van deze template tot je hem op zijn kalender zet.": "Your client sees nothing of this template until you put it on their calendar.",
+  "Template week en Template dag": "Template week and template day",
+});

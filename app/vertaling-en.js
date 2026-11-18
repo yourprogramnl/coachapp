@@ -1802,3 +1802,27 @@ i18nLaad({
 i18nLaad({
 "Kracht / Overig":"Strength / Other"
 });
+// Conceptstatus op workouts (12 nov 2026)
+i18nLaad({
+"Concept":"Draft",
+"Goedkeuren":"Approve",
+"Concepten goedkeuren":"Approve drafts",
+"Goedkeuren mislukt":"Approval failed",
+"Goedgekeurd, de sporter ziet deze workout nu":"Approved, the athlete can see this workout now",
+"Goedgekeurd, de sporter ziet de workouts nu":"Approved, the athlete can see the workouts now",
+"{n} concept(en) goedkeuren? De sporter ziet ze daarna meteen.":"Approve {n} draft(s)? The athlete will see them right away.",
+"Concept: de sporter ziet deze workout pas na goedkeuren":"Draft: the athlete only sees this workout after approval",
+"Alle concepten in deze kalender zichtbaar maken voor de sporter":"Make all drafts in this calendar visible to the athlete"
+});
+i18nLaad({
+"Op concept":"To draft",
+"Op concept zetten: verbergen voor de sporter tot je goedkeurt":"Set to draft: hide from the athlete until you approve",
+"Op concept zetten mislukt":"Setting to draft failed",
+"Wijzigen mislukt":"Change failed",
+"Niets te wijzigen":"Nothing to change",
+"Op concept gezet, de sporter ziet deze workout niet meer":"Set to draft, the athlete no longer sees this workout",
+"Op concept gezet, de sporter ziet ze niet meer":"Set to draft, the athlete no longer sees them",
+"Op concept gezet; workouts met een log zijn overgeslagen":"Set to draft; workouts with a log were skipped",
+"Dit lid heeft hier al iets gelogd, deze workout kan niet meer op concept":"This member already logged something here, this workout can no longer become a draft",
+"Op deze workouts is al gelogd, die kunnen niet op concept":"These workouts already have logs and cannot become drafts"
+});

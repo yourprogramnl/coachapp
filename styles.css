@@ -483,6 +483,10 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .pe-wkdel{background:none;border:none;color:#b3b9c2;cursor:pointer;display:flex;align-items:center;padding:4px;border-radius:6px;margin-left:6px}
 .pe-wkdel:hover{color:#e5484d;background:#fdeaea}
 .pe-wkdel .i{width:13px;height:13px}
+.pe-wkknop{background:#fff;border:1px solid #e7e9ec;border-radius:7px;color:#5b6472;font:inherit;font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;padding:3px 9px;cursor:pointer;margin-left:8px}
+.pe-wkknop:hover{border-color:#171719;color:#171719}
+.pe-kort{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.pe-bar .sm.muted{font-weight:500}
 .pe-hd7{display:grid;background:#f4f5f7}
 .pe-hd7 div{padding:7px 10px;font-size:11.5px;font-weight:800;color:#5d6570;border-bottom:1px solid #e7e9ec;border-right:1px solid #e7e9ec}
 .pe-hd7 div:last-child{border-right:none}
@@ -629,6 +633,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .pd-naam{font-weight:700;font-size:12.5px;flex:1}
 .pd-vink{color:#27b376;display:none}
 .pd-row.actief .pd-vink{display:inline-flex}
+.pd-sep{height:1px;background:#eef0f3;margin:6px 4px}
+.pd-kop{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#9aa1ab;padding:9px 10px 4px}
 .mday.selectable{cursor:pointer}
 .mday.selectable:hover{background:#fbfdfe}
 /* Doorlopend scrollen zoals CoachRx: plakkende koppen + maand-scheidingsbalken */
@@ -1637,3 +1643,11 @@ body.biebvenster .wrap,body.biebvenster .cwrap{min-width:0;max-width:none}
 .ib2 .exrow.ss-dicht>.schemarow{margin-top:1px;font-size:11px;color:#8a919c}
 .ib2 .exrow.ss-dicht>.schemarow .schemalbl{display:none}
 .sslink.ss-weg{display:none}
+/* Concept-workouts (status draft): alleen de coach ziet ze, de sporter pas na goedkeuren */
+.mcard.concept{border:1.5px dashed #d9a441;background:#fffaf0}
+.conceptpill{display:inline-block;margin:0 0 5px;font-size:10px;font-weight:800;color:#8a5a00;background:#fde9bf;border-radius:999px;padding:1px 7px;text-transform:uppercase;letter-spacing:.03em}
+.conceptbtn{display:block;width:100%;margin-top:6px;border:none;border-radius:7px;background:#d9a441;color:#fff;font-weight:800;font-size:12px;padding:6px 8px;cursor:pointer;font-family:inherit}
+.conceptbtn:hover{background:#c18f2f}
+.btn.conceptalle{background:#d9a441;border-color:#d9a441;color:#fff}
+.btn.conceptalle b{background:rgba(255,255,255,.28);border-radius:999px;padding:0 6px;margin-left:4px}
+@media print{.conceptbtn,.conceptalle{display:none!important}}

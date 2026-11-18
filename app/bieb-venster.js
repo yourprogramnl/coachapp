@@ -10,7 +10,8 @@
 const BIEB_MIME="application/x-yp-item";
 let BIEB={tab:"workout",zoek:"",kleur:"",sub:"",subTekst:"",bmCat:"",kolommen:"auto",win:null};
 // Geen tab Oefeningen (video's) hier: die blijven in de gewone bibliotheek (keuze Stefan, 8 okt).
-const BIEB_TABS=[["workout","Workouts"],["warmup","Warm-ups"],["cooldown","Cooldowns"],["week","Weekworkouts"],["benchmarks","Benchmarks"]];
+// Template week en Template dag direct na Workouts; de weekworkouts heten YP Showdown (verzoek Stefan, 18 nov).
+const BIEB_TABS=[["workout","Workouts"],["tplweek","Template week"],["tpldag","Template dag"],["warmup","Warm-ups"],["cooldown","Cooldowns"],["week","YP Showdown"],["benchmarks","Benchmarks"]];
 // Weekworkouts (de blogworkouts met gedeeld leaderboard) staan niet in LIB;
 // die halen we hier zelf op, nieuwste eerst.
 BIEB.week=null;
@@ -60,6 +61,7 @@ async function renderBiebVenster(){
   biebTabsRender();
   biebKanaalStart();
   await Promise.all([LIB.geladen?Promise.resolve():libLaad(),biebWeekLaad()]);
+  await biebProgLaad(); // workouts van de templates, voor de tekst op de kaarten
   biebRender();
 }
 // Verbinding met het hoofdvenster (zie "doeldag" in app/klant-scherm.js).
@@ -71,6 +73,7 @@ function biebKanaalStart(){
     const m=ev.data||{};
     if(m.type==="doel"){BIEB.bron=m.van;BIEB.doel=m;biebDoelToon();}
     else if(m.type==="melding"&&m.tekst)toast(m.tekst);
+    else if(m.type==="progs")biebProgVers(); // in het hoofdvenster is een template opgeslagen
   };
   BIEB.kanaal.postMessage({type:"vraag"});
 }
@@ -111,7 +114,7 @@ const biebBevat=(o,v,velden)=>!v||velden.some(f=>String(o[f]||(Array.isArray(o[f
 // Filterregel(s) onder de tabs: kleuren + zoekwoorden (templates) of categorieën (benchmarks).
 function biebFiltersRender(){
   const h=document.getElementById("bieb-filters");if(!h)return;
-  if(BIEB.tab==="oef"||BIEB.tab==="week"){h.innerHTML="";h.style.display="none";return;}
+  if(BIEB.tab==="oef"||BIEB.tab==="week"||biebIsProg()){h.innerHTML="";h.style.display="none";return;}
   h.style.display="flex";
   if(BIEB.tab==="benchmarks"){
     h.innerHTML='<div class="rij"><span class="legchip'+(BIEB.bmCat===""?" aan":"")+'" onclick="biebBmCat(\'\')">Alles</span>'+
@@ -148,7 +151,9 @@ function biebRender(behoudFilters){
     const hits=(BIEB.week||[]).filter(w=>!v||(w.title||"").toLowerCase().includes(v)||biebWeekTekst(w).toLowerCase().includes(v)||(w.workout_date||"").includes(v));
     totaal=hits.length;
     kaarten=hits.map(w=>biebKaartWeek(w));
-    if(!hits.length&&!v)hint='<div class="cempty">Nog geen weekworkouts. Maak ze aan onder YP Showdown / Weekworkout in het hoofdvenster.</div>';
+    if(!hits.length&&!v)hint='<div class="cempty">Nog geen Showdowns. Maak ze aan onder YP Showdown in het hoofdvenster.</div>';
+  }else if(biebIsProg()){
+    const u=biebProgKaarten(v);totaal=u.totaal;kaarten=u.kaarten;hint=u.hint;
   }else if(BIEB.tab==="benchmarks"){
     const hits=LIB.bm.filter(b=>(!BIEB.bmCat||b.categorie===BIEB.bmCat)&&biebBevat(b,v,["naam","tekst","tags","format"]));
     totaal=hits.length;
@@ -160,7 +165,7 @@ function biebRender(behoudFilters){
     totaal=hits.length;
     kaarten=hits.map(o=>biebKaartItem(o));
   }
-  if(cnt)cnt.textContent=totaal+(BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?" weekworkouts":(BIEB.tab==="workout"?" workouts":" templates"))));
+  if(cnt)cnt.textContent=totaal+(biebIsProg()?(totaal===1?" template":" templates"):BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?(totaal===1?" Showdown":" Showdowns"):(BIEB.tab==="workout"?" workouts":" templates"))));
   g.innerHTML=hint+(kaarten.join("")||'<div class="cempty">Niets gevonden.</div>');
 }
 function biebKaart(soort,id,kleurHex,kop,sub,tekst,extra,onder){
@@ -210,6 +215,9 @@ function biebKaartOef(o){
 }
 // Wat er met de kaart meereist naar het andere venster.
 function biebPayload(soort,id){
+  // Template week of dag: alleen de verwijzing reist mee, het hoofdvenster haalt de workouts zelf op.
+  if(soort==="progtpl"){const p=(LIB.programs||[]).find(x=>String(x.id)===String(id));if(!p)return null;
+    return {soort,id:p.id,naam:p.name,tekst:"",type:p.type||"standard",weeks:p.weeks||1};}
   if(soort==="item"||soort==="template"){const o=libItemVind(id);if(!o)return null;
     // Wedstrijdworkouts en benchmarks komen als gewoon blok mee (blauw / paars), templates houden hun kleur.
     return {soort:"template",id:o.key,naam:o.naam,tekst:o.instructies||"",kleur:itemBlokKleur(o),type:o.type,media:o.media||[],onderdelen:o.onderdelen||null,bron:o.bron||"tpl"};}
