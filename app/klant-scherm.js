@@ -1163,6 +1163,7 @@ function biebInBouwer(item){
 }
 async function biebDropOpDag(item,ds){
   if(!calClient){toast("Open eerst een klant");return;}
+  if(item.soort==="progtpl")return await progTplOpDag(item,ds); // hele dag of week uit een template
   // Bouwer open op deze dag? Dan als nieuwe regel onderaan in de bouwer.
   const bouwerDag=editDay||(editWid&&monthWorkouts[editWid]?monthWorkouts[editWid].workout_date:null);
   if(bouwerDag===ds&&biebInBouwer(item))return;
@@ -1188,6 +1189,7 @@ async function biebDropOpDag(item,ds){
   renderMonth();
 }
 async function biebDropOpWorkout(item,wid){
+  if(item.soort==="progtpl"){const w0=monthWorkouts[wid];if(w0)await biebDropOpDag(item,w0.workout_date);return;}
   const w=monthWorkouts[wid];if(!w){toast("Workout niet gevonden");return;}
   if(editWid===wid&&biebInBouwer(item))return; // deze workout staat open in de bouwer
   const blokken=w.blocks||[];
@@ -1218,7 +1220,7 @@ function biebKanaal(){
     if(m.type==="plaats"&&m.voor===BIEB_ID&&m.item){
       const ds=biebDoelHuidig();
       if(!ds||!calClient){biebKanaalObj.postMessage({type:"melding",tekst:"Kies eerst een dag: klik het speldje 📌 op een dag in de kalender (of open de bouwer)."});return;}
-      await biebDropOpDag(m.item,ds);
+      if((await biebDropOpDag(m.item,ds))===false)return; // niets geplaatst (geannuleerd)
       biebKanaalObj.postMessage({type:"melding",tekst:'"'+m.item.naam+'" op '+biebDagLabel(ds)+' gezet'});
     }
   };
@@ -1482,7 +1484,7 @@ async function renderMonth(opts){
         // bouwer-element nog bij dezelfde dag/workout hoort (zie onderaan renderMonth)
         inner+='<div class="ib2" data-eday="'+ds+'" data-ewid="'+esc(editWid||"")+'" onclick="event.stopPropagation()">'+inlineBuilderHtml(editWid?monthWorkouts[editWid]:null)+'</div>';
       }else if(dayWos.length){
-        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Toevoegen</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button></div>';
+        inner+='<div class="addrow2"><button class="addnewbtn" onclick="openDayMenu(event,\''+ds+'\')">+ Toevoegen</button><button class="sqbtn" title="Kopieer de workout van deze dag" onclick="event.stopPropagation();kopieerDag(\''+ds+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="sqbtn" title="Deze dag of deze week opslaan als template" onclick="event.stopPropagation();tplOpslaanOpen(\''+ds+'\')"><svg class="i sm-i"><use href="#i-bookmark"/></svg></button></div>';
         inner+=dayWos.map(mcardHtml).join("");
       }else{
         selectable=true; // lege dag: aanwijzen of klikken opent het dag-menu
@@ -1610,16 +1612,16 @@ async function laadCoaches(){
 }
 function vulCoachDrop(){
   const host=document.getElementById("cd-lijst");if(!host)return;
-  const opBlog=opBlogScherm();
+  const opBlog=opBlogScherm(),opTpl=typeof opTplScherm==="function"&&opTplScherm();
   const rows=coachList.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
     const n=actieveKlanten().filter(k=>k.coach_id===c.id).length;
     const rol=c.role==="eigenaar"?" · eigenaar":"";
-    return '<div class="pd-row'+(!opBlog&&c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+    return '<div class="pd-row'+(!opBlog&&!opTpl&&c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   }).join("");
   // Onder de coaches: Blog. Daarmee wissel je naar de blogprogramma's.
   const nBlog=(kalBlogs||[]).length;
   const blogRij='<div class="pd-sep"></div><div class="pd-row'+(opBlog?' actief':'')+'" onclick="kiesCoach(\'blog\')"><div class="pd-badge" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div class="pd-naam">Blog <span class="muted" style="font-weight:500">('+nBlog+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
-  host.innerHTML=(rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>')+blogRij;
+  host.innerHTML=(rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>')+blogRij+(typeof tplMenuRij==="function"?tplMenuRij(opTpl):""); // Templates: het werkblad van de coach
 }
 async function toggleCoachDrop(ev){
   ev.stopPropagation();
@@ -1628,12 +1630,13 @@ async function toggleCoachDrop(ev){
   document.querySelectorAll(".progdrop.show").forEach(x=>x.classList.remove("show"));
   if(!openNu)return;
   d.classList.add("show");
-  await Promise.all([laadCoaches(),laadBlogKort()]);
+  await Promise.all([laadCoaches(),laadBlogKort(),typeof laadTplKort==="function"?laadTplKort():null]);
   if(document.getElementById("coachdrop")&&document.getElementById("coachdrop").classList.contains("show"))vulCoachDrop();
 }
 function kiesCoach(id){
   const d=document.getElementById("coachdrop");if(d)d.classList.remove("show");
   if(id==="blog"){naarBlogVanuitMenu();return;}
+  if(id==="tpl"){naarTemplatesVanuitMenu();return;}
   const klanten=coachClients.filter(k=>k.coach_id===id).sort((a,b)=>naamVan(a).localeCompare(naamVan(b)));
   if(!klanten.length){
     const c=coachList.find(x=>x.id===id);

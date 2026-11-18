@@ -25,10 +25,11 @@ let PROG=null,progWeek=1,progEditDay=null,progEditWid=null;
 const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{6,})/);return m?m[1]:null;};
 
 function libShellHtml(){
-  const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["cooldown","Cooldowns"]]
+  // Template week (was "Programma's") en Template dag staan onder Workouts (verzoek Stefan, 18 nov 2026).
+  const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["programs","Template week"],["progdag","Template dag"],["cooldown","Cooldowns"],["benchmarks","Benchmarks"]]
     .map(m=>'<button class="'+(LIB.mode===m[0]?"on":"")+'" onclick="libZetMode(\''+m[0]+'\')">'+m[1]+'</button>').join("");
   return '<h1>Bibliotheek</h1><div class="libgrid">'+
-    '<div class="card libnav">'+nav+'<button class="'+(LIB.mode==="benchmarks"?"on":"")+'" onclick="libZetMode(\'benchmarks\')">Benchmarks</button><button class="'+(LIB.mode==="programs"?"on":"")+'" onclick="libZetMode(\'programs\')">Programma\'s</button></div>'+
+    '<div class="card libnav">'+nav+'</div>'+
     '<div>'+
       '<div class="card" style="padding:18px 18px 0;border-radius:10px 10px 0 0">'+
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">'+
@@ -79,16 +80,17 @@ function ensureLibModals(){
       '<div class="msg" id="bmmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="progmodal"><div class="box">'+kop("progmodal-titel","Programma toevoegen")+
       '<div class="field"><label>Naam</label><input id="prog-naam" placeholder="bijv. 6-weken hypertrofie"></div>'+
-      '<div class="field"><label>Omschrijving</label><textarea id="prog-desc" style="min-height:80px" placeholder="Korte uitleg over dit programma…"></textarea></div>'+
+      '<div class="field"><label>Omschrijving</label><textarea id="prog-desc" style="min-height:80px" placeholder="Korte uitleg over deze template…"></textarea></div>'+
       '<div class="field"><label>Niveau / trainingsleeftijd</label><input id="prog-age" placeholder="bijv. Beginner, Gevorderd"></div>'+
-      '<div class="field"><label>Type</label><select id="prog-type"><option value="standard">Standaard</option></select></div>'+
+      '<div class="field"><label>Soort</label><select id="prog-type"><option value="standard">Template week</option><option value="dag">Template dag</option></select></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" id="prog-savebtn" onclick="programOpslaan()">Opslaan</button><button class="btn ghost" onclick="libModalDicht()">Annuleren</button><span id="progmodal-del" style="margin-left:auto"></span></div>'+
       '<div class="msg" id="progmodal-msg"></div></div></div>'+
-    '<div class="lmodal" id="assignmodal" style="z-index:398"><div class="box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Programma toewijzen</h3><span onclick="closeAssign()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+    '<div class="lmodal" id="assignmodal" style="z-index:398"><div class="box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0" id="assign-titel">Bij een klant zetten</h3><span onclick="closeAssign()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
       '<div class="field"><label>Klant</label><select id="assign-client"></select></div>'+
-      '<div class="field"><label>Startdatum (week 1, dag 1)</label><input type="date" id="assign-date"></div>'+
+      '<div class="field" id="assign-weken-veld" style="display:none"><label>Welke weken</label><div style="display:flex;gap:8px;align-items:center"><select id="assign-van" onchange="assignInfo()"></select><span class="sm muted">t/m</span><select id="assign-tot" onchange="assignInfo()"></select></div></div>'+
+      '<div class="field"><label id="assign-date-lbl">Startdatum</label><input type="date" id="assign-date"></div>'+
       '<div class="sm muted" id="assign-info" style="margin-bottom:10px"></div>'+
-      '<div style="display:flex;gap:8px"><button class="btn" id="assign-btn" onclick="assignDoen()">Toewijzen</button><button class="btn ghost" onclick="closeAssign()">Annuleren</button></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn" id="assign-btn" onclick="assignDoen()">Op de kalender zetten</button><button class="btn ghost" onclick="closeAssign()">Annuleren</button></div>'+
       '<div class="msg" id="assign-msg"></div></div></div>'+
     '<div class="lmodal" id="asglistmodal" style="z-index:398"><div class="box" style="width:640px;max-width:94vw"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Toewijzingen <span class="sm muted" id="asglist-prog" style="font-weight:600;font-size:12.5px"></span></h3><span onclick="closeAsgList()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
       '<div id="asglist-lijst" style="max-height:56vh;overflow:auto"></div>'+
@@ -98,7 +100,7 @@ function ensureLibModals(){
       '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'+
       '<div class="search2" style="max-width:none;flex:1;min-width:220px"><input id="ins-zoek" placeholder="Zoek op naam, tekst of kleurnaam (bijv. kracht)…" oninput="insRender()"></div>'+
       '<button class="btn" style="white-space:nowrap" onclick="tplBewerk(null)">+ Nieuwe template</button>'+
-      '<div class="seg" id="ins-types"><button class="on" onclick="insType(\'all\',this)">Alles</button><button onclick="insType(\'warmup\',this)">Warm-ups</button><button onclick="insType(\'week\',this)">Weekworkouts</button><button onclick="insType(\'cooldown\',this)">Cooldowns</button><button onclick="insType(\'other\',this)">Workouts</button></div></div>'+
+      '<div class="seg" id="ins-types"><button class="on" onclick="insType(\'all\',this)">Alles</button><button onclick="insType(\'warmup\',this)">Warm-ups</button><button onclick="insType(\'week\',this)">YP Showdown</button><button onclick="insType(\'cooldown\',this)">Cooldowns</button><button onclick="insType(\'other\',this)">Workouts</button></div></div>'+
       '<div id="ins-kleuren" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center"></div>'+
       '<div style="max-height:52vh;overflow:auto;border:1px solid #e7e9ec;border-radius:10px"><div id="ins-lijst"></div></div>'+
       '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="closeIns()">Sluiten</button></div></div></div>'+
@@ -229,18 +231,19 @@ function tplGroepen(type,kleur){
   return Object.entries(tel).filter(([,n])=>n>=min).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
 }
 function libKop(){
-  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",benchmarks:"Benchmarks",programs:"Programma's"};
+  const titels={oef:"Oefeningen",warmup:"Warming-ups",workout:"Workouts",cooldown:"Cooldowns",benchmarks:"Benchmarks",programs:"Template week",progdag:"Template dag"};
   const t=document.getElementById("lib-titel");if(t)t.textContent=titels[LIB.mode];
   const subs={
     oef:"Jullie eigen videobibliotheek, live uit de database. Sporters zien de demo-video bij elke workout.",
     benchmarks:"De bekende benchmark-workouts (Girls, Heroes, Open, Quarterfinal, Notable) plus je eigen Custom-benchmarks.",
-    programs:"Gebruik de programma-index om veelgebruikte workout-sets aan je klanten toe te voegen."
+    programs:"Hele weken die je vaker gebruikt: één week of een heel blok van meerdere weken. Je klant ziet er niets van tot je de template bij hem op de kalender zet.",
+    progdag:"Losse dagen die je vaker gebruikt, bijvoorbeeld een testdag. Je zet ze met één klik op een dag bij een klant."
   };
   const s=document.getElementById("lib-sub");if(s)s.textContent=subs[LIB.mode]||"Templates uit jullie Strivee, live uit de database. Klik op een template om naam, tekst of kleur aan te passen.";
-  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":(LIB.mode==="programs"?"+ Programma toevoegen":(LIB.mode==="benchmarks"?"+ Benchmark toevoegen":"+ Template toevoegen"));
+  const a=document.getElementById("lib-addbtn");if(a)a.textContent=LIB.mode==="oef"?"+ Oefening toevoegen":(LIB.mode==="programs"?"+ Template week toevoegen":LIB.mode==="progdag"?"+ Template dag toevoegen":(LIB.mode==="benchmarks"?"+ Benchmark toevoegen":"+ Template toevoegen"));
   const leg=document.getElementById("lib-legenda");
   if(leg){
-    if(LIB.mode==="oef"||LIB.mode==="programs"){leg.style.display="none";}
+    if(LIB.mode==="oef"||LIB.mode==="programs"||LIB.mode==="progdag"){leg.style.display="none";}
     else if(LIB.mode==="benchmarks"){
       leg.style.display="flex";
       let extra="";
@@ -298,7 +301,7 @@ function libLijst(behoudKop){
   const host=document.getElementById("lib-lijst"),thead=document.getElementById("lib-thead"),pag=document.getElementById("lib-pag"),cnt=document.getElementById("lib-aantal");
   if(!host)return;
   if(!LIB.geladen){host.innerHTML='<div class="cempty">Bibliotheek laden…</div>';return;}
-  if(LIB.mode==="programs"){programLijst(host,thead,pag,cnt);return;}
+  if(LIB.mode==="programs"||LIB.mode==="progdag"){programLijst(host,thead,pag,cnt);return;}
   if(LIB.mode==="benchmarks"){benchLijst(host,thead,pag,cnt);return;}
   if(LIB.mode!=="oef"){
     if(thead)thead.innerHTML='<div style="width:20px"></div><div style="flex:1.7">Naam</div><div style="flex:2.6">Instructies</div><div style="flex:1.2">Tags</div>';
@@ -347,7 +350,7 @@ function libLijst(behoudKop){
   pag.innerHTML=kn;
 }
 function libModalDicht(){document.getElementById("exmodal").classList.remove("show");document.getElementById("tplmodal").classList.remove("show");const pm=document.getElementById("progmodal");if(pm)pm.classList.remove("show");const bm=document.getElementById("bmmodal");if(bm)bm.classList.remove("show");LIB.editOef=null;LIB.editTpl=null;LIB.editProgram=null;LIB.editBm=null;}
-function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else if(LIB.mode==="programs")programNieuw();else if(LIB.mode==="benchmarks")bmBewerk(null);else tplBewerk(null);}
+function libNieuw(){if(LIB.mode==="oef")oefBewerk(null);else if(LIB.mode==="programs"||LIB.mode==="progdag")programNieuw();else if(LIB.mode==="benchmarks")bmBewerk(null);else tplBewerk(null);}
 
 // ---------- Benchmarks (Girls/Heroes/Open/Notable + eigen Custom) ----------
 function benchLijst(host,thead,pag,cnt){
@@ -436,24 +439,26 @@ function progMagOfMeld(pid){
   return false;
 }
 function programLijst(host,thead,pag,cnt){
-  if(thead)thead.innerHTML='<div style="flex:2.4">Programma</div><div style="flex:1">Niveau</div><div style="flex:1">Actief</div><div style="flex:.9">Type</div><div style="flex:.7">Van</div><div style="width:150px"></div>';
-  const hits=(LIB.programs||[]).filter(p=>!LIB.zoek||(p.name||"").toLowerCase().includes(LIB.zoek)||(p.description||"").toLowerCase().includes(LIB.zoek));
-  if(cnt)cnt.textContent=hits.length+" programma's";
+  const dag=LIB.mode==="progdag",soort=dag?"Template dag":"Template week";
+  if(thead)thead.innerHTML='<div style="flex:2.4">'+soort+'</div><div style="flex:1">Niveau</div><div style="flex:1">Actief</div><div style="flex:.9">Omvang</div><div style="flex:.7">Van</div><div style="width:150px"></div>';
+  const hits=(LIB.programs||[]).filter(p=>progIsDag(p)===dag).filter(p=>!LIB.zoek||(p.name||"").toLowerCase().includes(LIB.zoek)||(p.description||"").toLowerCase().includes(LIB.zoek));
+  if(cnt)cnt.textContent=hits.length+(dag?(hits.length===1?" template dag":" template dagen"):(hits.length===1?" template week":" template weken"));
   if(pag)pag.innerHTML="";
   host.innerHTML=hits.map(p=>{
     const c=p.creator;
     const av=c?'<div class="cavc" style="width:28px;height:28px;font-size:10px;'+avFotoStyle(c)+'" title="'+esc(naamVan(c))+'">'+avFotoText(c)+'</div>':'<div class="cavc" style="width:28px;height:28px;font-size:10px;background:#c9cdd4">·</div>';
-    // Slotje bij een programma waar je alleen mag kijken.
+    // Slotje bij een template waar je alleen mag kijken.
     const mag=progMagIk(p.id);
     const slot=mag?"":'<span title="Alleen kijken: je hebt hier geen rechten" style="margin-left:6px;opacity:.55">🔒</span>';
+    const wk=Math.max(1,p.weeks||1);
     return '<div class="trow" style="cursor:pointer;align-items:flex-start;position:relative" onclick="programBewerk(\''+p.id+'\')">'+
       '<div style="flex:2.4"><b>'+esc(p.name)+'</b>'+slot+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div>'+
       '<div style="flex:1" class="sm muted">'+esc(p.training_age||"–")+'</div>'+
       '<div style="flex:1" class="sm muted">'+progActiefVoor(p.id)+' klant'+(progActiefVoor(p.id)===1?"":"en")+'</div>'+
-      '<div style="flex:.9" class="sm muted">'+esc(p.type==="standard"?"standaard":(p.type||"standaard"))+'</div>'+
+      '<div style="flex:.9" class="sm muted">'+(dag?"1 dag":(wk===1?"1 week":wk+" weken"))+'</div>'+
       '<div style="flex:.7">'+av+'</div>'+
       '<div style="width:150px;display:flex;gap:6px;justify-content:flex-end;align-items:center" onclick="event.stopPropagation()"><button class="btn ghost sm" onclick="programBewerk(\''+p.id+'\')">'+(mag?"Bewerk":"Bekijk")+'</button><button class="kebab" onclick="event.stopPropagation();openProgramMenu(event,\''+p.id+'\')">⋮</button></div></div>';
-  }).join("")||'<div class="cempty">Nog geen programma\'s. Klik op "+ Programma toevoegen" om te beginnen.</div>';
+  }).join("")||'<div class="cempty">'+(dag?'Nog geen template dagen. Klik op "+ Template dag toevoegen", of sla bij een klant een dag op als template (het bladwijzertje naast + Toevoegen).':'Nog geen template weken. Klik op "+ Template week toevoegen", of sla bij een klant een week op als template (het bladwijzertje naast + Toevoegen).')+'</div>';
 }
 async function programLaad(){
   const[rp,ra,re]=await Promise.all([
@@ -465,7 +470,7 @@ async function programLaad(){
   // Wie mag wat: per programma de lijst met coaches die het mogen aanpassen.
   LIB.progRechten={};
   (re.data||[]).forEach(r=>{(LIB.progRechten[r.program_id]=LIB.progRechten[r.program_id]||[]).push(r.profile_id);});
-  if(LIB.mode==="programs")libLijst();
+  if(LIB.mode==="programs"||LIB.mode==="progdag")libLijst();
 }
 // Aantal klanten met een lopende toewijzing van dit programma (uniek per klant).
 function progActiefVoor(pid){
@@ -477,11 +482,13 @@ function progActiefVoor(pid){
 function progModalOpen(id){
   ensureLibModals();LIB.editProgram=id||null;
   const p=id?((LIB.programs||[]).find(x=>x.id===id)||(PROG&&PROG.id===id?PROG:null)):null;
-  document.getElementById("progmodal-titel").textContent=id?"Programma-details":"Programma aanmaken";
+  const soortDag=p?progIsDag(p):LIB.mode==="progdag";
+  document.getElementById("progmodal-titel").textContent=(soortDag?"Template dag":"Template week")+(id?": details":" aanmaken");
   document.getElementById("prog-naam").value=p?(p.name||""):"";
   document.getElementById("prog-desc").value=p?(p.description||""):"";
   document.getElementById("prog-age").value=p?(p.training_age||""):"";
-  document.getElementById("prog-type").value=p?(p.type||"standard"):"standard";
+  document.getElementById("prog-type").value=soortDag?"dag":"standard";
+  document.getElementById("prog-type").disabled=!!id; // week of dag kies je bij het aanmaken
   document.getElementById("prog-savebtn").textContent=id?"Opslaan":"Opslaan en workouts toevoegen";
   document.getElementById("progmodal-msg").textContent="";
   document.getElementById("progmodal").classList.add("show");
@@ -492,20 +499,20 @@ function programBewerk(id){openProgramEditor(id);} // rij/Bewerk → de editor m
 async function programOpslaan(){
   const naam=document.getElementById("prog-naam").value.trim();
   const msg=document.getElementById("progmodal-msg");
-  if(!naam){msg.textContent="Geef het programma een naam.";msg.className="msg err";return;}
+  if(!naam){msg.textContent="Geef de template een naam.";msg.className="msg err";return;}
   const rec={name:naam,description:document.getElementById("prog-desc").value.trim()||null,training_age:document.getElementById("prog-age").value.trim()||null,type:document.getElementById("prog-type").value||"standard"};
   const eid=LIB.editProgram;
   if(eid&&!progMagIk(eid)){msg.textContent="Je hebt geen rechten op dit programma. Vraag een beheerder.";msg.className="msg err";return;}
   if(eid){
     const{error}=await db.from("program_templates").update(rec).eq("id",eid);
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
-    libModalDicht();toast("Programma bijgewerkt");await programLaad();
+    libModalDicht();toast("Template bijgewerkt");await programLaad();
     if(PROG&&PROG.id===eid){Object.assign(PROG,rec);progRender();}
   }else{
     rec.company_id=ME.profile.company_id;rec.created_by=ME.user.id;
     const{data,error}=await db.from("program_templates").insert(rec).select("*, creator:created_by(id,first_name,last_name,avatar_url)").single();
     if(error){msg.textContent=error.message||"Opslaan mislukt";msg.className="msg err";return;}
-    libModalDicht();toast("Programma aangemaakt");await programLaad();
+    libModalDicht();toast("Template aangemaakt");await programLaad();
     openProgramEditor(data.id); // meteen door naar de workouts
   }
 }
@@ -518,9 +525,10 @@ async function openProgramEditor(id){
   // programma-lijst eerst is geladen (bijv. na het aanmaken).
   const{data:eds}=await db.from("program_editors").select("profile_id").eq("program_id",id);
   LIB.progRechten=LIB.progRechten||{};LIB.progRechten[id]=(eds||[]).map(e=>e.profile_id);
-  const{data:pws}=await db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",id).order("week").order("day").order("sort");
+  const pws=await progWorkoutsLaad(id);
   const{data:asgs}=await db.from("program_assignments").select("*").eq("program_id",id);
   PROG=Object.assign({},prog,{workouts:pws||[],assignments:asgs||[]});progWeek=1;progEditDay=null;progEditWid=null;
+  try{localStorage.setItem("forge_tpl_laatst",id);}catch(e){} // voor "Templates" in het coach-menu
   ensureLibModals();progRender();
 }
 async function progReloadAssignments(){
@@ -537,18 +545,40 @@ function progAankomend(){const t=todayStr();return (PROG.assignments||[]).filter
 
 // ---------- Programma toewijzen aan een klant (materialiseert naar echte workouts) ----------
 let ASSIGN_CLIENTS=[];
-async function openAssign(){
+// van/tot: optioneel een bereik van weken (de knop in de weekbalk vult dat in).
+async function openAssign(van,tot){
   ensureLibModals();
   const{data:cs}=await db.from("profiles").select("id,first_name,last_name,coach_id,company_id").eq("archived",false).eq("company_id",ME.profile.company_id).or("role.eq.lid,coach_id.not.is.null").order("first_name");
   ASSIGN_CLIENTS=cs||[];
   const sel=document.getElementById("assign-client");
   sel.innerHTML=ASSIGN_CLIENTS.length?ASSIGN_CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(naamVan(c))+'</option>').join(""):'<option value="">Geen klanten</option>';
-  document.getElementById("assign-date").value=todayStr();
-  const nWo=(PROG.workouts||[]).length,wk=Math.max(1,PROG.weeks||1);
-  document.getElementById("assign-info").textContent=nWo+" workout"+(nWo===1?"":"s")+" uit "+(wk===1?"1 week":wk+" weken")+" komen op de kalender van de klant.";
+  const dag=progIsDag(PROG),wk=dag?1:Math.max(1,PROG.weeks||1);
+  document.getElementById("assign-titel").textContent=(dag?"Template dag":"Template week")+" bij een klant zetten";
+  document.getElementById("assign-date-lbl").textContent=dag?"Op welke dag":"Startdatum (dag 1 van de eerste week die je kiest)";
+  // Dag: vandaag. Week: de eerstvolgende maandag, want dag 1 is bij ons de maandag.
+  document.getElementById("assign-date").value=dag?todayStr():ymd(addDays(mondayOf(new Date()),7));
+  document.getElementById("assign-weken-veld").style.display=wk>1?"":"none";
+  const opts=Array.from({length:wk},(_,i)=>'<option value="'+(i+1)+'">Week '+(i+1)+'</option>').join("");
+  const sv=document.getElementById("assign-van"),st=document.getElementById("assign-tot");
+  sv.innerHTML=opts;st.innerHTML=opts;
+  const v=Math.min(wk,Math.max(1,parseInt(van,10)||1));
+  sv.value=String(v);st.value=String(Math.min(wk,Math.max(v,parseInt(tot,10)||wk)));
+  assignInfo();
   document.getElementById("assign-msg").textContent="";
   document.getElementById("assign-btn").disabled=false;
   document.getElementById("assignmodal").classList.add("show");
+}
+function assignBereik(){
+  const wk=progIsDag(PROG)?1:Math.max(1,PROG.weeks||1);
+  const van=Math.min(wk,parseInt(document.getElementById("assign-van").value,10)||1);
+  let tot=Math.min(wk,parseInt(document.getElementById("assign-tot").value,10)||wk);
+  if(tot<van){tot=van;document.getElementById("assign-tot").value=String(tot);}
+  return{van,tot};
+}
+function assignInfo(){
+  const b=assignBereik(),n=(PROG.workouts||[]).filter(w=>w.week>=b.van&&w.week<=b.tot).length,wk=b.tot-b.van+1,wo=n+" workout"+(n===1?"":"s");
+  document.getElementById("assign-info").textContent=progIsDag(PROG)?wo+" op die dag op de kalender van de klant. Wat er al staat, blijft staan."
+    :wo+" uit "+(wk===1?"1 week":wk+" weken")+" komen op de kalender van de klant. Wat er al staat, blijft staan.";
 }
 function closeAssign(){const m=document.getElementById("assignmodal");if(m)m.classList.remove("show");}
 async function assignDoen(){
@@ -556,25 +586,15 @@ async function assignDoen(){
   const start=document.getElementById("assign-date").value;
   const msg=document.getElementById("assign-msg");
   if(!cid){msg.textContent="Kies een klant.";msg.className="msg err";return;}
-  if(!start){msg.textContent="Kies een startdatum.";msg.className="msg err";return;}
+  if(!start){msg.textContent="Kies een datum.";msg.className="msg err";return;}
   const client=ASSIGN_CLIENTS.find(c=>c.id===cid);if(!client)return;
-  const weeks=Math.max(1,PROG.weeks||1);
+  const b=assignBereik();
   document.getElementById("assign-btn").disabled=true;
   try{
-    const{data:asg,error:ae}=await db.from("program_assignments").insert({company_id:ME.profile.company_id,program_id:PROG.id,athlete_id:cid,start_date:start,weeks,created_by:ME.user.id}).select().single();
-    if(ae)throw ae;
-    const wos=(PROG.workouts||[]).slice().sort((a,b)=>(a.week-b.week)||(a.day-b.day)||(a.sort-b.sort));
-    const blocksAll=[];
-    for(const pw of wos){
-      const datum=ymdPlus(start,(pw.week-1)*7+(pw.day-1));
-      const{data:nw,error:we}=await db.from("workouts").insert({company_id:client.company_id||ME.profile.company_id,coach_id:client.coach_id||ME.user.id,client_id:cid,workout_date:datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,audience:"client",assignment_id:asg.id}).select("id").single();
-      if(we)throw we;
-      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
-    }
-    if(blocksAll.length){const{error:be}=await db.from("blocks").insert(blocksAll);if(be)throw be;}
-    closeAssign();toast("Programma toegewezen aan "+naamVan(client)+", staat nu op zijn kalender");
+    const u=await progZetBijKlant({prog:PROG,workouts:PROG.workouts||[],client,start,weekVan:b.van,weekTot:b.tot});
+    closeAssign();toast(progSoortNaam(PROG)+" staat nu op de kalender van "+naamVan(client)+" ("+u.aantal+" workout"+(u.aantal===1?"":"s")+")",4200);
     await progReloadAssignments();
-  }catch(e){msg.textContent=e.message||"Toewijzen mislukt";msg.className="msg err";document.getElementById("assign-btn").disabled=false;}
+  }catch(e){msg.textContent=e.message||"Op de kalender zetten mislukt";msg.className="msg err";document.getElementById("assign-btn").disabled=false;}
 }
 
 // ---------- Toewijzingen-lijst (klik op de tellers of "Beheer toewijzingen") ----------
@@ -618,14 +638,14 @@ function asgStatus(a){
 }
 function asgListRender(){
   const host=document.getElementById("asglist-lijst");if(!host)return;
-  if(!ASG_ROWS.length){host.innerHTML='<div class="cempty">Nog geen toewijzingen. Gebruik "Programma toewijzen" om dit programma op de kalender van een klant te zetten.</div>';return;}
+  if(!ASG_ROWS.length){host.innerHTML='<div class="cempty">Deze template staat nog bij niemand op de kalender. Gebruik "Bij een klant zetten".</div>';return;}
   host.innerHTML=ASG_ROWS.map(r=>{
     const c=r.client;
     const av=c?'<div class="cavc" style="width:30px;height:30px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>':'<div class="cavc" style="width:30px;height:30px;font-size:11px;flex:none;background:#c9cdd4">?</div>';
     const naam=c?naamVan(c):"Onbekende klant";
     const eind=progAktEnd(r.a);
     return '<div class="trow" style="align-items:center;gap:10px">'+av+
-      '<div style="flex:1.6;min-width:0"><b>'+naam+'</b><div class="sm muted">'+datumNL(r.a.start_date)+' t/m '+datumNL(eind)+' · '+((r.a.weeks||1)===1?"1 week":(r.a.weeks||1)+" weken")+'</div></div>'+
+      '<div style="flex:1.6;min-width:0"><b>'+naam+'</b><div class="sm muted">'+datumNL(r.a.start_date)+' t/m '+datumNL(eind)+' · '+((r.a.weeks||1)===1?"1 week":(r.a.weeks||1)+" weken")+((r.a.week_from||1)>1?" (vanaf week "+r.a.week_from+")":"")+'</div></div>'+
       '<div style="flex:1" class="sm muted">'+r.totaal+' workout'+(r.totaal===1?"":"s")+(r.toekomst?' <span style="color:#5b6472">('+r.toekomst+' aankomend)</span>':'')+'</div>'+
       '<div style="width:92px">'+asgStatus(r.a)+'</div>'+
       '<div style="width:130px;text-align:right"><button class="btn ghost sm" style="color:#e5484d;border-color:#f3b8ba" onclick="asgOngedaan(\''+r.a.id+'\')">Ongedaan maken</button></div></div>';
@@ -667,37 +687,42 @@ async function progAddWeek(){
 }
 function progRender(){
   const cp=document.getElementById("cpage");if(!cp||!PROG)return;
-  const mag=progMagIk(PROG.id);
-  const slotBalk=mag?"":'<div class="msg" style="background:#fff6e5;border:1px solid #f0d9a8;color:#7a5a12;border-radius:10px;padding:10px 13px;margin:10px 0;font-size:13px;line-height:1.5">🔒 <b>Alleen kijken.</b> Dit programma is niet aan jou toegewezen, dus je kunt het niet aanpassen. Een beheerder kan je rechten geven via Coaches › ⋮ › Rechten.</div>';
-  const weeks=Math.max(1,PROG.weeks||1);if(progWeek>weeks)progWeek=weeks;
+  const mag=progMagIk(PROG.id),dag=progIsDag(PROG);
+  const slotBalk=mag?"":'<div class="msg" style="background:#fff6e5;border:1px solid #f0d9a8;color:#7a5a12;border-radius:10px;padding:10px 13px;margin:10px 0;font-size:13px;line-height:1.5">🔒 <b>Alleen kijken.</b> Deze template is niet aan jou toegewezen, dus je kunt hem niet aanpassen. Een beheerder kan je rechten geven via Coaches › ⋮ › Rechten.</div>';
+  const weeks=dag?1:Math.max(1,PROG.weeks||1);if(progWeek>weeks)progWeek=weeks;
   const weekTabs=Array.from({length:weeks},(_,i)=>i+1).map(w=>'<button class="wtab'+(w===progWeek?" on":"")+'" onclick="progWeekTab('+w+')">'+w+'</button>').join("");
-  // Alle weken onder elkaar in één doorlopend raster, zoals de klant-kalender.
-  const wkHtml=Array.from({length:weeks},(_,i)=>progWeekBlok(i+1)).join("");
+  // Template week: alle weken onder elkaar in één doorlopend raster, zoals de
+  // klant-kalender. Template dag: één brede kolom.
+  const wkHtml=dag?'<div class="pe-row" style="grid-template-columns:minmax(340px,680px)">'+progDayCel(1,1)+'</div>':Array.from({length:weeks},(_,i)=>progWeekBlok(i+1)).join("");
   cp.innerHTML='<div class="progedit">'+
     '<div class="pe-top"><button class="btn ghost sm" onclick="progBack()">‹ Terug</button>'+
-      '<div class="pe-badges"><span class="cpill">'+esc(PROG.type==="standard"?"Standaard":(PROG.type||"Standaard"))+'</span><span class="cpill">'+(weeks===1?"1 week":weeks+" weken")+'</span></div>'+
-      (mag?'<div style="margin-left:auto"><button class="btn ghost sm" onclick="programDetails(\''+PROG.id+'\')">Details bewerken</button></div>':'')+'</div>'+
+      '<div class="pe-badges"><span class="cpill">'+(dag?"Template dag":"Template week")+'</span>'+(dag?'':'<span class="cpill">'+(weeks===1?"1 week":weeks+" weken")+'</span>')+'</div>'+
+      '<div style="margin-left:auto;display:flex;gap:10px;align-items:center">'+(typeof tplKopChips==="function"?tplKopChips():"")+(mag?'<button class="btn ghost sm" onclick="programDetails(\''+PROG.id+'\')">Details bewerken</button>':'')+'</div></div>'+
     '<h1 style="margin:8px 0 2px">'+esc(PROG.name)+'</h1>'+(PROG.description?'<div class="sm muted" style="margin-bottom:8px">'+esc(PROG.description)+'</div>':'')+slotBalk+
-    '<div class="pe-bar"><button class="btn sm" onclick="openAssign()">Programma toewijzen</button><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progActief()+' actieve toewijzingen</span><span class="pe-assign" style="cursor:pointer" title="Bekijk de toewijzingen" onclick="openAsgList()">'+progAankomend()+' aankomend</span><button class="btn ghost sm" style="margin-left:auto" onclick="openAsgList()">Beheer toewijzingen</button></div>'+
+    '<div class="pe-bar"><button class="btn sm" onclick="openAssign()">Bij een klant zetten</button><span class="pe-assign" style="cursor:pointer" title="Bekijk bij wie deze template op de kalender staat" onclick="openAsgList()">'+progActief()+' actief</span><span class="pe-assign" style="cursor:pointer" title="Bekijk bij wie deze template op de kalender staat" onclick="openAsgList()">'+progAankomend()+' aankomend</span>'+
+      '<span class="sm muted">Je klant ziet niets van deze template tot je hem op zijn kalender zet.</span><button class="btn ghost sm" style="margin-left:auto" onclick="openAsgList()">Beheer toewijzingen</button></div>'+
     (mag?'<div class="sync-rij"><label class="pf-toggle" style="margin:0"><input type="checkbox" id="prog-sync"'+(PROG.sync_changes?' checked':'')+' onchange="progSyncToggle(this.checked)"><span class="pf-sw"></span> Wijzigingen doorzetten naar toegewezen klanten</label>'+
       '<span class="sm muted" title="Alleen vandaag en later; dagen waarop al scores of reacties staan blijven zoals ze zijn.">Bij elke opgeslagen dag gaan de toekomstige dagen van de klanten mee. Dagen met gelogde scores blijven staan.</span></div>':'')+
     '<h2 style="margin:16px 0 8px">Workouts</h2>'+
-    '<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" id="pe-viewing" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag '+((progWeek-1)*7+1)+'-'+(progWeek*7)+'</span></div>'+
+    (dag?'':'<div class="pe-weeks"><span>Week</span>'+weekTabs+'<span class="sm muted" id="pe-viewing" style="margin-left:auto;font-weight:600">Week '+progWeek+' · dag '+((progWeek-1)*7+1)+'-'+(progWeek*7)+'</span></div>')+
     '<div class="pe-cal">'+wkHtml+'</div>'+
-    (mag?'<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>':'')+
+    (mag&&!dag?'<div style="margin-top:12px"><button class="btn ghost sm" onclick="progAddWeek()">+ Week toevoegen</button></div>':'')+
   '</div>';
   if(progEditDay){relabel();groei();}
 }
 // Eén week in het raster: weekbalk (zoals de maandbalk) + kopregel met doorlopende
 // dagnummers + een rij cellen die randen delen (zoals .mday in de klant-kalender).
+// In de weekbalk: deze week bij een klant zetten, of kopiëren om elders te plakken.
 function progWeekBlok(week){
   const editCol=(progEditDay&&progEditDay.week===week)?progEditDay.day:-1;
   const cols=[1,2,3,4,5,6,7].map(d=>d===editCol?"minmax(340px,2.4fr)":"minmax(132px,1fr)").join(" ");
   const hd=[1,2,3,4,5,6,7].map(d=>'<div>Dag '+((week-1)*7+d)+'</div>').join("");
   const cells=[1,2,3,4,5,6,7].map(d=>progDayCel(week,d)).join("");
-  // Verwijder-knop alleen als er meer dan 1 week is (een programma houdt minimaal 1 week).
+  // Verwijder-knop alleen als er meer dan 1 week is (een template houdt minimaal 1 week).
   const del=(PROG.weeks||1)>1?'<button class="pe-wkdel" title="Week '+week+' verwijderen" onclick="progDeleteWeek('+week+')"><svg class="i"><use href="#i-trash"/></svg></button>':'';
-  return '<div class="mlabel pe-wkbar" id="pe-week-'+week+'"><span>Week '+week+'</span><span style="margin-left:auto;font-size:11px;color:#9aa1ab;letter-spacing:.5px;text-transform:uppercase">Dag '+((week-1)*7+1)+'-'+(week*7)+'</span>'+del+'</div>'+
+  const acties='<button class="pe-wkknop" title="Zet week '+week+' met een startdatum op de kalender van een klant" onclick="openAssign('+week+','+week+')">Bij klant zetten</button>'+
+    '<button class="pe-wkdel" style="margin-left:0" title="Kopieer week '+week+' om hem bij een klant of in een andere week te plakken" onclick="progKopieer('+week+')"><svg class="i"><use href="#i-copy"/></svg></button>';
+  return '<div class="mlabel pe-wkbar" id="pe-week-'+week+'"><span>Week '+week+'</span>'+acties+'<span style="margin-left:auto;font-size:11px;color:#9aa1ab;letter-spacing:.5px;text-transform:uppercase">Dag '+((week-1)*7+1)+'-'+(week*7)+'</span>'+del+'</div>'+
     '<div class="pe-hd7" style="grid-template-columns:'+cols+'">'+hd+'</div>'+
     '<div class="pe-row" style="grid-template-columns:'+cols+'">'+cells+'</div>';
 }
@@ -740,7 +765,9 @@ function progDayCel(week,day){
     inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
     return '<div class="pe-cell">'+inner+'</div>';
   }
-  return '<div class="pe-cell"><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button></div>'+wos.map(progCard).join("")+'</div>';
+  return '<div class="pe-cell"><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button>'+
+    (wos.length?'<button class="sqbtn" title="Kopieer deze dag om hem bij een klant of op een andere dag te plakken" onclick="event.stopPropagation();progKopieer('+week+','+day+')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>':'')+
+    '</div>'+wos.map(progCard).join("")+'</div>';
 }
 // Dag-menu zoals in de klant-kalender.
 function progDayMenu(ev,week,day){
@@ -847,7 +874,7 @@ function progBuilderHtml(w){
     '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
 }
 async function progReloadWorkouts(){
-  const{data:pws}=await db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",PROG.id).order("week").order("day").order("sort");
+  const pws=await progWorkoutsLaad(PROG.id);
   PROG.workouts=pws||[];progEditDay=null;progEditWid=null;progRender();
 }
 async function progSaveWorkout(){
@@ -882,11 +909,11 @@ async function progDeleteWorkout(id){
 }
 async function programVerwijder(id){
   if(!progMagOfMeld(id))return;
-  if(!confirm("Dit programma verwijderen?"))return;
+  if(!confirm("Deze template verwijderen?"))return;
   const{error}=await db.from("program_templates").delete().eq("id",id);
   if(error){toast(error.message||"Verwijderen mislukt");return;}
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
-  libModalDicht();toast("Programma verwijderd");await programLaad();
+  libModalDicht();toast("Template verwijderd");await programLaad();
 }
 function openProgramMenu(ev,id){
   ev.stopPropagation();
@@ -1141,8 +1168,9 @@ async function progSyncDagen(dagen){
   const asgs=asgsAlle.filter(a=>{const p=profVan(a.athlete_id);if(!p)return false;if(mijn&&p.coach_id!==ME.user.id){anderen++;return false;}return true;});
   const doelen=[];
   asgs.forEach(a=>alleDagen.forEach(dg=>{
-    if(dg.week>Math.max(1,a.weeks||PROG.weeks||1))return;
-    const datum=ymdPlus(a.start_date,(dg.week-1)*7+(dg.day-1));
+    const wf=a.week_from||1;
+    if(dg.week<wf||dg.week>wf+Math.max(1,a.weeks||PROG.weeks||1)-1)return;
+    const datum=ymdPlus(a.start_date,(dg.week-wf)*7+(dg.day-1));
     if(datum<td)return;
     doelen.push({a,week:dg.week,day:dg.day,datum});
   }));

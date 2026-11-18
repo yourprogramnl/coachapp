@@ -105,9 +105,9 @@ const HELP_HOOFDSTUKKEN=[
       {titel:"Benchmarks",
        img:"img/help/bibliotheek-03-benchmarks.png",
        tekst:"De officiële omschrijvingen van de bekende workouts: alle CrossFit Open-onderdelen vanaf 2011, de Quarterfinals, de Girls en de Hero-workouts. Filter op categorie, jaar, format of divisie. Handig als je een benchmark wilt herhalen en de tekst exact goed wilt hebben."},
-      {titel:"Programma's van meerdere weken",
+      {titel:"Template week en Template dag",
        img:"img/help/bibliotheek-04-programmas.png",
-       tekst:"Een programma is een blok van meerdere weken dat je een keer bouwt en daarna aan klanten toewijst. Klik op een programma om de weken te vullen; elke week heeft zeven dagen en per dag bouw je de workout zoals bij een klant. Op een dag kun je ook een template of wedstrijdworkout invoegen, of een gekopieerde workout plakken. Met Programma toewijzen kies je een klant en een startdatum, en dan worden de workouts op zijn kalender gezet. Via Beheer toewijzingen zie je wie het programma volgt en kun je het vanaf vandaag terugdraaien. Staat er een slotje bij een programma, dan mag je het wel bekijken maar niet aanpassen: dat programma is van een collega. Een beheerder kan je er rechten op geven."},
+       tekst:"Een template week is één week of een blok van meerdere weken dat je een keer bouwt en daarna bij klanten op de kalender zet. Een template dag is hetzelfde, maar dan één dag, bijvoorbeeld een testdag. Een klant ziet niets van een template tot je hem bij die klant zet, dus je kunt er rustig een nieuwe cyclus in uitwerken. Klik op een template om de weken te vullen; elke week heeft zeven dagen en per dag bouw je de workout zoals bij een klant. Met Bij een klant zetten kies je een klant, een startdatum en welke weken je wilt gebruiken. In de balk van elke week staat dezelfde knop voor alleen die week, en een kopieerknop om de week ergens te plakken. Bij een klant sla je een dag of week op als template met het bladwijzertje naast + Toevoegen. Via Beheer toewijzingen zie je bij wie een template op de kalender staat en kun je dat vanaf vandaag terugdraaien. Staat er een slotje bij een template, dan mag je hem wel bekijken maar niet aanpassen: die is van een collega. Een beheerder kan je er rechten op geven."},
     ],
   },
   {
