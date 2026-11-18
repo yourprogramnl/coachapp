@@ -400,7 +400,7 @@ async function berKlantLaad(){
   let st=BER.klantCache[cur];
   if(!st||Date.now()-st.t>120000){
     const[wq,rq,ciq,cpq,hq]=await Promise.all([
-      db.from("workouts").select("id,workout_date,title").eq("client_id",cur),
+      db.from("workouts").select("id,workout_date,title").eq("client_id",cur).neq("status","draft"),
       db.from("results").select("workout_id,status").eq("athlete_id",cur),
       db.from("client_info").select("data").eq("athlete_id",cur).limit(1),
       db.from("client_private").select("data").eq("athlete_id",cur).limit(1),

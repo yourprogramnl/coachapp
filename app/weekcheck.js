@@ -108,7 +108,7 @@ async function wcVul(){
       // Reacties en chat ook van ná de periode ophalen: zo weten we of de coach
       // intussen al heeft geantwoord ("wacht op antwoord" klopt dan).
       const[wos,com,msgs,mets]=await Promise.all([
-        wcIn("workouts","id,client_id,workout_date,title,created_at, blocks(id,label,exercise,kind,score_type,sort,linked,group_title)","client_id",ids,q=>q.gte("workout_date",per.van).lte("workout_date",per.tot).order("workout_date")),
+        wcIn("workouts","id,client_id,workout_date,title,created_at, blocks(id,label,exercise,kind,score_type,sort,linked,group_title)","client_id",ids,q=>q.gte("workout_date",per.van).lte("workout_date",per.tot).neq("status","draft").order("workout_date")), // concepten heeft de sporter nooit gezien
         wcIn("workout_comments","id,workout_id,athlete_id,author_id,body,created_at","athlete_id",ids,q=>q.gte("created_at",per.van).order("created_at")),
         wcIn("messages","id,athlete_id,sender_id,body,created_at","athlete_id",ids,q=>q.gte("created_at",per.van).order("created_at")),
         wcIn("metrics","athlete_id,metric,value,unit,measured_at,result_id","athlete_id",ids,q=>q.gte("measured_at",per.van).lte("measured_at",per.tot)),

@@ -43,9 +43,11 @@ const BS_CTX={
     gelogd:b=>!!monthResults[b.id],
     dag:w=>w.workout_date,
     opDag:d=>Object.values(monthWorkouts).filter(w=>w.workout_date===d&&!bsRust(w)).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))),
-    nieuw:async(d,titel)=>{
+    // Komt het blok uit een concept, dan blijft de nieuwe workout ook concept
+    // (anders zou de sporter hem ineens zien).
+    nieuw:async(d,titel,bron)=>{
       if(!calClient)throw new Error("Open eerst een klant");
-      const{data,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:d,title:titel}).select().single();
+      const{data,error}=await db.from("workouts").insert(Object.assign({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:d,title:titel},bron&&bron.status==="draft"?{status:"draft"}:{})).select().single();
       if(error)throw error;
       data.blocks=[];monthWorkouts[data.id]=data;(monthByDate[d]=monthByDate[d]||[]).push(data);
       return data;
@@ -209,7 +211,7 @@ async function bsVerplaats(sleep,doel){
   if(doelWid&&!doelW){toast("Doel-workout niet gevonden; ververs de pagina");return;}
   if(!doelW){
     // Lege dag: de nieuwe workout moet eerst bestaan (we hebben zijn id nodig).
-    try{doelW=await C.nieuw(doel.dag,bronW.title||"Training");}catch(e){toast((e&&e.message)||"Verplaatsen mislukt");return;}
+    try{doelW=await C.nieuw(doel.dag,bronW.title||"Training",bronW);}catch(e){toast((e&&e.message)||"Verplaatsen mislukt");return;}
     doelWid=doelW.id;nieuwGemaakt=true;
   }
   const plan=bsPlan(bron,zelfde?bron:C.blokken(doelW),sleep.bid,doel.refBid==null?null:doel.refBid,doel.pos,zelfde);

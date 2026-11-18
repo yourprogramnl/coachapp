@@ -64,7 +64,7 @@ function renderClient(panel){
 // Sessies, streak en workout-te-doen in de zijbalk, berekend uit echte data
 async function vulKlantStats(p){
   const[wq,rq,ciq,cq]=await Promise.all([
-    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id),
+    db.from("workouts").select("id,workout_date,title").eq("client_id",p.id).neq("status","draft"),
     db.from("results").select("workout_id,status").eq("athlete_id",p.id),
     db.from("client_info").select("data").eq("athlete_id",p.id).limit(1),
     // naam van de coach voor de kalender-kop, meteen in dezelfde ronde
@@ -1061,10 +1061,10 @@ function ssKaartHtml(g){
 function mcardHtml(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   if(!blocks.length&&/^rest ?day$/i.test((w.title||"").trim())){
-    return '<div class="mcard planned'+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-      '<div class="msc"><span style="color:#27b376">Rustdag</span></div>'+
+    return '<div class="mcard planned'+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'" onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+      '<div class="msc"><span style="color:#27b376">Rustdag</span>'+conceptPill(w)+'</div>'+
       '<div class="cblk"><div class="pr" style="color:#8a919c">Geen instructies</div></div>'+
-      cardComBtn(w)+'</div>';
+      conceptKnop(w)+cardComBtn(w)+'</div>';
   }
   let done=0,total=0,inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
@@ -1093,9 +1093,55 @@ function mcardHtml(w){
     else g.forEach(losBlok);
   });
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard'+(done===0?' planned':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'"'+bsKaartAttr("klant",w.id)+' onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
-    '<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
-    cardComBtn(w)+'</div>';
+  return '<div class="mcard'+(done===0?' planned':'')+(w.status==="draft"?' concept':'')+(selWids.has(w.id)?' selected':'')+'" data-wid="'+w.id+'"'+bsKaartAttr("klant",w.id)+' onclick="editWorkout(\''+w.id+'\',0)" ondragover="blokDragOver(event,this)" ondragleave="blokDragLeave(this)" ondrop="dropBlokOpKaart(event,\''+w.id+'\')">'+cardTools(w)+
+    conceptPill(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span><span class="wright">'+effortChip(monthEffort[w.id])+'<span class="wcount">'+done+'/'+total+'</span></span></div>'+inner+
+    conceptKnop(w)+cardComBtn(w)+'</div>';
+}
+// Concepten (workouts.status='draft'): de coach ziet ze met een label, de sporter pas na goedkeuren.
+// De database dwingt dat af (regel workouts_draft_hidden), dus ook oude app-versies tonen ze niet.
+function conceptPill(w){return w.status==="draft"?'<span class="conceptpill" title="Concept: de sporter ziet deze workout pas na goedkeuren">Concept</span>':'';}
+function conceptKnop(w){return w.status==="draft"?'<button class="conceptbtn" onclick="event.stopPropagation();conceptGoedkeuren(\''+w.id+'\')">Goedkeuren</button>':'';}
+function conceptIds(){return Object.values(monthWorkouts||{}).filter(w=>w.status==="draft").map(w=>w.id);}
+function conceptKopKnop(){const n=conceptIds().length;return n?'<button class="btn sm conceptalle" title="Alle concepten in deze kalender zichtbaar maken voor de sporter" onclick="conceptenGoedkeuren()">Concepten goedkeuren <b>'+n+'</b></button>':'';}
+async function conceptGoedkeuren(wid){
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:"published"}).eq("id",wid);
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Goedgekeurd, de sporter ziet deze workout nu");renderMonth();
+}
+async function conceptenGoedkeuren(){
+  if(!(await autoSaveBouwer()))return;
+  const ids=conceptIds();if(!ids.length)return;
+  if(!confirm(tf("{n} concept(en) goedkeuren? De sporter ziet ze daarna meteen.",{n:ids.length})))return;
+  const{error}=await db.from("workouts").update({status:"published"}).in("id",ids);
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
+}
+// Een workout waarop het lid al iets logde kan niet meer op concept (die zou voor het lid verdwijnen).
+function conceptHeeftLog(w){return (w.blocks||[]).some(b=>monthResults[b.id]);}
+async function conceptZet(wid){
+  const w=monthWorkouts[wid];if(!w)return;
+  if(conceptHeeftLog(w)){toast("Dit lid heeft hier al iets gelogd, deze workout kan niet meer op concept");return;}
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:"draft"}).eq("id",wid);
+  if(error){toast(t("Op concept zetten mislukt")+": "+error.message);return;}
+  toast("Op concept gezet, de sporter ziet deze workout niet meer");renderMonth();
+}
+function selConceptKnoppen(){
+  const ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean);
+  if(!ws.length||ws.some(w=>!w.client_id))return "";
+  return (ws.some(w=>w.status!=="draft")?'<button class="lnk" onclick="selConcept(true)">Op concept</button>':'')+(ws.some(w=>w.status==="draft")?'<button class="lnk" onclick="selConcept(false)">Goedkeuren</button>':'');
+}
+async function selConcept(naarConcept){
+  let ws=[...selWids].map(id=>monthWorkouts[id]).filter(Boolean).filter(w=>naarConcept?w.status!=="draft":w.status==="draft");
+  let overgeslagen=0;
+  if(naarConcept){const n=ws.length;ws=ws.filter(w=>!conceptHeeftLog(w));overgeslagen=n-ws.length;}
+  if(!ws.length){toast(overgeslagen?"Op deze workouts is al gelogd, die kunnen niet op concept":"Niets te wijzigen");return;}
+  if(!(await autoSaveBouwer()))return;
+  const{error}=await db.from("workouts").update({status:naarConcept?"draft":"published"}).in("id",ws.map(w=>w.id));
+  if(error){toast(t("Wijzigen mislukt")+": "+error.message);return;}
+  selClear();
+  toast(naarConcept?(overgeslagen?"Op concept gezet; workouts met een log zijn overgeslagen":"Op concept gezet, de sporter ziet ze niet meer"):"Goedgekeurd, de sporter ziet de workouts nu");renderMonth();
 }
 // Zweefmenu (bewerken/kopiëren/verwijderen) + selectievakje op elke workout-kaart.
 function cardTools(w){
@@ -1114,7 +1160,7 @@ function cardTools(w){
     '<button title="Voorbeeld: zo ziet de sporter het in de app" onclick="event.stopPropagation();appVoorbeeldVanKaart(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-eye"/></svg></button>'+
     '<button title="'+(scoreDag?'Scores invoeren':'Bewerken')+'" onclick="event.stopPropagation();'+(scoreDag?'openResults(\''+w.id+'\')':'editWorkout(\''+w.id+'\',0)')+'"><svg class="i sm-i"><use href="#i-pen"/></svg></button>'+
     '<button class="mv" title="Sleep naar een andere dag" draggable="true" ondragstart="dragStart(event,\''+w.id+'\')" ondragend="dragEnd(event)" onclick="return false"><svg class="i sm-i"><use href="#i-move"/></svg></button>'+
-    '<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    (w.status!=="draft"&&w.client_id?'<button title="Op concept zetten: verbergen voor de sporter tot je goedkeurt" onclick="event.stopPropagation();conceptZet(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-doc"/></svg></button>':'')+'<button title="Kopiëren naar een andere dag" onclick="event.stopPropagation();kopieerWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button title="Verwijderen" onclick="event.stopPropagation();delWorkout(\''+w.id+'\')"><svg class="i sm-i"><use href="#i-trash"/></svg></button>'+
     '</span>';
 }
@@ -1145,7 +1191,7 @@ function selBarUpdate(){
   if(!selWids.size){if(bar)bar.remove();return;}
   if(!bar){bar=document.createElement("div");bar.id="selbar";document.body.appendChild(bar);}
   bar.innerHTML='<span class="n">'+selWids.size+'</span><span>geselecteerd</span><button class="lnk" onclick="selClear()">Selectie wissen</button>'+
-    '<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
+    selConceptKnoppen()+'<button class="ic" title="Klaarzetten om te plakken" onclick="selKopieer()"><svg class="i sm-i"><use href="#i-copy"/></svg></button>'+
     '<button class="ic" title="Verwijderen" onclick="selVerwijder()"><svg class="i sm-i"><use href="#i-trash"/></svg></button>';
 }
 // Volgorde van workouts binnen één dag wisselen (pijltjes op de kaart).
@@ -1574,7 +1620,7 @@ async function renderMonth(opts){
       '<div id="kd-blogs"></div>'+
       ksKlantRijenHtml(p)+
       '</div></div></div></div>'+ // einde .kopkiezers
-    '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
+    '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+conceptKopKnop()+
     '<button class="btn ghost sm" title="Exporteer workouts, scores, metrics en meer als PDF of tekstbestand" onclick="openExport()"><svg class="i sm-i"><use href="#i-dl"/></svg> Exporteren</button>'+
     '</div>';
   const headDays=calView==="dag"?[DAGEN[(gridStart.getDay()+6)%7]]:DAGEN;
@@ -1784,7 +1830,7 @@ async function pickRest(ev){
   toast("Dag ingesteld als rustdag");renderMonth();
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
-function wTemplate(w){return {date:w.workout_date,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
+function wTemplate(w){return {date:w.workout_date,status:w.status==="draft"?"draft":"published",title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
   blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
@@ -1811,7 +1857,7 @@ async function pickPaste(ev){
   for(const t of kb){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const datum=off?ymdPlus(curDay,off):curDay;
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:calClient,workout_date:datum,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null,status:t.status==="draft"?"draft":"published"}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b)));if(be){toast(be.message);return;}}
   }
