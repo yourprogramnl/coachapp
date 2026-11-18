@@ -12,7 +12,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="1 (alleen lezen)";
+  const VERSIE="1.1 (alleen lezen)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const pad2=n=>String(n).padStart(2,"0");
@@ -30,6 +30,8 @@ const ClaudeApi=(()=>{
   const schoon=o=>{const u={};for(const k in o){if(!leeg(o[k])&&!(Array.isArray(o[k])&&!o[k].length))u[k]=o[k];}return u;};
   // Tijdstip in de lokale tijd van de browser (de database bewaart UTC).
   const tijd=ts=>{if(!ts)return "";const d=new Date(ts);return isNaN(d.getTime())?"":iso(d)+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());};
+  // Een atleet is een lid, of iemand met een eigen coach (een coach die zelf bij een collega traint).
+  const isAtleet=p=>p.role==="lid"||!!p.coach_id;
   const stukken=(lijst,n)=>{const u=[];for(let i=0;i<lijst.length;i+=n)u.push(lijst.slice(i,i+n));return u;};
 
   function nietKlaar(){
@@ -37,14 +39,14 @@ const ClaudeApi=(()=>{
     if(!STAF.includes(ME.profile.role))return "Deze commando's zijn alleen voor coaches.";
     return null;
   }
-  // Een atleet moet een lid van het eigen bedrijf zijn. Zo komt een sportschoollid of
-  // een collega-coach er nooit per ongeluk doorheen, ook niet bij een beheerder.
+  // Een atleet moet bij het eigen bedrijf horen. Zo komt een sportschoollid er nooit
+  // per ongeluk doorheen, ook niet bij een beheerder.
   async function atleetOphalen(id){
     if(!isUuid(id))return {fout:"Geef het id van de atleet (uit ClaudeApi.atleten), geen naam."};
     const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived,company_id,role,gender,birth_date,height_cm,weight_kg,profile_note").eq("id",id).maybeSingle();
     if(error)return {fout:error.message};
     if(!data)return {fout:"Geen atleet gevonden met dit id, of je mag hem niet zien."};
-    if(data.role!=="lid"||data.company_id!==ME.profile.company_id)return {fout:"Dit id hoort niet bij een atleet van jouw bedrijf."};
+    if(!isAtleet(data)||data.company_id!==ME.profile.company_id)return {fout:"Dit id hoort niet bij een atleet van jouw bedrijf."};
     return {p:data};
   }
   // .in() met veel id's in stukken, zodat de link niet te lang wordt.
@@ -105,11 +107,11 @@ const ClaudeApi=(()=>{
     }),
 
     atleten:veilig(async(zoek,alle)=>{
-      const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived").eq("company_id",ME.profile.company_id).eq("role","lid").order("first_name");
+      const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived,role").eq("company_id",ME.profile.company_id).in("role",["lid","coach","eigenaar","platform_admin"]).order("first_name");
       if(error)return fout(error.message);
       const z=String(zoek||"").trim().toLowerCase();
-      const lijst=(data||[]).filter(p=>!p.archived).filter(p=>alle||p.coach_id===ME.user.id).filter(p=>!z||naam(p).toLowerCase().includes(z))
-        .map(p=>({id:p.id,naam:naam(p),soort:p.membership_type||"",eigen_klant:p.coach_id===ME.user.id}));
+      const lijst=(data||[]).filter(isAtleet).filter(p=>!p.archived).filter(p=>alle||p.coach_id===ME.user.id).filter(p=>!z||naam(p).toLowerCase().includes(z))
+        .map(p=>schoon({id:p.id,naam:naam(p),soort:p.membership_type||"",eigen_klant:p.coach_id===ME.user.id,is_zelf_coach:p.role!=="lid"?true:null}));
       return {ok:true,aantal:lijst.length,filter:(z?"naam bevat \""+z+"\"":"geen")+(alle?", alle atleten":", alleen eigen klanten"),atleten:lijst};
     }),
 
