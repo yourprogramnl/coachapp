@@ -24,7 +24,7 @@ async function fillBerichten(){
     db.from("chat_groups").select("*").order("created_at"),
     db.from("chat_group_members").select("*"),
     db.from("chat_group_messages").select("*").order("created_at"),
-    db.from("blog_programs").select("id,name"),
+    db.from("blog_programs").select("id,name").eq("hidden",false),
     db.from("blog_program_members").select("athlete_id,blog_program_id"),
   ]);
   BER.groups=(gq.data||[]).filter(g=>myRole()!=="coach"||g.created_by===ME.user.id||(lq.data||[]).some(m=>m.group_id===g.id&&m.profile_id===ME.user.id));

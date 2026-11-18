@@ -4,7 +4,7 @@
 // workouts.blog_program_id (audience='blog'); de losse weekworkout heeft geen
 // blog_program_id en blijft dus in de Weekworkout-sectie. Prijs is alleen
 // weergave; betalen blijft via Strivee lopen.
-let BLOG={list:[],counts:{},zoek:"",cur:null,maand:null,workouts:[],editDay:null,editWid:null,editPid:null,tab:"progs",klantFilter:null,klantZoek:"",klantGestopt:false,klanten:null,paneel:"kalender",data:null,dataPid:null,dataLaden:false,dataFout:null};
+let BLOG={list:[],counts:{},zoek:"",cur:null,maand:null,workouts:[],editDay:null,editWid:null,editPid:null,tab:"progs",klantFilter:null,klantZoek:"",klantGestopt:false,klanten:null,paneel:"kalender",data:null,dataPid:null,dataLaden:false,dataFout:null,groepOpen:{},groepNamen:[]};
 const BLOG_TYPES=[["classic","Classic"],["fixed","Vast"],["one_on_one","1-op-1"]];
 const blogTypeNL=t=>{const x=BLOG_TYPES.find(o=>o[0]===t);return x?x[1]:(t||"Classic");};
 
@@ -58,21 +58,40 @@ function blogRender(){
     '</div></div>';
 }
 function blogZoek(v){BLOG.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("blog-lijst");if(h)h.innerHTML=blogLijstHtml();}
+function blogRijHtml(p,inGroep){
+  const n=BLOG.counts[p.id]||0;
+  const pt=blogPrijsTekst(p);
+  const prijs=p.hidden?'<span class="muted">Verborgen</span>':(pt?('<b>'+esc(pt)+'</b>'):'<b style="color:#27b376">Gratis</b>');
+  return '<div class="trow click" style="cursor:pointer;align-items:center'+(inGroep?';padding-left:36px':'')+'" onclick="blogOpen(\''+p.id+'\')">'+
+    '<div style="flex:2.6;display:flex;align-items:center;gap:11px"><div class="cavc" style="width:40px;height:40px;border-radius:10px;font-size:12px;'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div>'+
+      '<div><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div></div>'+
+    '<div style="flex:.9" class="sm muted">'+esc(blogTypeNL(p.type))+'</div>'+
+    '<div style="flex:.9" class="sm">'+prijs+'</div>'+
+    '<div style="flex:.7" class="sm">'+(n?'<a href="#" style="color:#1d6f9c;font-weight:700" title="Klanten van dit programma" onclick="event.stopPropagation();blogKlantenOpen(\''+p.id+'\');return false">'+n+'</a>':'<span class="muted">–</span>')+'</div>'+
+    '<div style="width:40px;text-align:right" onclick="event.stopPropagation()"><button class="kebab" onclick="blogMenu(event,\''+p.id+'\')">⋮</button></div></div>';
+}
+// Groepen (18 nov 2026, verzoek Stefan): programma's met dezelfde groep staan
+// ingeklapt onder één regel, onder de losse programma's. Zoeken toont alles plat.
 function blogLijstHtml(){
   if(!BLOG.list.length)return '<div class="cempty">Nog geen blogprogramma\'s. Klik op "+ Programma aanmaken" om te beginnen.</div>';
-  const hits=BLOG.list.filter(p=>!BLOG.zoek||(p.name||"").toLowerCase().includes(BLOG.zoek)||(p.description||"").toLowerCase().includes(BLOG.zoek));
-  return hits.map(p=>{
-    const n=BLOG.counts[p.id]||0;
-    const pt=blogPrijsTekst(p);
-    const prijs=pt?('<b>'+esc(pt)+'</b>'):'<b style="color:#27b376">Gratis</b>';
-    return '<div class="trow click" style="cursor:pointer;align-items:center" onclick="blogOpen(\''+p.id+'\')">'+
-      '<div style="flex:2.6;display:flex;align-items:center;gap:11px"><div class="cavc" style="width:40px;height:40px;border-radius:10px;font-size:12px;'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div>'+
-        '<div><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div></div>'+
-      '<div style="flex:.9" class="sm muted">'+esc(blogTypeNL(p.type))+'</div>'+
-      '<div style="flex:.9" class="sm">'+prijs+'</div>'+
-      '<div style="flex:.7" class="sm">'+(n?'<a href="#" style="color:#1d6f9c;font-weight:700" title="Klanten van dit programma" onclick="event.stopPropagation();blogKlantenOpen(\''+p.id+'\');return false">'+n+'</a>':'<span class="muted">–</span>')+'</div>'+
-      '<div style="width:40px;text-align:right" onclick="event.stopPropagation()"><button class="kebab" onclick="blogMenu(event,\''+p.id+'\')">⋮</button></div></div>';
-  }).join("")||'<div class="cempty">Geen programma gevonden voor deze zoekopdracht.</div>';
+  const hits=BLOG.list.filter(p=>!BLOG.zoek||(p.name||"").toLowerCase().includes(BLOG.zoek)||(p.description||"").toLowerCase().includes(BLOG.zoek)||(p.groep||"").toLowerCase().includes(BLOG.zoek));
+  if(!hits.length)return '<div class="cempty">Geen programma gevonden voor deze zoekopdracht.</div>';
+  if(BLOG.zoek)return hits.map(p=>blogRijHtml(p)).join("");
+  const per={};hits.forEach(p=>{if(p.groep)(per[p.groep]=per[p.groep]||[]).push(p);});
+  BLOG.groepNamen=Object.keys(per).sort((x,y)=>x.localeCompare(y));
+  return hits.filter(p=>!p.groep).map(p=>blogRijHtml(p)).join("")+BLOG.groepNamen.map((g,i)=>{
+    const ps=per[g],open=!!BLOG.groepOpen[g],verb=ps.every(p=>p.hidden);
+    return '<div class="trow click" style="cursor:pointer;align-items:center" onclick="blogGroepToggle('+i+')">'+
+      '<div style="flex:2.6;display:flex;align-items:center;gap:11px"><div class="cavc" style="width:40px;height:40px;border-radius:10px;font-size:15px;'+avStijl(g)+'">'+(open?"▾":"▸")+'</div>'+
+        '<div><b>'+esc(g)+'</b><div class="sm muted" style="margin-top:2px">'+ps.length+(ps.length===1?' programma':' programma\'s')+(verb?' · alleen zichtbaar voor beheerders':'')+'</div></div></div>'+
+      '<div style="flex:.9" class="sm muted">Groep</div><div style="flex:.9"></div><div style="flex:.7"></div><div style="width:40px"></div></div>'+
+      (open?ps.map(p=>blogRijHtml(p,true)).join(""):"");
+  }).join("");
+}
+function blogGroepToggle(i){
+  const g=(BLOG.groepNamen||[])[i];if(!g)return;
+  BLOG.groepOpen[g]=!BLOG.groepOpen[g];
+  const h=document.getElementById("blog-lijst");if(h)h.innerHTML=blogLijstHtml();
 }
 function blogMenu(ev,id){
   ev.stopPropagation();
@@ -117,6 +136,9 @@ function blogpModal(id){
   document.getElementById("blogp-cover").value=p?(p.cover_url||""):"";
   document.getElementById("blogp-desclong").value=p?(p.description_long||""):"";
   document.getElementById("blogp-joinlink").value=blogJoinUrl(p);
+  document.getElementById("blogp-groep").value=p?(p.groep||""):"";
+  document.getElementById("blogp-verborgen").checked=!!(p&&p.hidden);
+  document.getElementById("blogp-verborgenvak").style.display=myRole()==="platform_admin"?"":"none";
   blogpKoopToggle();
   blogpVulCoaches(p);
   document.getElementById("blogpmodal").classList.add("show");
@@ -169,6 +191,10 @@ async function blogpOpslaan(){
   rec.description_long=document.getElementById("blogp-desclong").value.trim()||null;
   // Winkel: prijs in centen; te koop kan alleen met een geldige prijs (min. €1).
   rec.for_sale=document.getElementById("blogp-koop").checked;
+  rec.groep=document.getElementById("blogp-groep").value.trim()||null;
+  // Verborgen (alleen beheerders): nooit op de etalage en geen aanmeldlink; de database dwingt dat ook af.
+  if(myRole()==="platform_admin")rec.hidden=document.getElementById("blogp-verborgen").checked;
+  if(rec.hidden&&(rec.for_sale||rec.join_open)){msg.textContent="Een verborgen programma kan niet op de etalage staan en heeft geen aanmeldlink. Zet die twee uit, of haal het vinkje bij Verborgen weg.";msg.className="msg err";return;}
   const prijsTxt=document.getElementById("blogp-koopprijs").value.trim();
   const prijs=Math.round(parseFloat(prijsTxt.replace(",","."))*100);
   if(rec.for_sale&&prijsTxt===""){
@@ -233,7 +259,7 @@ function blogSwitchMenu(ev){
   document.querySelectorAll(".wwmenu").forEach(x=>x.remove());
   const d=document.createElement("div");d.className="coachmenu wwmenu";
   d.style.cssText="top:44px;right:0;left:auto;max-height:320px;overflow:auto;min-width:240px";
-  d.innerHTML=BLOG.list.map(p=>'<button onclick="event.stopPropagation();blogSwitch(\''+p.id+'\')">'+(p.id===BLOG.cur.id?"✓ ":"")+esc(p.name)+' <span class="muted" style="font-size:11px">· '+esc(blogTypeNL(p.type))+'</span></button>').join("");
+  d.innerHTML=BLOG.list.filter(p=>(p.groep||"")===(BLOG.cur.groep||"")).map(p=>'<button onclick="event.stopPropagation();blogSwitch(\''+p.id+'\')">'+(p.id===BLOG.cur.id?"✓ ":"")+esc(p.name)+' <span class="muted" style="font-size:11px">· '+esc(blogTypeNL(p.type))+'</span></button>').join("");
   const host=ev.target.closest(".blog-switch");if(!host)return;
   host.appendChild(d);
   setTimeout(()=>document.addEventListener("click",function h(){d.remove();document.removeEventListener("click",h);}),0);
@@ -712,6 +738,10 @@ function ensureBlogModals(){
         '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-join"><span class="pf-sw"></span> Iedereen met de link kan zich zelf aanmelden</label>'+
         '<div style="display:flex;gap:6px;align-items:center"><input id="blogp-joinlink" readonly style="flex:1;font-size:12px" placeholder="De link verschijnt na het aanmaken"><button class="btn ghost sm" type="button" onclick="blogpKopieerLink()">Kopiëren</button></div>'+
         '<div class="sm muted" style="margin-top:4px">Wie zich via de link aanmeldt wordt gratis blog-lid van dit programma (nooit 1-op-1, geen coach). Link uit = geen nieuwe aanmeldingen; bestaande leden blijven.</div></div>'+
+      '<div class="field"><label>Groep (optioneel)</label><input id="blogp-groep" placeholder="bijv. Mayhem"><div class="sm muted" style="margin-top:4px">Programma\'s met dezelfde groep staan in de lijst ingeklapt onder één regel.</div></div>'+
+      '<div class="field" id="blogp-verborgenvak" style="display:none"><label>Verborgen</label>'+
+        '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-verborgen"><span class="pf-sw"></span> Alleen zichtbaar voor beheerders</label>'+
+        '<div class="sm muted" style="margin-top:4px">Coaches en leden zien dit programma en de workouts erin niet. Een verborgen programma kan niet op de etalage en heeft geen aanmeldlink.</div></div>'+
       '<div class="field"><label>Zichtbaar voor coaches</label><div class="sm muted" style="margin:-2px 0 6px">Eigenaar en beheerder zien altijd alle programma\'s; geen selectie = alle coaches.</div><div id="blogp-coaches"></div></div>'+
       '<div style="display:flex;gap:8px"><button class="btn" onclick="blogpOpslaan()">Opslaan</button><button class="btn ghost" onclick="blogpDicht()">Annuleren</button></div>'+
       '<div class="msg" id="blogp-msg"></div></div></div>'+
@@ -782,7 +812,7 @@ function blogKlantStatus(r){
   return{html:'<span class="cpill ok">Betaald</span>',rang:0,gestopt:false};
 }
 function blogKlantenHtml(vast){
-  const progs=BLOG.list;
+  const progs=BLOG.list.filter(p=>!p.hidden);
   const filter='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px">'+
     (vast?"":'<select class="lid-in" style="width:auto;min-width:200px" onchange="blogKlantFilter(this.value)"><option value="">Alle programma\'s</option>'+
       progs.map(p=>'<option value="'+p.id+'"'+(BLOG.klantFilter===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join("")+'</select>')+
