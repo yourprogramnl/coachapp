@@ -64,7 +64,8 @@ function blogZoek(v){BLOG.zoek=(v||"").toLowerCase().trim();const h=document.get
 function blogRijHtml(p,inGroep){
   const n=BLOG.counts[p.id]||0;
   const pt=blogPrijsTekst(p);
-  const prijs=p.hidden?'<span class="muted">Verborgen</span>':(pt?('<b>'+esc(pt)+'</b>'):'<b style="color:#27b376">Gratis</b>');
+  const prijs=(p.hidden?'<span class="muted">Verborgen</span>':(pt?('<b>'+esc(pt)+'</b>'):'<b style="color:#27b376">Gratis</b>'))+
+    (!p.hidden&&p.in_abonnement===false?' <span class="cpill gray" style="font-size:9.5px" title="Hoort niet bij het abonnement: alleen wie dit programma zelf koopt, ziet het">apart</span>':'');
   return '<div class="trow click" style="cursor:pointer;align-items:center'+(inGroep?';padding-left:36px':'')+'" onclick="blogOpen(\''+p.id+'\')">'+
     '<div style="flex:2.6;display:flex;align-items:center;gap:11px"><div class="cavc" style="width:40px;height:40px;border-radius:10px;font-size:12px;'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div>'+
       '<div><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div></div>'+
@@ -142,6 +143,7 @@ function blogpModal(id){
   document.getElementById("blogp-groep").value=p?(p.groep||""):"";
   document.getElementById("blogp-verborgen").checked=!!(p&&p.hidden);
   document.getElementById("blogp-verborgenvak").style.display=myRole()==="platform_admin"?"":"none";
+  document.getElementById("blogp-abo").checked=p?p.in_abonnement!==false:true; // nieuw programma: standaard aan
   blogpKoopToggle();
   blogpVulCoaches(p);
   document.getElementById("blogpmodal").classList.add("show");
@@ -197,6 +199,10 @@ async function blogpOpslaan(){
   rec.groep=document.getElementById("blogp-groep").value.trim()||null;
   // Verborgen (alleen beheerders): nooit op de etalage en geen aanmeldlink; de database dwingt dat ook af.
   if(myRole()==="platform_admin")rec.hidden=document.getElementById("blogp-verborgen").checked;
+  // Abonnement (18 nov 2026): wie een betaald abonnement heeft, ziet alle programma's met dit vinkje;
+  // de database koppelt de abonnees zelf. Een verborgen programma hoort er nooit bij.
+  const wordtVerborgen=rec.hidden!==undefined?rec.hidden:!!(BLOG.editPid&&(BLOG.list.find(x=>x.id===BLOG.editPid)||{}).hidden);
+  rec.in_abonnement=document.getElementById("blogp-abo").checked&&!wordtVerborgen;
   if(rec.hidden&&(rec.for_sale||rec.join_open)){msg.textContent="Een verborgen programma kan niet op de etalage staan en heeft geen aanmeldlink. Zet die twee uit, of haal het vinkje bij Verborgen weg.";msg.className="msg err";return;}
   const prijsTxt=document.getElementById("blogp-koopprijs").value.trim();
   const prijs=Math.round(parseFloat(prijsTxt.replace(",","."))*100);
@@ -668,6 +674,23 @@ async function blogDeleteWorkout(id){
   toast("Workout verwijderd");await blogHerlaad();
 }
 
+// ---------- Abonnement = alle programma's (18 nov 2026) ----------
+// Wie een betaald abonnement heeft op een programma dat bij het abonnement hoort, ziet alle
+// programma's met het vinkje "Hoort bij het abonnement". De database houdt die koppelingen zelf
+// bij (blog_program_members.via_order); het dashboard laat alleen zien waar de toegang vandaan komt.
+const blogInAbo=p=>!!p&&p.in_abonnement!==false&&!p.hidden;
+const blogProgNaam=id=>(BLOG.list.find(p=>p.id===id)||{}).name||"een ander programma";
+// Per lid het lopende abonnement dat alle programma's opent (oudste eerst): betaald, niet herroepen,
+// op een programma dat bij het abonnement hoort. Zelfde regel als private.abonnement_gewenst.
+function blogAboVia(orders){
+  const uit={};
+  (orders||[]).slice().sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))).forEach(o=>{
+    if(!o.profile_id||uit[o.profile_id]||o.status!=="paid"||o.withdrawn_at)return;
+    if(blogInAbo(BLOG.list.find(p=>p.id===o.blog_program_id)))uit[o.profile_id]=o;
+  });
+  return uit;
+}
+
 // ---------- Leden koppelen ----------
 // Sinds 22 juli: élk lid (1-op-1 én blog) kan één of meerdere blogprogramma's
 // volgen; de koppelingen staan in blog_program_members.
@@ -679,15 +702,19 @@ async function blogLedenOpen(){
     // Alleen leden van het eigen bedrijf: een platform_admin mag via RLS ook de SugarWOD-leden
     // van CrossFit Capelle (membership_type gym) lezen, en die staan los van YourProgram (Stefan 23 okt).
     db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type").eq("archived",false).eq("company_id",ME.profile.company_id).or("role.eq.lid,coach_id.not.is.null").order("first_name"),
-    db.from("blog_program_members").select("id,athlete_id,blog_program_id").eq("company_id",ME.profile.company_id),
-    // Winkelabonnementen op dit programma (betaald, opgezegd of gestopt); nieuwste eerst.
-    db.from("shop_orders").select("profile_id,status,cancel_at,withdrawn_at,created_at").eq("blog_program_id",BLOG.cur.id).in("status",["paid","processing","canceled"]).order("created_at",{ascending:false})
+    db.from("blog_program_members").select("id,athlete_id,blog_program_id,via_order").eq("company_id",ME.profile.company_id),
+    // Winkelabonnementen van het bedrijf (betaald, opgezegd of gestopt); nieuwste eerst. Eén abonnement
+    // geeft alle programma's die bij het abonnement horen, dus ook bestellingen op andere programma's tellen.
+    db.from("shop_orders").select("profile_id,blog_program_id,status,cancel_at,withdrawn_at,created_at").eq("company_id",ME.profile.company_id).in("status",["paid","processing","canceled"]).order("created_at",{ascending:false})
   ]);
   BLOG.leden=rl.data||[];
   BLOG.mems=rm.data||[];
-  BLOG.orders=ro.error?[]:(ro.data||[]);
-  // Wie betaalt, staat bovenaan: dan zie je in één oogopslag wie het programma via de winkel volgt.
+  const alleOrders=ro.error?[]:(ro.data||[]);
+  BLOG.orders=alleOrders.filter(o=>o.blog_program_id===BLOG.cur.id);
+  BLOG.aboVia=blogInAbo(BLOG.cur)?blogAboVia(alleOrders):{};
+  // Wie betaalt (zelf voor dit programma of via het abonnement), staat bovenaan.
   const betaalt=new Set(BLOG.orders.filter(o=>o.status!=="canceled").map(o=>o.profile_id));
+  Object.keys(BLOG.aboVia).forEach(id=>betaalt.add(id));
   BLOG.leden.sort((a,b)=>(betaalt.has(b.id)?1:0)-(betaalt.has(a.id)?1:0));
   blogLedenRender();
 }
@@ -709,15 +736,25 @@ function blogLedenRender(){
       :o.status==="canceled"?'<span class="cpill gray" style="font-size:9.5px">abonnement gestopt</span>'
       :o.cancel_at?'<span class="cpill bad" style="font-size:9.5px" title="Opgezegd; tot deze datum ziet het lid het programma nog">opgezegd, stopt '+esc(datum(o.cancel_at))+'</span>'
       :'<span class="cpill ok" style="font-size:9.5px">betaald abonnement</span>';
+    // Geen eigen lopend abonnement op dit programma, wel een abonnement op een ander programma.
+    const ab=(BLOG.aboVia||{})[p.id];
+    const aboLabel=(ab&&ab.blog_program_id!==BLOG.cur.id&&!lopend.length)?'<span class="cpill ok" style="font-size:9.5px" title="Ziet dit programma via het abonnement">abonnement via '+esc(blogProgNaam(ab.blog_program_id))+'</span>':'';
     return '<div class="tagrow" style="cursor:pointer" onclick="blogLidToggle(\''+p.id+'\')">'+
       '<div class="cavc" style="width:28px;height:28px;font-size:10px;flex:none;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div>'+
-      '<div style="flex:1"><b style="font-size:12.5px">'+naamVan(p)+'</b> '+typePill+(aboPill?" "+aboPill:"")+(ander.length?'<div class="sm muted" style="font-size:11px">volgt ook: '+esc(ander.join(", "))+'</div>':'')+'</div>'+
+      '<div style="flex:1"><b style="font-size:12.5px">'+naamVan(p)+'</b> '+typePill+(aboLabel?" "+aboLabel:(aboPill?" "+aboPill:""))+(ander.length?'<div class="sm muted" style="font-size:11px">volgt ook: '+esc(ander.join(", "))+'</div>':'')+'</div>'+
       '<span class="cpill '+(aan?"ok":"gray")+'">'+(aan?"gekoppeld":"koppel")+'</span></div>';
   }).join("");
 }
 async function blogLidToggle(pid){
   const p=BLOG.leden.find(x=>x.id===pid);if(!p)return;
   const bestaand=(BLOG.mems||[]).find(m=>m.athlete_id===pid&&m.blog_program_id===BLOG.cur.id);
+  // Ziet dit lid het programma via een lopend abonnement (18 nov 2026)? Dan houdt de database het
+  // gekoppeld zolang het abonnement loopt; ontkoppelen heeft geen zin (het komt meteen terug).
+  const ab=(BLOG.aboVia||{})[pid];
+  if(bestaand&&ab){
+    toast(naamVan(p).replace(/&amp;/g,"&")+" ziet dit programma via het abonnement"+(ab.blog_program_id!==BLOG.cur.id?" op "+blogProgNaam(ab.blog_program_id):"")+". Zolang dat loopt blijft het gekoppeld; zeg het abonnement op om de toegang te stoppen.");
+    return;
+  }
   // Betaalt dit lid nog via de winkel? Dan niet met één klik ontkoppelen: de betaling loopt door.
   const betaalt=(BLOG.orders||[]).find(o=>o.profile_id===pid&&o.status!=="canceled");
   if(bestaand&&betaalt&&!confirm("Dit lid betaalt nog via de winkel voor dit programma"+(betaalt.cancel_at?" (opgezegd, loopt tot "+new Date(betaalt.cancel_at).toLocaleDateString("nl-NL",{day:"numeric",month:"long"})+")":"")+". Ontkoppelen stopt de betaling niet; zeg het abonnement zo nodig op in Stripe. Toch ontkoppelen?"))return;
@@ -762,7 +799,10 @@ function ensureBlogModals(){
       '<div class="field"><label>Winkel</label>'+
         '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-koop" onchange="blogpKoopToggle()"><span class="pf-sw"></span> Zichtbaar op de etalage (te koop of gratis)</label>'+
         '<div id="blogp-koopvak" style="display:none;gap:8px;align-items:center"><span class="sm muted">Prijs €</span><input id="blogp-koopprijs" placeholder="39,00" style="width:90px"><select id="blogp-koopint" style="width:130px"><option value="month">per maand</option><option value="week">per week</option><option value="year">per jaar</option></select></div>'+
-        '<div class="sm muted" style="margin-top:4px">Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma. Prijs leeg = gratis programma: dan moet de aanmeldlink hieronder aan staan.</div></div>'+
+        '<div class="sm muted" style="margin-top:4px">Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma en ziet hij ook alle programma\'s die bij het abonnement horen. Prijs leeg = gratis programma: dan moet de aanmeldlink hieronder aan staan.</div></div>'+
+      '<div class="field"><label>Abonnement</label>'+
+        '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-abo" checked><span class="pf-sw"></span> Hoort bij het abonnement</label>'+
+        '<div class="sm muted" style="margin-top:4px">Aan: wie een betaald abonnement heeft (op welk programma ook), ziet ook dit programma in de app. Nieuwe programma\'s staan standaard aan en komen dus vanzelf bij alle abonnees. Zet het uit voor een programma dat je apart verkoopt of dat nog niet klaar is. Verborgen programma\'s horen er nooit bij.</div></div>'+
       '<div class="field"><label>Aanmeldlink (gratis blog-lid)</label>'+
         '<label class="pf-toggle" style="margin:2px 0 6px"><input type="checkbox" id="blogp-join"><span class="pf-sw"></span> Iedereen met de link kan zich zelf aanmelden</label>'+
         '<div style="display:flex;gap:6px;align-items:center"><input id="blogp-joinlink" readonly style="flex:1;font-size:12px" placeholder="De link verschijnt na het aanmaken"><button class="btn ghost sm" type="button" onclick="blogpKopieerLink()">Kopiëren</button></div>'+
@@ -807,19 +847,28 @@ async function blogKlantenLaad(){
   const cid=ME.profile.company_id;
   const[rl,rm,ro]=await Promise.all([
     db.from("profiles").select("id,first_name,last_name,email,avatar_url,membership_type,archived").eq("company_id",cid).or("role.eq.lid,coach_id.not.is.null"),
-    db.from("blog_program_members").select("id,athlete_id,blog_program_id,created_at").eq("company_id",cid),
+    db.from("blog_program_members").select("id,athlete_id,blog_program_id,created_at,via_order").eq("company_id",cid),
     db.from("shop_orders").select("id,profile_id,email,blog_program_id,status,created_at,updated_at,cancel_at,cancel_requested_at,withdrawn_at,stripe_subscription_id,stripe_customer_id,stripe_session_id").eq("company_id",cid).order("created_at",{ascending:false})
   ]);
   const prof={};(rl.data||[]).forEach(p=>prof[p.id]=p);
   const orders=ro.error?[]:(ro.data||[]);
   const rang=s=>s==="paid"?3:s==="processing"?2:s==="canceled"?1:0;
   const rows=[],gezien=new Set();
+  const aboVia=blogAboVia(orders);
   (rm.data||[]).forEach(m=>{
     const p=prof[m.athlete_id];if(!p)return;
     // Lopende bestelling gaat voor een gestopte; nieuwste eerst (de lijst is al zo gesorteerd).
     const mijn=orders.filter(o=>o.profile_id===m.athlete_id&&o.blog_program_id===m.blog_program_id).sort((a,b)=>rang(b.status)-rang(a.status));
-    const o=mijn[0]||null;if(o)gezien.add(o.id);
-    rows.push({key:m.athlete_id+"|"+m.blog_program_id+"|"+(o?o.id:""),mid:m.id,p,pid:m.blog_program_id,sinds:(o&&o.created_at<m.created_at)?o.created_at:m.created_at,o,lid:true});
+    let o=mijn[0]||null,via=null;
+    // Geen eigen lopende bestelling voor dit programma, wel een lopend abonnement op een ander
+    // programma (één abonnement = alle programma's, 18 nov 2026): toon dat abonnement.
+    const eigenLoopt=!!o&&o.status==="paid"&&!o.withdrawn_at;
+    const ab=blogInAbo(BLOG.list.find(x=>x.id===m.blog_program_id))?aboVia[m.athlete_id]:null;
+    if(!eigenLoopt&&ab&&ab.blog_program_id!==m.blog_program_id){o=ab;via=ab.blog_program_id;}
+    if(o)gezien.add(o.id);
+    // Het gekochte programma met een lopend abonnement: opent alle programma's.
+    const alles=!via&&eigenLoopt&&blogInAbo(BLOG.list.find(x=>x.id===m.blog_program_id));
+    rows.push({key:m.athlete_id+"|"+m.blog_program_id+"|"+(o?o.id:""),mid:m.id,p,pid:m.blog_program_id,sinds:(o&&!via&&o.created_at<m.created_at)?o.created_at:m.created_at,o,via,alles,lid:true});
   });
   // Bestellingen zonder koppeling meer (herroepen, gestopt, mislukt): alleen bij "ook gestopte tonen".
   orders.forEach(o=>{
@@ -850,11 +899,22 @@ function blogKlantenHtml(vast){
     '</div>';
   if(BLOG.klanten===null)return filter+'<div class="card"><div class="cempty">Laden…</div></div>';
   const q=(BLOG.klantZoek||"").toLowerCase().trim();
-  const rows=BLOG.klanten.map(r=>({...r,st:blogKlantStatus(r),prog:progs.find(p=>p.id===r.pid)||{name:"?"}}))
+  let rows=BLOG.klanten.map(r=>({...r,st:blogKlantStatus(r),prog:progs.find(p=>p.id===r.pid)||{name:"?"}}))
     .filter(r=>!BLOG.klantFilter||r.pid===BLOG.klantFilter)
     .filter(r=>BLOG.klantGestopt||!r.st.gestopt)
     .filter(r=>!q||((r.p.first_name||"")+" "+(r.p.last_name||"")+" "+(r.p.email||"")+" "+r.prog.name).toLowerCase().includes(q))
     .sort((a,b)=>a.st.rang-b.st.rang||(naamVan(a.p)).localeCompare(naamVan(b.p)));
+  // Eén regel per abonnement bij "Alle programma's": de programma's die iemand via zijn abonnement ziet,
+  // staan niet elk apart; de regel van het gekochte programma zegt "+ alle programma's".
+  if(!BLOG.klantFilter){
+    const eigen=new Set(rows.filter(r=>r.alles).map(r=>r.p.id+"|"+r.o.id)),al=new Set();
+    rows=rows.filter(r=>{
+      if(!r.via)return true;
+      const k=r.p.id+"|"+r.o.id;
+      if(eigen.has(k)||al.has(k))return false;
+      al.add(k);r.alleen=true;return true;
+    });
+  }
   const betaald=rows.filter(r=>r.o&&r.o.status==="paid").length;
   const kop='<div class="thead"><div style="flex:2.2">Klant</div><div style="flex:1.2">Programma</div><div style="flex:.9">Sinds</div><div style="flex:1.6">Status</div><div style="flex:1.1;text-align:right">Acties</div></div>';
   const lijst=rows.length?rows.map(r=>{
@@ -863,9 +923,10 @@ function blogKlantenHtml(vast){
     return '<div class="trow" style="align-items:center" data-key="'+esc(r.key)+'">'+
       '<div style="flex:2.2;display:flex;align-items:center;gap:10px;min-width:0"><div class="cavc" style="width:32px;height:32px;font-size:11px;flex:none;'+avFotoStyle(r.p)+'">'+avFotoText(r.p)+'</div>'+
         '<div style="min-width:0"><b style="font-size:12.5px">'+naamVan(r.p)+'</b>'+typePill+(r.p.archived?' <span class="cpill gray" style="font-size:9.5px">archief</span>':'')+'<div class="sm muted" style="font-size:11px;overflow:hidden;text-overflow:ellipsis">'+esc(r.p.email||"")+'</div></div></div>'+
-      '<div style="flex:1.2" class="sm">'+esc(r.prog.name)+'</div>'+
+      '<div style="flex:1.2" class="sm">'+(r.alleen?'Alle programma\'s':esc(r.prog.name))+
+        (r.alles&&!BLOG.klantFilter?'<div class="muted" style="font-size:10.5px">+ alle programma\'s</div>':'')+'</div>'+
       '<div style="flex:.9" class="sm muted">'+esc(d)+'</div>'+
-      '<div style="flex:1.6" class="sm">'+r.st.html+'</div>'+
+      '<div style="flex:1.6" class="sm">'+r.st.html+(r.via?'<div class="muted" style="font-size:10.5px;margin-top:2px">abonnement via '+esc(blogProgNaam(r.via))+'</div>':'')+'</div>'+
       '<div style="flex:1.1;text-align:right" class="sm">'+blogKlantActies(r)+'</div></div>';
   }).join(""):'<div class="cempty">'+(BLOG.klanten.length?'Geen klant gevonden.':'Nog geen klanten voor dit programma.')+'</div>';
   return filter+'<div class="sm muted" style="margin:0 0 8px">'+rows.length+' klant'+(rows.length===1?'':'en')+' · '+betaald+' betaald</div><div class="card">'+kop+lijst+'</div>';
@@ -899,7 +960,8 @@ function blogKlantMenu(ev,key){
     if(o.stripe_customer_id)h+='<button onclick="event.stopPropagation();blogKlantActie(\''+o.id+'\',\'terugbetalen\')">Terugbetalen…</button>';
     h+='<button onclick="event.stopPropagation();window.open(\''+stripeUrl+'\',\'_blank\')">In Stripe openen</button>';
   }
-  if(r.lid&&r.mid)h+='<button onclick="event.stopPropagation();blogKlantOntkoppel('+k+')">Van programma afhalen</button>';
+  // Toegang via een lopend abonnement: de database houdt de koppeling vast, dus geen "afhalen".
+  if(r.lid&&r.mid&&!r.via&&!r.alles)h+='<button onclick="event.stopPropagation();blogKlantOntkoppel('+k+')">Van programma afhalen</button>';
   if(mag){
     h+='<button onclick="event.stopPropagation();blogKlantArchiveer('+k+','+(r.p.archived?"false":"true")+')">'+(r.p.archived?"Uit archief halen":"Archiveren")+'</button>';
     if(!lopend)h+='<button class="danger" onclick="event.stopPropagation();blogKlantVerwijder('+k+')">Account verwijderen…</button>';
@@ -1046,7 +1108,8 @@ const blogEuro=c=>"€ "+(Number(c||0)/100).toFixed(2).replace(".",",");
 function blogDatumKort(iso){if(!iso)return "";const d=new Date(String(iso).length>10?iso:iso+"T12:00:00");return d.getDate()+" "+MAANDKORT[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():"");}
 function blogMaandKort(ym){const[y,m]=String(ym).split("-");return MAANDKORT[parseInt(m,10)-1]+" "+y;}
 function blogDataStatus(k){
-  if(k.betaald)return k.opgezegd_tot?'<span class="cpill bad" style="font-size:10px">Opgezegd, stopt '+esc(blogDatumKort(k.opgezegd_tot))+'</span>':'<span class="cpill ok" style="font-size:10px">Betaald</span>';
+  const via=k.via?'<div class="muted" style="font-size:10px;margin-top:2px">abonnement via '+esc(k.via)+'</div>':'';
+  if(k.betaald)return (k.opgezegd_tot?'<span class="cpill bad" style="font-size:10px">Opgezegd, stopt '+esc(blogDatumKort(k.opgezegd_tot))+'</span>':'<span class="cpill ok" style="font-size:10px">Betaald</span>')+via;
   return k.membership_type==="one_on_one"?'<span class="cpill gray" style="font-size:10px">via 1-op-1</span>':'<span class="cpill gray" style="font-size:10px">Gratis</span>';
 }
 function blogDataHtml(){
@@ -1072,16 +1135,16 @@ function blogDataHtml(){
     tile(n(a.sessies_30d),"Sessies (30 dagen)",n(pd.d30)+" programmadagen"+(n(a.gemist_30d)?" · "+n(a.gemist_30d)+" gemist":""))+
     tile(volt===null?"–":volt+"%","Voltooiing (30 dagen)",mogelijk?n(a.sessies_30d)+" van "+mogelijk+" mogelijke sessies":"Nog geen programmadagen",volt!==null&&volt>=60?"ok":"")+
     tile(rxTot?Math.round(100*n(rs.rx)/rxTot)+"% Rx":"–","Rx / Scaled",rxTot?n(rs.rx)+" Rx · "+n(rs.scaled)+" Scaled":"Nog geen scores")+
-    (omzet?tile(blogEuro(n(v.betaald)*p.price_cents)+' <span class="muted" style="font-size:12px">'+interval+'</span>',"Geschatte omzet","Betaalde abonnementen × huidige prijs. Het exacte bedrag staat in Stripe."):"")+
+    (omzet?tile(blogEuro((d.omzet?n(d.omzet.gekocht_hier):n(v.betaald))*p.price_cents)+' <span class="muted" style="font-size:12px">'+interval+'</span>',"Geschatte omzet",d.omzet?"Abonnementen gekocht via dit programma × huidige prijs. Wie via een ander programma betaalt, telt daar. Het exacte bedrag staat in Stripe.":"Betaalde abonnementen × huidige prijs. Het exacte bedrag staat in Stripe."):"")+
   '</div>';
   const weken=d.per_week||[],max=Math.max(1,...weken.map(w=>n(w.voltooid)));
   const nuWk=ymd(mondayOf(new Date()));
   const bars=weken.length?'<div class="bl-bars">'+weken.map(w=>'<div class="bl-bar'+(w.week===nuWk?" nu":"")+'" title="Week van '+esc(blogDatumKort(w.week))+': '+n(w.voltooid)+' sessies, '+n(w.atleten)+' sporters'+(n(w.gemist)?', '+n(w.gemist)+' gemist':'')+'"><b>'+n(w.voltooid)+'</b><i style="height:'+Math.max(2,Math.round(100*n(w.voltooid)/max))+'%"></i><span>wk '+isoWeek(new Date(w.week+"T12:00:00"))+'</span></div>').join("")+'</div>'+
     '<div class="sm muted">Gelogde sessies per week, met het weeknummer eronder. Deze week staat in donkerblauw.</div>':'<div class="nodata">Nog geen data</div>';
   const maanden=d.per_maand||[];
-  const mTabel=maanden.length?'<table class="bl-tabel"><tr><th>Maand</th><th class="r">Nieuw</th><th class="r" title="Nieuwe betaalde abonnementen">Betaald +</th><th class="r" title="Gestopte betaalde abonnementen">Betaald −</th><th class="r" title="Betaalde abonnementen aan het eind van de maand">Betaald</th>'+(omzet?'<th class="r">Omzet*</th>':'')+'<th class="r">Sessies</th><th class="r">Sporters</th></tr>'+
+  const mTabel=maanden.length?'<table class="bl-tabel"><tr><th>Maand</th><th class="r">Nieuw</th><th class="r" title="Nieuwe abonnementen gekocht via dit programma">Betaald +</th><th class="r" title="Gestopte abonnementen die via dit programma waren gekocht">Betaald −</th><th class="r" title="Lopende abonnementen gekocht via dit programma, aan het eind van de maand">Betaald</th>'+(omzet?'<th class="r">Omzet*</th>':'')+'<th class="r">Sessies</th><th class="r">Sporters</th></tr>'+
     maanden.map((m,i)=>'<tr'+(i===maanden.length-1?' class="nu"':'')+'><td>'+esc(blogMaandKort(m.maand))+'</td><td class="r">'+n(m.nieuw)+'</td><td class="r">'+n(m.betaald_nieuw)+'</td><td class="r">'+n(m.betaald_gestopt)+'</td><td class="r">'+n(m.betaald_actief)+'</td>'+(omzet?'<td class="r">'+blogEuro(n(m.betaald_actief)*p.price_cents)+'</td>':'')+'<td class="r">'+n(m.sessies)+'</td><td class="r">'+n(m.atleten)+'</td></tr>').join("")+'</table>'+
-    (omzet?'<div class="sm muted" style="margin-top:6px">* Schatting: betaalde abonnementen × de huidige prijs. Het echte bedrag staat in Stripe.</div>':''):'<div class="nodata">Nog geen data</div>';
+    (omzet?'<div class="sm muted" style="margin-top:6px">* Schatting: abonnementen gekocht via dit programma × de huidige prijs. Het echte bedrag staat in Stripe.</div>':''):'<div class="nodata">Nog geen data</div>';
   const lijst=(rows,leeg,veld)=>rows.length?'<div class="bl-lijst">'+rows.map(r=>'<button onclick="blogBoardOpen(\''+r.workout_id+'\')" title="Leaderboard van deze workout openen"><span class="d">'+esc(blogDatumKort(r.workout_date))+'</span><span style="min-width:0">'+esc(r.title||"Workout")+(r.bron?'<span class="muted" style="font-weight:500"> · '+esc(r.bron)+'</span>':'')+'</span><span class="n">'+n(r[veld])+'×</span></button>').join("")+'</div>':'<div class="nodata">'+leeg+'</div>';
   html+='<div class="metcards bl-cards">'+
     '<div class="metcard"><h3>Activiteit per week</h3>'+bars+'</div>'+

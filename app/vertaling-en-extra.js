@@ -916,3 +916,15 @@ i18nLaad({
   "{n} klanten van uitgezette coaches staan er niet bij.": "{n} clients of muted coaches are not included.",
   "Verberg ze": "Hide them",
 });
+// Blog: één abonnement = alle programma's (18 nov 2026)
+i18nLaad({
+  "apart": "separate", "Abonnement": "Subscription", "Hoort bij het abonnement": "Part of the subscription",
+  "Aan: wie een betaald abonnement heeft (op welk programma ook), ziet ook dit programma in de app. Nieuwe programma's staan standaard aan en komen dus vanzelf bij alle abonnees. Zet het uit voor een programma dat je apart verkoopt of dat nog niet klaar is. Verborgen programma's horen er nooit bij.": "On: anyone with a paid subscription (to any program) also sees this program in the app. New programs are on by default, so every subscriber gets them automatically. Switch it off for a program you sell separately or that is not ready yet. Hidden programs are never included.",
+  "Betaling loopt via Stripe; na betaling krijgt de koper automatisch een uitnodiging voor dit programma en ziet hij ook alle programma's die bij het abonnement horen. Prijs leeg = gratis programma: dan moet de aanmeldlink hieronder aan staan.": "Payment runs through Stripe; after paying, the buyer automatically receives an invite to this program and also sees all programs that are part of the subscription. Empty price = free program: the sign-up link below must then be on.",
+  "+ alle programma's": "+ all programs",
+  "Abonnementen gekocht via dit programma × huidige prijs. Wie via een ander programma betaalt, telt daar. Het exacte bedrag staat in Stripe.": "Subscriptions bought through this program × current price. Anyone paying through another program counts there. The exact amount is in Stripe.",
+  "* Schatting: abonnementen gekocht via dit programma × de huidige prijs. Het echte bedrag staat in Stripe.": "* Estimate: subscriptions bought through this program × the current price. The real amount is in Stripe.",
+});
+i18nRegel(/^abonnement via (.+)$/, "subscription via $1");
+i18nRegel(/^(.+) ziet dit programma via het abonnement( op (.+))?\. Zolang dat loopt blijft het gekoppeld; zeg het abonnement op om de toegang te stoppen\.$/, (m, wie, x, prog) => wie + " sees this program through the subscription" + (prog ? " on " + prog : "") + ". As long as it runs, the link stays; cancel the subscription to stop access.");
+i18nLaad({ "Hoort niet bij het abonnement: alleen wie dit programma zelf koopt, ziet het": "Not part of the subscription: only people who buy this program themselves see it" });
