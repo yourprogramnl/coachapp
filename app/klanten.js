@@ -11,7 +11,8 @@ let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam
 let klantTags=new Set(),klantAf=new Set();
 const klantTagAan=()=>klantTags.size>0;
 // Heeft deze klant alle gekozen tags? (leeg filter = iedereen)
-const klantHeeftAlleTags=p=>{const eigen=KDATA.tagsByClient[p.id]||[];return [...klantTags].every(id=>eigen.includes(id));};
+// "Zonder dag" (KLANT_GEEN_DAG, app/dag-tags.js) telt als filter: klant heeft geen dagtag.
+const klantHeeftAlleTags=p=>{const eigen=KDATA.tagsByClient[p.id]||[];return [...klantTags].every(id=>id===KLANT_GEEN_DAG?!klantHeeftDag(p):eigen.includes(id));};
 function klantTagFilterKies(id){
   if(!id){klantTags.clear();klantAf.clear();klantenRender();return;}
   if(klantTags.has(id))klantTags.delete(id);else klantTags.add(id);
@@ -66,7 +67,7 @@ async function fillKlanten(){
   }else{
     ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);delete w.results;return w;});
   }
-  const msgs=mq.data||[],alleTags=tq.data||[],ptags=pq.data||[],cons=cq.data||[],openInv=iq.data||[];
+  const msgs=mq.data||[],alleTags=tagsSorteer(tq.data||[]),ptags=pq.data||[],cons=cq.data||[],openInv=iq.data||[];
   const tagsByClient={};ptags.forEach(pt=>{(tagsByClient[pt.profile_id]=tagsByClient[pt.profile_id]||[]).push(pt.tag_id);});
   const lastConsult={};cons.forEach(c=>{if(c.consult_date&&(!lastConsult[c.athlete_id]||c.consult_date>lastConsult[c.athlete_id]))lastConsult[c.athlete_id]=c.consult_date;});
   const pending={};openInv.forEach(i=>{pending[i.profile_id]=i.expires_at;});
@@ -156,6 +157,7 @@ function klantenRender(){
       klantTagKiezerHtml()+
       '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="openTagBeheer()">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
     klantTagBanner()+
+    klantGeenDagMelding()+
     '<div class="ctabs"><button class="'+(klantArchief?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button></div>'+
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
     '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>';
@@ -277,11 +279,13 @@ function klantTagDropToggle(ev){
   document.querySelectorAll(".tagdrop").forEach(x=>x.remove());
   if(bestond)return;
   const d=document.createElement("div");d.className="tagdrop";
+  // Dagtags eerst (maandag..zondag), dan de rest; onderaan "Zonder dag (n)".
   d.innerHTML='<div class="hd">Filter op tag</div>'+
-    ((KDATA.alleTags||[]).map(t=>'<button class="tagopt" onclick="event.stopPropagation();klantTagFilterKies(\''+t.id+'\')">'+
+    (tagLijstMetScheiding(KDATA.alleTags||[],t=>'<button class="tagopt" onclick="event.stopPropagation();klantTagFilterKies(\''+t.id+'\')">'+
       '<span class="kdot" style="background:'+(tagKleur(t.color))+'"></span><span style="flex:1">'+esc(t.name)+'</span>'+
-      (klantTags.has(t.id)?'<span class="vk">✓</span>':'')+'</button>').join("")
+      (klantTags.has(t.id)?'<span class="vk">✓</span>':'')+'</button>','<div class="tagsep"></div>')
       ||'<div class="leeg">Nog geen tags. Maak er een via de + achter een klant of via Tags beheren.</div>')+
+    klantGeenDagOptie()+
     (klantTags.size?'<button class="tagopt" style="color:#e5484d" onclick="event.stopPropagation();klantTagFilterKies(null)">Filter wissen</button>':'');
   wrap.appendChild(d);
 }
@@ -291,9 +295,9 @@ document.addEventListener("click",e=>{if(!e.target.closest(".tagkies"))klantTagD
 // plus de afstreep-teller voor het programmeren.
 function klantTagBanner(){
   // Tags die intussen verwijderd zijn stil laten vallen
-  [...klantTags].forEach(id=>{if(!tagById(id))klantTags.delete(id);});
+  [...klantTags].forEach(id=>{if(id!==KLANT_GEEN_DAG&&!tagById(id))klantTags.delete(id);});
   if(!klantTags.size)return "";
-  const gekozen=[...klantTags].map(id=>tagById(id)).filter(Boolean);
+  const gekozen=[...klantTags].map(id=>id===KLANT_GEEN_DAG?{id:KLANT_GEEN_DAG,name:"Zonder dag",color:"#e5484d"}:tagById(id)).filter(Boolean);
   const inFilter=klantLijst().filter(p=>klantHeeftAlleTags(p));
   const afN=inFilter.filter(p=>klantAf.has(p.id)).length;
   const chips=gekozen.map(t=>'<span class="ktag" style="font-size:12px;padding:5px 12px"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+' <span class="x" title="Deze tag uit het filter halen" onclick="klantTagFilterWeg(\''+t.id+'\')">✕</span></span>').join("");
@@ -304,9 +308,9 @@ function klantTagBanner(){
   '</div>';
 }
 function klantTagCel(p){
-  const chips=(KDATA.tagsByClient[p.id]||[]).map(id=>tagById(id)).filter(Boolean)
+  const chips=tagsSorteer((KDATA.tagsByClient[p.id]||[]).map(id=>tagById(id)).filter(Boolean))
     .map(t=>'<span class="ktag'+(klantTags.has(t.id)?" aan":"")+'"><span style="cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Filter de lijst op deze tag" onclick="event.stopPropagation();klantTagFilterKies(\''+t.id+'\')"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+esc(t.name)+'</span> <span class="x" title="Tag weghalen bij deze klant" onclick="event.stopPropagation();tagToggleKlant(\''+p.id+'\',\''+t.id+'\')">✕</span></span>').join("");
-  return '<div class="ktagcel">'+chips+'<button class="plusbtn" title="Tag toevoegen" onclick="event.stopPropagation();openTagPicker(event,\''+p.id+'\')">+</button></div>';
+  return '<div class="ktagcel">'+klantGeenDagLabel(p)+chips+'<button class="plusbtn" title="Tag toevoegen" onclick="event.stopPropagation();openTagPicker(event,\''+p.id+'\')">+</button></div>';
 }
 function openTagPicker(ev,clientId){
   ev.stopPropagation();
@@ -317,7 +321,7 @@ function openTagPicker(ev,clientId){
   const have=new Set(KDATA.tagsByClient[clientId]||[]);
   const d=document.createElement("div");d.className="tagdrop";
   d.innerHTML='<div class="hd">Tags</div>'+
-    ((KDATA.alleTags||[]).map(t=>'<button class="tagopt" onclick="event.stopPropagation();tagToggleKlant(\''+clientId+'\',\''+t.id+'\')"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span><span style="flex:1">'+esc(t.name)+'</span>'+(have.has(t.id)?'<span class="vk">✓</span>':'')+'</button>').join("")||'<div class="leeg">Nog geen tags. Maak er hieronder één.</div>')+
+    (tagLijstMetScheiding(KDATA.alleTags||[],t=>'<button class="tagopt" onclick="event.stopPropagation();tagToggleKlant(\''+clientId+'\',\''+t.id+'\')"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span><span style="flex:1">'+esc(t.name)+'</span>'+(have.has(t.id)?'<span class="vk">✓</span>':'')+'</button>','<div class="tagsep"></div>')||'<div class="leeg">Nog geen tags. Maak er hieronder één.</div>')+
     '<div class="tagnieuw"><input placeholder="Nieuwe tag…" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\'){event.stopPropagation();tagNieuw(this,\''+clientId+'\');}"><div class="kleuren">'+TPLKLEUREN.map((k,i)=>'<span class="kc'+(i===0?' on':'')+'" data-k="'+k+'" title="'+esc(LEGNAAM[k]||k)+'" style="background:'+TPLKLEUR[k]+'" onclick="event.stopPropagation();tagKiesKleur(this)"></span>').join("")+
     '<input type="color" class="kc kcvrij" value="#D9B44A" data-k="#D9B44A" title="Eigen kleur kiezen" onclick="event.stopPropagation()" oninput="this.dataset.k=this.value;tagKiesKleur(this)">'+
     '</div></div>';
@@ -335,15 +339,17 @@ async function tagToggleKlant(clientId,tagId){
     if(error){toast(error.message||"Mislukt");return;}
     (KDATA.tagsByClient[clientId]=KDATA.tagsByClient[clientId]||[]).push(tagId);
   }
+  ksTagsVerouderd(); // tagfilter op het klant-scherm haalt de koppelingen opnieuw op
   klantenRender();
 }
 async function tagNieuw(inp,clientId){
   const naam=(inp.value||"").trim();if(!naam)return;
+  if(tagNaamBestaat(KDATA.alleTags,naam)){toast("Er bestaat al een tag met deze naam");return;}
   const drop=inp.closest(".tagdrop");const kc=drop&&drop.querySelector(".kc.on");
   const kleur=kc?kc.dataset.k:"blue";
   const{data,error}=await db.from("tags").insert({company_id:ME.profile.company_id,name:naam,color:kleur}).select().single();
   if(error){toast(error.message||"Tag maken mislukt");return;}
-  KDATA.alleTags.push(data);KDATA.alleTags.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  KDATA.alleTags=tagsSorteer(KDATA.alleTags.concat([data]));ksTagsVerouderd();
   tagToggleKlant(clientId,data.id); // meteen aan deze klant koppelen
 }
 document.addEventListener("click",e=>{if(!e.target.closest(".tagdrop")&&!e.target.closest(".plusbtn"))document.querySelectorAll(".tagdrop").forEach(x=>x.remove());});
@@ -371,33 +377,40 @@ function closeTagModal(){const m=document.getElementById("tagmodal");if(m)m.clas
 function tagBeheerRender(){
   const host=document.getElementById("tagbeheer-lijst");if(!host)return;
   const gebruikt={};Object.values(KDATA.tagsByClient||{}).forEach(arr=>arr.forEach(id=>gebruikt[id]=(gebruikt[id]||0)+1));
-  host.innerHTML=(KDATA.alleTags||[]).map(t=>'<div class="tagrow"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+
-    '<span style="flex:1;font-weight:600">'+esc(t.name)+'</span>'+
+  // Dagtags (Maandag..Zondag) staan bovenaan en liggen vast: geen verwijder-kruisje,
+  // wel een andere kleur. Hernoemen kan in dit venster bij geen enkele tag.
+  const dagUitleg=(KDATA.alleTags||[]).some(isDagTag)?'<div class="sm muted" style="margin:-4px 0 8px;line-height:1.5">Dagtags (maandag tot en met zondag) liggen vast. Coaches programmeren per dag, dus elke klant hoort een dagtag te hebben. Je kunt ze niet verwijderen of hernoemen, wel een andere kleur geven.</div>':'';
+  host.innerHTML=dagUitleg+tagLijstMetScheiding(KDATA.alleTags||[],t=>{const dag=isDagTag(t);return '<div class="tagrow"><span class="kdot" style="background:'+(tagKleur(t.color))+'"></span>'+
+    '<span style="flex:1;font-weight:600">'+esc(t.name)+(dag?' <span class="dagtag-pil" title="Vaste dagtag: niet te verwijderen">dagtag</span>':'')+'</span>'+
     '<span class="kleuren">'+TPLKLEUREN.map(k=>'<span class="kc'+(t.color===k?' on':'')+'" data-k="'+k+'" style="background:'+TPLKLEUR[k]+'" onclick="tagKleurZet(\''+t.id+'\',\''+k+'\')"></span>').join("")+
     '<input type="color" class="kc kcvrij'+(/^#/.test(t.color||"")?' on':'')+'" value="'+(/^#/.test(t.color||"")?esc(t.color):"#D9B44A")+'" title="Eigen kleur kiezen" onchange="tagKleurZet(\''+t.id+'\',this.value)"></span>'+
     '<span class="sm muted" style="width:52px;text-align:right">'+(gebruikt[t.id]||0)+'x</span>'+
-    '<span class="x" style="cursor:pointer;color:#e5484d;padding:0 6px" title="Verwijderen" onclick="tagVerwijder(\''+t.id+'\')">✕</span></div>').join("")||'<div class="leeg">Nog geen tags.</div>';
+    (dag?'<span class="dagtag-slot" title="Vaste dagtag: niet te verwijderen"><svg class="i sm-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>'
+      :'<span class="x" style="cursor:pointer;color:#e5484d;padding:0 6px" title="Verwijderen" onclick="tagVerwijder(\''+t.id+'\')">✕</span>')+'</div>';},'<div class="tagsep"></div>')||'<div class="leeg">Nog geen tags.</div>';
 }
 async function tagBeheerNieuw(){
   const inp=document.getElementById("tagnew-naam");const naam=(inp.value||"").trim();if(!naam)return;
+  if(tagNaamBestaat(KDATA.alleTags,naam)){toast("Er bestaat al een tag met deze naam");return;}
   const kc=document.querySelector("#tagnew-kleuren .kc.on");const kleur=kc?kc.dataset.k:"blue";
   const{data,error}=await db.from("tags").insert({company_id:ME.profile.company_id,name:naam,color:kleur}).select().single();
   if(error){toast(error.message||"Mislukt");return;}
-  KDATA.alleTags.push(data);KDATA.alleTags.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  inp.value="";tagBeheerRender();
+  KDATA.alleTags=tagsSorteer(KDATA.alleTags.concat([data]));ksTagsVerouderd();
+  inp.value="";tagBeheerRender();klantenRender();
 }
 async function tagKleurZet(id,kleur){
   const{error}=await db.from("tags").update({color:kleur}).eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
-  const t=tagById(id);if(t)t.color=kleur;tagBeheerRender();klantenRender();
+  const t=tagById(id);if(t)t.color=kleur;ksTagsVerouderd();tagBeheerRender();klantenRender();
 }
 async function tagVerwijder(id){
+  // Dagtags liggen vast (zie tagBeheerRender); ook als iemand de knop toch weet te raken.
+  if(isDagTag(tagById(id))){toast("Een dagtag kun je niet verwijderen");return;}
   if(!confirm("Deze tag verwijderen? Hij wordt bij alle klanten weggehaald."))return;
   const{error}=await db.from("tags").delete().eq("id",id);
   if(error){toast(error.message||"Mislukt");return;}
   KDATA.alleTags=KDATA.alleTags.filter(t=>t.id!==id);
   Object.keys(KDATA.tagsByClient).forEach(cid=>{KDATA.tagsByClient[cid]=(KDATA.tagsByClient[cid]||[]).filter(x=>x!==id);});
-  tagBeheerRender();klantenRender();
+  ksTagsVerouderd();tagBeheerRender();klantenRender();
 }
 
 // ---------- ⋮-menu per klant (profiel, intake, bericht, overzetten, archiveren) ----------

@@ -37,7 +37,7 @@ async function fillDashboard(){
   if(wq.error)toast(wq.error.message||"Dashboard laden mislukt");
   // done = minstens één voltooid resultaat; gelogd = er is iets ingevuld (ook gemist)
   const ws=(wq.data||[]).map(w=>{const r=w.results||[];delete w.results;w.done=r.some(x=>x.status==="completed");w.gelogd=r.length>0;return w;});
-  const msgs=mq.data||[],consults=cq.data||[],dtags=tq.data||[],ptags=pq.data||[],tasks=taq.data||[],snoozeRows=sq.data||[];
+  const msgs=mq.data||[],consults=cq.data||[],dtags=tagsSorteer(tq.data||[]),ptags=pq.data||[],tasks=taq.data||[],snoozeRows=sq.data||[];
   const snoozeMap={};snoozeRows.forEach(s=>snoozeMap[s.athlete_id]=s.snoozed_until);
   let blog=null,blogRes=[];
   if(bq.error&&ME.profile.company_id){
