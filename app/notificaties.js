@@ -28,6 +28,76 @@ function notifPrefs(){
     mail_tijden:Object.assign({},NOTIF_STD.mail_tijden,p.mail_tijden||{}),
   };
 }
+// ---------- Meldingen van andere coaches uitzetten (18 nov 2026) ----------
+// Eigenaar en platform_admin zien alle klanten van het bedrijf, en kregen
+// daardoor ook van elke klant de live meldingen (pop-up, geluid, browser).
+// In notify_prefs staan daarvoor twee extra sleutels: andere_coaches_uit
+// (alles behalve de eigen klanten) en coaches_uit (lijst met coach-id's).
+// Eigen klanten en klanten zonder coach vallen er nooit onder: bij die laatste
+// is er niemand anders die de melding krijgt. Het gaat alleen om meldingen en
+// tellers; klanten, programma's en gesprekken blijven gewoon zichtbaar.
+function coachDemp(){
+  const p=(ME&&ME.profile&&ME.profile.notify_prefs)||{};
+  return {alle:!!p.andere_coaches_uit,lijst:Array.isArray(p.coaches_uit)?p.coaches_uit:[]};
+}
+function coachIsGedempt(coachId){
+  if(!ME||!ME.user||!coachId||coachId===ME.user.id)return false;
+  if(myRole()==="coach"||myRole()==="lid")return false; // een coach ziet alleen eigen klanten
+  const d=coachDemp();
+  return d.alle||d.lijst.includes(coachId);
+}
+// Onbekende klant (net toegevoegd, nog niet in de lijst): niet dempen.
+function klantIsGedempt(athleteId){
+  const p=(coachClients||[]).find(x=>x.id===athleteId);
+  return !!p&&coachIsGedempt(p.coach_id);
+}
+// Voorkeuren opslaan zonder sleutels te verliezen die dit scherm niet kent
+// (de telefoon-app bewaart er bijvoorbeeld de ochtendmail in).
+async function notifPrefsBewaar(wijziging){
+  const oud=(ME.profile&&ME.profile.notify_prefs)||{};
+  const n=Object.assign({},oud,wijziging);
+  if(wijziging.app)n.app=Object.assign({},oud.app||{},wijziging.app);
+  if(wijziging.mail)n.mail=Object.assign({},oud.mail||{},wijziging.mail);
+  const{data,error}=await db.from("profiles").update({notify_prefs:n}).eq("id",ME.user.id).select().single();
+  if(!error)Object.assign(ME.profile,data||{notify_prefs:n});
+  return error||null;
+}
+// Het blok op Instellingen > Notificaties. De coachlijst komt via de veilige
+// RPC en wordt daarom na het tekenen ingevuld.
+let NT_COACHES=null;
+function instCoachBlokHtml(){
+  if(myRole()==="coach"||myRole()==="lid")return "";
+  return '<h3 style="margin:22px 0 4px;font-size:14px">Meldingen van andere coaches</h3>'+
+    '<div class="sm muted" style="margin-bottom:10px">Je ziet alle klanten van het bedrijf en krijgt daardoor ook hun meldingen. Zet hier uit van welke coaches je geen meldingen wilt. Je eigen klanten blijven altijd binnenkomen. Klanten, programma\'s en gesprekken van de andere coaches kun je gewoon blijven openen.</div>'+
+    '<div id="nt-coaches" style="max-width:560px"><div class="sm muted">Coaches laden…</div></div>';
+}
+async function instCoachBlokLaad(){
+  if(!document.getElementById("nt-coaches"))return;
+  if(!NT_COACHES){
+    try{const{data,error}=await db.rpc("company_coaches");if(!error)NT_COACHES=data||[];}catch(e){}
+  }
+  instCoachBlokTeken();
+}
+function instCoachBlokTeken(){
+  const host=document.getElementById("nt-coaches");if(!host)return;
+  if(!NT_COACHES){host.innerHTML='<div class="sm" style="color:#c0392b">Coaches laden mislukt. Ververs de pagina en probeer het opnieuw.</div>';return;}
+  const d=coachDemp();
+  // Bij een her-tekening (hoofdschakelaar omgezet) de stand van het scherm aanhouden
+  const hoofd=document.getElementById("nt-coach-alle");
+  const alle=hoofd?hoofd.checked:d.alle;
+  const uit=new Set(d.lijst);
+  host.querySelectorAll("[data-ntcoach]").forEach(cb=>{if(cb.checked)uit.delete(cb.dataset.ntcoach);else uit.add(cb.dataset.ntcoach);});
+  const anderen=NT_COACHES.filter(c=>c.id!==ME.user.id);
+  const aantal=id=>actieveKlanten().filter(p=>p.coach_id===id).length;
+  const rijStijl='display:flex;align-items:center;gap:18px;padding:9px 0;border-bottom:1px solid #f0f1f3';
+  host.innerHTML='<div style="'+rijStijl+'"><span style="flex:1;font-size:13px"><b>Alle andere coaches uit</b><div class="sm muted">Alleen meldingen van je eigen klanten. Geldt ook voor coaches die er later bij komen.</div></span>'+
+      '<label class="pf-toggle" style="margin:0"><input type="checkbox" id="nt-coach-alle"'+(alle?" checked":"")+' onchange="instCoachBlokTeken()"><span class="pf-sw"></span></label></div>'+
+    (anderen.length?anderen.map(c=>{
+      const n=aantal(c.id);
+      return '<div style="'+rijStijl+(alle?";opacity:.45":"")+'"><span style="flex:1;font-size:13px">'+esc(naamVan(c))+' <span class="muted">· '+(n===1?"1 klant":n+" klanten")+'</span></span>'+
+        '<label class="pf-toggle" style="margin:0"><input type="checkbox" data-ntcoach="'+esc(c.id)+'"'+(uit.has(c.id)?"":" checked")+(alle?" disabled":"")+'><span class="pf-sw"></span> meldingen</label></div>';
+    }).join(""):'<div class="sm muted" style="padding:9px 0">Er zijn nog geen andere coaches.</div>');
+}
 // ---------- Instellingen-pagina ----------
 function instNotifHtml(){
   const n=notifPrefs();
@@ -41,6 +111,7 @@ function instNotifHtml(){
   return '<h2 style="margin:0 0 4px">Notificaties</h2>'+
     '<div class="sm muted" style="margin-bottom:14px">Kies waarvan je een melding wilt. App-meldingen verschijnen direct in het dashboard én als pushmelding op je telefoon in de YourProgram-app (vanaf de build van oktober 2026). E-mail werkt voor reacties op een workout-dag; de overige e-mails volgen binnenkort.</div>'+
     '<div style="max-width:560px">'+NOTIF_EVENTS.map(e=>rij(e[0],e[1])).join("")+'</div>'+
+    instCoachBlokHtml()+
     '<h3 style="margin:20px 0 4px;font-size:14px">Browsermeldingen</h3>'+
     '<div class="sm muted" style="margin-bottom:10px">Een melding van je computer, ook als het dashboard in een ander tabblad staat of je in een ander programma werkt. Werkt zolang het dashboard ergens open staat.</div>'+
     '<div id="nt-browser">'+notifBrowserRijHtml()+'</div>'+
@@ -75,9 +146,17 @@ async function instNotifOpslaan(){
     tot:parseInt(document.getElementById("nt-tot").value,10),
     dagen:Array.from({length:7},(_,i)=>{const cb=document.querySelector('[data-dag="'+i+'"]');return cb?cb.checked:true;}),
   };
-  const{data,error}=await db.from("profiles").update({notify_prefs:n}).eq("id",ME.user.id).select().single();
+  // Meldingen van andere coaches: alleen meenemen als het blok echt getekend is
+  // (anders zou een mislukte coachlijst de bestaande keuzes wissen).
+  const hoofd=document.getElementById("nt-coach-alle");
+  if(hoofd){
+    n.andere_coaches_uit=hoofd.checked;
+    const uit=new Set(coachDemp().lijst);
+    document.querySelectorAll("[data-ntcoach]").forEach(cb=>{if(cb.checked)uit.delete(cb.dataset.ntcoach);else uit.add(cb.dataset.ntcoach);});
+    n.coaches_uit=[...uit];
+  }
+  const error=await notifPrefsBewaar(n);
   if(error){if(msg)msg.textContent=error.message||"Opslaan mislukt";return;}
-  Object.assign(ME.profile,data||{notify_prefs:n});
   toast("Notificatie-voorkeuren opgeslagen");
 }
 // ---------- Geluiden (WebAudio, geen bestanden nodig) ----------
@@ -118,29 +197,29 @@ function startNotifs(){
   };
   // Chatbericht van een klant (bericht van het lid = afzender is het lid zelf)
   kan("nf-msg","messages","INSERT",p=>{
-    const m=p.new;if(!m||m.sender_id!==m.athlete_id)return;
+    const m=p.new;if(!m||m.sender_id!==m.athlete_id||klantIsGedempt(m.athlete_id))return;
     notifToon("bericht","💬 Nieuw bericht van "+notifKlantNaam(m.athlete_id),"m"+m.id,()=>{if(typeof dashBericht==="function")dashBericht(m.athlete_id);});
   });
   // Reactie op een workout-dag
   kan("nf-wc","workout_comments","INSERT",p=>{
-    const m=p.new;if(!m||m.author_id!==m.athlete_id)return;
+    const m=p.new;if(!m||m.author_id!==m.athlete_id||klantIsGedempt(m.athlete_id))return;
     notifToon("reactie","💬 "+notifKlantNaam(m.athlete_id)+" reageerde op een workout-dag","c"+m.id);
   });
   // Workout afgetekend (per workout één melding, niet per blok)
   const resCb=p=>{
-    const r=p.new;if(!r||r.status!=="completed")return;
+    const r=p.new;if(!r||r.status!=="completed"||klantIsGedempt(r.athlete_id))return;
     notifToon("workout","✅ "+notifKlantNaam(r.athlete_id)+" heeft een workout afgetekend","w"+r.workout_id+":"+r.athlete_id);
   };
   kan("nf-res-i","results","INSERT",resCb);
   kan("nf-res-u","results","UPDATE",resCb);
   // Video-upload bij een resultaat
   kan("nf-vid","result_media","INSERT",p=>{
-    const r=p.new;if(!r)return;
+    const r=p.new;if(!r||klantIsGedempt(r.athlete_id))return;
     notifToon("video","🎥 "+notifKlantNaam(r.athlete_id)+" heeft een video geüpload","v"+r.id);
   });
   // Voortgangsfoto's
   kan("nf-foto","progress_photos","INSERT",p=>{
-    const r=p.new;if(!r||r.created_by!==r.athlete_id)return; // alleen uploads door het lid zelf
+    const r=p.new;if(!r||r.created_by!==r.athlete_id||klantIsGedempt(r.athlete_id))return; // alleen uploads door het lid zelf
     notifToon("foto","📷 "+notifKlantNaam(r.athlete_id)+" heeft voortgangsfoto's geüpload","f"+r.athlete_id+":"+(r.taken_on||""));
   });
   // Live meeverversen: scores en workout-aanpassingen (bijv. uit de sporter-app)
@@ -227,7 +306,7 @@ async function notifInhaal(sinds){
   try{
     const n=notifPrefs();if(!n.app.bericht||!sinds)return;
     const{data}=await db.from("messages").select("id,athlete_id,sender_id,created_at").gt("created_at",new Date(sinds-5000).toISOString()).is("read_at",null).order("created_at",{ascending:false}).limit(50);
-    const rows=(data||[]).filter(m=>m.sender_id===m.athlete_id&&m.sender_id!==ME.user.id&&!notifGezien.has("m"+m.id));
+    const rows=(data||[]).filter(m=>m.sender_id===m.athlete_id&&m.sender_id!==ME.user.id&&!notifGezien.has("m"+m.id)&&!klantIsGedempt(m.athlete_id));
     if(!rows.length)return;
     rows.forEach(m=>notifGezien.add("m"+m.id));
     const namen=[...new Set(rows.map(m=>notifKlantNaam(m.athlete_id)))];
@@ -436,6 +515,8 @@ let ncTab="week",ncKlant="all",ncWeekTerug=0,ncGen=0; // 0 = deze week, 1 = vori
 function ncTabZet(t){ncTab=t;fillNotifCentrum();}
 function ncKlantZet(v){ncKlant=v;fillNotifCentrum();}
 function ncWeekZet(n){ncWeekTerug=parseInt(n,10)||0;fillNotifCentrum();}
+let ncStilToon=false; // ook klanten van uitgezette coaches tonen in het weekoverzicht
+function ncStilZet(aan){ncStilToon=!!aan;fillNotifCentrum();}
 async function fillNotifCentrum(){
   const cp=document.getElementById("cpage");if(!cp)return;
   ncGen++;
@@ -449,7 +530,12 @@ async function fillNotifCentrum(){
 // Tab 1: wat speelt er deze week, per klant of voor iedereen tegelijk
 async function ncWeek(){
   const host=document.getElementById("nc-body");if(!host)return;
-  const klanten=actieveKlanten();
+  // Klanten van coaches waarvan je de meldingen uit hebt gezet (Instellingen >
+  // Notificaties) doen standaard niet mee; met "Toon ze" staan ze er weer bij.
+  const alleKl=actieveKlanten();
+  const nStil=alleKl.filter(p=>coachIsGedempt(p.coach_id)).length;
+  const klanten=(ncStilToon||!nStil)?alleKl:alleKl.filter(p=>!coachIsGedempt(p.coach_id));
+  if(ncKlant!=="all"&&!klanten.some(p=>p.id===ncKlant))ncKlant="all";
   const ids=klanten.map(p=>p.id);
   // Gekozen week: van maandag tot de maandag erna (deze week, vorige week, …)
   const mon=addDays(mondayOf(new Date()),-7*ncWeekTerug);
@@ -520,7 +606,9 @@ async function ncWeek(){
   };
   const weekSel='<select onchange="ncWeekZet(this.value)" style="width:auto;font-size:12px;padding:5px 8px">'+
     Array.from({length:9},(_,n)=>'<option value="'+n+'"'+(n===ncWeekTerug?" selected":"")+'>'+wkLbl(n)+'</option>').join("")+'</select>';
-  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'+klantSel+weekSel+'</div>';
+  const stilRegel=nStil?'<span class="sm muted">'+(ncStilToon?'Klanten van uitgezette coaches staan erbij.':(nStil===1?'1 klant van een uitgezette coach staat er niet bij.':nStil+' klanten van uitgezette coaches staan er niet bij.'))+
+    ' <a style="color:var(--accent);cursor:pointer;font-weight:600" onclick="ncStilZet('+(ncStilToon?"false":"true")+')">'+(ncStilToon?"Verberg ze":"Toon ze")+'</a></span>':'';
+  const kiezer='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'+klantSel+weekSel+stilRegel+'</div>';
   const monLbl=("0"+mon.getDate()).slice(-2)+"-"+("0"+(mon.getMonth()+1)).slice(-2);
   const zoLbl=(d=>("0"+d.getDate()).slice(-2)+"-"+("0"+(d.getMonth()+1)).slice(-2))(addDays(mon,6));
   host.innerHTML='<div class="sm muted" style="margin-bottom:10px">PR\'s, gemiste onderdelen en opmerkingen in de week van maandag '+monLbl+' t/m zondag '+zoLbl+'. Signaalwoorden (blessure, pijn, ziek…) kleuren rood; die klanten staan bovenaan met ⚠️.</div>'+
@@ -575,8 +663,7 @@ function ncOngelezen(aan){ncAlleenOngelezen=aan;ncLijst();}
 async function ncFilter(ev,aan){
   const n=notifPrefs();
   n.app[ev]=aan;
-  const{data,error}=await db.from("profiles").update({notify_prefs:n}).eq("id",ME.user.id).select().single();
+  const error=await notifPrefsBewaar(n);
   if(error){toast(error.message||"Opslaan mislukt");return;}
-  Object.assign(ME.profile,data||{notify_prefs:n});
   belBadge();ncLijst();
 }

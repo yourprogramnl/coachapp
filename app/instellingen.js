@@ -124,6 +124,7 @@ async function instPaneel(){
       (p.consult_url?'<a class="btn ghost" href="'+esc(p.consult_url)+'" target="_blank" rel="noopener">Link testen</a>':'')+'</div>';
   }else if(instTab==="notificaties"){
     host.innerHTML=instNotifHtml();
+    instCoachBlokLaad(); // schakelaars per coach (alleen eigenaar/platform_admin)
   }else if(instTab==="partners"){
     // Voorbeeld-indeling (17 juli): er zijn nog geen partners; Stripe en Loom
     // staan gepland als echte samenwerkingen. Kaarten alvast in CoachRx-stijl.

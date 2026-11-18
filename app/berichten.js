@@ -109,7 +109,9 @@ function berLijstHtml(){
   return groepenBlok+cs.map(c=>{
     const ms=berMsgsVan(c.id),m=ms[ms.length-1]||null;
     const prev=m?((m.sender_id===ME.user.id?"Jij: ":"")+chatPreview(m)):"Nog geen berichten";
-    const n=berOngelezen(c.id);
+    // Geen rode teller bij klanten van coaches waarvan je de meldingen uit hebt
+    // gezet (Instellingen > Notificaties); het gesprek zelf blijft gewoon staan.
+    const n=(typeof coachIsGedempt==="function"&&coachIsGedempt(c.coach_id))?0:berOngelezen(c.id);
     return '<div class="chatrow'+(BER.cur===c.id?" on":"")+'" onclick="berOpen(\''+c.id+'\')">'+
       '<div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
       '<div style="min-width:0"><b class="sm">'+naamVan(c)+'</b><div class="prev">'+esc(prev)+'</div></div>'+

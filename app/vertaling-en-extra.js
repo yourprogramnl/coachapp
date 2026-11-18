@@ -899,3 +899,20 @@ i18nLaad({
   "Er bestaat al een tag met deze naam": "A tag with this name already exists",
   "Een dagtag kun je niet verwijderen": "A day tag can't be deleted",
 });
+// Meldingen van andere coaches uitzetten (18 nov 2026, app/notificaties.js)
+i18nLaad({
+  "Meldingen van andere coaches": "Notifications from other coaches",
+  "Je ziet alle klanten van het bedrijf en krijgt daardoor ook hun meldingen. Zet hier uit van welke coaches je geen meldingen wilt. Je eigen klanten blijven altijd binnenkomen. Klanten, programma's en gesprekken van de andere coaches kun je gewoon blijven openen.": "You see all clients of the company, so you also get their notifications. Turn off here which coaches you don't want notifications from. Your own clients always keep coming in. You can still open the clients, programs and conversations of the other coaches.",
+  "Coaches laden…": "Loading coaches…",
+  "Coaches laden mislukt. Ververs de pagina en probeer het opnieuw.": "Loading coaches failed. Refresh the page and try again.",
+  "Alle andere coaches uit": "All other coaches off",
+  "Alleen meldingen van je eigen klanten. Geldt ook voor coaches die er later bij komen.": "Only notifications from your own clients. Also applies to coaches who join later.",
+  "· {n} klant": "· {n} client",
+  "· {n} klanten": "· {n} clients",
+  "meldingen": "notifications",
+  "Er zijn nog geen andere coaches.": "There are no other coaches yet.",
+  "Klanten van uitgezette coaches staan erbij.": "Clients of muted coaches are included.",
+  "{n} klant van een uitgezette coach staat er niet bij.": "{n} client of a muted coach is not included.",
+  "{n} klanten van uitgezette coaches staan er niet bij.": "{n} clients of muted coaches are not included.",
+  "Verberg ze": "Hide them",
+});
