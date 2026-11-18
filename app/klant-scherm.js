@@ -1606,21 +1606,29 @@ async function vulBlogDrop(){
 // ---------- Coach wisselen (alleen eigenaar/platform_admin) ----------
 async function laadCoaches(){
   if(coachList.length)return;
-  let q=db.from("profiles").select("*").in("role",["coach","eigenaar"]);
+  // Ook platform_admin (18 nov 2026, verzoek Michel): Michel is platform_admin én
+  // coacht zelf klanten, maar stond niet in het menu. Welke admins je ziet, bepaalt
+  // coachMenuLijst() pas bij het tonen (dan zijn de klanten zeker geladen).
+  let q=db.from("profiles").select("*").in("role",["coach","eigenaar","platform_admin"]);
   if(ME.profile.company_id)q=q.eq("company_id",ME.profile.company_id);
   const{data}=await q;coachList=(data||[]).filter(c=>!c.archived);
+}
+// Coaches en eigenaren altijd; een platform_admin alleen als hij zelf klanten
+// heeft (anders staan lege beheer-accounts in het menu).
+function coachMenuLijst(){
+  return coachList.filter(c=>c.role!=="platform_admin"||actieveKlanten().some(k=>k.coach_id===c.id));
 }
 function vulCoachDrop(){
   const host=document.getElementById("cd-lijst");if(!host)return;
   const opBlog=opBlogScherm(),opTpl=typeof opTplScherm==="function"&&opTplScherm();
-  const rows=coachList.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
+  const rows=coachMenuLijst().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(c=>{
     const n=actieveKlanten().filter(k=>k.coach_id===c.id).length;
     const rol=c.role==="eigenaar"?" · eigenaar":"";
     return '<div class="pd-row'+(!opBlog&&!opTpl&&c.id===coachFilterId?' actief':'')+'" onclick="kiesCoach(\''+c.id+'\')"><div class="pd-badge" style="'+avFotoStyle(c)+'">'+avFotoText(c)+'</div><div class="pd-naam">'+naamVan(c)+' <span class="muted" style="font-weight:500">('+n+rol+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   }).join("");
-  // Onder de coaches: Blog. Daarmee wissel je naar de blogprogramma's.
+  // Onder de coaches: Blogprogramma's (heette tot 18 nov 2026 "Blog", verzoek Michel).
   const nBlog=(kalBlogs||[]).length;
-  const blogRij='<div class="pd-sep"></div><div class="pd-row'+(opBlog?' actief':'')+'" onclick="kiesCoach(\'blog\')"><div class="pd-badge" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div class="pd-naam">Blog <span class="muted" style="font-weight:500">('+nBlog+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
+  const blogRij='<div class="pd-sep"></div><div class="pd-row'+(opBlog?' actief':'')+'" onclick="kiesCoach(\'blog\')"><div class="pd-badge" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div class="pd-naam">Blogprogramma\'s <span class="muted" style="font-weight:500">('+nBlog+')</span></div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>';
   host.innerHTML=(rows||'<div class="cempty" style="padding:10px">Geen coaches gevonden.</div>')+blogRij+(typeof tplMenuRij==="function"?tplMenuRij(opTpl):""); // Templates: het werkblad van de coach
 }
 async function toggleCoachDrop(ev){
