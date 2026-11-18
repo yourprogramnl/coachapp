@@ -1447,20 +1447,21 @@ async function renderMonth(opts){
       '<div class="progdrop" id="coachdrop" style="width:260px" onclick="event.stopPropagation()"><div class="pd-lijst" id="cd-lijst"><div class="cempty" style="padding:10px">Coaches laden…</div></div></div></div>'
     :'';
   // Klant-dropdown: staff ziet de klanten van de gekozen coach; een coach ziet zijn eigen lijst.
-  let dropKlanten=isStaff?actieveKlanten().filter(k=>k.coach_id===coachFilterId):actieveKlanten();
-  if(!dropKlanten.some(k=>k.id===p.id))dropKlanten=dropKlanten.concat([p]);
+  // Daartussen het dag/tagfilter (app/dag-tags.js): kop = coach, tag, klant. De drie
+  // kiezers staan samen in .kopkiezers, zodat ze bij een smal scherm samen doorschuiven.
   const calhead='<div class="calhead">'+
     '<button class="btn ghost sm" onclick="renderCoach(\'clients\')">‹ Alle klanten</button>'+
     '<span class="month" id="mnd-label">'+label+'</span>'+
     '<div class="navarrows"><button onclick="prevMonth()">‹</button><button onclick="nextMonth()">›</button></div>'+
     '<button class="btn ghost sm" onclick="thisMonth()">Vandaag</button>'+
     '<div class="seg">'+seg+'</div>'+
-    coachChip+
-    '<div class="progsel" id="klantsel"'+(isStaff?'':' style="margin-left:auto"')+' onclick="toggleKlantDrop(event)"><div class="pav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div><span class="car">▾</span>'+
+    '<div class="kopkiezers">'+coachChip+
+    ksTagChipHtml()+
+    '<div class="progsel" id="klantsel" onclick="toggleKlantDrop(event)"><div class="pav" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div><div class="pn">'+naamVan(p)+'</div><div class="pt">Klant</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="klantdrop" onclick="event.stopPropagation()"><div class="pd-search"><svg class="i sm-i"><use href="#i-search"/></svg><input placeholder="Zoek een klant…" oninput="filterKlantDrop(this.value)"></div><div class="pd-lijst" id="kd-lijst">'+
       '<div id="kd-blogs"></div>'+
-      dropKlanten.slice().sort((a,b)=>naamVan(a).localeCompare(naamVan(b))).map(k=>'<div class="pd-row'+(k.id===p.id?' actief':'')+'" data-n="'+esc(naamVan(k).toLowerCase())+'" onclick="openClient(\''+k.id+'\')"><div class="pd-badge" style="'+avFotoStyle(k)+'">'+avFotoText(k)+'</div><div class="pd-naam">'+naamVan(k)+'</div><span class="pd-vink"><svg class="i sm-i"><use href="#i-check"/></svg></span></div>').join("")+
-      '</div></div></div>'+
+      ksKlantRijenHtml(p)+
+      '</div></div></div></div>'+ // einde .kopkiezers
     '<button class="tgl'+(hideScores?" on":"")+'" onclick="toggleScores(this)"><span class="sw"></span> Zonder scores</button>'+
     '<button class="btn ghost sm" title="Exporteer workouts, scores, metrics en meer als PDF of tekstbestand" onclick="openExport()"><svg class="i sm-i"><use href="#i-dl"/></svg> Exporteren</button>'+
     '</div>';
@@ -1658,7 +1659,9 @@ function kiesCoach(id){
     toast("Deze coach heeft nog geen klanten"+(c?" ("+naamVan(c)+")":""));
     return;
   }
-  openClient(klanten[0].id);
+  // Staat er een dag/tagfilter (app/dag-tags.js)? Dan de eerste klant van deze coach met die tag.
+  const metTag=ksKlantenFilter(klanten.filter(k=>!k.archived));
+  openClient((metTag[0]||klanten[0]).id);
 }
 function pickWorkout(ev){ev.stopPropagation();startEdit(curDay,0);}
 async function pickRest(ev){

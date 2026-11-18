@@ -1659,3 +1659,18 @@ body.biebvenster #cpage{max-width:none;margin:0;padding:0}
 .cblk.bs-na{box-shadow:0 3px 0 0 #2a9fce}
 .mcard.bs-doel{outline:2px dashed #3eb3e0;outline-offset:2px;background:#f0f8fc}
 .mday.bs-doel,.pe-cell.bs-doel{background:#eaf7fd;box-shadow:inset 0 0 0 2px #6ec4e8}
+/* Dagtags (18 nov 2026, app/dag-tags.js): melding "klanten zonder dag", rood labeltje, vaste dagtags en het tagfilter in de kalenderkop */
+.geendag-melding{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border:1px solid rgba(229,72,77,.35);background:rgba(229,72,77,.07);border-radius:10px;font-size:13px}
+.geendag-melding b{color:#c9363b}
+.geendag-melding .muted{font-size:12px}
+.geendag-melding .btn{margin-left:auto}
+.geendag-uitroep{width:20px;height:20px;border-radius:50%;background:#e5484d;color:#fff;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.geendag-label{border:1px solid rgba(229,72,77,.45);background:rgba(229,72,77,.1);color:#d23c41;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.geendag-label:hover{background:rgba(229,72,77,.18)}
+.tagsep{height:1px;background:#eef0f3;margin:4px 6px}
+.dagtag-pil{display:inline-block;font-size:10px;font-weight:700;color:#8a919c;background:#f0f2f5;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.dagtag-slot{color:#b3b9c2;padding:0 6px;display:inline-flex}
+.tagsel{padding:6px 10px;gap:8px}
+.tagsel-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.tagsel .pn{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kopkiezers{display:flex;align-items:center;gap:10px;margin-left:auto}

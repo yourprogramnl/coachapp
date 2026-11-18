@@ -878,3 +878,24 @@ i18nLaad({
 i18nLaad({
   "Bekijken": "View", "Bekijk": "View",
 });
+// Dagtags en het dag/tagfilter (18 nov 2026, app/dag-tags.js)
+i18nLaad({
+  "{n} klant heeft nog geen dag.": "{n} client doesn't have a day yet.",
+  "{n} klanten hebben nog geen dag.": "{n} clients don't have a day yet.",
+  "Geef iedereen een dagtag, dan mis je niemand bij het programmeren.": "Give everyone a day tag, so you don't miss anyone when programming.",
+  "Toon ze": "Show them",
+  "geen dag": "no day",
+  "Deze klant heeft nog geen dag. Klik om er een te kiezen.": "This client doesn't have a day yet. Click to choose one.",
+  "Zonder dag": "No day",
+  "Zonder dag ({n})": "No day ({n})",
+  "Filter op dag of tag": "Filter by day or tag",
+  "Dag of tag": "Day or tag",
+  "Geen andere klanten met deze tag.": "No other clients with this tag.",
+  "Tags laden…": "Loading tags…",
+  "Tags laden mislukt.": "Loading tags failed.",
+  "dagtag": "day tag",
+  "Vaste dagtag: niet te verwijderen": "Fixed day tag: can't be deleted",
+  "Dagtags (maandag tot en met zondag) liggen vast. Coaches programmeren per dag, dus elke klant hoort een dagtag te hebben. Je kunt ze niet verwijderen of hernoemen, wel een andere kleur geven.": "Day tags (Monday to Sunday) are fixed. Coaches program per day, so every client should have a day tag. You can't delete or rename them, but you can change their colour.",
+  "Er bestaat al een tag met deze naam": "A tag with this name already exists",
+  "Een dagtag kun je niet verwijderen": "A day tag can't be deleted",
+});
