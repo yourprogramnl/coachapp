@@ -874,3 +874,7 @@ i18nLaad({
   "Je klant ziet niets van deze template tot je hem op zijn kalender zet.": "Your client sees nothing of this template until you put it on their calendar.",
   "Template week en Template dag": "Template week and template day",
 });
+// Bibliotheek-venster: toevoegen en bewerken (18 nov 2026)
+i18nLaad({
+  "Bekijken": "View", "Bekijk": "View",
+});
