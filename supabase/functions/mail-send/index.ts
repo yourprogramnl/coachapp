@@ -15,6 +15,9 @@
 //   video krijgen een knop rechtstreeks naar die dag op de klantkalender.
 // - lancering (6 okt 2026): eenmalige mail aan sporters dat de app in de App Store
 //   en Google Play staat (twee knoppen); negeert vinkjes en werkuren.
+// - welkom (18 nov 2026): eenmalige welkomstmail na een gratis aanmelding (bijv. de YP Showdown),
+//   met app-knoppen en het abonnement eronder; negeert vinkjes en werkuren. De dagworkout-mail
+//   van een gratis lid krijgt hetzelfde abonnementsblok (in de app zelf nooit, regels Apple/Google).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -310,7 +313,7 @@ function reactieHtml(opts: { titel: string; intro: string; draad: { naam: string
 type Blok = { label: string | null; exercise: string | null; prescription: string | null; notes: string | null };
 type WorkoutMail = { title: string | null; coach_notes: string | null; warmup: string | null; cooldown: string | null; blokken: Blok[] };
 
-function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMail[]; voet: string; accent: string; taal: Taal }): string {
+function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMail[]; voet: string; accent: string; taal: Taal; abo?: string }): string {
   const accent = opts.accent, t = T(opts.taal);
   const sectie = (kop: string, tekst: string | null) => tekst
     ? `<div style="margin:8px 0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a919c;margin-bottom:2px">${esc(kop)}</div><div style="font-size:13.5px;line-height:1.5;color:#e6e6ea;white-space:pre-wrap">${esc(tekst)}</div></div>`
@@ -336,6 +339,7 @@ function dagworkoutHtml(opts: { naam: string; datum: string; workouts: WorkoutMa
     `<h2 style="color:${accent};margin:0 0 6px;font-size:20px">${esc(t.dagKop)}</h2>` +
     `<p style="margin:0 0 6px;line-height:1.5;color:#c9c9ce">${esc(t.dagIntro(opts.naam, opts.datum))}</p>` +
     kaarten +
+    (opts.abo || "") +
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(opts.voet)}</p></div>`;
 }
 
@@ -465,6 +469,95 @@ function lanceringHtml(taal: Taal, naam: string, accent: string): string {
     `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(L.voet)}</p></div>`;
 }
 // ---- lancering einde ----
+
+// ---- welkom begin ----
+// Welkomstmail na een gratis aanmelding (18 nov 2026, Stefan: "Ja, allebei"). De database zet
+// hem in de wachtrij zodra een lid zonder 1-op-1 en zonder betaald programma een open programma
+// gaat volgen (trigger blog_program_members_welkom, één keer per lid per programma). Onder de
+// welkomst staat het abonnement: prijs en namen komen uit de winkel (programma's in het
+// abonnement), dus het klopt ook na een prijswijziging of een nieuw programma. De dagworkout-mail
+// van een gratis lid krijgt hetzelfde blok. In de app zelf staat bewust geen koopknop of link:
+// zie kopen-in-de-app-regels.md (Apple/Google).
+const ETALAGE_URL = "https://programmering.yourprogram.nl";
+const WELKOM = {
+  nl: {
+    onderwerp: (prog: string) => `Welkom bij de ${prog}`,
+    groet: (naam: string) => `Hoi ${naam},`,
+    intro: (prog: string) => `Je doet mee met de ${prog}. Elke week staat er een nieuwe workout voor je klaar in de YourProgram-app. Log je score en kijk waar je staat op het leaderboard.`,
+    app: "Nog geen app? Download hem hieronder en log in met dit e-mailadres.",
+    knopIos: "Download in de App Store", knopAndroid: "Download in Google Play",
+    voet: (prog: string) => `Je krijgt deze mail omdat je je hebt aangemeld voor de ${prog}. Vragen? Mail naar info@yourprogram.nl.`,
+    aboKop: "Meer dan één workout per week?",
+    aboTekst: (prijs: string, namen: string) => `Met één abonnement ${prijs} train je met alle programma's van YourProgram: ${namen}. Komt er een programma bij, dan zit dat er ook in.`,
+    aboKnop: "Bekijk de programma's",
+    van: "van", vanaf: "vanaf", en: " en ", per: { month: "per maand", year: "per jaar", week: "per week" } as Record<string, string>,
+  },
+  en: {
+    onderwerp: (prog: string) => `Welcome to the ${prog}`,
+    groet: (naam: string) => `Hi ${naam},`,
+    intro: (prog: string) => `You're taking part in the ${prog}. Every week a new workout is waiting for you in the YourProgram app. Log your score and see where you stand on the leaderboard.`,
+    app: "No app yet? Download it below and log in with this email address.",
+    knopIos: "Download on the App Store", knopAndroid: "Get it on Google Play",
+    voet: (prog: string) => `You get this email because you signed up for the ${prog}. Questions? Email info@yourprogram.nl.`,
+    aboKop: "More than one workout a week?",
+    aboTekst: (prijs: string, namen: string) => `One subscription ${prijs} gets you every YourProgram program: ${namen}. When a program is added, it's included too.`,
+    aboKnop: "See the programs",
+    van: "of", vanaf: "from", en: " and ", per: { month: "a month", year: "a year", week: "a week" } as Record<string, string>,
+  },
+};
+
+// Het abonnement van een bedrijf: de zichtbare programma's met een prijs die erin zitten.
+type AboInfo = { prijsCents: number; zelfdePrijs: boolean; interval: string | null; namen: string[] } | null;
+async function aboInfo(companyId: string): Promise<AboInfo> {
+  const { data } = await db.from("blog_programs").select("name,price_cents,price_interval")
+    .eq("company_id", companyId).eq("in_abonnement", true).eq("hidden", false).gt("price_cents", 0)
+    .order("created_at");
+  if (!data || !data.length) return null;
+  const prijzen = data.map((p) => Number(p.price_cents));
+  const laagste = Math.min(...prijzen);
+  const goedkoopste = data[prijzen.indexOf(laagste)];
+  return { prijsCents: laagste, zelfdePrijs: prijzen.every((p) => p === laagste), interval: goedkoopste.price_interval || null, namen: data.map((p) => String(p.name)) };
+}
+
+// Gratis lid: geen 1-op-1-klant en volgt geen programma met een prijs (zelfde regel als de app).
+async function isGratisLid(p: { id: string; role?: string | null; membership_type?: string | null }): Promise<boolean> {
+  if (p.role !== "lid" || p.membership_type === "one_on_one") return false;
+  const { data, error } = await db.from("blog_program_members").select("blog_programs(price_cents)").eq("athlete_id", p.id);
+  if (error) return false;
+  return !(data || []).some((m) => {
+    const bp = (m as { blog_programs?: { price_cents?: number | null } | null }).blog_programs;
+    return Number(bp?.price_cents) > 0;
+  });
+}
+
+// Blok "Meer dan één workout per week?" met een knop naar de etalage.
+function aboBlokHtml(taal: Taal, accent: string, info: NonNullable<AboInfo>): string {
+  const W = WELKOM[taal];
+  const euro = info.prijsCents % 100 === 0 ? String(info.prijsCents / 100) : (info.prijsCents / 100).toFixed(2).replace(".", taal === "en" ? "." : ",");
+  const per = info.interval && W.per[info.interval] ? " " + W.per[info.interval] : "";
+  const prijs = `${info.zelfdePrijs ? W.van : W.vanaf} €${euro}${per}`;
+  const namen = info.namen.length > 1 ? info.namen.slice(0, -1).join(", ") + W.en + info.namen[info.namen.length - 1] : info.namen[0];
+  return `<div style="margin:18px 0 0;padding:14px 16px;background:#141417;border:1px solid #26262b;border-radius:12px">` +
+    `<div style="font-size:15px;font-weight:700;color:#f4f4f5;margin-bottom:4px">${esc(W.aboKop)}</div>` +
+    `<div style="font-size:13.5px;line-height:1.5;color:#c9c9ce">${esc(W.aboTekst(prijs, namen))}</div>` +
+    knopHtml({ url: ETALAGE_URL, tekst: W.aboKnop }, accent) +
+    `</div>`;
+}
+
+function welkomHtml(taal: Taal, naam: string, prog: string, accent: string, abo: string): string {
+  const W = WELKOM[taal];
+  const knop = (url: string, tekst: string) =>
+    `<a href="${url}" style="display:inline-block;background:${accent};color:#0E0E10;font-weight:700;padding:11px 20px;border-radius:10px;text-decoration:none;font-size:14px;margin:0 8px 8px 0">${esc(tekst)}</a>`;
+  return KADER_OPEN +
+    `<h2 style="color:${accent};margin:0 0 10px;font-size:20px">${esc(W.onderwerp(prog))}</h2>` +
+    `<p style="margin:0 0 8px;line-height:1.5;color:#c9c9ce">${esc(W.groet(naam))}</p>` +
+    `<p style="margin:0 0 14px;line-height:1.5;color:#c9c9ce">${esc(W.intro(prog))}</p>` +
+    `<p style="margin:0 0 10px;line-height:1.5;color:#c9c9ce">${esc(W.app)}</p>` +
+    `<div>${knop(APP_STORE_URL, W.knopIos)}${knop(PLAY_STORE_URL, W.knopAndroid)}</div>` +
+    abo +
+    `<p style="margin:18px 0 0;color:#8a919c;font-size:12px;line-height:1.5">${esc(W.voet(prog))}</p></div>`;
+}
+// ---- welkom einde ----
 
 // ---- bestellingHtml begin ----
 // De wettelijke bevestiging van een winkelbestelling. Opbouw: wat je kocht en wat het kost,
@@ -823,7 +916,27 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     return "fout";
   }
 
-  const { data: ontvanger } = await db.from("profiles").select("id,first_name,last_name,email,role,notify_prefs,company_id,lang").eq("id", rij.recipient_id).single();
+  // Welkomstmail na een gratis aanmelding (18 nov 2026): eenmalig, negeert vinkjes en werkuren.
+  if (event === "welkom") {
+    const { data: lidW } = await db.from("profiles").select("id,first_name,email,lang,company_id,role,membership_type").eq("id", rij.recipient_id).maybeSingle();
+    if (!lidW || !lidW.email) { await klaar({ status: "skipped", last_error: "geen ontvanger/e-mail" }); return "skipped"; }
+    const { data: progW } = await db.from("blog_programs").select("name").eq("id", payload.blog_program_id as string).maybeSingle();
+    if (!progW) { await klaar({ status: "skipped", last_error: "programma niet gevonden" }); return "skipped"; }
+    const taalW = taalVan(lidW.lang);
+    const { data: bedrijfW } = await db.from("companies").select("name,theme").eq("id", lidW.company_id).maybeSingle();
+    const accentW = accentVan(bedrijfW?.theme);
+    const naamW = String(lidW.first_name || "").trim() || (taalW === "en" ? "athlete" : "sporter");
+    const infoW = (await isGratisLid(lidW)) ? await aboInfo(lidW.company_id as string) : null;
+    const htmlW = welkomHtml(taalW, naamW, String(progW.name), accentW, infoW ? aboBlokHtml(taalW, accentW, infoW) : "");
+    const rW = await verstuur(lidW.email, bedrijfW?.name || "YourProgram", WELKOM[taalW].onderwerp(String(progW.name)), htmlW);
+    if (rW.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
+    const foutW = await rW.text().catch(() => String(rW.status));
+    const pogingenW = ((rij.attempts as number) || 0) + 1;
+    await klaar({ attempts: pogingenW, last_error: foutW.slice(0, 500), status: pogingenW >= 3 ? "failed" : "pending", send_after: new Date(Date.now() + 10 * 60_000).toISOString() });
+    return "fout";
+  }
+
+  const { data: ontvanger } = await db.from("profiles").select("id,first_name,last_name,email,role,membership_type,notify_prefs,company_id,lang").eq("id", rij.recipient_id).single();
   if (!ontvanger || !ontvanger.email) { await klaar({ status: "skipped", last_error: "geen ontvanger/e-mail" }); return "skipped"; }
   const taal = taalVan(ontvanger.lang);
   const t = T(taal);
@@ -860,7 +973,9 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
       title: w.title, coach_notes: w.coach_notes, warmup: w.warmup, cooldown: w.cooldown,
       blokken: (bs || []).filter((b) => b.workout_id === w.id),
     }));
-    const html = dagworkoutHtml({ naam: ontvanger.first_name || t.sporter, datum, workouts, voet: t.dagVoet, accent, taal });
+    // Gratis lid (bijv. alleen de Showdown): het abonnement onder de workout (18 nov 2026).
+    const infoD = (await isGratisLid(ontvanger)) ? await aboInfo(ontvanger.company_id as string) : null;
+    const html = dagworkoutHtml({ naam: ontvanger.first_name || t.sporter, datum, workouts, voet: t.dagVoet, accent, taal, abo: infoD ? aboBlokHtml(taal, accent, infoD) : "" });
     const r = await verstuur(ontvanger.email, afzenderNaam, t.dagOnderwerp(datum), html);
     if (r.ok) { await klaar({ status: "sent", sent_at: new Date().toISOString() }); return "sent"; }
     const fout = await r.text().catch(() => String(r.status));
