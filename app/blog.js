@@ -286,7 +286,7 @@ function blogKopChips(){
   const p=BLOG.cur,n=BLOG.list.length;
   // Coach-menu alleen voor eigenaar/platform_admin, net als op het klant-scherm.
   const coachChip=myRole()!=="coach"?
-    '<div class="progsel" id="coachsel" onclick="toggleCoachDrop(event)"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div><div class="pn">Blog</div><div class="pt">'+n+(n===1?' programma':' programma\'s')+'</div></div><span class="car">▾</span>'+
+    '<div class="progsel" id="coachsel" onclick="toggleCoachDrop(event)"><div class="pav" style="background:linear-gradient(135deg,#171719,#3a3f47)">B</div><div><div class="pn">Blogprogramma\'s</div><div class="pt">'+n+(n===1?' programma':' programma\'s')+'</div></div><span class="car">▾</span>'+
       '<div class="progdrop" id="coachdrop" style="width:260px;left:auto;right:0" onclick="event.stopPropagation()"><div class="pd-lijst" id="cd-lijst"><div class="cempty" style="padding:10px">Coaches laden…</div></div></div></div>'
     :'';
   return '<div style="margin-left:auto;display:flex;gap:10px;align-items:center;font-weight:400">'+coachChip+
