@@ -129,7 +129,10 @@ function libLaad(){
     // pagina's oefeningen tegelijk. Was negen aanroepen na elkaar.
     const KOL="id,naam,youtube_id,video_url,tags,bron";
     const mislukt=()=>{LIB.busy=false;const h=document.getElementById("lib-lijst");if(h)h.innerHTML='<div class="cempty">Kon de bibliotheek niet laden. Probeer het opnieuw.</div>';};
-    liftsLaad(); // liftenlijst voor de liftchips in de bouwer (krachtlog)
+    // Liftenlijst voor de liftchips in de bouwer (krachtlog). Ook nodig voor het
+    // label "⇅ 2 balken" / "één tekstvak": of een template splitst, hangt af van
+    // of alle oefeningen liften zijn. Daarom wachten we er hieronder op.
+    const liftsKlaar=liftsLaad();
     const[eerste,tplq,bmq,progq,asgq,compq]=await Promise.all([
       db.from("oefeningen").select(KOL,{count:"exact"}).order("naam").range(0,999),
       db.from("templates").select("id,naam,instructies,type,kleur,tags,coach,media,onderdelen").order("naam"),
@@ -146,6 +149,7 @@ function libLaad(){
     const rest=[];for(let from=1000;from<totaal;from+=1000)rest.push(db.from("oefeningen").select(KOL).order("naam").range(from,from+999));
     for(const r of await Promise.all(rest)){if(r.error){mislukt();return;}alles=alles.concat(r.data||[]);}
     LIB.bm=bmq.data||[];
+    await liftsKlaar; // faalt nooit (liftsLaad vangt fouten zelf af)
     LIB.oef=alles;LIB.tpl=tplq.data||[];LIB.programs=progq.data||[];LIB.programAsgs=asgq.data||[];LIB.geladen=true;LIB.busy=false;
     libLijst();
   })();
@@ -1077,17 +1081,19 @@ async function tplOpslaan(){
   const im=document.getElementById("insmodal");if(im&&im.classList.contains("show"))insRender();
 }
 // ---------- Onderdelen van een superset-template (krachtlog, stap 2) ----------
-// Een template met "(A / B)" in de naam wordt bij invoegen gesplitst in twee
-// gekoppelde blokken (zie tplBlokken in app/kracht.js); de app toont die als
-// één kaart met per oefening een invulbalk. Hier ziet de coach wat de lezer
-// herkent en kan hij de onderdelen zelf instellen als dat misgaat.
+// Een template met "(A / B)" in de naam wordt bij invoegen standaard één blok
+// met de hele tekst: de sporter logt in één vrij tekstveld (feedback coach,
+// 18 nov 2026). Alleen als de coach de onderdelen zelf instelde, of als alle
+// oefeningen liften zijn, worden het gekoppelde blokken (zie tplBlokken in
+// app/kracht.js) en toont de app één kaart met per oefening een invulbalk.
+// Het label hieronder zegt wat er bij invoegen echt gebeurt.
 function tplSplitsBadge(o){
-  if(ssNamen(o.naam).length<2&&!(o.onderdelen||[]).length)return "";
+  const hand=(o.onderdelen||[]).length>=2;
+  if(ssNamen(o.naam).length<2&&!hand)return "";
   const bl=tplBlokken(o),n=bl.length;
-  if(n>=2)return ' <span class="sm" style="color:#2a9fce" title="Bij invoegen: één kaart met '+n+' invulbalken (superset)">⇅ '+n+' balken</span>';
+  if(n>=2)return ' <span class="sm" style="color:#2a9fce" title="'+(hand?'Bij invoegen: één kaart met '+n+' invulbalken (onderdelen zelf ingesteld in de template)':'Bij invoegen: één kaart met '+n+' invulbalken; alle oefeningen zijn liften, dus elke balk telt mee voor de PR-geschiedenis')+'">⇅ '+n+' balken</span>';
   if(bl[0].group_title)return ' <span class="sm muted" title="Alleen het onderdeel met reps krijgt een invulbalk; een carry of hold blijft tekst">⇅ 1 balk</span>';
-  if(ssOnderdelen(o.naam,o.instructies))return ' <span class="sm muted" title="Alleen carries of holds: geen aparte invulbalk, de sporter logt de kaart als tekst">alleen tekst</span>';
-  return ' <span class="sm" style="color:#e5484d" title="De onderdelen zijn niet herkend uit de tekst; stel ze in via de template-editor">⚠ niet gesplitst</span>';
+  return ' <span class="sm muted" title="Bij invoegen: één blok met de hele tekst; de sporter logt in één vrij tekstveld. Per oefening loggen? Stel de onderdelen in via de template-editor, of kies Per oefening instellen in de bouwer.">één tekstvak</span>';
 }
 function tplOnderdelenRender(o){
   LIB.tplOd=(o&&Array.isArray(o.onderdelen)&&o.onderdelen.length)?o.onderdelen.map(x=>({naam:x.naam||"",reps:x.reps==null?"":String(x.reps),sets:x.sets||"",tempo:x.tempo||"",rust:x.rust||""})):null;
@@ -1101,9 +1107,16 @@ function tplOdTeken(){
   if(!LIB.tplOd){
     const auto=titelOk?tplOdAuto():null;
     let txt;
-    if(!titelOk)txt='<div class="sm muted">Een superset herken je aan de naam, bijv. "Special Strength (Back Squat / Push-ups)". De sporter krijgt dan per oefening een eigen invulbalk op één kaart.</div>';
-    else if(auto)txt='<div class="sm">Automatisch herkend: '+auto.map(x=>'<b>'+esc(x.naam)+'</b>'+(x.maat?' <span class="muted">('+esc(x.maat)+', geen balk)</span>':(x.reps!=null?' <span class="muted">'+esc(String(x.reps))+' reps</span>':''))).join(" · ")+'</div>';
-    else txt='<div class="sm" style="color:#e5484d">Niet herkend uit de tekst. Stel de onderdelen hieronder zelf in.</div>';
+    if(!titelOk)txt='<div class="sm muted">Een superset herken je aan de naam, bijv. "Special Strength (Back Squat / Bench Press)". Standaard ziet de sporter de hele tekst met één tekstvak. Een eigen invulbalk per oefening komt er alleen als alle oefeningen liften zijn, of als je de onderdelen zelf instelt.</div>';
+    else if(auto){
+      // Zelfde regel als tplBlokken: splitsen alleen als elk onderdeel met reps een lift is.
+      const bl=tplBlokken({naam,instructies:document.getElementById("tpl-instr").value});
+      txt='<div class="sm">Automatisch herkend: '+auto.map(x=>'<b>'+esc(x.naam)+'</b>'+(x.maat?' <span class="muted">('+esc(x.maat)+', geen balk)</span>':(x.reps!=null?' <span class="muted">'+esc(String(x.reps))+' reps</span>':''))).join(" · ")+'</div>'+
+        (bl.length>=2?'<div class="sm muted">Alle oefeningen zijn liften: de sporter krijgt per oefening een invulbalk.</div>'
+          :bl[0].group_title?'<div class="sm muted">Alleen het onderdeel met reps krijgt een invulbalk; een carry of hold blijft tekst</div>'
+          :'<div class="sm muted">Niet alle oefeningen zijn liften: de sporter ziet de hele tekst met één tekstvak. Toch per oefening loggen? Kies Zelf instellen.</div>');
+    }
+    else txt='<div class="sm muted">Niet herkend uit de tekst: de sporter ziet de hele tekst met één tekstvak. Toch per oefening loggen? Kies Zelf instellen.</div>';
     host.innerHTML='<label>Onderdelen (superset)</label>'+txt+(titelOk?'<div class="demolink" onclick="tplOdZelf()">Zelf instellen</div>':'');
     return;
   }

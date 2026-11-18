@@ -4,7 +4,7 @@
 //   node kracht-test.js --alle     (ook alle Special Strength-templates ophalen)
 const fs=require("fs");
 const src=fs.readFileSync(__dirname+"/../app/kracht.js","utf8")+String.fromCharCode(10)+fs.readFileSync(__dirname+"/../app/oude-logs.js","utf8");
-const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL,olBepaal};")(null,["yellow","blue","purple","red","green","orange"]);
+const K=new Function("db","TPLKLEUREN",src+"\nreturn {liftNorm,liftEnkel,liftMatch,schemaLees,schemaTekst,ssOnderdelen,ssTitel,tplBlokken,ssSplitsOnderdelen,blokkenMetLabels,LIFTS,setsUitTekst,setsSamenvatting,setsNaarRec,setsTekst,besteSet,klRecords,klBeste,klEenRm,klVorige,KL,olBepaal};")(null,["yellow","blue","purple","red","green","orange"]);
 let fouten=0;
 const gelijk=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function check(naam,kreeg,verwacht){
@@ -107,11 +107,32 @@ check("tplBlokken: metcon splitst niet",K.tplBlokken({naam:"Hero WOD",instructie
 const enkel=K.tplBlokken({naam:"Special strength (DB Bulgarian split squat)",kleur:"yellow",instructies:"8/8 reps @ 30X0"+NL+"rest 2 min x 4 sets @ 2 RIR"});
 check("tplBlokken: één oefening tussen haakjes",[enkel.length,enkel[0].exercise,enkel[0].group_title,enkel[0].lift_scheme],[1,"DB Bulgarian split squat","Special strength",{tempo:"30X0",rust:"2 min",sets:4,reps:8,per_kant:true}]);
 check("tplBlokken: gewone naam met haakjes blijft heel",K.tplBlokken({naam:"Dual Dumbbell Bulgarian Split Squat (Dual DB Bulgarian Split Squat)",instructies:"12/12 reps @3010; rest 2 min. x 3 sets."})[0].exercise,"Dual Dumbbell Bulgarian Split Squat (Dual DB Bulgarian Split Squat)");
-// Keuze Stefan: een carry of hold voegt niets toe en krijgt geen eigen balk
+// Keuze Stefan: een carry of hold voegt niets toe en krijgt geen eigen balk.
+// Sinds 18 nov 2026: is het ene onderdeel met reps geen lift, dan blijft de hele
+// template één tekstblok met de naam zoals hij is (de sporter ziet hem zoals geschreven).
 const carry=K.tplBlokken({naam:"special strength (barbell hip thruster / sandbag carry)",kleur:"yellow",instructies:"6-8 barbell hip thrusters @ 20X1 @ 1-2 RIR (reps in reserve)"+NL+"-rest 90 sec-"+NL+"30m sandbag carry @ tough sandbag"+NL+"-rest 2 min-"+NL+"x 3 sets"});
-check("tplBlokken: carry krijgt geen eigen blok",[carry.length,carry[0].exercise,carry[0].group_title,carry[0].prescription.includes("sandbag carry")],[1,"barbell hip thruster","special strength",true]);
+check("tplBlokken: carry naast een niet-lift = één tekstblok",[carry.length,carry[0].exercise,carry[0].group_title,carry[0].prescription.includes("sandbag carry"),carry[0].linked],[1,"special strength (barbell hip thruster / sandbag carry)",null,true,false]);
 const hold=K.tplBlokken({naam:"Special Strength (Alternating Lunge / Sorenson Hold)",kleur:"yellow",instructies:"24 alternating Lunges;"+NL+"15-30 seconds Sorenson Hold;"+NL+"Rest 2 min. x 3 sets."});
-check("tplBlokken: hold krijgt geen eigen blok",[hold.length,hold[0].exercise,hold[0].lift_scheme],[1,"Alternating Lunge",{sets:3,reps:24,rust:"2 min"}]);
+check("tplBlokken: hold naast een niet-lift = één tekstblok",[hold.length,hold[0].exercise,hold[0].group_title],[1,"Special Strength (Alternating Lunge / Sorenson Hold)",null]);
+const carryLift=K.tplBlokken({naam:"Special Strength (Back Squat / Sandbag Carry)",kleur:"yellow",instructies:"5 Back Squats @ 30X1"+NL+"-rest 90 sec-"+NL+"30m sandbag carry"+NL+"-rest 2 min-"+NL+"x 4 sets"});
+check("tplBlokken: carry naast een lift = één balk voor de lift (zoals voorheen)",[carryLift.length,carryLift[0].exercise,carryLift[0].group_title,carryLift[0].lift_id],[1,"Back Squat","Special Strength","bs"]);
+
+// ---- feedback coach 18 nov 2026: standaard één tekstvak ----
+const ARMS_TEKST="8-12 RM barbell bicep curls @ 3010 @ 1-2 RIR (reps in reserve)"+NL+"rest 60 sec"+NL+"8-12 RM skull crushers @ 3010 @ 1-2 RIR (reps in reserve)"+NL+"rest 60 sec x 3 sets"; // template 70, letterlijk uit de database
+const arms=K.tplBlokken({naam:"Arms (barbell bicep curls / skull crushers)",kleur:"yellow",instructies:ARMS_TEKST,media:[{youtube_id:"curl"},{youtube_id:"skull"}]});
+check("Arms: herkenner ziet wel twee onderdelen",(K.ssOnderdelen("Arms (barbell bicep curls / skull crushers)",ARMS_TEKST)||[]).map(x=>x.naam),["barbell bicep curls","skull crushers"]);
+check("Arms: één tekstblok met naam, hele tekst, tekst-score, ongekoppeld, zonder kaarttitel/lift",
+  arms.map(x=>[x.exercise,x.prescription,x.score_type,x.linked,x.group_title,x.lift_id,x.color,(x.media||[]).length]),
+  [["Arms (barbell bicep curls / skull crushers)",ARMS_TEKST,"text",false,null,null,"yellow",2]]);
+check("Arms: bewust splitsen kan (ssSplitsOnderdelen)",(K.ssSplitsOnderdelen("Arms (barbell bicep curls / skull crushers)",ARMS_TEKST)||[]).length,2);
+check("ssSplitsOnderdelen: gewone naam = null",K.ssSplitsOnderdelen("Back Squat","5 reps @95 kilo"),null);
+const gemengd=K.tplBlokken({naam:"Special Strength (Back Squat / Push-ups)",instructies:"8-12 Back Squats @3010;"+NL+"8-12 Push-ups @3010;"+NL+"Rest 2 min. x 3 sets."});
+check("half lift, half niet = één tekstblok",[gemengd.length,gemengd[0].exercise,gemengd[0].linked],[1,"Special Strength (Back Squat / Push-ups)",false]);
+const allesLift=K.tplBlokken({naam:"Strength (Back Squat / Shoulder Press)",instructies:"5 Back Squats @30X1;"+NL+"8 Strict Press @2011;"+NL+"Rest 2 min. x 4 sets."});
+check("alle onderdelen liften = nog steeds gesplitst",allesLift.map(x=>[x.exercise,x.linked,x.lift_id,x.group_title]),[["Back Squat",false,"bs","Strength"],["Shoulder Press",true,"sp",null]]);
+const handIngesteld=K.tplBlokken({naam:"Arms (barbell bicep curls / skull crushers)",kleur:"yellow",instructies:ARMS_TEKST,onderdelen:[{naam:"Barbell Bicep Curl",reps:"8-12",sets:3,tempo:"3010",regel:"8-12 Barbell Bicep Curl @3010"},{naam:"Skull Crusher",reps:"8-12",sets:3,tempo:"3010",regel:"8-12 Skull Crusher @3010"}]});
+check("zelf ingestelde onderdelen = nog steeds gesplitst",handIngesteld.map(x=>[x.exercise,x.linked,x.group_title,x.score_type]),[["Barbell Bicep Curl",false,"Arms","text"],["Skull Crusher",true,null,"text"]]);
+check("zelf ingesteld: eerste blok draagt de hele tekst",handIngesteld[0].prescription,ARMS_TEKST);
 
 
 // ---- stap 4: sets uit tekst (zelfde regels als src/kracht.js in de app) en de krachtcijfers van een klant ----

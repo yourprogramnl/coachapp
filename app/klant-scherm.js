@@ -605,12 +605,17 @@ function relabel(){
     g.forEach((r,pos)=>{
       if(!(groep&&pos===0))delete r.dataset.ssopen;
       r.classList.toggle("ss-dicht",dicht);r.classList.toggle("ss-eerste",dicht&&pos===0);r.classList.toggle("ss-volg",dicht&&pos>0);r.classList.toggle("ss-laatste",dicht&&pos===g.length-1);
+      ssSplitsHint(r,!groep); // los tekstblok dat per oefening kan: uitleg + "Per oefening instellen"
       const gt=r.querySelector(".gtitle-row");if(!gt)return;
       gt.style.display=(pos===0&&groep)?"":"none";
       if(!(pos===0&&groep))return;
       const le=gt.querySelector(".gt-letter");if(le)le.textContent=String.fromCharCode(65+gi);
-      const wi=gt.querySelector(".gt-wissel");
+      const wi=gt.querySelector(".gt-wissel:not(.gt-een)");
       if(wi){wi.textContent=dicht?"Per oefening instellen":"Inklappen";wi.title=dicht?"Toon per oefening de tekst, de lift, het schema en de video's":"Toon deze oefeningen weer als één blokje";}
+      // De andere richting (feedback coach 18 nov 2026): de groep terug naar één tekstblok.
+      let een=gt.querySelector(".gt-een");
+      if(!een){const kop=gt.querySelector(".gtitle-kop");if(kop){een=document.createElement("span");een.className="gt-wissel gt-een";een.setAttribute("onclick","ssEenTekstvak(this)");kop.appendChild(een);}}
+      if(een){een.textContent="Eén tekstvak";een.title="Maak hier één blok van met de hele tekst; de sporter logt dan in één vrij tekstveld";}
       const u=gt.querySelector(".gtitle-uitleg");
       if(u)u.textContent=dicht?g.length+" oefeningen op één kaart; de sporter logt per oefening.":"De sporter ziet deze "+g.length+" gekoppelde oefeningen als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.";
     });
@@ -629,6 +634,110 @@ function relabel(){
 }
 // Superset in- of uitklappen: alleen de weergave in de bouwer, er verandert niets aan de blokken.
 function ssWissel(el){const row=el.closest(".exrow");if(!row)return;row.dataset.ssopen=row.dataset.ssopen==="0"?"1":"0";relabel();groei();}
+// ---------- Eén tekstvak of per oefening (feedback coach, 18 nov 2026) ----------
+// Standaard wordt een template "Arms (A / B)" één blok met de hele tekst en één
+// vrij tekstveld voor de sporter (zie tplBlokken). In de bouwer kan de coach
+// allebei de kanten op:
+//  - los blok waarvan de herkenner de oefeningen ziet: "Per oefening instellen"
+//    splitst het in gekoppelde blokken (één kaart, per oefening een invulbalk);
+//  - groep (gekoppelde oefeningen): "Eén tekstvak" voegt ze samen tot één blok.
+// Pas bij Workout opslaan gaat het naar de database (syncBlocks / program_blocks):
+// het eerste blok houdt zijn id, de andere blokken van de groep verdwijnen.
+// Staat er al een score op een van de blokken, dan doen we niets: die score
+// hoort bij dat blok en zou anders verdwijnen of bij de verkeerde oefening komen.
+function ssSplitsHint(r,los){
+  let h=r.querySelector(".ss-splits");
+  const kan=los&&r.dataset.kind==="exercise"&&typeof ssSplitsOnderdelen==="function"&&
+    !!ssSplitsOnderdelen(((r.querySelector(".exn")||{}).value||"").trim(),(r.querySelector(".f-presc")||{}).value||"");
+  if(!kan){if(h)h.remove();return;}
+  if(h)return;
+  h=document.createElement("div");h.className="ss-splits";
+  h.innerHTML='<span class="ss-splits-uitleg">Eén tekstvak: de sporter ziet de hele tekst en logt in één vrij tekstveld.</span> <span class="gt-wissel" title="Splits dit blok per oefening: één kaart met per oefening een eigen invulbalk, lift en schema" onclick="ssPerOefening(this)">Per oefening instellen</span>';
+  const ta=r.querySelector(".f-presc");
+  if(ta)ta.insertAdjacentElement("afterend",h);else r.appendChild(h);
+}
+// Is er op een van deze blokken al iets gelogd? Eerst wat de kalender al weet,
+// dan de database (ook voor de blog-bouwer; in de programma-editor zijn het
+// program_blocks en vindt dit niets).
+async function ssHeeftScores(rows){
+  const ids=rows.map(r=>r.dataset.bid).filter(Boolean);
+  if(!ids.length)return false;
+  if(typeof monthResults!=="undefined"&&ids.some(id=>monthResults[id]))return true;
+  try{
+    const{data,error}=await db.from("results").select("id").in("block_id",ids).limit(1);
+    if(error)throw error;
+    return !!(data&&data.length);
+  }catch(e){return null;} // onbekend: liever niets doen
+}
+function ssRijenVervang(oud,nieuweBlokken){
+  const tmp=document.createElement("div");tmp.innerHTML=nieuweBlokken.map(exRow).join("");
+  const nieuw=[...tmp.children];
+  nieuw.forEach(n=>oud[0].parentNode.insertBefore(n,oud[0]));
+  oud.forEach(r=>r.remove());
+  return nieuw;
+}
+async function ssEenTekstvak(el){
+  const eerste=el.closest(".exrow");if(!eerste)return;
+  const groep=[eerste];
+  for(let n=eerste.nextElementSibling;n;n=n.nextElementSibling){if(!n.classList.contains("exrow"))continue;if(n.dataset.linked!=="1")break;groep.push(n);}
+  if(groep.length<2)return;
+  const sc=await ssHeeftScores(groep);
+  if(sc===null){toast("Kon niet controleren of er al scores op deze oefeningen staan. Probeer het zo nog eens.");return;}
+  if(sc){toast("Op deze oefeningen zijn al scores per oefening gelogd. Samenvoegen zou die scores weghalen, dus ze blijven apart.");return;}
+  const objs=groep.map(rowToObj);
+  const gti=eerste.querySelector(".gtitle");const titel=((gti&&gti.value)||"").trim();
+  const namen=objs.map(o=>o.exercise).filter(Boolean);
+  const naam=titel?titel+(namen.length?" ("+namen.join(" / ")+")":""):namen.join(" / ");
+  const tekstVan=o=>((o.kind==="conditioning"?o.notes:o.prescription)||"").trim();
+  const norm=s=>String(s||"").toLowerCase().replace(/\s+/g," ").trim();
+  let tekst;
+  if(titel&&tekstVan(objs[0])){
+    // Uit een template: het eerste blok heeft de hele tekst; de andere hebben
+    // hun eigen regel met rust en sets. Alleen toevoegen wat er nog niet staat.
+    tekst=tekstVan(objs[0]);
+    objs.slice(1).forEach(o=>{const eigen=tekstVan(o);if(!eigen)return;const kern=norm(eigen.split(";")[0]);if(kern&&norm(tekst).includes(kern))return;tekst+="\n"+eigen;});
+  }else{
+    // Zelf gekoppelde blokken: per oefening de naam met de eigen tekst eronder.
+    tekst=objs.map(o=>{const t=tekstVan(o);return (o.exercise||"")+(t?"\n"+t:"");}).filter(Boolean).join("\n\n");
+  }
+  const tips=[...new Set(objs.map(o=>o.kind==="conditioning"?"":(o.notes||"").trim()).filter(Boolean))].join("\n");
+  // Demo-video's van alle oefeningen bij elkaar, zonder dubbele. Een via de naam
+  // gekoppelde bibliotheek-oefening (oefening_id) wordt ook een video in de lijst,
+  // want het blok heet nu naar de template en niet meer naar één oefening.
+  const media=[],gezien=new Set();
+  const voeg=m=>{if(!m||!m.youtube_id||gezien.has(m.youtube_id))return;gezien.add(m.youtube_id);media.push(m);};
+  objs.forEach((o,i)=>{
+    if(o.oefening_id&&typeof vsOefChip==="function"){const c=vsOefChip(groep[i]);if(c&&c.youtube_id)voeg({youtube_id:c.youtube_id,titel:c.titel,oefening_id:c.oefening_id});}
+    (o.media||[]).forEach(voeg);
+  });
+  const lift=liftMatch(naam);
+  const blok={id:objs[0].id,kind:"exercise",linked:false,exercise:naam,prescription:tekst||null,notes:tips||null,color:objs.map(o=>o.color).find(Boolean)||null,score_type:"text",timecap_seconds:null,cap_score_type:"reps",oefening_id:null,source_blog_workout_id:objs[0].source_blog_workout_id||null,media:media.length?media:null,lift_id:null,lift_scheme:lift?{geen_lift:true}:null,group_title:null};
+  const nieuw=ssRijenVervang(groep,[blok]);
+  relabel();groei();bouwerDirty=true;
+  if(typeof exNotesInject==="function")exNotesInject();
+  if(nieuw[0]&&nieuw[0].scrollIntoView)nieuw[0].scrollIntoView({block:"nearest",behavior:"smooth"});
+  toast("Samengevoegd tot één tekstvak; sla de workout op om het te bewaren");
+}
+async function ssPerOefening(el){
+  const r=el.closest(".exrow");if(!r)return;
+  const o=rowToObj(r);
+  const od=ssSplitsOnderdelen(o.exercise,o.prescription||"");
+  if(!od){toast("De oefeningen zijn niet te herkennen uit de naam en de tekst");return;}
+  const sc=await ssHeeftScores([r]);
+  if(sc===null){toast("Kon niet controleren of er al scores op deze oefeningen staan. Probeer het zo nog eens.");return;}
+  if(sc){toast("Op dit blok is al een score gelogd als één tekst. Splitsen zou die score aan één oefening hangen, dus het blijft één tekstvak.");return;}
+  await liftsLaad();
+  // Bewust gesplitst = onderdelen zelf opgegeven: dan splitst tplBlokken altijd.
+  const bl=tplBlokken({naam:o.exercise,instructies:o.prescription||"",media:o.media,onderdelen:od});
+  if(bl.length<2){toast("De oefeningen zijn niet te herkennen uit de naam en de tekst");return;}
+  bl.forEach(b=>{b.color=o.color||null;});
+  Object.assign(bl[0],{id:o.id,notes:o.notes||null,oefening_id:o.oefening_id||null,source_blog_workout_id:o.source_blog_workout_id||null});
+  const nieuw=ssRijenVervang([r],bl);
+  nieuw[0].dataset.ssopen="1"; // open, zodat de coach per oefening de lift en het schema ziet
+  relabel();groei();bouwerDirty=true;
+  if(typeof exNotesInject==="function")exNotesInject();
+  toast("Per oefening ingesteld: één kaart met per oefening een invulbalk; sla de workout op om het te bewaren");
+}
 function delRow(btn){btn.closest(".exrow").remove();relabel();bouwerDirty=true;}
 // Blok omhoog/omlaag in de bouwer (pijltjes in de blok-kop). Tussen de rijen
 // staan superset-koppeltekens (.sslink), dus stap door tot de echte buur-rij;
@@ -1166,6 +1275,7 @@ async function biebDropOpDag(item,ds){
   if(item.soort==="progtpl")return await progTplOpDag(item,ds); // hele dag of week uit een template
   // Bouwer open op deze dag? Dan als nieuwe regel onderaan in de bouwer.
   const bouwerDag=editDay||(editWid&&monthWorkouts[editWid]?monthWorkouts[editWid].workout_date:null);
+  await liftsLaad(); // splitsen of één tekstvak hangt af van de liftenlijst (tplBlokken)
   if(bouwerDag===ds&&biebInBouwer(item))return;
   // Staat er al een workout (geen rustdag)? Dan eronder als volgend blok.
   const dag=Object.values(monthWorkouts).filter(w=>w.workout_date===ds&&!/^rest ?day$/i.test((w.title||"").trim())).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
@@ -1191,11 +1301,11 @@ async function biebDropOpDag(item,ds){
 async function biebDropOpWorkout(item,wid){
   if(item.soort==="progtpl"){const w0=monthWorkouts[wid];if(w0)await biebDropOpDag(item,w0.workout_date);return;}
   const w=monthWorkouts[wid];if(!w){toast("Workout niet gevonden");return;}
+  await liftsLaad(); // splitsen of één tekstvak hangt af van de liftenlijst (tplBlokken)
   if(editWid===wid&&biebInBouwer(item))return; // deze workout staat open in de bouwer
   const blokken=w.blocks||[];
   const sort=blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1;
   const label=String.fromCharCode(65+Math.min(blokken.length,25));
-  await liftsLaad();
   const{error}=await db.from("blocks").insert(blokkenMetLabels(biebBlokkenVan(item),label,sort).map(b=>Object.assign({workout_id:wid},b)));
   if(error){toast(error.message||"Toevoegen mislukt");return;}
   toast('"'+item.naam+'" als blok '+label+' onder "'+(w.title||"workout")+'" gezet');

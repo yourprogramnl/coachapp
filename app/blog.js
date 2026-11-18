@@ -1165,8 +1165,8 @@ function blogKlantSamenvatting(k){
 // onderaan in de bouwer; dag met workout = blok eronder; lege dag = nieuwe workout.
 async function blogBiebDrop(item,ds){
   if(!BLOG.cur||!item)return;
+  if(typeof liftsLaad==="function")await liftsLaad(); // ook vóór de bouwer: splitsen hangt af van de liftenlijst
   if(BLOG.editDay===ds&&typeof biebInBouwer==="function"&&biebInBouwer(item))return;
-  if(typeof liftsLaad==="function")await liftsLaad();
   const dag=BLOG.workouts.filter(w=>w.workout_date===ds&&!/^rest ?day$/i.test((w.title||"").trim())).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
   const kort=ds.slice(8,10)+"-"+ds.slice(5,7);
   if(dag.length){
