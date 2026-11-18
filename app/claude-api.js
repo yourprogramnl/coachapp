@@ -88,7 +88,8 @@ const ClaudeApi=(()=>{
           "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd.",
           "Zoek een atleet altijd eerst op met ClaudeApi.atleten(...) en gebruik daarna zijn id. Elk antwoord noemt de atleet bij naam: controleer die naam.",
           "Een leeg veld betekent: niet ingevuld. Reken of gok het niet zelf.",
-          "Blokken met uit_weekworkout:true komen uit de weekworkout (YP Showdown). Die verander je nooit."
+          "Blokken met uit_weekworkout:true komen uit de weekworkout (YP Showdown). Die verander je nooit.",
+          "Een groot antwoord (vier weken van een atleet die veel traint is al snel 75 kB) kan in je browsergereedschap afgekapt worden. Bewaar het dan in een variabele (window.w = await ClaudeApi.week(...)) en lees het per week of per dag uit, of vraag één week per keer op."
         ],
         commandos:{
           "ClaudeApi.ik()":"Wie is er ingelogd, welke rol, welke datum is het vandaag.",
