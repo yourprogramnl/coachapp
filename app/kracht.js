@@ -231,18 +231,27 @@ function onderdeelTekst(od){
 
 // ---------- Template -> blokken (één blok, of gekoppelde blokken bij een superset) ----------
 // Geeft de velden voor blocks/program_blocks terug (zonder workout_id/label/sort).
-// Splitsen gebeurt alleen bij een templatenaam met "(A / B)" of met handmatige
-// onderdelen, zodat een metcon nooit per ongeluk in losse blokken uiteenvalt.
-// Het eerste blok draagt de volledige tekst en de kaarttitel; de app toont de
+// Standaard (feedback coach, 18 nov 2026): een template wordt één blok met de
+// naam zoals hij is en de hele tekst; de sporter logt in één vrij tekstveld,
+// zoals in Strivee ("Arms (barbell bicep curls / skull crushers)"). Splitsen in
+// gekoppelde blokken gebeurt alleen als
+//   (a) de coach de onderdelen zelf instelde in de template-editor (o.onderdelen), of
+//   (b) de onderdelen automatisch herkend zijn uit "(A / B)" én elk onderdeel
+//       met reps een bekende lift is (liftMatch): dan voeden de aparte
+//       invulbalken de PR-geschiedenis.
+// Een metcon valt zo nooit per ongeluk in losse blokken uiteen. Bij een splitsing
+// draagt het eerste blok de volledige tekst en de kaarttitel; de app toont de
 // groep als één kaart met per blok een eigen invulbalk. Een Special Strength-
 // template met één oefening tussen haakjes krijgt die oefening als bloknaam
 // (zo vindt hij zijn lift) en "Special Strength" als kaarttitel.
+// Let op: (b) hangt af van de liftenlijst; laad die eerst (liftsLaad).
 function tplBlokken(o){
   const kleur=(typeof TPLKLEUREN!=="undefined"&&TPLKLEUREN.includes(o.kleur))?o.kleur:null;
   const media=(o.media&&o.media.length)?o.media:null;
   const tekst=o.instructies||null;
   const namen=ssNamen(o.naam);
-  let od=Array.isArray(o.onderdelen)&&o.onderdelen.length>=2?o.onderdelen.map(x=>Object.assign({},x)):null;
+  const handmatig=Array.isArray(o.onderdelen)&&o.onderdelen.length>=2;
+  let od=handmatig?o.onderdelen.map(x=>Object.assign({},x)):null;
   if(!od&&namen.length>=2)od=ssOnderdelen(o.naam,tekst);
   // Alleen onderdelen waar iets te loggen valt (reps, een bereik of "max")
   // krijgen een eigen blok en dus een eigen invulbalk. Een carry of een hold
@@ -253,6 +262,15 @@ function tplBlokken(o){
     const logbaar=od.filter(x=>x.maat==null&&(x.reps!=null||x.reps_lijst));
     if(logbaar.length>=2)od=logbaar;
     else{enkel=logbaar.length===1?logbaar[0]:null;od=null;}
+  }
+  // Automatisch herkend (niet door de coach ingesteld): alleen splitsen als elk
+  // onderdeel een lift is. Hetzelfde voor "één onderdeel met reps naast een carry
+  // of hold": dat blok heette naar die ene oefening, wat alleen zin heeft als hij
+  // een lift is; anders ziet de sporter de template zoals hij geschreven is.
+  if(!handmatig){
+    const isLift=x=>!!(x.lift_id||liftMatch(x.naam));
+    if(od&&!od.every(isLift))od=null;
+    if(enkel&&!isLift(enkel))enkel=null;
   }
   if(!od){
     let exercise=o.naam,titel=null,scheme=null;
@@ -266,6 +284,15 @@ function tplBlokken(o){
     return {kind:"exercise",exercise:x.naam,prescription:i===0?tekst:(x.regel?onderdeelTekst(x):null),color:kleur,score_type:"text",media:i===0?media:null,
       linked:i>0,lift_id:l?l.id:(x.lift_id||null),lift_scheme:schemaVanOnderdeel(x),group_title:i===0?ssTitel(o.naam):null};
   });
+}
+// Kan dit blok (naam + tekst) bewust per oefening gesplitst worden? Geeft de
+// onderdelen met reps terug (minimaal twee), anders null. Voor de bouwer:
+// "Per oefening instellen" op een los tekstblok.
+function ssSplitsOnderdelen(naam,tekst){
+  if(ssNamen(naam).length<2)return null;
+  const od=ssOnderdelen(naam,tekst);if(!od)return null;
+  const logbaar=od.filter(x=>x.maat==null&&(x.reps!=null||x.reps_lijst));
+  return logbaar.length>=2?od:null;
 }
 // Labels en volgorde erbij voor een directe insert: A of A1/A2, sort vanaf sortStart.
 function blokkenMetLabels(blokken,letter,sortStart){

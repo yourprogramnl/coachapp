@@ -102,3 +102,25 @@ i18nLaad({
   "Oranje regels opnieuw door de AI laten lezen (na een verbetering van de leesregels)": "Let the AI re-read the orange rows (after the reading rules improved)",
   "Geen oranje regels om opnieuw te lezen": "No orange rows to re-read",
 });
+// Standaard één tekstvak; per oefening alleen bij liften of zelf ingestelde onderdelen (feedback coach, 18 nov 2026)
+i18nLaad({
+  "één tekstvak": "one text field",
+  "Bij invoegen: één kaart met {n} invulbalken (onderdelen zelf ingesteld in de template)": "When inserted: one card with {n} input fields (parts set manually in the template)",
+  "Bij invoegen: één kaart met {n} invulbalken; alle oefeningen zijn liften, dus elke balk telt mee voor de PR-geschiedenis": "When inserted: one card with {n} input fields; all exercises are lifts, so every field counts towards the PR history",
+  "Bij invoegen: één blok met de hele tekst; de sporter logt in één vrij tekstveld. Per oefening loggen? Stel de onderdelen in via de template-editor, of kies Per oefening instellen in de bouwer.": "When inserted: one block with the full text; the athlete logs in one free text field. Log per exercise? Set the parts in the template editor, or choose Set up per exercise in the builder.",
+  "Een superset herken je aan de naam, bijv. \"Special Strength (Back Squat / Bench Press)\". Standaard ziet de sporter de hele tekst met één tekstvak. Een eigen invulbalk per oefening komt er alleen als alle oefeningen liften zijn, of als je de onderdelen zelf instelt.": "A superset is recognised by its name, e.g. \"Special Strength (Back Squat / Bench Press)\". By default the athlete sees the full text with one text field. A separate input field per exercise only appears when all exercises are lifts, or when you set the parts yourself.",
+  "Automatisch herkend:": "Recognised automatically:",
+  "Alle oefeningen zijn liften: de sporter krijgt per oefening een invulbalk.": "All exercises are lifts: the athlete gets an input field per exercise.",
+  "Niet alle oefeningen zijn liften: de sporter ziet de hele tekst met één tekstvak. Toch per oefening loggen? Kies Zelf instellen.": "Not all exercises are lifts: the athlete sees the full text with one text field. Log per exercise anyway? Choose Set manually.",
+  "Niet herkend uit de tekst: de sporter ziet de hele tekst met één tekstvak. Toch per oefening loggen? Kies Zelf instellen.": "Not recognised from the text: the athlete sees the full text with one text field. Log per exercise anyway? Choose Set manually.",
+  "Eén tekstvak": "One text field",
+  "Maak hier één blok van met de hele tekst; de sporter logt dan in één vrij tekstveld": "Turn this into one block with the full text; the athlete then logs in one free text field",
+  "Eén tekstvak: de sporter ziet de hele tekst en logt in één vrij tekstveld.": "One text field: the athlete sees the full text and logs in one free text field.",
+  "Splits dit blok per oefening: één kaart met per oefening een eigen invulbalk, lift en schema": "Split this block per exercise: one card with its own input field, lift and scheme per exercise",
+  "Kon niet controleren of er al scores op deze oefeningen staan. Probeer het zo nog eens.": "Could not check whether scores were already logged on these exercises. Please try again in a moment.",
+  "Op deze oefeningen zijn al scores per oefening gelogd. Samenvoegen zou die scores weghalen, dus ze blijven apart.": "Scores have already been logged per exercise here. Merging would remove those scores, so they stay separate.",
+  "Samengevoegd tot één tekstvak; sla de workout op om het te bewaren": "Merged into one text field; save the workout to keep it",
+  "De oefeningen zijn niet te herkennen uit de naam en de tekst": "The exercises can't be recognised from the name and the text",
+  "Op dit blok is al een score gelogd als één tekst. Splitsen zou die score aan één oefening hangen, dus het blijft één tekstvak.": "A score has already been logged on this block as one text. Splitting would attach that score to one exercise, so it stays one text field.",
+  "Per oefening ingesteld: één kaart met per oefening een invulbalk; sla de workout op om het te bewaren": "Set up per exercise: one card with an input field per exercise; save the workout to keep it",
+});
