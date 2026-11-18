@@ -65,7 +65,7 @@ function blogRijHtml(p,inGroep){
   const n=BLOG.counts[p.id]||0;
   const pt=blogPrijsTekst(p);
   const prijs=(p.hidden?'<span class="muted">Verborgen</span>':(pt?('<b>'+esc(pt)+'</b>'):'<b style="color:#27b376">Gratis</b>'))+
-    (!p.hidden&&p.in_abonnement===false?' <span class="cpill gray" style="font-size:9.5px" title="Hoort niet bij het abonnement: alleen wie dit programma zelf koopt, ziet het">apart</span>':'');
+    (!p.hidden&&p.in_abonnement===false?' <span class="cpill gray" style="font-size:9.5px" title="Hoort niet bij het abonnement: alleen wie dit programma zelf kiest (kopen of gratis aanmelden), ziet het">apart</span>':'');
   return '<div class="trow click" style="cursor:pointer;align-items:center'+(inGroep?';padding-left:36px':'')+'" onclick="blogOpen(\''+p.id+'\')">'+
     '<div style="flex:2.6;display:flex;align-items:center;gap:11px"><div class="cavc" style="width:40px;height:40px;border-radius:10px;font-size:12px;'+avStijl(p.name)+'">'+esc((p.name||"?").slice(0,1).toUpperCase())+'</div>'+
       '<div><b>'+esc(p.name)+'</b>'+(p.description?'<div class="sm muted" style="margin-top:2px">'+esc(p.description)+'</div>':'')+'</div></div>'+

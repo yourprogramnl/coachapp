@@ -927,4 +927,4 @@ i18nLaad({
 });
 i18nRegel(/^abonnement via (.+)$/, "subscription via $1");
 i18nRegel(/^(.+) ziet dit programma via het abonnement( op (.+))?\. Zolang dat loopt blijft het gekoppeld; zeg het abonnement op om de toegang te stoppen\.$/, (m, wie, x, prog) => wie + " sees this program through the subscription" + (prog ? " on " + prog : "") + ". As long as it runs, the link stays; cancel the subscription to stop access.");
-i18nLaad({ "Hoort niet bij het abonnement: alleen wie dit programma zelf koopt, ziet het": "Not part of the subscription: only people who buy this program themselves see it" });
+i18nLaad({ "Hoort niet bij het abonnement: alleen wie dit programma zelf kiest (kopen of gratis aanmelden), ziet het": "Not part of the subscription: only people who choose this program themselves (buying or free sign-up) see it" });
