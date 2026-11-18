@@ -6,7 +6,7 @@ const TPLKLEUR={yellow:"#eab308",blue:"#3b82f6",purple:"#8b5cf6",red:"#ef4444",g
 const TPLKLEUREN=["yellow","blue","purple","red","green","orange"];
 // Legenda-namen zoals de coaches de kleuren echt gebruiken (aangepast 17 aug
 // op aangeven van coach Vissenberg via Stefan).
-const LEGNAAM={yellow:"Accessory / Special Strength",blue:"Conditioning",purple:"Workout met Leaderboard",red:"Weightlifting / Primers",green:"Gymnastics",orange:"Overig"};
+const LEGNAAM={yellow:"Accessory / Special Strength",blue:"Conditioning",purple:"Workout met Leaderboard",red:"Weightlifting / Primers",green:"Gymnastics",orange:"Kracht / Overig"};
 // Twee "virtuele" kleuren voor de Workouts-lijst: wedstrijdworkouts (Data › Wedstrijden)
 // en benchmarks staan daar ook tussen, zodat je op één plek zoekt (verzoek Stefan, 8 okt).
 // Ze blijven in hun eigen tabel staan; de lijst voegt ze alleen samen (zie libItems).

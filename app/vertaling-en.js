@@ -1798,3 +1798,7 @@ i18nLaad({
 "Een gratis programma op de etalage heeft de aanmeldlink nodig: zet 'Iedereen met de link kan zich zelf aanmelden' aan, of vul een prijs in.":"A free program on the storefront needs the sign-up link: switch on 'Anyone with the link can sign up', or enter a price.",
 "Vul een winkelprijs in van minstens €1 (bijv. 39,00), of laat de prijs leeg voor een gratis programma.":"Enter a shop price of at least €1 (e.g. 39.00), or leave the price empty for a free program."
 });
+// Kleurlegenda: oranje heet sinds 18 nov 2026 "Kracht / Overig"
+i18nLaad({
+"Kracht / Overig":"Strength / Other"
+});
