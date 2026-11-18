@@ -65,7 +65,8 @@ function wcBasisKlanten(){
   return (myRole()!=="coach"&&WC.coach)?alle.filter(p=>p.coach_id===WC.coach):alle;
 }
 function wcKlantenVan(dagIdx){
-  if(dagIdx===WC_ZONDER)return wcBasisKlanten().filter(p=>!ksHeeftDag(p));
+  // Blogleden krijgen geen eigen programmering en dus ook geen dag: die tellen hier niet mee.
+  if(dagIdx===WC_ZONDER)return wcBasisKlanten().filter(p=>!ksHeeftDag(p)&&p.membership_type!=="free_blog");
   const t=wcTag(dagIdx);if(!t)return [];
   return wcBasisKlanten().filter(p=>ksHeeftTag(p,t.id));
 }
