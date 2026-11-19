@@ -336,7 +336,7 @@ function berThreadHtml(){
     '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,m=>berBubHtml(m,c))||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
     '<div class="gepland" id="ber-gepland">'+berGeplandHtml(c.id)+'</div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
-    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="Typ een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
+    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Typ een bericht…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return chatToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
       '<span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'ber\')">⏱</button></span>'+
       '<button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>'+
     '<div class="sleeplaag">Laat los om mee te sturen</div>';
@@ -586,7 +586,7 @@ function berGroepThreadHtml(gid){
       (beheer?'<button class="btn ghost sm" onclick="berGroepLedenBeheer(\''+gid+'\')">Leden</button><button class="btn ghost sm" onclick="berGroepWeg(\''+gid+'\')" title="Groep verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button>':'')+'</span>'+
     '</div>'+
     '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,berGroepBubHtml)||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten in deze groep.</div>')+'</div>'+
-    '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="Bericht aan de groep…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berGroepStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
+    '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Bericht aan de groep…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return chatToets(event,berGroepStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
 }
 async function berOpenGroep(gid,mid){
   BER.cur="g:"+gid;
