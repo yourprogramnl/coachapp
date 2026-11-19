@@ -66,7 +66,9 @@ function berRender(){
       '<option value="">Alle coaches</option>'+
       filterCoaches.map(c=>'<option value="'+c.id+'"'+(BER.coachF===c.id?" selected":"")+'>'+naamVan(c)+'</option>').join("")+
     '</select>':'';
-  cp.innerHTML='<div class="hrow"><h1>Berichten</h1>'+filter+'<button class="btn ghost sm" style="margin-left:auto" onclick="berGroepNieuw()">+ Groepschat</button></div>'+
+  cp.innerHTML='<div class="hrow"><h1>Berichten</h1>'+filter+'<span style="margin-left:auto;display:flex;gap:8px">'+
+      (inBerVenster()?'':'<button class="btn ghost sm" onclick="openBerVenster()" title="Berichten in een apart venster openen, handig op een tweede scherm">↗ Los venster</button>')+
+      '<button class="btn ghost sm" onclick="berGroepNieuw()">+ Groepschat</button></span></div>'+
     '<div class="chatwrap">'+
       '<div class="chatlist"><div class="clh">Gesprekken</div>'+
         '<div style="padding:10px 12px;border-bottom:1px solid #f0f1f3"><input class="lid-in" style="width:100%" placeholder="Zoek een klant…" value="'+esc(BER.zoek)+'" oninput="berZoek(this.value)"></div>'+
@@ -394,7 +396,7 @@ function berKlantHtml(){
     '<div class="ck-sectie"><div class="ck-lbl">Prioriteiten</div><div id="ck-prio" class="sm muted">…</div></div>'+
     '<div class="ck-sectie"><div class="ck-lbl">Gezondheid</div><div id="ck-gez" class="ck-stats sm">…</div></div>'+
     (progs.length?'<div class="ck-sectie"><div class="ck-lbl">Programma\'s</div><div class="ck-chips">'+progs.map(n=>'<span class="ck-chip">'+esc(n)+'</span>').join("")+'</div></div>':'')+
-    '<button class="btn ghost sm" style="margin-top:auto" onclick="openClient(\''+esc(c.id)+'\')">Programma openen</button>';
+    '<button class="btn ghost sm" style="margin-top:auto" onclick="berNaarKlant(\''+esc(c.id)+'\')">Programma openen</button>';
 }
 async function berKlantLaad(){
   const cur=String(BER.cur||"");
@@ -516,4 +518,40 @@ async function laterKies(key,wat){
   if(data){BER.gepland.push(data);BER.gepland.sort((a,b)=>a.send_at.localeCompare(b.send_at));}
   const h=document.getElementById("ber-gepland");if(h&&BER.cur===aid)h.innerHTML=berGeplandHtml(aid);
   toast("Gepland voor "+laterLabel(tijd.toISOString()));
+}
+
+// ---------- Berichten in een los venster (verzoek Stefan, 19 nov 2026) ----------
+// Zelfde idee als de bibliotheek en de Weekcheck: handig op een tweede scherm.
+// Het venster is de gewone Berichten-pagina zonder navigatiebalk, schermhoog.
+let BERWIN=null,berVensterKanaal=null;
+const inBerVenster=()=>document.body.classList.contains("bervenster");
+function openBerVenster(){
+  if(BERWIN&&!BERWIN.closed){try{BERWIN.focus();}catch(e){}return;}
+  const cur=String(BER.cur||""); // het gesprek dat nu open staat gaat mee
+  const w=window.open(location.pathname+"#berichtenvenster"+(cur?"/"+encodeURIComponent(cur):""),"yp_berichten","width=1240,height=860,menubar=no,toolbar=no,location=no,status=no");
+  if(!w){toast("Het venster werd geblokkeerd. Sta pop-ups toe voor deze site en probeer het opnieuw.");return;}
+  BERWIN=w;try{w.focus();}catch(e){}
+}
+// In het venster zelf: alleen Berichten.
+async function renderBerVenster(cur){
+  document.title="Berichten · YourProgram";
+  document.body.classList.add("coachmode","bervenster");
+  const tb=document.querySelector(".topbar");if(tb)tb.style.display="none";
+  document.getElementById("content").innerHTML='<div class="cwrap"><div id="cpage"><h1>Berichten</h1><div class="spin">Laden…</div></div></div>';
+  if(typeof BroadcastChannel!=="undefined"&&!berVensterKanaal)berVensterKanaal=new BroadcastChannel("yp_bieb");
+  if(cur)BER.cur=cur;
+  await fillBerichten();
+  // Het meegegeven gesprek echt openen (gelezen-markering, cijfers van de klant).
+  const open=String(BER.cur||"");
+  if(open.indexOf("g:")===0){if(berGroep(open.slice(2)))berOpenGroep(open.slice(2));}
+  else if(open)berOpen(open);
+}
+// "Programma openen": in het losse venster gebeurt dat in het hoofdvenster.
+function berNaarKlant(id){
+  if(inBerVenster()){
+    if(berVensterKanaal){berVensterKanaal.postMessage({type:"open",id});toast("Geopend in het hoofdvenster");}
+    else toast("Open deze klant in het hoofdvenster");
+    return;
+  }
+  openClient(id);
 }
