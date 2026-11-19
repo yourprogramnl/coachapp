@@ -49,8 +49,9 @@ function fbEnsure(){
     else if(a==="opname"){FB.fase==="rust"?fbOpnBegin():fbOpnStop();}
     else if(a==="pauze")fbOpnPauze();
     else if(a==="opverstuur")fbOpnVerstuur();
-    else if(a==="opopnieuw"){fbOpnWeg();fbOpnBegin();}
-    else if(a==="opweg"){fbOpnWeg();fbStatus("Opname weggegooid.");}
+    // Een opname die klaarstaat gooi je niet per ongeluk weg: eerst even bevestigen (wens Stefan, 19 nov)
+    else if(a==="opopnieuw"){if(confirm("Je opname wordt weggegooid en je begint opnieuw. Weet je het zeker?")){fbOpnWeg();fbOpnBegin();}}
+    else if(a==="opweg"){if(confirm("Wil je deze opname weggooien? Dat kan niet ongedaan worden gemaakt.")){fbOpnWeg();fbStatus("Opname weggegooid.");}}
   });
   ov.addEventListener("change",e=>{
     if(e.target.id==="fbv-snel"){if(FB.vid)FB.vid.playbackRate=Number(e.target.value);}
