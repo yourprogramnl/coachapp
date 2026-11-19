@@ -15,7 +15,9 @@ async function openClient(id,opts){
   // Staff (eigenaar/admin): standaard programmeer je de coach van deze klant.
   const p0=coachClients.find(x=>x.id===id);
   coachFilterId=(myRole()!=="coach"&&p0)?(p0.coach_id||null):null;
-  kalWeken=10;kalScrollDoel="top";kalLabelMaand=null;prevScrollY=null;
+  // Open de kalender in de week van vandaag, niet bovenaan de maand (verzoek Stefan, 19 nov 2026:
+  // "het is 19 november en ik sta op 2 november, dan moet ik eerst scrollen"). Zelfde doel als de knop Vandaag.
+  kalWeken=10;kalScrollDoel="today";kalLabelMaand=null;prevScrollY=null;
   // Rechtstreeks naar een dag (bel-melding, link in de mail): kalender op die
   // maand, genoeg weken laden en de dag laten oplichten, net als vanuit de Historie.
   const dag=(opts.dag&&/^\d{4}-\d{2}-\d{2}$/.test(opts.dag))?opts.dag:null;
