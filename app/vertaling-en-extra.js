@@ -83,6 +83,14 @@ i18nLaad({
   "Stuur deze link zelf naar de klant, bijvoorbeeld via WhatsApp. De klant kiest ermee een nieuw wachtwoord en logt daarna in met zijn e-mailadres. De link werkt één keer. Er is geen mail verstuurd.": "Send this link to the client yourself, for example via WhatsApp. They use it to choose a new password and then log in with their email address. The link works once. No email was sent.",
   "Geldig tot": "Valid until",
   "Link maken mislukt": "Creating the link failed",
+  // Gesprek weer op ongelezen zetten (berichten.js, chat.js)
+  "Markeer als ongelezen": "Mark as unread",
+  "Markeer als gelezen": "Mark as read",
+  "Gesprek staat weer op ongelezen": "Conversation is marked as unread again",
+  "Op ongelezen zetten is niet gelukt": "Marking as unread failed",
+  "Alleen de eigen coach van dit lid ({naam}) kan dit gesprek op gelezen of ongelezen zetten": "Only this member's own coach ({naam}) can mark this conversation as read or unread",
+  "Alleen de eigen coach van dit lid kan dit gesprek op gelezen of ongelezen zetten": "Only this member's own coach can mark this conversation as read or unread",
+  "Dit lid heeft geen eigen coach, dus dit gesprek kan niet op gelezen of ongelezen gezet worden": "This member has no coach of their own, so this conversation cannot be marked as read or unread",
   // Herstel-link uit de mail op ons eigen domein (auth.js, toonHerstelStart)
   "Je komt via de link uit de herstelmail. Klik op Doorgaan om een nieuw wachtwoord te kiezen.": "You followed the link from the password email. Click Continue to choose a new password.",
   "Doorgaan": "Continue",
