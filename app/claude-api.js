@@ -10,9 +10,9 @@
 // workout met status 'draft' die de atleet niet ziet tot de coach hem in de app
 // goedkeurt. Vaste grenzen, in elk schrijf-commando afgedwongen:
 //   - nieuwe workouts krijgen altijd status 'draft';
-//   - wijzigen en verwijderen kan alleen bij een workout die nog concept is;
-//     enige uitzondering: demo-video's toevoegen (nooit weghalen of vervangen) mag ook bij
-//     een zichtbare workout, via videosToevoegen;
+//   - een workout die al zichtbaar is wordt alleen gewijzigd als de aanroeper {zichtbaar:true}
+//     meegeeft (de coach vroeg er uitdrukkelijk om; besluit Stefan, 19 nov 2026). Weghalen van
+//     een zichtbare workout kan nooit, en een blok waarop al gelogd is blijft staan;
 //   - blog- en groepsprogramma's blijven dicht; de YP Showdown kan alleen als
 //     ongewijzigde kopie van de weekworkout zelf worden geplaatst (plaatsShowdown),
 //     de tekst ervan is nooit te wijzigen;
@@ -319,13 +319,13 @@ const ClaudeApi=(()=>{
   const normUitRij=b=>({id:b.id,raak:false,kind:b.kind,exercise:b.exercise,prescription:b.prescription,notes:b.notes,linked:!!b.linked,media:b.media||null});
 
   // ---------- Alleen concepten zijn te wijzigen ----------
-  async function conceptOphalen(wid){
+  async function conceptOphalen(wid,magZichtbaar){
     if(!isUuid(wid))return {fout:"Geef het id van de workout (uit ClaudeApi.week of het antwoord van een schrijf-commando)."};
     const{data:w,error}=await db.from("workouts").select("*, blocks(*)").eq("id",wid).maybeSingle();
     if(error)return {fout:error.message};
     if(!w)return {fout:"Geen workout gevonden met dit id, of je mag hem niet zien."};
     if(w.audience!=="client"||!w.client_id)return {fout:"Dit is geen 1-op-1 workout. Weekworkouts, blog- en groepsprogramma's verander je hier nooit."};
-    if(w.status!=="draft")return {fout:"Deze workout is al zichtbaar voor de atleet. Je wijzigt alleen concepten. De coach kan hem in de app zelf terugzetten op concept."};
+    if(w.status!=="draft"&&!magZichtbaar)return {fout:"Deze workout is al zichtbaar voor de atleet. Vraagt de coach er uitdrukkelijk om, geef dan {zichtbaar:true} mee als laatste argument; de atleet ziet de wijziging dan meteen. Een zichtbare workout weghalen kan niet."};
     if(w.source_blog_workout_id)return {fout:"Deze workout is een kopie van de weekworkout (YP Showdown). Die past alleen de coach zelf aan."};
     const a=await atleetOphalen(w.client_id);if(a.fout)return {fout:a.fout};
     w.blocks=(w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort);
@@ -336,6 +336,15 @@ const ClaudeApi=(()=>{
     if(error)throw new Error("results: "+error.message);
     return (count||0)>0;
   }
+  // Op welke blokken van deze workout is al gelogd?
+  async function logBlokken(wid){
+    const{data,error}=await db.from("results").select("block_id").eq("workout_id",wid);
+    if(error)throw new Error("results: "+error.message);
+    return new Set((data||[]).map(r=>r.block_id));
+  }
+  const ZICHTBAAR="Deze workout is zichtbaar: de atleet ziet de wijziging meteen.";
+  const statusNaam=w=>w.status==="draft"?"concept":"gepubliceerd";
+  const scoreAnders=(n,o)=>n.score_type!==(o.score_type||"text")||(n.timecap_seconds||null)!==(o.timecap_seconds||null);
   async function leesTerug(ids){
     if(!ids.length)return [];
     const rijen=await haalIn("workouts","*, blocks(*)","id",ids);
@@ -465,8 +474,9 @@ const ClaudeApi=(()=>{
           "Lezen mag altijd. Schrijven kan alleen als concept: een workout die de atleet niet ziet tot de coach hem in de app goedkeurt.",
           "Er is geen commando om goed te keuren, te publiceren of iets te versturen. Dat doet de coach zelf.",
           "Schrijf pas nadat de coach heeft gezegd dat het erin mag (\"zet erin\", \"voer in\").",
-          "Een workout die al zichtbaar is voor de atleet kun je niet wijzigen of weghalen. Wil de coach dat toch, dan zet hij hem in de app zelf terug op concept.",
-          "Eén uitzondering: demo-video's toevoegen mag ook bij een zichtbare workout, met ClaudeApi.videosToevoegen of videosToevoegenWeek. Daar kun je alleen video's bij zetten. Weghalen of vervangen kan niet, en de tekst blijft zoals hij is. De atleet ziet de video meteen, dus doe dit alleen als de coach erom vraagt en meld daarna wat je hebt toegevoegd.",
+          "Nieuw werk komt altijd als concept. Wat al zichtbaar is voor de atleet pas je alleen aan als de coach daar in dit gesprek uitdrukkelijk om vraagt. Geef dan {zichtbaar:true} mee als laatste argument van wijzigBlok, vervangBlokken of wijzigConcept. De atleet ziet de wijziging meteen: zeg vooraf wat je gaat veranderen en meld daarna wat er staat.",
+          "Ook met {zichtbaar:true} kan niet: een zichtbare workout weghalen, een blok weghalen waarop al gelogd is, het scoretype of de tijdslimiet veranderen van een blok waarop al gelogd is, en alles met de YP Showdown.",
+          "Alleen video's erbij zetten kan zonder {zichtbaar:true}, met ClaudeApi.videosToevoegen of videosToevoegenWeek. Video's weghalen of vervangen bij een zichtbaar blok doe je met wijzigBlok(blokId, {videos:[id's]}, {zichtbaar:true}).",
           "Onderdelen met uit_weekworkout:true zijn de YP Showdown. De tekst daarvan verander je nooit en je schrijft hem nooit zelf. Plaatsen kan alleen met ClaudeApi.plaatsShowdown, dat de tekst letterlijk uit de weekworkout van die week haalt. In een concept mag je het blok verplaatsen of weghalen met vervangBlokken.",
           "Een week kopiëren neemt de Showdown van de bronweek nooit mee: dat is de workout van die ene week. Met {showdown:true} komt op dezelfde plek de Showdown van de doelweek, als die al in de app staat.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
@@ -494,9 +504,9 @@ const ClaudeApi=(()=>{
           "ClaudeApi.kopieerWeek(atleetId, vanDatum, naarDatum, opties)":"Kopieert alle 1-op-1 workouts uit de week van vanDatum naar de week van naarDatum, op dezelfde weekdagen, als concept. Resultaten en reacties gaan niet mee, demo-video's wel. Daarna pas je met wijzigBlok alleen aan wat verandert. opties (optioneel): {showdown:true} zet de YP Showdown van de doelweek op de plek waar hij in de bronweek stond (zonder die optie wordt hij overgeslagen en gemeld); {videos:\"aanvullen\"} voegt ontbrekende demo-video's toe, {videos:\"auto\"} kiest ze allemaal opnieuw.",
           "ClaudeApi.kopieerTemplate(atleetId, templateId, week, datum, opties)":"Zet een week uit een Template week bij de atleet als concept: dag 1 op de maandag van de week van datum. Met {dag:n} alleen die ene templatedag, precies op datum. Alles gaat mee zoals het in de template staat, ook de demo-video's. Het is een losse kopie zonder koppeling met de template. Zelfde opties voor videos als kopieerWeek.",
           "ClaudeApi.plaatsShowdown(atleetId, datum, opties)":"Zet de YP Showdown van de week van datum als concept bij de atleet, op datum. De tekst komt letterlijk uit de weekworkout; je kunt hem niet meegeven of wijzigen. Staat de Showdown van die week nog niet in de app, dan krijg je een melding en gebeurt er niets. Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
-          "ClaudeApi.wijzigBlok(blokId, velden)":"Past één blok van een concept aan. Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Verandert de naam of de tekst, dan worden de demo-video's opnieuw gekozen (videos:\"houden\" laat ze staan).",
-          "ClaudeApi.vervangBlokken(workoutId, blokken)":"Zet de hele blokkenlijst van een concept in één keer: een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg. Zo voeg je een blok toe, haal je er een weg of verander je de volgorde.",
-          "ClaudeApi.wijzigConcept(workoutId, velden)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown.",
+          "ClaudeApi.wijzigBlok(blokId, velden, opties)":"Past één blok aan (bij een zichtbare workout alleen met opties {zichtbaar:true}). Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Verandert de naam of de tekst, dan worden de demo-video's opnieuw gekozen (videos:\"houden\" laat ze staan).",
+          "ClaudeApi.vervangBlokken(workoutId, blokken, opties)":"Zet de hele blokkenlijst in één keer (bij een zichtbare workout alleen met opties {zichtbaar:true}): een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg. Zo voeg je een blok toe, haal je er een weg of verander je de volgorde.",
+          "ClaudeApi.wijzigConcept(workoutId, velden, opties)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown. Bij een zichtbare workout alleen met opties {zichtbaar:true}.",
           "ClaudeApi.verwijderConcept(workoutId)":"Haalt één concept weg, met zijn blokken. Kan alleen bij een concept zonder gelogde resultaten. Doe dit alleen voor een concept dat je zelf hebt klaargezet of als de coach erom vraagt.",
           "ClaudeApi.videosToevoegen(blokId, videos)":"Zet demo-video's bij één blok, ook als de workout al zichtbaar is. videos = \"aanvullen\" (standaard: de herkende bewegingen die nog geen video hebben) of een lijst id's uit videoZoek. Er komt alleen iets bij; wat er staat blijft staan. Werkt niet op de YP Showdown.",
           "ClaudeApi.videosToevoegenWeek(atleetId, datum)":"Hetzelfde voor alle blokken van één week van een atleet, met de herkende bewegingen. Geeft per blok terug wat erbij is gekomen."
@@ -752,7 +762,8 @@ const ClaudeApi=(()=>{
         overgeslagen,let_op:meldingen,workouts:terug});
     }),
 
-    wijzigBlok:veilig(async(blokId,velden)=>{
+    wijzigBlok:veilig(async(blokId,velden,opties)=>{
+      opties=isObject(opties)?opties:{};
       if(!isUuid(blokId))return fout("Geef het id van het blok (uit ClaudeApi.week of het antwoord van een schrijf-commando).");
       if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef de velden die veranderen, bijvoorbeeld {voorschrift:\"...\"}.");
       const mag=BLOK_SCHRIJF.filter(k=>k!=="soort");
@@ -761,7 +772,7 @@ const ClaudeApi=(()=>{
       const{data:b0,error}=await db.from("blocks").select("id,workout_id").eq("id",blokId).maybeSingle();
       if(error)return fout(error.message);
       if(!b0)return fout("Geen blok gevonden met dit id, of je mag het niet zien.");
-      const c=await conceptOphalen(b0.workout_id);if(c.fout)return fout(c.fout);
+      const c=await conceptOphalen(b0.workout_id,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
       const oud=c.w.blocks.find(b=>b.id===blokId);
       if(oud.source_blog_workout_id)return fout("Dit blok is de YP Showdown. De tekst verander je nooit. Verplaatsen of weghalen kan met vervangBlokken.");
       const huidig=blokUit(oud);
@@ -772,6 +783,8 @@ const ClaudeApi=(()=>{
       const n=blokLees(samen,"blok "+(oud.label||""),fouten);
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
       n.id=blokId;
+      const zb=c.w.status!=="draft";
+      if(zb&&scoreAnders(n,oud)&&(await logBlokken(c.w.id)).has(blokId))return fout("Er is niets gewijzigd. Op dit blok zijn al resultaten gelogd; het scoretype of de tijdslimiet veranderen zou die score onleesbaar maken. Laat dit aan de coach.");
       const gewijzigd=blokTekst(n)!==blokTekst(normUitRij(oud));
       const wilAuto=n.videos==="auto"||n.videos==="aanvullen"||(n.videos===undefined&&gewijzigd);
       const indexOk=(Array.isArray(n.videos)||wilAuto)?await videosKlaar():false;
@@ -783,11 +796,12 @@ const ClaudeApi=(()=>{
       ververs(c.p.id);
       const meldingen=[];
       if(!indexOk&&wilAuto)meldingen.push("De oefeningenbibliotheek was niet geladen: de demo-video's zijn niet opnieuw gekozen.");
-      return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:"blok "+(n.label||"")+" van \""+(c.w.title||"")+"\" op "+c.w.workout_date,status:"concept",let_op:meldingen,workout:terug[0]});
+      return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:"blok "+(n.label||"")+" van \""+(c.w.title||"")+"\" op "+c.w.workout_date,status:statusNaam(c.w),let_op:meldingen.concat(zb?[ZICHTBAAR]:[]),workout:terug[0]});
     }),
 
-    vervangBlokken:veilig(async(workoutId,blokken)=>{
-      const c=await conceptOphalen(workoutId);if(c.fout)return fout(c.fout);
+    vervangBlokken:veilig(async(workoutId,blokken,opties)=>{
+      opties=isObject(opties)?opties:{};
+      const c=await conceptOphalen(workoutId,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
       if(!Array.isArray(blokken))return fout("Geef de volledige lijst blokken zoals hij moet worden. Een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg.");
       const fouten=[];
       let normen=blokkenLees(blokken,"\""+(c.w.title||"workout")+"\"",fouten);
@@ -811,7 +825,11 @@ const ClaudeApi=(()=>{
       });
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
       const gaatWeg=c.w.blocks.filter(b=>!gezien.has(b.id));
-      if(gaatWeg.length&&await heeftLogs(c.w.id))return fout("Er is niets gewijzigd. Op deze workout zijn al resultaten gelogd; een blok weghalen zou die wissen. Laat dit aan de coach.");
+      const zb=c.w.status!=="draft";
+      const gelogd=(gaatWeg.length||zb)?await logBlokken(c.w.id):new Set();
+      if(gaatWeg.some(b=>gelogd.has(b.id)))return fout("Er is niets gewijzigd. Op een blok dat je weghaalt zijn al resultaten gelogd; weghalen zou die wissen. Laat dit aan de coach.");
+      const stFout=normen.find(n=>n.id&&n.raak&&gelogd.has(n.id)&&scoreAnders(n,oud[n.id]));
+      if(stFout)return fout("Er is niets gewijzigd. Op blok \""+(stFout.exercise||"")+"\" zijn al resultaten gelogd; het scoretype of de tijdslimiet veranderen kan dan niet. Laat dit aan de coach.");
       const indexOk=await videosKlaar();
       letters(normen);
       normen.forEach((n,i)=>{
@@ -824,13 +842,13 @@ const ClaudeApi=(()=>{
       const terug=await leesTerug([c.w.id]);
       ververs(c.p.id);
       return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:"blokken van \""+(c.w.title||"")+"\" op "+c.w.workout_date,
-        nieuw:uit.nieuw||null,verwijderd:uit.verwijderd||null,status:"concept",
-        let_op:indexOk?null:["De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen voor nieuwe of gewijzigde blokken."],workout:terug[0]});
+        nieuw:uit.nieuw||null,verwijderd:uit.verwijderd||null,status:statusNaam(c.w),
+        let_op:(indexOk?[]:["De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen voor nieuwe of gewijzigde blokken."]).concat(zb?[ZICHTBAAR]:[]),workout:terug[0]});
     }),
 
     wijzigConcept:veilig(async(workoutId,velden,opties)=>{
-      const c=await conceptOphalen(workoutId);if(c.fout)return fout(c.fout);
       opties=isObject(opties)?opties:{};
+      const c=await conceptOphalen(workoutId,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
       if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef de velden die veranderen: datum, titel, notitie_coach, warming_up, cooldown.");
       const mag=["datum","titel","notitie_coach","warming_up","cooldown","videos"];
       const onbekend=Object.keys(velden).filter(k=>!mag.includes(k));
@@ -853,13 +871,13 @@ const ClaudeApi=(()=>{
         if(wuAnders||vk!==undefined)upd.warmup_media=wu?mediaKies(vk,wu,c.w.warmup_media||null,wuAnders,waar,fouten,indexOk):null;
         if(cdAnders||vk!==undefined)upd.cooldown_media=cd?mediaKies(vk,cd,c.w.cooldown_media||null,cdAnders,waar,fouten,indexOk):null;
       }
-      // Alleen bijwerken zolang het nog concept is (de coach kan intussen hebben goedgekeurd).
-      const{data,error}=await db.from("workouts").update(upd).eq("id",c.w.id).eq("status","draft").select("id");
+      // Alleen bijwerken zolang de status nog is wat we lazen (de coach kan intussen hebben goedgekeurd).
+      const{data,error}=await db.from("workouts").update(upd).eq("id",c.w.id).eq("status",c.w.status).select("id");
       if(error)return fout(error.message);
-      if(!(data||[]).length)return fout("Er is niets gewijzigd: deze workout is intussen geen concept meer.");
+      if(!(data||[]).length)return fout("Er is niets gewijzigd: de status van deze workout is intussen veranderd. Lees hem opnieuw met ClaudeApi.week.");
       const terug=await leesTerug([c.w.id]);
       ververs(c.p.id);
-      return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:Object.keys(velden).join(", "),status:"concept",workout:terug[0]});
+      return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:Object.keys(velden).join(", "),status:statusNaam(c.w),let_op:c.w.status!=="draft"?[ZICHTBAAR]:null,workout:terug[0]});
     }),
 
     verwijderConcept:veilig(async(workoutId)=>{
