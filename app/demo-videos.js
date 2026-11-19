@@ -312,18 +312,45 @@ function vsKiesKey(ev,inp){
   if(ev.key==="Escape"){ev.stopPropagation();inp.closest(".vidpop").classList.remove("show");return;}
   if(ev.key!=="Enter")return;
   ev.preventDefault();
-  const id=ytIdVan(inp.value.trim());
-  if(id){vsKiesLink(inp,id);return;}
-  const eerste=inp.closest(".vidpop").querySelector(".vzk-rij");if(eerste)eerste.click();
+  // Link geplakt: staat hij al in de bibliotheek, dan die rij kiezen; anders
+  // naar het naamveld (Enter daar voegt toe).
+  const vid=inp.closest(".vidpop"),naam=vid.querySelector(".vzk-naam");
+  if(ytIdVan(inp.value.trim())&&naam){naam.focus();naam.select();return;}
+  const eerste=vid.querySelector(".vzk-rij");if(eerste)eerste.click();
+}
+function vsNaamKey(ev,inp){
+  if(ev.key==="Escape"){ev.stopPropagation();inp.closest(".vidpop").classList.remove("show");return;}
+  if(ev.key==="Enter"){ev.preventDefault();vsKiesNieuw(inp);}
 }
 function vsKiesZoek(inp){
   const vid=inp.closest(".vidpop"),lijst=vid.querySelector(".vzk-lijst");if(!lijst)return;
   const raw=inp.value.trim(),v=raw.toLowerCase();
   const yt=ytIdVan(raw);
-  if(yt){
-    lijst.innerHTML='<div class="vzk-rij" onclick="event.stopPropagation();vsKiesLink(this,\''+esc(yt)+'\')"><img src="https://i.ytimg.com/vi/'+esc(yt)+'/default.jpg" alt="">Deze YouTube-link toevoegen</div>';
+  vid.classList.remove("breed");
+  if(yt&&yt.length!==11){ // nog aan het typen, of een halve link
+    lijst.dataset.yt="";lijst.style.maxHeight="";
+    lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Dit is nog geen hele YouTube-link. Plak de link zoals hij in de adresbalk staat.</div>';
     return;
   }
+  if(yt&&LIB.geladen){
+    // Een YouTube-link. Staat de video al in de bibliotheek, dan die naam
+    // gebruiken. Anders: naam laten geven (YouTube-titel als voorstel) en bij
+    // toevoegen meteen in de bibliotheek zetten.
+    const al=LIB.oef.find(o=>o.youtube_id===yt);
+    if(al){
+      lijst.dataset.yt="";lijst.style.maxHeight="";
+      lijst.innerHTML='<div class="sm muted" style="padding:4px 2px">Deze video staat al in de bibliotheek:</div>'+
+        '<div class="vzk-rij" onclick="event.stopPropagation();vsKiesKies(this,'+al.id+')"><img src="https://i.ytimg.com/vi/'+esc(yt)+'/default.jpg" alt="">'+esc(al.naam)+'</div>';
+      return;
+    }
+    vid.classList.add("breed"); // ruimte voor een lange titel
+    if(lijst.dataset.yt===yt&&lijst.querySelector(".vzk-naam"))return; // zelfde link: het naamveld laten staan
+    lijst.dataset.yt=yt;lijst.style.maxHeight="none";
+    lijst.innerHTML=ytNieuwHtml(yt,"vzk-naam","vsNaamKey(event,this)","vsKiesNieuw(this)");
+    ytTitelVul(yt,lijst.querySelector(".vzk-naam"));
+    return;
+  }
+  lijst.dataset.yt="";lijst.style.maxHeight="";
   if(!LIB.geladen){
     lijst.innerHTML='<div class="sm muted" style="padding:6px 2px">Bibliotheek laden…</div>';
     libLaad().then(()=>{if(document.contains(inp))vsKiesZoek(inp);});
@@ -344,13 +371,13 @@ function vsKiesZoek(inp){
   lijst.innerHTML=kop+(hits.length?hits.slice(0,40).map(o=>'<div class="vzk-rij" onclick="event.stopPropagation();vsKiesKies(this,'+o.id+')"><img src="https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/default.jpg" alt="">'+esc(o.naam)+'</div>').join("")
     :'<div class="sm muted" style="padding:6px 2px">Niets gevonden met een demo-video. Probeer een korter woord (bijv. "rope"), of plak een YouTube-link.</div>');
 }
-function vsVoegToe(host,m){
+function vsVoegToe(host,m,melding){
   const media=vsMediaLees(host);
   if(media.some(x=>x.youtube_id===m.youtube_id)||(host.dataset.oefid&&vsOefChip(host).youtube_id===m.youtube_id)){toast("Deze video staat er al bij");return false;}
   media.push(m);vsMediaZet(host,media);
   vsVuil(host);vsRender(host);
   const vid=host.querySelector(".vidpop");if(vid)vid.classList.remove("show");
-  toast("Demo-video toegevoegd, gaat mee voor het lid");
+  toast(melding||"Demo-video toegevoegd, gaat mee voor het lid");
   return true;
 }
 function vsKiesKies(el,oefId){
@@ -358,9 +385,22 @@ function vsKiesKies(el,oefId){
   if(!host||!o||!o.youtube_id)return;
   vsVoegToe(host,{youtube_id:o.youtube_id,titel:o.naam,oefening_id:o.id});
 }
-function vsKiesLink(el,yt){
-  const host=vsHost(el);if(!host)return;
-  vsVoegToe(host,{youtube_id:yt,titel:"Eigen video"});
+// Nieuwe video (geplakte YouTube-link) met de ingevulde naam toevoegen én in
+// de bibliotheek zetten. Lukt de bibliotheek niet, dan gaat de video wel mee
+// voor het lid, mét de naam.
+async function vsKiesNieuw(el){
+  const host=vsHost(el),vid=el.closest(".vidpop");if(!host||!vid)return;
+  const lijst=vid.querySelector(".vzk-lijst"),inp=vid.querySelector(".vzk-naam"),msg=vid.querySelector(".vzk-msg");
+  const yt=lijst&&lijst.dataset.yt;if(!inp||!yt||vid.dataset.bezig)return;
+  const naam=inp.value.trim().replace(/\s+/g," ");
+  if(!naam){msg.textContent="Geef de video eerst een naam.";inp.focus();return;}
+  vid.dataset.bezig="1";
+  const r=await libVideoErbij(yt,naam);
+  delete vid.dataset.bezig;
+  if(!document.contains(host))return;
+  if(r.fout==="naam"){msg.textContent="Er staat al een oefening met deze naam in de bibliotheek. Kies een andere naam.";inp.focus();return;}
+  if(r.rij)vsVoegToe(host,{youtube_id:yt,titel:r.rij.naam,oefening_id:r.rij.id},"Demo-video toegevoegd en in de bibliotheek gezet");
+  else vsVoegToe(host,{youtube_id:yt,titel:naam},"Demo-video toegevoegd. In de bibliotheek zetten lukte niet.");
 }
 
 // ---------- Warming-up/cooldown: lees/schrijf-hulpjes die de rest van de app gebruikt ----------
