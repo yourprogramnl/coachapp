@@ -158,9 +158,7 @@ function gmHerkenRegel(regel,voorkeur){
     if(!h.geleerd&&uit.some(u=>u.o.id!==h.o.id&&u.len>h.len&&(" "+u.norm+" ").includes(" "+h.term+" ")))return;
     uit.push(h);termen.add(h.term);
   });
-  // De meest specifieke naam wint, ook van een geleerd zoekwoord: bij "Strict Pull-ups"
-  // niet ook nog de video die aan het losse zoekwoord "pull up" hangt (19 nov 2026).
-  return uit.filter(a=>!uit.some(b=>b!==a&&b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ")));
+  return uit;
 }
 // Een sectie (meerdere regels) -> voorstellen, per oefening één.
 function gmHerkenTekst(tekst,voorkeur){
