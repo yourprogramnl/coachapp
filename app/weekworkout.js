@@ -160,12 +160,12 @@ function wwCmp(st){
     return new Date(a.created_at)-new Date(b.created_at);
   };
 }
-function wwBoardInner(id){
+function wwBoardInner(id,hostId){
   const w=WW.list.find(x=>x.id===id)||(WW_VENSTER&&WW_VENSTER.id===id?WW_VENSTER:null),rows=WW.boards[id]||[];
   if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
   const st=(wwMainBlock(w)||{}).score_type||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
-  let html='<div class="lb-alle">'+wwNotitiesKnop("ww-board-"+id,rows)+'</div>';
+  let html='<div class="lb-alle">'+wwNotitiesKnop(hostId||("ww-board-"+id),rows)+'</div>';
   cats.forEach(cat=>{
     ["rx","scaled"].forEach(rx=>{
       const groep=rows.filter(r=>{
@@ -182,7 +182,7 @@ function wwBoardInner(id){
 }
 // Het leaderboard van één Showdown in een los venster, vanaf elke plek in de app (de bouwer bij
 // een klant gebruikt dit voor een ingevoegde Showdown). Zelfde regels, fist bumps en reacties
-// als op het Showdown-scherm: het venster heeft het id dat wwRefreshBoard ververst.
+// als op het Showdown-scherm; wwRefreshBoard ververst het venster mee.
 let WW_VENSTER=null;
 async function wwBordVenster(id){
   ensureWwModals();
@@ -195,11 +195,11 @@ async function wwBordVenster(id){
   WW_VENSTER=w;
   document.getElementById("wwbord-titel").textContent=(w.title||SHOWDOWN)+" · "+datumNL(w.workout_date);
   const body=document.getElementById("wwbord-body");
-  body.innerHTML='<div id="ww-board-'+esc(id)+'"><div class="cempty">Leaderboard laden…</div></div>';
+  body.innerHTML='<div class="cempty">Leaderboard laden…</div>';
   document.getElementById("wwbordmodal").classList.add("show");
   await wwLoadBoardFor(id);
   if(!WW_VENSTER||WW_VENSTER.id!==id)return; // intussen gesloten of een ander bord geopend
-  const el=document.getElementById("ww-board-"+id);if(el)el.innerHTML=wwBoardInner(id);
+  body.innerHTML=wwBoardInner(id,"wwbord-body");
 }
 function wwBordVensterDicht(){document.getElementById("wwbordmodal").classList.remove("show");document.getElementById("wwbord-body").innerHTML="";WW_VENSTER=null;}
 // Eén regel op een leaderboard (Showdown én blogprogramma's). De score staat vooraan;
@@ -267,6 +267,8 @@ async function wwRefreshBoard(wid){
   await wwLoadBoardFor(wid);
   const el=document.getElementById("ww-board-"+wid);
   if(el)el.innerHTML=wwBoardInner(wid);
+  // Staat dit bord ook open in het losse venster (bouwer bij een klant)? Dan dat ook verversen.
+  if(WW_VENSTER&&WW_VENSTER.id===wid){const b=document.getElementById("wwbord-body");if(b)b.innerHTML=wwBoardInner(wid,"wwbord-body");}
 }
 async function wwLike(resultId,liked){
   const wid=wwFindWid(resultId);
