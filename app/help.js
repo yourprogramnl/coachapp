@@ -155,7 +155,7 @@ const HELP_HOOFDSTUKKEN=[
     stappen:[
       {titel:"Gesprekken en groepen",
        img:"img/help/berichten-01-overzicht.png",
-       tekst:"Links al je gesprekken met de laatste regel eronder en een teller bij ongelezen berichten; klanten zonder berichten staan onderaan. Klik op een naam en het gesprek opent rechts, met het invoerveld onderaan (enter is versturen). Nieuwe berichten komen er live in. Met + Groepschat maak je een groep met meerdere leden, bijvoorbeeld voor een wedstrijdteam. Als coach zie je je eigen klanten; ben je eigenaar, dan zie je alle gesprekken en kun je op coach filteren."},
+       tekst:"Links al je gesprekken met de laatste regel eronder en een teller bij ongelezen berichten; klanten zonder berichten staan onderaan. Klik op een naam en het gesprek opent rechts, met het invoerveld onderaan (enter is versturen). Nieuwe berichten komen er live in. Wil je een gesprek later nog oppakken? Zet het met de drie puntjes in de lijst of met de knop boven het gesprek weer op ongelezen. Met + Groepschat maak je een groep met meerdere leden, bijvoorbeeld voor een wedstrijdteam. Als coach zie je je eigen klanten; ben je eigenaar, dan zie je alle gesprekken en kun je op coach filteren."},
     ],
   },
   {

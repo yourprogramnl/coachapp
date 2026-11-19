@@ -978,6 +978,68 @@ async function exOpslaan(){
   LIB.geladen=false;libModalDicht();toast(wasEdit?"Oefening bijgewerkt":"Oefening toegevoegd");
   await libLaad();libMeldWijziging();
 }
+// ---------- Nieuwe video via een geplakte YouTube-link (bouwer en template-popup) ----------
+// De YouTube-titel als voorstel voor de naam (YouTube's eigen oEmbed, geen sleutel nodig).
+const YT_TITEL={};
+async function ytTitel(yt){
+  if(!yt||yt.length!==11)return "";
+  if(yt in YT_TITEL)return YT_TITEL[yt];
+  try{
+    const stop=new AbortController(),klok=setTimeout(()=>stop.abort(),4000);
+    const r=await fetch("https://www.youtube.com/oembed?format=json&url="+encodeURIComponent("https://www.youtube.com/watch?v="+yt),{signal:stop.signal});
+    clearTimeout(klok);
+    const j=r.ok?await r.json():null;
+    return YT_TITEL[yt]=String((j&&j.title)||"").trim().slice(0,120);
+  }catch(e){return "";}
+}
+// Het naamveld vullen zodra de titel er is (alleen als de coach nog niets typte).
+function ytTitelVul(yt,inp){
+  if(!inp)return;
+  ytTitel(yt).then(titel=>{
+    if(!document.contains(inp))return;
+    inp.placeholder="Geef de video een naam";
+    if(titel&&!inp.value){inp.value=titel;if(document.activeElement===inp)inp.select();}
+  });
+}
+// Typen in het naamveld haalt een eerdere foutmelding weg.
+function ytNaamTyp(inp){const m=inp.parentNode.querySelector(".vzk-msg");if(m)m.textContent="";}
+// Het blokje "nieuwe video": miniatuur (klik = bekijken), naamveld en knop.
+function ytNieuwHtml(yt,klasse,opKey,opKlik){
+  return '<div class="yt-nieuw">'+
+    '<div class="yt-nieuw-kop"><img src="https://i.ytimg.com/vi/'+esc(yt)+'/mqdefault.jpg" alt="" title="Bekijk video" onclick="event.stopPropagation();ytSpeel(\''+esc(yt)+'\')"><span>Nieuwe video, nog niet in de bibliotheek</span></div>'+
+    '<label>Naam van de video</label>'+
+    '<input class="'+klasse+'" placeholder="Titel ophalen…" maxlength="120" onclick="event.stopPropagation()" onkeydown="'+opKey+'" oninput="ytNaamTyp(this)" autocomplete="off">'+
+    '<div class="vzk-msg"></div>'+
+    '<button class="btn sm" onclick="event.stopPropagation();'+opKlik+';return false">Toevoegen</button>'+
+    '<div class="sm muted">Komt ook meteen in de bibliotheek.</div></div>';
+}
+// De video met naam in de videobibliotheek zetten. Geeft {rij} terug,
+// {fout:"naam"} als die naam al een video heeft (anders pakt een zoeker op naam
+// straks de verkeerde), of {fout:"db"} als opslaan niet lukte.
+async function libVideoErbij(yt,naam){
+  if(!LIB.geladen){try{await libLaad();}catch(e){}}
+  if(!LIB.geladen)return{fout:"db"};
+  const al=LIB.oef.find(o=>o.youtube_id===yt);if(al)return{rij:al};
+  const n=naam.toLowerCase(),zelfde=LIB.oef.filter(o=>(o.naam||"").trim().toLowerCase()===n);
+  if(zelfde.some(o=>o.youtube_id||o.video_url))return{fout:"naam"};
+  let rij=null;
+  if(zelfde.length){
+    // De naam stond er al, maar zonder video: de video eraan hangen.
+    const{error}=await db.from("oefeningen").update({youtube_id:yt}).eq("id",zelfde[0].id);
+    if(error)return{fout:"db"};
+    zelfde[0].youtube_id=yt;rij=zelfde[0];
+  }else{
+    const{data,error}=await db.from("oefeningen").insert({naam,youtube_id:yt,video_url:"",tags:["eigen"],bron:"eigen"}).select("id,naam,youtube_id,video_url,tags,bron").single();
+    if(error||!data)return{fout:"db"};
+    rij=data;
+    const i=LIB.oef.findIndex(o=>(o.naam||"").localeCompare(naam,"nl",{sensitivity:"base"})>0);
+    LIB.oef.splice(i<0?LIB.oef.length:i,0,rij);
+  }
+  if(typeof GM!=="undefined")GM.indexVan=-1; // herkenning van oefeningen in tekst: index opnieuw opbouwen
+  // Het andere venster (bibliotheek of hoofdvenster) laten weten dat er iets bij is.
+  try{const k=(typeof inBiebVenster==="function"&&inBiebVenster())?BIEB.kanaal:(typeof biebKanaal==="function"?biebKanaal():null);if(k)k.postMessage({type:"lib"});}catch(e){}
+  return{rij};
+}
 async function oefVerwijder(){
   if(!LIB.editOef||!confirm("Deze oefening verwijderen?"))return;
   const{error}=await db.from("oefeningen").delete().eq("id",LIB.editOef);
@@ -1012,20 +1074,52 @@ function tplMediaRender(){
 // template-popup: typen = live suggesties, klik = toevoegen met de echte naam.
 function tplVidZoek(inp){
   const drop=document.getElementById("tpl-vdrop");if(!drop)return;
-  const v=inp.value.trim().toLowerCase();
-  if(!v||v.length<2||ytIdVan(inp.value)){drop.innerHTML="";return;}
+  const v=inp.value.trim().toLowerCase(),yt=ytIdVan(inp.value);
+  if(!yt)drop.dataset.yt="";
+  if(!v||(v.length<2&&!yt)){drop.innerHTML="";return;}
   if(!LIB.oef.length){
     if(!LIB.geladen&&!LIB.busy)libLaad().then(()=>tplVidZoek(inp));
     drop.innerHTML='<div class="sm muted" style="padding:6px 2px">Bibliotheek laden…</div>';return;
   }
+  const rij=o=>'<div onclick="tplVidKies('+o.id+')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#f6f7f9\'" onmouseout="this.style.background=\'\'">'+
+      '<div style="width:52px;height:32px;border-radius:6px;flex:none;background:#000 url(\'https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/mqdefault.jpg\') center/cover"></div>'+
+      '<div class="sm" style="flex:1">'+esc(o.naam||"Video")+'</div></div>';
+  const kader=inhoud=>'<div style="border:1px solid #e5e8ec;border-radius:10px;margin-top:6px;overflow-y:auto;max-height:264px">'+inhoud+'</div>';
+  if(yt&&yt.length!==11){drop.dataset.yt="";drop.innerHTML='<div class="sm muted" style="padding:6px 2px">Dit is nog geen hele YouTube-link. Plak de link zoals hij in de adresbalk staat.</div>';return;}
+  if(yt){
+    // Een YouTube-link. Staat hij al in de bibliotheek: die naam gebruiken.
+    // Anders een naam laten geven; bij toevoegen gaat hij meteen de bibliotheek in.
+    const al=LIB.oef.find(o=>o.youtube_id===yt);
+    if(al){drop.dataset.yt="";drop.innerHTML='<div class="sm muted" style="padding:6px 2px 0">Deze video staat al in de bibliotheek:</div>'+kader(rij(al));return;}
+    if(drop.dataset.yt===yt&&drop.querySelector(".tplv-naam"))return; // zelfde link: het naamveld laten staan
+    drop.dataset.yt=yt;
+    drop.innerHTML=ytNieuwHtml(yt,"tplv-naam","tplNaamKey(event,this)","tplVidNieuw()");
+    ytTitelVul(yt,drop.querySelector(".tplv-naam"));
+    return;
+  }
   // Alle treffers tonen in een scrolbare lijst (verzoek Stefan: "back" heeft
   // er veel meer dan 8); een zachte kap van 100 houdt het rap.
   const hits=oefZoek(v,LIB.oef.filter(o=>o.youtube_id)).slice(0,100);
-  drop.innerHTML=hits.length?'<div style="border:1px solid #e5e8ec;border-radius:10px;margin-top:6px;overflow-y:auto;max-height:264px">'+
-    hits.map(o=>'<div onclick="tplVidKies('+o.id+')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#f6f7f9\'" onmouseout="this.style.background=\'\'">'+
-      '<div style="width:52px;height:32px;border-radius:6px;flex:none;background:#000 url(\'https://i.ytimg.com/vi/'+esc(o.youtube_id)+'/mqdefault.jpg\') center/cover"></div>'+
-      '<div class="sm" style="flex:1">'+esc(o.naam||"Video")+'</div></div>').join("")+'</div>'
+  drop.innerHTML=hits.length?kader(hits.map(rij).join(""))
     :'<div class="sm muted" style="padding:6px 2px">Niets gevonden in de bibliotheek. Een YouTube-link plakken kan ook.</div>';
+}
+function tplNaamKey(ev,inp){if(ev.key==="Enter"){ev.preventDefault();tplVidNieuw();}}
+// Nieuwe video (geplakte link) met naam bij de template zetten én in de bibliotheek.
+async function tplVidNieuw(){
+  const drop=document.getElementById("tpl-vdrop");if(!drop||drop.dataset.bezig)return;
+  const inp=drop.querySelector(".tplv-naam"),msg=drop.querySelector(".vzk-msg"),yt=drop.dataset.yt;if(!inp||!yt)return;
+  const naam=inp.value.trim().replace(/\s+/g," ");
+  if(!naam){msg.textContent="Geef de video eerst een naam.";inp.focus();return;}
+  if((LIB.tplMedia||[]).some(m=>m&&m.youtube_id===yt)){toast("Deze video staat er al bij");return;}
+  drop.dataset.bezig="1";
+  const r=await libVideoErbij(yt,naam);
+  delete drop.dataset.bezig;
+  if(r.fout==="naam"){msg.textContent="Er staat al een oefening met deze naam in de bibliotheek. Kies een andere naam.";inp.focus();return;}
+  LIB.tplMedia=(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id);
+  LIB.tplMedia.push({youtube_id:yt,titel:r.rij?r.rij.naam:naam});
+  tplMediaRender();
+  toast(r.rij?"Video toegevoegd en in de bibliotheek gezet":"Video toegevoegd. In de bibliotheek zetten lukte niet.");
+  const ni=document.getElementById("tpl-vlink");if(ni)ni.focus();
 }
 function tplVidKies(oefId){
   const o=LIB.oef.find(x=>x.id===oefId);
@@ -1043,18 +1137,13 @@ function tplVidWeg(i){
 function tplVidKey(ev,inp){
   if(ev.key!=="Enter")return;
   ev.preventDefault();
-  const id=ytIdVan(inp.value);
-  if(!id){
-    // Geen link: Enter pakt de bovenste treffer uit de bibliotheek-zoeker.
-    const eerste=document.querySelector("#tpl-vdrop [onclick^='tplVidKies']");
-    if(eerste){eerste.click();return;}
-    toast("Zoek op naam in de bibliotheek, of plak een YouTube-link.");return;
-  }
-  LIB.tplMedia=(LIB.tplMedia||[]).filter(m=>m&&m.youtube_id);
-  if(LIB.tplMedia.some(m=>m.youtube_id===id)){toast("Deze video staat er al bij");return;}
-  LIB.tplMedia.push({youtube_id:id,titel:"Eigen video"});
-  tplMediaRender();
-  const ni=document.getElementById("tpl-vlink");if(ni)ni.focus();
+  // Nieuwe link: naar het naamveld (Enter daar voegt toe).
+  const naam=document.querySelector("#tpl-vdrop .tplv-naam");
+  if(ytIdVan(inp.value)&&naam){naam.focus();naam.select();return;}
+  // Anders pakt Enter de bovenste treffer (zoeker, of de video die al in de bibliotheek staat).
+  const eerste=document.querySelector("#tpl-vdrop [onclick^='tplVidKies']");
+  if(eerste){eerste.click();return;}
+  toast("Zoek op naam in de bibliotheek, of plak een YouTube-link.");
 }
 function tplVidSpeel(el){
   const rij=el.closest(".tplvid");const yt=rij&&rij.getAttribute("data-yt");if(!yt)return;
