@@ -22,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.5 (lezen en concepten schrijven)";
+  const VERSIE="2.6 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=8,MAX_DAGEN_VOORUIT=120;
@@ -64,7 +64,7 @@ const ClaudeApi=(()=>{
   // per ongeluk doorheen, ook niet bij een beheerder.
   async function atleetOphalen(id){
     if(!isUuid(id))return {fout:"Geef het id van de atleet (uit ClaudeApi.atleten), geen naam."};
-    const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived,company_id,role,gender,birth_date,height_cm,weight_kg,profile_note").eq("id",id).maybeSingle();
+    const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived,company_id,role,gender,birth_date,height_cm,weight_kg,profile_note,effort_rating").eq("id",id).maybeSingle();
     if(error)return {fout:error.message};
     if(!data)return {fout:"Geen atleet gevonden met dit id, of je mag hem niet zien."};
     if(!isAtleet(data)||data.company_id!==ME.profile.company_id)return {fout:"Dit id hoort niet bij een atleet van jouw bedrijf."};
@@ -116,7 +116,7 @@ const ClaudeApi=(()=>{
   const BLOK_SCHRIJF=["soort","naam","voorschrift","omschrijving","coachingtips","scoretype","kleur","tijdslimiet_sec","superset_met_vorige","kaarttitel","videos"];
   const BLOK_NEGEER=["id","letter","schema","resultaat","videos_van_atleet","demo_videos","demo_video_ids","videos_uitgezet","uit_weekworkout"];
   const W_SCHRIJF=["datum","titel","rustdag","notitie_coach","warming_up","cooldown","videos","blokken"];
-  const W_NEGEER=["id","dag","status","rpe","minuten","reacties","uit_weekworkout","demo_videos_warming_up","demo_videos_cooldown"];
+  const W_NEGEER=["id","dag","status","rpe","minuten","rpe_ingevuld_op","reacties","wacht_op_reactie","uit_weekworkout","demo_videos_warming_up","demo_videos_cooldown"];
 
   // ---------- Invoer controleren (er wordt pas geschreven als alles klopt) ----------
   function tekstVeld(o,k,max,waar,fouten){
@@ -505,6 +505,8 @@ const ClaudeApi=(()=>{
           "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd. Staat er verouderd:true, dan is er een nieuwere versie live: voer location.reload() uit en begin opnieuw. Naar hetzelfde adres navigeren herlaadt de pagina niet.",
           "Zoek een atleet altijd eerst op met ClaudeApi.atleten(...) en gebruik daarna zijn id. Elk antwoord noemt de atleet bij naam: controleer die naam.",
           "Een leeg veld betekent: niet ingevuld. Reken of gok het niet zelf.",
+          "RPE en trainingstijd: de app vraagt daar alleen om als de coach dat voor die atleet heeft aangezet. week() zegt bovenaan bij rpe_vraag of dat aan of uit staat, en atleten() toont het per atleet. Staat het uit, dan komt er geen RPE binnen en moet je dat aan de coach melden.",
+          "De chat lees je met ClaudeApi.berichten. Je kunt geen berichten versturen en niets als gelezen markeren; dat doet de coach zelf.",
           "Elk schrijf-commando geeft terug wat er nu staat, in dezelfde vorm als ClaudeApi.week. Lees dat na, vooral demo_videos: de herkenning zit er soms naast.",
           "Demo-video's: een nieuw blok krijgt ze vanzelf, een gekopieerd blok houdt de video's die het had. Mist er een, gebruik dan videos:\"aanvullen\" (laat staan wat er staat en voegt herkende oefeningen toe). Staat er bij een blok videos_uitgezet, dan hebben coaches die video eerder bewust weggehaald: kies hem alleen als de coach het vraagt, met videos:[id] uit videoZoek. Bestaat er voor een beweging geen video in de bibliotheek (bijvoorbeeld Echo Bike), dan kan er ook niets gekozen worden: meld dat aan de coach.",
           "Staat er ok:false, dan is er niets geschreven, tenzij de fout zelf iets anders zegt.",
@@ -513,8 +515,10 @@ const ClaudeApi=(()=>{
         lezen:{
           "ClaudeApi.ik()":"Wie is er ingelogd, welke rol, welke datum is het vandaag.",
           "ClaudeApi.atleten(zoek, alle)":"Lijst van atleten met id. zoek = deel van de naam (optioneel). Standaard alleen je eigen klanten; alle=true toont iedereen die je mag zien.",
-          "ClaudeApi.week(atleetId, datum, weken)":"Het 1-op-1 programma per week, met blokken, resultaten per blok, RPE en reacties. datum = een dag in de laatste week (JJJJ-MM-DD), weken = hoeveel weken terug inclusief die week (1 t/m 8, standaard 1). Concepten staan erbij met status concept.",
+          "ClaudeApi.week(atleetId, datum, weken)":"Het 1-op-1 programma per week, met blokken, resultaten per blok, RPE met trainingstijd en het moment van invullen, en de reacties van atleet en coach (met bij_blok als de reactie bij één blok hoort). datum = een dag in de laatste week (JJJJ-MM-DD), weken = hoeveel weken terug inclusief die week (1 t/m 8, standaard 1). Concepten staan erbij met status concept.",
           "ClaudeApi.notities(atleetId)":"Profiel, doelen, coachnotities, dagnotities en vastgelegde consults.",
+          "ClaudeApi.berichten(atleetId, aantal)":"De chat tussen de atleet en zijn coach in de app, oudste eerst. aantal = hoeveel van de laatste berichten (1 t/m 200, standaard 30). Met wacht_op_antwoord als het laatste bericht van de atleet is.",
+          "ClaudeApi.berichtenOpen(alle, dagen)":"Bij welke atleten is het laatste chatbericht van de atleet zelf, dus wacht er iets op antwoord. Standaard je eigen klanten en de laatste 14 dagen (dagen = 1 t/m 60).",
           "ClaudeApi.metingen(atleetId, naam)":"Laatste waarde per meting (krachtwaarden, benchmarks). Met naam erbij: de hele geschiedenis van die ene meting.",
           "ClaudeApi.bibliotheek(zoek, soort)":"Templates uit de bibliotheek, met id en de demo-video's die erbij horen. soort = warmup, cooldown of other (optioneel). Plaatsen doe je met ClaudeApi.voegTemplateIn.",
           "ClaudeApi.videoZoek(zoek)":"Oefeningen met een demo-video, met id. Gebruik die id's in videos:[...] als de automatische keuze niet klopt.",
@@ -586,11 +590,11 @@ const ClaudeApi=(()=>{
     }),
 
     atleten:veilig(async(zoek,alle)=>{
-      const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived,role").eq("company_id",ME.profile.company_id).in("role",["lid","coach","eigenaar","platform_admin"]).order("first_name");
+      const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,membership_type,archived,role,effort_rating").eq("company_id",ME.profile.company_id).in("role",["lid","coach","eigenaar","platform_admin"]).order("first_name");
       if(error)return fout(error.message);
       const z=String(zoek||"").trim().toLowerCase();
       const lijst=(data||[]).filter(isAtleet).filter(p=>!p.archived).filter(p=>alle||p.coach_id===ME.user.id).filter(p=>!z||naam(p).toLowerCase().includes(z))
-        .map(p=>schoon({id:p.id,naam:naam(p),soort:p.membership_type||"",eigen_klant:p.coach_id===ME.user.id,is_zelf_coach:p.role!=="lid"?true:null}));
+        .map(p=>schoon({id:p.id,naam:naam(p),soort:p.membership_type||(p.coach_id?"one_on_one":""),eigen_klant:p.coach_id===ME.user.id,is_zelf_coach:p.role!=="lid"?true:null,rpe_vraag:p.effort_rating?"aan":"uit"}));
       return {ok:true,aantal:lijst.length,filter:(z?"naam bevat \""+z+"\"":"geen")+(alle?", alle atleten":", alleen eigen klanten"),atleten:lijst};
     }),
 
@@ -609,8 +613,8 @@ const ClaudeApi=(()=>{
       if(wids.length){
         [res,eff,com,med]=await Promise.all([
           haalIn("results","block_id,workout_id,status,score_text,time_seconds,load_kg,reps,rounds,rx,note,sets,splits,score_value,capped,timer,created_at,updated_at","workout_id",wids,q=>q.eq("athlete_id",a.p.id)),
-          haalIn("workout_effort","workout_id,rpe,minutes","workout_id",wids,q=>q.eq("athlete_id",a.p.id)),
-          haalIn("workout_comments","workout_id,author_id,body,created_at","workout_id",wids,q=>q.order("created_at")),
+          haalIn("workout_effort","workout_id,rpe,minutes,created_at,updated_at","workout_id",wids,q=>q.eq("athlete_id",a.p.id)),
+          haalIn("workout_comments","workout_id,author_id,body,created_at,block_id","workout_id",wids,q=>q.order("created_at")),
           haalIn("result_media","block_id,workout_id","workout_id",wids)
         ]);
       }
@@ -623,11 +627,17 @@ const ClaudeApi=(()=>{
       (ws||[]).forEach(w=>{
         const e=effPerW[w.id];
         const rij=workoutUit(w,b=>({videos_van_atleet:vidPerBlok[b.id]||null,resultaat:resultaatUit(resPerBlok[b.id],b)}),
-          {rpe:e?e.rpe:null,minuten:e?e.minutes:null,
-           reacties:(comPerW[w.id]||[]).map(c=>({van:c.author_id===a.p.id?"atleet":"coach",op:tijd(c.created_at),tekst:c.body}))});
+          {rpe:e?e.rpe:null,minuten:e?e.minutes:null,rpe_ingevuld_op:e?tijd(e.updated_at||e.created_at):null,
+           reacties:(comPerW[w.id]||[]).map(c=>{
+             // Een reactie kan bij één blok horen (bijvoorbeeld bij een gelogd resultaat).
+             const b=c.block_id?(w.blocks||[]).find(x=>x.id===c.block_id):null;
+             return schoon({van:c.author_id===a.p.id?"atleet":"coach",op:tijd(c.created_at),bij_blok:b?((b.label||"")+" "+(b.exercise||"")).trim():null,tekst:c.body});
+           }),
+           wacht_op_reactie:((comPerW[w.id]||[]).length&&comPerW[w.id][comPerW[w.id].length-1].author_id===a.p.id)?true:null});
         const wk=perWeek[maandagVan(w.workout_date)];if(wk)wk.workouts.push(rij);
       });
       return {ok:true,atleet:{id:a.p.id,naam:naam(a.p)},periode:{van,tot,weken},
+        rpe_vraag:a.p.effort_rating?"aan: de app vraagt na elke training om RPE en trainingstijd; die staan per workout in rpe en minuten":"uit: de app vraagt deze atleet niet om RPE en trainingstijd, dus rpe en minuten blijven leeg. De coach zet dit aan in het profiel van de klant.",
         let_op:"Alleen 1-op-1 workouts van deze atleet. Blog- en groepsprogramma's die hij daarnaast volgt staan hier niet in.",
         weken:Object.values(perWeek)};
     }),
@@ -652,6 +662,40 @@ const ClaudeApi=(()=>{
         dagnotities:(dq.data||[]).map(n=>({datum:n.note_date,tekst:n.body})),
         consults:(cq.data||[]).map(c=>({datum:c.consult_date,tekst:c.notes})),
         niet_gelukt:mislukt});
+    }),
+
+    // De chat lezen. Er is geen commando om een bericht te sturen of als gelezen te markeren.
+    berichten:veilig(async(atleetId,aantal)=>{
+      const a=await atleetOphalen(atleetId);if(a.fout)return fout(a.fout);
+      aantal=leeg(aantal)?30:Number(aantal);
+      if(!Number.isInteger(aantal)||aantal<1||aantal>200)return fout("aantal moet een heel getal van 1 t/m 200 zijn.");
+      const{data,error}=await db.from("messages").select("id,sender_id,body,read_at,created_at,media").eq("athlete_id",a.p.id).order("created_at",{ascending:false}).limit(aantal);
+      if(error)return fout(error.message);
+      const rijen=(data||[]).slice().reverse();
+      const van=m=>m.sender_id===a.p.id?"atleet":"coach";
+      const laatste=rijen[rijen.length-1];
+      return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},aantal:rijen.length,
+        wacht_op_antwoord:laatste?van(laatste)==="atleet":false,laatste_bericht_op:laatste?tijd(laatste.created_at):null,
+        let_op:rijen.length===aantal?"Dit zijn alleen de laatste "+aantal+" berichten. Vraag er meer op als je verder terug wilt.":null,
+        berichten:rijen.map(m=>schoon({van:van(m),op:tijd(m.created_at),tekst:m.body,bijlage:(Array.isArray(m.media)?m.media.length:m.media)?true:null,gelezen:m.read_at?true:null}))});
+    }),
+
+    berichtenOpen:veilig(async(alle,dagen)=>{
+      dagen=leeg(dagen)?14:Number(dagen);
+      if(!Number.isInteger(dagen)||dagen<1||dagen>60)return fout("dagen moet een heel getal van 1 t/m 60 zijn.");
+      const{data,error}=await db.from("profiles").select("id,first_name,last_name,coach_id,archived,role").eq("company_id",ME.profile.company_id).in("role",["lid","coach","eigenaar","platform_admin"]);
+      if(error)return fout(error.message);
+      const klanten=(data||[]).filter(isAtleet).filter(p=>!p.archived).filter(p=>alle||p.coach_id===ME.user.id);
+      const perId={};klanten.forEach(p=>{perId[p.id]=p;});
+      const sinds=new Date(Date.now()-dagen*86400000).toISOString();
+      const laatste={};
+      for(const deel of stukken(klanten.map(p=>p.id),15)){
+        const rijen=await haalAlles(()=>db.from("messages").select("id,athlete_id,sender_id,body,created_at").in("athlete_id",deel).gte("created_at",sinds).order("created_at"));
+        rijen.forEach(m=>{const l=laatste[m.athlete_id];if(!l||m.created_at>l.created_at)laatste[m.athlete_id]=m;});
+      }
+      const open=Object.values(laatste).filter(m=>m.sender_id===m.athlete_id).sort((x,y)=>x.created_at<y.created_at?-1:1)
+        .map(m=>({atleet:naam(perId[m.athlete_id]),id:m.athlete_id,op:tijd(m.created_at),begin:String(m.body||"").slice(0,160)}));
+      return {ok:true,periode_dagen:dagen,filter:alle?"alle atleten":"alleen eigen klanten",atleten_met_chat:Object.keys(laatste).length,wacht_op_antwoord:open.length,open};
     }),
 
     metingen:veilig(async(atleetId,metingNaam)=>{
