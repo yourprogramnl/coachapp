@@ -1828,3 +1828,10 @@ body.bervenster .chatklant{max-height:none}
 .sdstrip-naam{font-weight:800;color:#5b4bd1}
 .sdstrip-sc{display:inline-flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin-left:auto}
 .sdstrip-sc input{width:15px;height:15px;margin:0;accent-color:#8b7cf6}
+/* Leaderboard-workout (19 nov 2026): knop "Leaderboard aan" op een gewoon blok in de klant-bouwer */
+#calwrap .ib2:not(.pe-ib) .sdstrip.sdstrip-uit{background:none;border:none;padding:0;margin:0 0 2px;justify-content:flex-end}
+.bordaan,.borduit{background:none;border:none;font-family:inherit;font-size:11.5px;font-weight:700;color:#8a919c;cursor:pointer;padding:2px 4px;border-radius:6px}
+.bordaan:hover,.borduit:hover{color:#5b4bd1;background:#eeebfd}
+.bordaan:disabled{opacity:.5;cursor:default}
+.sdstrip .borduit{order:9;margin-left:auto}
+.sdstrip .borduit+.sdstrip-sc{margin-left:0}

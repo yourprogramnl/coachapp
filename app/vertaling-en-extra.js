@@ -984,3 +984,21 @@ i18nLaad({
   "Zet dit aan als je de workout voor deze klant hebt aangepast, bijvoorbeeld ring rows in plaats van pull-ups. De score staat dan onder Scaled op het gedeelde leaderboard.": "Turn this on if you adapted the workout for this client, for example ring rows instead of pull-ups. The score then appears under Scaled on the shared leaderboard.",
   "Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Een klant met het vinkje Scaled-versie staat onder Scaled.": "One shared leaderboard for 1-on-1 clients and free blog members. A client with Scaled version ticked appears under Scaled.",
 });
+// Leaderboard-workouts voor 1-op-1 klanten (19 nov 2026)
+i18nLaad({
+  "Leaderboard aan": "Leaderboard on",
+  "Leaderboard uit": "Leaderboard off",
+  "Leaderboard-workout · gedeeld leaderboard": "Leaderboard workout · shared leaderboard",
+  "Zet een gedeeld leaderboard aan op dit blok. Deze klant en iedereen bij wie je deze workout daarna zet zien elkaars score.": "Turn on a shared leaderboard for this block. This client and everyone you give this workout to afterwards see each other's score.",
+  "Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan.": "Takes this block off the leaderboard for this client. Scores already on the board stay.",
+  "Geef het blok eerst een naam": "Give the block a name first",
+  "Een leaderboard kan niet op een blok in een superset. Haal het blok eerst uit de superset.": "A leaderboard can't be on a block in a superset. Take the block out of the superset first.",
+  "Dit blok is aan een lift gekoppeld; daar is de PR-lijst voor. Een leaderboard zet je op een workout met één score.": "This block is linked to a lift; the PR list covers that. Put a leaderboard on a workout with one score.",
+  "Vul eerst de workout in; die tekst hoort bij het leaderboard": "Fill in the workout first; that text belongs to the leaderboard",
+  "Kies eerst wat de sporter invult (tijd, rondes + reps…). Zonder score is er geen leaderboard.": "First choose what the athlete enters (time, rounds + reps…). Without a score there is no leaderboard.",
+  "Leaderboard aanzetten mislukt": "Turning on the leaderboard failed",
+  "Leaderboard staat aan. Sla de workout op; zet hem bij andere klanten via kopiëren of het bibliotheek-venster.": "Leaderboard is on. Save the workout; give it to other clients by copying or through the library window.",
+  "Gedeeld leaderboard van de klanten bij wie deze workout in de kalender staat. Een klant met het vinkje Scaled-versie staat onder Scaled.": "Shared leaderboard of the clients who have this workout in their calendar. A client with Scaled version ticked appears under Scaled.",
+  "Nog geen leaderboard-workouts. Zet bij een klant op een blok \"Leaderboard aan\"; daarna staat hij hier en sleep je hem naar andere klanten.": "No leaderboard workouts yet. Turn on \"Leaderboard on\" for a block at a client; it then appears here and you drag it to other clients.",
+  "leaderboard-workout · gedeeld leaderboard voor 1-op-1": "leaderboard workout · shared leaderboard for 1-on-1",
+});

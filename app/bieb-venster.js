@@ -11,7 +11,7 @@ const BIEB_MIME="application/x-yp-item";
 let BIEB={tab:"workout",zoek:"",kleur:"",sub:"",subTekst:"",bmCat:"",kolommen:"auto",win:null};
 // Geen tab Oefeningen (video's) hier: die blijven in de gewone bibliotheek (keuze Stefan, 8 okt).
 // Template week en Template dag direct na Workouts; de weekworkouts heten YP Showdown (verzoek Stefan, 18 nov).
-const BIEB_TABS=[["workout","Workouts"],["tplweek","Template week"],["tpldag","Template dag"],["warmup","Warm-ups"],["cooldown","Cooldowns"],["week","YP Showdown"],["benchmarks","Benchmarks"]];
+const BIEB_TABS=[["workout","Workouts"],["tplweek","Template week"],["tpldag","Template dag"],["warmup","Warm-ups"],["cooldown","Cooldowns"],["week","YP Showdown"],["bord","Leaderboard"],["benchmarks","Benchmarks"]];
 // Weekworkouts (de blogworkouts met gedeeld leaderboard) staan niet in LIB;
 // die halen we hier zelf op, nieuwste eerst.
 BIEB.week=null;
@@ -19,6 +19,14 @@ async function biebWeekLaad(){
   if(BIEB.week||!ME.profile.company_id){BIEB.week=BIEB.week||[];return;}
   const{data}=await db.from("workouts").select("*, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","blog").is("blog_program_id",null).order("workout_date",{ascending:false}).limit(150);
   BIEB.week=data||[];
+}
+// Leaderboard-workouts (audience 'bord'): workouts met een gedeeld leaderboard voor 1-op-1 klanten.
+// Elke keer vers ophalen als het tabblad open gaat: ze worden in het hoofdvenster aangemaakt.
+BIEB.bord=null;
+async function biebBordLaad(){
+  if(!ME.profile.company_id){BIEB.bord=[];return;}
+  const{data}=await db.from("workouts").select("*, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","bord").order("created_at",{ascending:false}).limit(300);
+  BIEB.bord=data||[];
 }
 // Tekst van een weekworkout zoals hij in een blok komt: blokken met letter, plus warming-up/cooldown.
 function biebWeekTekst(w){
@@ -193,7 +201,8 @@ function biebTabsRender(){
   const h=document.getElementById("bieb-tabs");if(!h)return;
   h.innerHTML=BIEB_TABS.map(([k,n])=>'<button class="'+(BIEB.tab===k?"on":"")+'" onclick="biebTab(\''+k+'\')">'+n+'</button>').join("");
 }
-function biebTab(k){BIEB.tab=k;BIEB.kleur="";BIEB.sub="";BIEB.subTekst="";BIEB.bmCat="";biebTabsRender();biebModeZet();biebRender();}
+function biebTab(k){BIEB.tab=k;BIEB.kleur="";BIEB.sub="";BIEB.subTekst="";BIEB.bmCat="";biebTabsRender();biebModeZet();biebRender();
+  if(k==="bord")biebBordLaad().then(()=>{if(BIEB.tab==="bord")biebRender();});}
 function biebZoek(v){BIEB.zoek=(v||"").toLowerCase().trim();biebRender(true);}
 function biebKleur(k){BIEB.kleur=BIEB.kleur===k?"":k;BIEB.sub="";BIEB.subTekst="";biebRender();}
 function biebSub(k){BIEB.sub=BIEB.sub===k?"":k;biebRender();}
@@ -211,7 +220,7 @@ const biebBevat=(o,v,velden)=>!v||velden.some(f=>String(o[f]||(Array.isArray(o[f
 // Filterregel(s) onder de tabs: kleuren + zoekwoorden (templates) of categorieën (benchmarks).
 function biebFiltersRender(){
   const h=document.getElementById("bieb-filters");if(!h)return;
-  if(BIEB.tab==="oef"||BIEB.tab==="week"||biebIsProg()){h.innerHTML="";h.style.display="none";return;}
+  if(BIEB.tab==="oef"||BIEB.tab==="week"||BIEB.tab==="bord"||biebIsProg()){h.innerHTML="";h.style.display="none";return;}
   h.style.display="flex";
   if(BIEB.tab==="benchmarks"){
     h.innerHTML='<div class="rij"><span class="legchip'+(BIEB.bmCat===""?" aan":"")+'" onclick="biebBmCat(\'\')">Alles</span>'+
@@ -249,6 +258,12 @@ function biebRender(behoudFilters){
     totaal=hits.length;
     kaarten=hits.map(w=>biebKaartWeek(w));
     if(!hits.length&&!v)hint='<div class="cempty">Nog geen Showdowns. Maak ze aan onder YP Showdown in het hoofdvenster.</div>';
+  }else if(BIEB.tab==="bord"){
+    const hits=(BIEB.bord||[]).filter(w=>!v||(w.title||"").toLowerCase().includes(v)||biebWeekTekst(w).toLowerCase().includes(v));
+    totaal=hits.length;
+    kaarten=hits.map(w=>biebKaartWeek(w,true));
+    if(BIEB.bord===null)hint='<div class="cempty">Laden…</div>';
+    else if(!hits.length&&!v)hint='<div class="cempty">Nog geen leaderboard-workouts. Zet bij een klant op een blok "Leaderboard aan"; daarna staat hij hier en sleep je hem naar andere klanten.</div>';
   }else if(biebIsProg()){
     const u=biebProgKaarten(v);totaal=u.totaal;kaarten=u.kaarten;hint=u.hint;
   }else if(BIEB.tab==="benchmarks"){
@@ -262,8 +277,8 @@ function biebRender(behoudFilters){
     totaal=hits.length;
     kaarten=hits.map(o=>biebKaartItem(o));
   }
-  if(cnt)cnt.textContent=totaal+(biebIsProg()?(totaal===1?" template":" templates"):BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="week"?(totaal===1?" Showdown":" Showdowns"):(BIEB.tab==="workout"?" workouts":" templates"))));
-  g.innerHTML=hint+(kaarten.join("")||'<div class="cempty">Niets gevonden.</div>');
+  if(cnt)cnt.textContent=totaal+(biebIsProg()?(totaal===1?" template":" templates"):BIEB.tab==="oef"?" oefeningen":(BIEB.tab==="benchmarks"?" benchmarks":(BIEB.tab==="bord"?(totaal===1?" leaderboard-workout":" leaderboard-workouts"):BIEB.tab==="week"?(totaal===1?" Showdown":" Showdowns"):(BIEB.tab==="workout"?" workouts":" templates"))));
+  g.innerHTML=hint+(kaarten.join("")||(hint?"":'<div class="cempty">Niets gevonden.</div>'));
 }
 // menu=true: een ⋮-knop voor bewerken (zie biebMenu). De knop is zelf "draggable"
 // met een geannuleerde dragstart, zodat slepen vanaf de knop nooit de kaart meeneemt.
@@ -303,11 +318,12 @@ function biebKaartBm(b){
   const info=[BM_CATNAAM[b.categorie]||b.categorie,b.format,b.time_cap?"cap "+b.time_cap:null,rx].filter(Boolean).join(" · ");
   return biebKaart("benchmark",b.id,TPLKLEUR.purple,esc(b.naam)+(b.badge?' <span class="cpill" style="background:#eef1f4;color:#5d6570;text-transform:lowercase">'+esc(b.badge)+'</span>':''),esc(info),b.tekst||"",null,null,b.categorie==="custom");
 }
-function biebKaartWeek(w){
+function biebKaartWeek(w,bord){
   const d=w.workout_date?new Date(w.workout_date+"T12:00:00"):null;
   const datum=d?d.getDate()+" "+MAANDKORT[d.getMonth()]+" "+d.getFullYear():"";
   const vids=(w.blocks||[]).reduce((n,b)=>n+((b.media||[]).filter(m=>m&&m.youtube_id).length),0);
   const tekst=[w.warmup?"Warming-up\n"+w.warmup:null,biebWeekTekst(w),w.cooldown?"Cooldown\n"+w.cooldown:null].filter(Boolean).join("\n\n");
+  if(bord)return biebKaart("weekworkout",w.id,TPLKLEUR.purple,esc(w.title||"Leaderboard-workout"),esc("leaderboard-workout · gedeeld leaderboard voor 1-op-1")+(vids?" · 🎥 "+vids:""),tekst);
   return biebKaart("weekworkout",w.id,TPLKLEUR.blue,esc(w.title||"Weekworkout"),esc("weekworkout · gedeeld leaderboard · "+datum)+(vids?" · 🎥 "+vids:""),tekst);
 }
 function biebKaartOef(o){
@@ -325,11 +341,11 @@ function biebPayload(soort,id){
   if(soort==="benchmark"){const b=LIB.bm.find(x=>String(x.id)===String(id));if(!b)return null;
     const regels=[b.format,b.time_cap?"Time cap: "+b.time_cap:null,b.rx_men?("Rx: "+(b.rx_men===b.rx_women?b.rx_men:b.rx_men+" / "+b.rx_women)):null].filter(Boolean);
     return {soort,id:b.id,naam:b.naam,tekst:[(b.tekst||"").trim(),regels.join("\n")].filter(Boolean).join("\n\n"),kleur:"purple"};}
-  if(soort==="weekworkout"){const w=(BIEB.week||[]).find(x=>String(x.id)===String(id));if(!w)return null;
+  if(soort==="weekworkout"){const w=(BIEB.week||[]).find(x=>String(x.id)===String(id))||(BIEB.bord||[]).find(x=>String(x.id)===String(id));if(!w)return null;
     const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     // Alles mee wat het hoofdvenster nodig heeft: als los blok (gedeeld leaderboard
     // via source_blog_workout_id) óf als volledige eigen kopie op een lege dag.
-    return {soort,id:w.id,naam:w.title||"Weekworkout",tekst:biebWeekTekst(w),kleur:"blue",score_type:(blocks[0]&&blocks[0].score_type)||"text",
+    return {soort,id:w.id,naam:w.title||"Weekworkout",tekst:biebWeekTekst(w),kleur:w.audience==="bord"?"purple":"blue",score_type:(blocks[0]&&blocks[0].score_type)||"text",
       media:blocks.flatMap(b=>(b.media||[]).filter(m=>m&&m.youtube_id)),
       warmup:w.warmup||null,cooldown:w.cooldown||null,warmup_oefening_id:w.warmup_oefening_id||null,cooldown_oefening_id:w.cooldown_oefening_id||null,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
       blocks:blocks.map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}

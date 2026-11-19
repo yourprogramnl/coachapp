@@ -163,6 +163,7 @@ function wwCmp(st){
 function wwBoardInner(id,hostId){
   const w=WW.list.find(x=>x.id===id)||(WW_VENSTER&&WW_VENSTER.id===id?WW_VENSTER:null),rows=WW.boards[id]||[];
   if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
+  if(!w)return "";
   const st=(wwMainBlock(w)||{}).score_type||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
   let html='<div class="lb-alle">'+wwNotitiesKnop(hostId||("ww-board-"+id),rows)+'</div>';
@@ -193,7 +194,9 @@ async function wwBordVenster(id){
     w=data;
   }
   WW_VENSTER=w;
-  document.getElementById("wwbord-titel").textContent=(w.title||SHOWDOWN)+" · "+datumNL(w.workout_date);
+  const bord=w.audience==="bord";
+  document.getElementById("wwbord-titel").textContent=bord?(w.title||"Leaderboard-workout"):(w.title||SHOWDOWN)+" · "+datumNL(w.workout_date);
+  document.getElementById("wwbord-hint").textContent=bord?"Gedeeld leaderboard van de klanten bij wie deze workout in de kalender staat. Een klant met het vinkje Scaled-versie staat onder Scaled.":"Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Een klant met het vinkje Scaled-versie staat onder Scaled.";
   const body=document.getElementById("wwbord-body");
   body.innerHTML='<div class="cempty">Leaderboard laden…</div>';
   document.getElementById("wwbordmodal").classList.add("show");
@@ -506,7 +509,7 @@ function ensureWwModals(){
       '<div class="msg" id="wwkies-msg"></div></div></div>'+
     '<div class="lmodal" id="wwbordmodal" style="z-index:396"><div class="box" style="width:680px;max-width:96vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0" id="wwbord-titel">Leaderboard</h3><span onclick="wwBordVensterDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
-      '<div class="sm muted" style="margin-bottom:8px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Een klant met het vinkje Scaled-versie staat onder Scaled.</div>'+
+      '<div class="sm muted" id="wwbord-hint" style="margin-bottom:8px"></div>'+
       '<div id="wwbord-body"></div></div></div>'+
     '<div class="lmodal" id="wwcommodal" style="z-index:398"><div class="box" style="width:480px;max-width:94vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0" id="wwcom-titel">Reacties</h3><span onclick="wwComDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
