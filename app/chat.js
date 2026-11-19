@@ -139,6 +139,7 @@ async function openChatPop(){
   const p=coachClients.find(x=>x.id===calClient)||{};
   pop=document.createElement("div");pop.id="chatpop";pop.className="chatpop show";
   pop.innerHTML='<div class="ch"><div class="cavc" style="width:24px;height:24px;font-size:9px;'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><b>'+naamVan(p)+'</b>'+
+    '<span class="chlees" id="chat-ongelezen" style="display:none" title="Markeer als ongelezen" onclick="chatZetOngelezen()">Ongelezen</span>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
     '<div class="msgs2" id="chat-msgs"><div class="sm muted" style="text-align:center;padding:14px">Laden…</div></div>'+
     '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)"></textarea><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'pop\')">⏱</button></span><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
@@ -176,6 +177,30 @@ async function chatLaad(){
     await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",chatAthlete).neq("sender_id",ME.user.id).is("read_at",null);
     if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
   }catch(e){}
+  chatOngelezenKnop((data||[]).some(m=>m.sender_id===chatAthlete));
+}
+// Knop "Ongelezen" in de kop van de popup: alleen voor de eigen coach van het
+// lid (de database staat het anderen niet toe) en als het lid iets gestuurd heeft.
+function chatOngelezenKnop(heeftBericht){
+  const k=document.getElementById("chat-ongelezen");if(!k)return;
+  const p=(typeof coachClients!=="undefined"&&coachClients||[]).find(x=>x.id===chatAthlete);
+  k.style.display=(heeftBericht&&p&&p.coach_id===ME.user.id&&chatAthlete!==ME.user.id)?"":"none";
+}
+// Het gesprek weer op ongelezen zetten, zodat je het later nog oppakt: het
+// laatste bericht van het lid krijgt een lege read_at (zelfde als op Berichten
+// en in de sporter-app). De popup gaat dicht; opnieuw openen = weer gelezen.
+async function chatZetOngelezen(){
+  const a=chatAthlete;if(!a)return;
+  const{data:laatste}=await db.from("messages").select("id").eq("athlete_id",a).eq("sender_id",a).order("created_at",{ascending:false}).limit(1);
+  const m=(laatste||[])[0];if(!m)return;
+  const{data,error}=await db.from("messages").update({read_at:null}).eq("id",m.id).select("id");
+  if(error||!(data&&data.length)){toast("Op ongelezen zetten is niet gelukt");return;}
+  chatSluitKanaal();
+  const pop=document.getElementById("chatpop");if(pop)pop.remove();
+  chatAthlete=null;
+  if(typeof BER!=="undefined")BER.msgs.forEach(x=>{if(x.id===m.id)x.read_at=null;});
+  if(typeof telMsgBadge==="function")telMsgBadge(); // bolletje in de bovenbalk telt meteen weer mee
+  toast("Gesprek staat weer op ongelezen");
 }
 function chatBubHtml(m){
   const mij=m.sender_id===ME.user.id;

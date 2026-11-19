@@ -72,7 +72,7 @@ function berRender(){
     '<div class="chatwrap">'+
       '<div class="chatlist"><div class="clh">Gesprekken</div>'+
         '<div style="padding:10px 12px;border-bottom:1px solid #f0f1f3"><input class="lid-in" style="width:100%" placeholder="Zoek een klant…" value="'+esc(BER.zoek)+'" oninput="berZoek(this.value)"></div>'+
-        '<div id="ber-lijst" style="max-height:560px;overflow:auto">'+berLijstHtml()+'</div></div>'+
+        '<div id="ber-lijst" style="max-height:560px;overflow:auto" onscroll="berMenuWeg()">'+berLijstHtml()+'</div></div>'+
       '<div class="thread" id="ber-thread">'+berThreadHtml()+'</div>'+
       '<div class="chatklant" id="ber-klant">'+berKlantHtml()+'</div>'+
     '</div>';
@@ -83,7 +83,20 @@ function berRender(){
 }
 function berCoachF(v){BER.coachF=v;const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();}
 function berZoek(v){BER.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();}
-function berLijstVernieuw(){const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();}
+function berLijstVernieuw(){
+  berMenuWeg();
+  const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();
+  // De knop in de kop van het open gesprek volgt de stand (gelezen <-> ongelezen)
+  const k=document.getElementById("ber-kopactie");if(k)k.innerHTML=berKopActieHtml(BER.cur);
+}
+// Rechterkant van een rij in de lijst: teller + ⋮-menu (alleen als er iets te kiezen valt).
+function berRijRechts(key,n){
+  const a=berLeesActie(key);
+  const kebab=(a==="gelezen"||a==="ongelezen")?'<button class="kebab ber-kebab" title="Meer" onclick="berRijMenu(event,this,\''+key+'\')">⋮</button>':'';
+  if(!n&&!kebab)return "";
+  // Zonder menu een lege plek van dezelfde breedte, zodat de tellers onder elkaar blijven staan
+  return '<span class="ber-rechts">'+(n?'<span class="cpill bad" style="padding:2px 7px">'+n+'</span>':'')+(kebab||'<span class="kebab ber-kebab leeg"></span>')+'</span>';
+}
 function berLijstHtml(){
   // Groepen bovenaan (nieuwste bericht eerst), daaronder de losse gesprekken.
   let gs=BER.groups;
@@ -96,7 +109,7 @@ function berLijstHtml(){
     return '<div class="chatrow'+(BER.cur==="g:"+g.id?" on":"")+'" onclick="berOpenGroep(\''+g.id+'\')">'+
       '<div class="cavc" style="width:34px;height:34px;font-size:13px;flex:none;background:#2a2e35;color:#fff">👥</div>'+
       '<div style="min-width:0"><b class="sm">'+esc(g.name)+(g.announce_only?' 📢':'')+'</b><div class="prev">'+esc(prev)+'</div></div>'+
-      (n?'<span class="cpill bad" style="margin-left:auto;padding:2px 7px">'+n+'</span>':'')+
+      berRijRechts("g:"+g.id,n)+
     '</div>';
   }).join("");
   const groepenBlok=groepenHtml?'<div class="clh" style="border-top:none">Groepen</div>'+groepenHtml+'<div class="clh">Klanten</div>':'';
@@ -117,7 +130,7 @@ function berLijstHtml(){
     return '<div class="chatrow'+(BER.cur===c.id?" on":"")+'" onclick="berOpen(\''+c.id+'\')">'+
       '<div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
       '<div style="min-width:0"><b class="sm">'+naamVan(c)+'</b><div class="prev">'+esc(prev)+'</div></div>'+
-      (n?'<span class="cpill bad" style="margin-left:auto;padding:2px 7px">'+n+'</span>':'')+
+      berRijRechts(c.id,n)+
     '</div>';
   }).join("");
 }
@@ -128,7 +141,8 @@ function berThreadHtml(){
   const coach=BER.coaches.find(x=>x.id===c.coach_id);
   const ms=berMsgsVan(c.id);
   return '<div class="th"><div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
-      '<div><b>'+naamVan(c)+'</b>'+(myRole()!=="coach"&&coach?'<div class="sm muted">Coach: '+naamVan(coach)+'</div>':'')+'</div></div>'+
+      '<div style="min-width:0"><b>'+naamVan(c)+'</b>'+(myRole()!=="coach"&&coach?'<div class="sm muted">Coach: '+naamVan(coach)+'</div>':'')+'</div>'+
+      '<span class="ber-kopactie" id="ber-kopactie">'+berKopActieHtml(c.id)+'</span></div>'+
     '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berBubHtml(m,c)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
     '<div class="gepland" id="ber-gepland">'+berGeplandHtml(c.id)+'</div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
@@ -156,16 +170,115 @@ async function berOpen(id){
   if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen
   rxVernieuw(berMsgsVan(id).map(m=>m.id)); // emoji-reacties van deze draad erbij
   // gelezen-markering alleen door de eigen coach (RLS staat anderen niet toe)
-  if(c&&c.coach_id===ME.user.id&&berOngelezen(id)){
-    try{
-      await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",id).eq("sender_id",id).is("read_at",null);
-      BER.msgs.forEach(m=>{if(m.athlete_id===id&&m.sender_id===id&&!m.read_at)m.read_at=new Date().toISOString();});
-      if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
-    }catch(e){}
-  }
+  if(c&&c.coach_id===ME.user.id&&berOngelezen(id))await berKlantGelezen(id);
   // Bel-notificatie van dit gesprek gaat ook op gelezen
   if(typeof belMarkeerSoort==="function")belMarkeerSoort(id,"bericht");
   berLijstVernieuw();
+}
+// Alle berichten van dit lid op gelezen zetten (alleen de eigen coach kan dat).
+async function berKlantGelezen(id){
+  try{
+    await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",id).eq("sender_id",id).is("read_at",null);
+    BER.msgs.forEach(m=>{if(m.athlete_id===id&&m.sender_id===id&&!m.read_at)m.read_at=new Date().toISOString();});
+    berBadgeBij(); // teller op de Berichten-knop bijwerken
+  }catch(e){}
+}
+// ---------- Gesprek weer op ongelezen zetten (of op gelezen) ----------
+// Geen eigen tabel of kolom, zelfde velden als de sporter-app:
+// 1-op-1 = read_at van het laatste bericht van het lid weer leeg;
+// groep  = eigen last_read_at terug tot 1 ms voor het laatste bericht van een ander.
+// Een sleutel is het id van de klant, of "g:"+id voor een groep (zoals BER.cur).
+const berIsGroep=key=>String(key||"").indexOf("g:")===0;
+function berLaatsteVanLid(aid){const ms=BER.msgs.filter(m=>m.athlete_id===aid&&m.sender_id===aid&&m.id);return ms[ms.length-1]||null;}
+function berLaatsteVanAnder(gid){const ms=berGroepMsgs(gid).filter(m=>m.sender_id!==ME.user.id);return ms[ms.length-1]||null;}
+// Wat valt er te kiezen bij dit gesprek? "gelezen", "ongelezen", "niet-eigen"
+// (alleen de eigen coach van het lid mag het wijzigen) of "" (niets te doen).
+function berLeesActie(key){
+  if(!key)return "";
+  if(berIsGroep(key)){
+    const gid=String(key).slice(2);
+    if(!BER.leden.some(m=>m.group_id===gid&&m.profile_id===ME.user.id))return ""; // zelf geen lid: geen eigen leesstand
+    if(berGroepOngelezen(gid))return "gelezen";
+    return berLaatsteVanAnder(gid)?"ongelezen":"";
+  }
+  const c=BER.clients.find(x=>x.id===key);
+  if(!c||c.id===ME.user.id||!berLaatsteVanLid(key))return "";
+  if(c.coach_id!==ME.user.id)return "niet-eigen";
+  return berOngelezen(key)?"gelezen":"ongelezen";
+}
+function berKopActieHtml(key){
+  const a=berLeesActie(key);if(!a)return "";
+  if(a==="niet-eigen")return '<button class="btn ghost sm" style="opacity:.55" onclick="berNietEigen(\''+key+'\')">'+(berOngelezen(key)?"Markeer als gelezen":"Markeer als ongelezen")+'</button>';
+  return '<button class="btn ghost sm" onclick="'+(a==="gelezen"?"berZetGelezen":"berZetOngelezen")+'(\''+key+'\')">'+(a==="gelezen"?"Markeer als gelezen":"Markeer als ongelezen")+'</button>';
+}
+// Beheerder bij een klant van een andere coach: de database staat het niet toe; leg uit waarom.
+function berNietEigen(key){
+  const c=BER.clients.find(x=>x.id===key);
+  const coach=c&&BER.coaches.find(x=>x.id===c.coach_id);
+  toast(c&&!c.coach_id?"Dit lid heeft geen eigen coach, dus dit gesprek kan niet op gelezen of ongelezen gezet worden"
+    :coach?"Alleen de eigen coach van dit lid ("+naamVan(coach)+") kan dit gesprek op gelezen of ongelezen zetten"
+    :"Alleen de eigen coach van dit lid kan dit gesprek op gelezen of ongelezen zetten",4500);
+}
+// Bolletje op de Berichten-knop bijwerken. Vanuit het losse venster (geen eigen
+// bovenbalk) krijgt het hoofdvenster een seintje, zodat het daar ook meteen klopt.
+function berBadgeBij(){
+  if(typeof telMsgBadge==="function")telMsgBadge();
+  if(inBerVenster()&&berVensterKanaal){try{berVensterKanaal.postMessage({type:"msgbadge"});}catch(e){}}
+}
+function berMenuWeg(){document.querySelectorAll(".coachmenu.ber-menu").forEach(x=>x.remove());}
+// ⋮ op een rij in de lijst. Het menu hangt aan de body (vaste positie), anders
+// knipt de scrollende lijst het af bij de onderste rijen.
+function berRijMenu(ev,btn,key){
+  ev.stopPropagation();
+  const bestond=document.querySelector('.coachmenu.ber-menu[data-voor="'+key+'"]');
+  document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
+  if(bestond)return;
+  const a=berLeesActie(key);if(a!=="gelezen"&&a!=="ongelezen")return;
+  const m=document.createElement("div");m.className="coachmenu ber-menu";m.dataset.voor=key;
+  m.innerHTML='<button onclick="event.stopPropagation();'+(a==="gelezen"?"berZetGelezen":"berZetOngelezen")+'(\''+key+'\')">'+(a==="gelezen"?"Markeer als gelezen":"Markeer als ongelezen")+'</button>';
+  document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();
+  m.style.top=Math.min(r.bottom+4,window.innerHeight-m.offsetHeight-8)+"px";
+  m.style.left=Math.max(8,Math.min(r.right-m.offsetWidth,window.innerWidth-m.offsetWidth-8))+"px";
+}
+window.addEventListener("scroll",berMenuWeg,{passive:true});
+async function berZetOngelezen(key){
+  berMenuWeg();
+  if(berIsGroep(key)){
+    const gid=String(key).slice(2);
+    const eigen=BER.leden.find(m=>m.group_id===gid&&m.profile_id===ME.user.id);
+    const m=berLaatsteVanAnder(gid);
+    if(!eigen||!m)return;
+    const tot=new Date(new Date(m.created_at).getTime()-1).toISOString();
+    const{data,error}=await db.from("chat_group_members").update({last_read_at:tot}).eq("id",eigen.id).select("id");
+    if(error||!(data&&data.length)){toast("Op ongelezen zetten is niet gelukt");return;}
+    eigen.last_read_at=tot;
+  }else{
+    const m=berLaatsteVanLid(key);if(!m)return;
+    const{data,error}=await db.from("messages").update({read_at:null}).eq("id",m.id).select("id");
+    // Geen fout maar ook geen rij terug = de database liet het niet toe (niet de eigen coach)
+    if(error||!(data&&data.length)){if(error)toast("Op ongelezen zetten is niet gelukt");else berNietEigen(key);return;}
+    m.read_at=null;
+  }
+  // Het open gesprek sluiten, anders springt het bij de eerstvolgende klik weer op gelezen
+  if(BER.cur===key)berSluitGesprek();
+  berLijstVernieuw();
+  berBadgeBij(); // bolletje in de bovenbalk telt meteen weer mee
+  toast("Gesprek staat weer op ongelezen");
+}
+async function berZetGelezen(key){
+  berMenuWeg();
+  if(berIsGroep(key))await berGroepGelezen(String(key).slice(2));
+  else{
+    await berKlantGelezen(key);
+    if(typeof belMarkeerSoort==="function")belMarkeerSoort(key,"bericht");
+  }
+  berLijstVernieuw();
+}
+function berSluitGesprek(){
+  BER.cur=null;CHATBIJL.ber=[];
+  const th=document.getElementById("ber-thread");if(th)th.innerHTML=berThreadHtml();
+  const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
 }
 async function berStuur(){
   const inp=document.getElementById("ber-inp");if(!inp)return;
@@ -244,7 +357,8 @@ function berGroepThreadHtml(gid){
   const beheer=g.created_by===ME.user.id||myRole()!=="coach";
   return '<div class="th"><div class="cavc" style="width:34px;height:34px;font-size:13px;flex:none;background:#2a2e35;color:#fff">👥</div>'+
       '<div style="min-width:0"><b>'+esc(g.name)+(g.announce_only?' 📢':'')+'</b><div class="sm muted">'+leden.length+' le'+(leden.length===1?"id":"den")+(g.announce_only?' · alleen coaches sturen':'')+'</div></div>'+
-      (beheer?'<span style="margin-left:auto;display:flex;gap:8px"><button class="btn ghost sm" onclick="berGroepLedenBeheer(\''+gid+'\')">Leden</button><button class="btn ghost sm" onclick="berGroepWeg(\''+gid+'\')" title="Groep verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button></span>':'')+
+      '<span style="margin-left:auto;display:flex;gap:8px;flex:none"><span class="ber-kopactie" id="ber-kopactie">'+berKopActieHtml("g:"+gid)+'</span>'+
+      (beheer?'<button class="btn ghost sm" onclick="berGroepLedenBeheer(\''+gid+'\')">Leden</button><button class="btn ghost sm" onclick="berGroepWeg(\''+gid+'\')" title="Groep verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button>':'')+'</span>'+
     '</div>'+
     '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berGroepBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten in deze groep.</div>')+'</div>'+
     '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="Bericht aan de groep…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berGroepStuur)" oninput="chatGroei(this)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
@@ -264,7 +378,7 @@ async function berGroepGelezen(gid){
     const nu=new Date().toISOString();
     await db.from("chat_group_members").update({last_read_at:nu}).eq("id",eigen.id);
     eigen.last_read_at=nu;
-    if(typeof telMsgBadge==="function")telMsgBadge(); // topnav-bolletje bijwerken
+    berBadgeBij(); // topnav-bolletje bijwerken
   }catch(e){}
 }
 async function berGroepStuur(){

@@ -505,6 +505,13 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .chatrow:hover{background:#fafbfc}
 .chatrow.on{background:#f0f8fc}
 .chatrow .prev{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.chatrow .ber-rechts{margin-left:auto;display:flex;align-items:center;gap:2px;flex:none}
+.chatrow .ber-kebab{width:20px;padding:2px 0;margin-right:-8px;text-align:center;color:#8a919c;border-radius:6px;flex:none}
+.chatrow .ber-kebab.leeg{visibility:hidden}
+.chatrow .ber-kebab:hover{color:var(--txt);background:#e9edf1}
+.coachmenu.ber-menu{position:fixed;top:auto;right:auto;z-index:300}
+.thread .th .ber-kopactie{margin-left:auto;flex:none}
+.thread .th .ber-kopactie:empty{display:none}
 .thread{flex:1;display:flex;flex-direction:column}
 .thread .th{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
 .thread .msgs{flex:1;padding:18px;display:flex;flex-direction:column;gap:10px;background:#fbfcfd;overflow:auto;max-height:560px}
@@ -773,6 +780,8 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .chatpop .ch b{font-size:12.5px;flex:1}
 .chatpop .ch .i{width:13px;height:13px;color:#aab0b8;cursor:pointer}
 .chatpop .ch .i:hover{color:#fff}
+.chatpop .ch .chlees{font-size:10.5px;font-weight:700;color:#c9ced6;border:1px solid #4b5059;border-radius:999px;padding:2px 9px;cursor:pointer;white-space:nowrap}
+.chatpop .ch .chlees:hover{color:#fff;border-color:#8a919c}
 .chatpop .msgs2{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#fbfcfd}
 .bub{max-width:88%;padding:8px 11px;border-radius:14px;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:break-word}
 .bub.them{background:#fff;border:1px solid #e7e9ec;align-self:flex-start;border-bottom-left-radius:4px}

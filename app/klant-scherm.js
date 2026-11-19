@@ -1388,6 +1388,8 @@ function biebKanaal(){
   biebKanaalObj.onmessage=async(ev)=>{
     const m=ev.data||{};
     if(m.type==="vraag"){biebDoelZend();return;}
+    // In het losse Berichten-venster is iets gelezen of weer op ongelezen gezet: bolletje in de bovenbalk bijwerken.
+    if(m.type==="msgbadge"){if(typeof telMsgBadge==="function")telMsgBadge();return;}
     // Het Weekcheck-venster vraagt om een klant (of zijn chat) hier te openen.
     if(m.type==="open"&&m.id){try{window.focus();}catch(e){}await openClient(m.id);if(m.chat&&typeof openChatPop==="function")openChatPop();return;}
     // In het bibliotheek-venster is iets toegevoegd of bewerkt: de bibliotheek hier
