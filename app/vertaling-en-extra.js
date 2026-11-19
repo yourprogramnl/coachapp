@@ -1065,3 +1065,8 @@ i18nLaad({
 i18nLaad({
   "Weekworkout in de template gezet; een klant die de template krijgt komt op het gedeelde leaderboard": "Weekly workout added to the template; a client who gets the template joins the shared leaderboard",
 });
+// Concept meteen live zetten (19 nov 2026)
+i18nLaad({
+  "Opslaan en live zetten": "Save and put live",
+  "Een concept zien leden niet. Zet hem later live met Kies showdown, of nu meteen met Opslaan en live zetten.": "Members don't see a draft. Put it live later with Choose showdown, or right now with Save and put live.",
+});
