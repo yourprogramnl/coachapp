@@ -20,7 +20,7 @@ const FB_MIMES=['video/mp4;codecs="avc1.42E01E,mp4a.40.2"','video/mp4;codecs=avc
 const FB={aid:null,bid:null,blok:null,workout:null,res:null,media:[],idx:0,draad:[],modus:"tekst",urls:{},
   // video-modus: wat er op het canvas staat is precies wat er wordt opgenomen
   cv:null,ctx:null,bron:"geen",vid:null,foto:null,bronUrl:null,laatste:null,laatsteCtx:null,heeftFrame:false,
-  camEl:null,stroom:null,camKlaar:false,plek:null,loopt:false,zoekDoel:null,sleept:false,speelde:false,
+  camEl:null,stroom:null,camKlaar:false,audioCtx:null,meter:null,meterData:null,niveau:0,plek:null,loopt:false,zoekDoel:null,sleept:false,speelde:false,
   rec:null,delen:[],fase:"rust",telTimer:null,opnMs:0,opnSinds:0,blob:null,blobUrl:null,mime:""};
 CHATBIJL.fb=[]; // bijlagen bij getypte feedback (zelfde werkwijze als het reactiepaneel)
 
@@ -55,6 +55,7 @@ function fbEnsure(){
   ov.addEventListener("change",e=>{
     if(e.target.id==="fbv-snel"){if(FB.vid)FB.vid.playbackRate=Number(e.target.value);}
     else if(e.target.id==="fbv-schuif")fbSleepKlaar();
+    else if(e.target.id==="fbv-camaan")fbVideoUi(); // uitleg laten meegaan met het vinkje
   });
   ov.addEventListener("input",e=>{
     if(e.target.id==="fbv-schuif")fbZoek(e.target.value/1000*fbDuur());
@@ -281,6 +282,12 @@ async function fbCamAan(){
     catch(e2){fbStatus(e2.name==="NotFoundError"?"Geen microfoon gevonden op deze computer.":"Camera en microfoon starten niet ("+e2.name+").",true);return false;}
   }
   FB.stroom=s;FB.camKlaar=false;
+  // Geluidsmeter voor het beeld bij een opname met alleen je stem (zie fbTekenStem)
+  try{
+    FB.audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    FB.meter=FB.audioCtx.createAnalyser();FB.meter.fftSize=512;FB.meterData=new Uint8Array(FB.meter.fftSize);
+    FB.audioCtx.createMediaStreamSource(s).connect(FB.meter);
+  }catch(e){FB.meter=null;}
   if(s.getVideoTracks().length){
     FB.camEl=document.createElement("video");FB.camEl.muted=true;FB.camEl.playsInline=true;FB.camEl.srcObject=s;
     try{await FB.camEl.play();FB.camKlaar=true;}catch(e){}
@@ -294,6 +301,8 @@ function fbVideoUit(){
   FB.rec=null;FB.delen=[];FB.fase="rust";FB.loopt=false;
   if(FB.stroom){FB.stroom.getTracks().forEach(t=>t.stop());FB.stroom=null;}
   FB.camEl=null;FB.camKlaar=false;
+  if(FB.audioCtx){try{FB.audioCtx.close();}catch(e){}FB.audioCtx=null;}
+  FB.meter=null;FB.meterData=null;FB.niveau=0;
   if(FB.vid){try{FB.vid.pause();}catch(e){}FB.vid.removeAttribute("src");FB.vid=null;}
   if(FB.bronUrl){URL.revokeObjectURL(FB.bronUrl);FB.bronUrl=null;}
   if(FB.blobUrl){URL.revokeObjectURL(FB.blobUrl);FB.blobUrl=null;}
@@ -370,7 +379,8 @@ function fbVideoUi(){
   if(FB.fase==="rust")fbEl("fbv-klok").textContent="";
   hint.textContent=FB.fase==="klaar"?"":FB.fase==="op"||FB.fase==="pauze"?"De opname loopt. Blijf op dit tabblad, anders staat het beeld stil. Maximaal 3 minuten."
     :!FB.camKlaar?"Geen camera gevonden. Je neemt alleen je stem op"+(FB.bron==="geen"?".":" over het beeld.")
-    :FB.bron==="geen"?"Bij dit onderdeel staat geen video. Je bent zelf groot in beeld."
+    :FB.bron==="geen"?(cam.checked?"Bij dit onderdeel staat geen video van het lid, dus je bent zelf groot in beeld. Vink je gezicht uit om alleen je stem op te nemen.":"Je neemt alleen je stem op. Vink je gezicht aan om zelf in beeld te komen.")
+    :!cam.checked?"Je neemt alleen je stem op over de video. Tijdens het opnemen kun je de video afspelen, stilzetten en verslepen."
     :"Klik in het beeld op de plek waar je gezicht moet komen. Tijdens het opnemen kun je de video afspelen, stilzetten en verslepen.";
 }
 function fbCamVak(cx,cy,bw,bh){ // camerabeeld gespiegeld, bijgesneden tot het vak
@@ -389,13 +399,31 @@ function fbTeken(){
       FB.laatsteCtx.drawImage(FB.vid,0,0,w,h);FB.heeftFrame=true;
     }else if(FB.heeftFrame)x.drawImage(FB.laatste,0,0,w,h);
   }else if(FB.bron==="foto")x.drawImage(FB.foto,0,0,w,h);
-  else if(camOk){x.save();fbCamVak(w/2,h/2,w,h);x.restore();}
+  else if(camOk&&fbEl("fbv-camaan").checked){x.save();fbCamVak(w/2,h/2,w,h);x.restore();}
+  else fbTekenStem(x,w,h); // geen video van het lid en geen gezicht: alleen je stem
   if(FB.bron!=="geen"&&camOk&&fbEl("fbv-camaan").checked){
     const m=Math.min(w,h),r=m*.15,rand=m*.04,kl=(v,a,b)=>Math.min(b,Math.max(a,v));
     const cx=FB.plek?kl(FB.plek.x*w,r+4,w-r-4):rand+r,cy=FB.plek?kl(FB.plek.y*h,r+4,h-r-4):h-rand-r;
     x.save();x.beginPath();x.arc(cx,cy,r,0,7);x.clip();fbCamVak(cx,cy,2*r,2*r);x.restore();
     x.strokeStyle="#D9B44A";x.lineWidth=Math.max(3,r*.05);x.beginPath();x.arc(cx,cy,r,0,7);x.stroke();
   }
+}
+// Beeld bij een opname met alleen je stem: een rustig vlak met een cirkel die
+// meebeweegt met het geluid, zodat het lid ziet dat er iets te horen is.
+function fbTekenStem(x,w,h){
+  let niveau=0;
+  if(FB.meter){
+    const d=FB.meterData;FB.meter.getByteTimeDomainData(d);
+    let s=0;for(let i=0;i<d.length;i++){const v=(d[i]-128)/128;s+=v*v;}
+    niveau=Math.min(1,Math.sqrt(s/d.length)*4);
+  }
+  FB.niveau=FB.niveau*.8+niveau*.2; // rustig laten meebewegen
+  const r=Math.min(w,h)*(.14+.1*FB.niveau);
+  x.fillStyle="#1f242d";x.beginPath();x.arc(w/2,h*.44,r*1.35,0,7);x.fill();
+  x.fillStyle="#D9B44A";x.beginPath();x.arc(w/2,h*.44,r,0,7);x.fill();
+  x.fillStyle="#e9edf3";x.textAlign="center";
+  x.font="600 "+Math.round(w*.055)+"px Inter, sans-serif";x.fillText("Spraakbericht van je coach",w/2,h*.72);
+  x.textAlign="start";
 }
 const fbDuur=()=>(FB.vid&&FB.vid.duration)||0;
 function fbLus(nu){
