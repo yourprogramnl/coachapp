@@ -510,6 +510,48 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .chatrow .ber-kebab.leeg{visibility:hidden}
 .chatrow .ber-kebab:hover{color:var(--txt);background:#e9edf1}
 .coachmenu.ber-menu{position:fixed;top:auto;right:auto;z-index:300}
+/* Berichten zoals WhatsApp (19 nov 2026): tijd en vet in de lijst, filter, vastzetten,
+   datumregels en vinkjes in het gesprek, klikbare links, slepen van bijlagen */
+.berzoek{padding:10px 12px 8px}
+.berfilter{display:flex;gap:6px;padding:0 12px 10px;border-bottom:1px solid var(--line)}
+.berfilter .bf{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 11px;font-family:inherit;font-size:11.5px;font-weight:600;color:#5b6470;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.berfilter .bf:hover{border-color:#3eb3e0;color:#1e91b8}
+.berfilter .bf.on{background:#eaf6fb;border-color:#3eb3e0;color:#1e91b8}
+.berfilter .bf-n{background:var(--bad-bg);color:var(--bad);border-radius:999px;padding:0 6px;font-size:10.5px;line-height:16px}
+#ber-lijst .clh{padding:9px 16px 6px;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a919c;background:#fafbfc;border-bottom:1px solid var(--line2)}
+.chatrow .cr-mid{flex:1;min-width:0}
+.chatrow .cr-top{display:flex;align-items:baseline;gap:8px}
+.chatrow .cr-top b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.chatrow .cr-tijd{flex:none;font-size:10.5px;color:var(--muted)}
+.chatrow .cr-onder{display:flex;align-items:center;gap:6px;margin-top:2px;min-height:19px}
+.chatrow .cr-onder .prev{flex:1;min-width:0;max-width:none}
+.chatrow .cr-onder .cpill{padding:1px 7px;flex:none}
+.chatrow .cr-pin{flex:none;font-size:10px;opacity:.6}
+.chatrow.nieuw .cr-top b{font-weight:800}
+.chatrow.nieuw .prev{color:var(--txt);font-weight:600}
+.chatrow.nieuw .cr-tijd{color:var(--bad);font-weight:700}
+.chatrow .prev .concept{color:#c9741a;font-weight:700}
+.chatrow .prev mark{background:#fff1a8;color:inherit;border-radius:3px;padding:0 1px}
+.chatrow .ber-kebab{opacity:.35}
+.chatrow:hover .ber-kebab,.chatrow.on .ber-kebab{opacity:1}
+.vink{display:inline-flex;flex:none}
+.vink svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.chatrow .prev .vink{margin-right:4px;vertical-align:-1px;color:#9aa1ab}
+.chatrow .prev .vink.gelezen{color:#2a9fce}
+.thread .bub .meta{display:flex;align-items:center;justify-content:flex-end;gap:5px;opacity:1}
+.thread .bub .meta .mt{opacity:.7}
+.thread .bub .meta .vink{opacity:.6}
+.thread .bub .meta .vink.gelezen{opacity:1}
+.dagsep{display:flex;justify-content:center;flex:none;margin:4px 0 2px}
+.dagsep span{display:inline-block;background:#eef1f4;color:#5b6470;font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 11px}
+.dagsep span::first-letter{text-transform:uppercase}
+.bub a.chatlink{color:inherit;text-decoration:underline;overflow-wrap:anywhere}
+.bub.them a.chatlink{color:#1e91b8}
+.wcrij.flits .bub,.bub.flits{animation:berflits 2s ease}
+@keyframes berflits{0%,55%{box-shadow:0 0 0 3px #ffd84d}100%{box-shadow:0 0 0 3px rgba(255,216,77,0)}}
+.thread{position:relative}
+.thread .sleeplaag{display:none;position:absolute;inset:8px;border:2px dashed #3eb3e0;border-radius:12px;background:rgba(234,246,251,.93);align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#1e91b8;pointer-events:none;z-index:6}
+.thread.sleep .sleeplaag{display:flex}
 .thread .th .ber-kopactie{margin-left:auto;flex:none}
 .thread .th .ber-kopactie:empty{display:none}
 .thread{flex:1;display:flex;flex-direction:column}

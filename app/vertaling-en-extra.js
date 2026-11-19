@@ -1065,3 +1065,21 @@ i18nLaad({
 i18nLaad({
   "Weekworkout in de template gezet; een klant die de template krijgt komt op het gedeelde leaderboard": "Weekly workout added to the template; a client who gets the template joins the shared leaderboard",
 });
+// Berichten zoals WhatsApp (19 nov 2026): filter, vastzetten, concepten, zoeken in berichten, slepen
+i18nLaad({
+  "Zoek op naam of in berichten…": "Search by name or in messages…",
+  "Alleen gesprekken met een ongelezen bericht": "Only conversations with an unread message",
+  "Vastgezet": "Pinned",
+  "Vastzetten bovenaan": "Pin to top",
+  "Niet meer vastzetten": "Unpin",
+  "Gesprek staat vast bovenaan": "Conversation pinned to the top",
+  "Gesprek staat niet meer vast": "Conversation unpinned",
+  "Vastzetten is niet gelukt": "Pinning failed",
+  "Concept:": "Draft:",
+  "Gevonden in berichten": "Found in messages",
+  "Geen ongelezen gesprekken. Je bent helemaal bij.": "No unread conversations. You're all caught up.",
+  "Tip: plak een screenshot met Ctrl+V of sleep een foto of video in het gesprek.": "Tip: paste a screenshot with Ctrl+V or drag a photo or video into the conversation.",
+  "Laat los om mee te sturen": "Drop to attach",
+  "Kies eerst een gesprek": "Choose a conversation first",
+  "In een groepschat kunnen nog geen foto's of video's mee": "Group chats can't carry photos or videos yet",
+});

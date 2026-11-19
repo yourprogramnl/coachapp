@@ -2,7 +2,7 @@
 // messages-tabel, naar het ontwerp (gesprekkenlijst links, draad rechts).
 // Een coach ziet alleen zijn eigen klanten (RLS dwingt dat ook af);
 // eigenaar/platform_admin zien alle gesprekken en kunnen op coach filteren.
-let BER={clients:[],coaches:[],msgs:[],cur:null,coachF:"",zoek:"",kanaal:null,
+let BER={clients:[],coaches:[],msgs:[],cur:null,coachF:"",zoek:"",filter:"",kanaal:null,
   groups:[],leden:[],gmsgs:[],programs:[],gepland:[],klantCache:{}};
 
 async function fillBerichten(){
@@ -16,17 +16,22 @@ async function fillBerichten(){
   // lezen); ook nodig om coaches aan een groepschat te kunnen toevoegen.
   const{data:co}=await db.rpc("company_coaches");
   BER.coaches=co||[];
-  const{data:ms}=await db.from("messages").select("*").order("created_at");
+  // Alle bladzijden ophalen: de database kapt anders stil af bij 1000 berichten,
+  // en dan zouden juist de nieuwste ontbreken.
+  const{data:ms}=await alleRijen(()=>db.from("messages").select("*").order("created_at").order("id"));
   BER.msgs=ms||[];
   await berGeplandLaad();
   // Groepschats: groepen + lidmaatschappen + berichten + blogprogramma's (voor de snelkeuzes)
-  const[gq,lq,gm,pq,bm]=await Promise.all([
+  const[gq,lq,gm,pq,bm,np]=await Promise.all([
     db.from("chat_groups").select("*").order("created_at"),
     db.from("chat_group_members").select("*"),
-    db.from("chat_group_messages").select("*").order("created_at"),
+    alleRijen(()=>db.from("chat_group_messages").select("*").order("created_at").order("id")),
     db.from("blog_programs").select("id,name").eq("hidden",false),
     db.from("blog_program_members").select("athlete_id,blog_program_id"),
+    // Eigen voorkeuren vers (vastgezette gesprekken kunnen in een ander venster gewijzigd zijn)
+    db.from("profiles").select("notify_prefs").eq("id",ME.user.id).limit(1),
   ]);
+  if(np&&np.data&&np.data[0]&&ME.profile)ME.profile.notify_prefs=np.data[0].notify_prefs;
   BER.groups=(gq.data||[]).filter(g=>myRole()!=="coach"||g.created_by===ME.user.id||(lq.data||[]).some(m=>m.group_id===g.id&&m.profile_id===ME.user.id));
   BER.leden=lq.data||[];
   BER.gmsgs=gm.data||[];
@@ -71,102 +76,297 @@ function berRender(){
       '<button class="btn ghost sm" onclick="berGroepNieuw()">+ Groepschat</button></span></div>'+
     '<div class="chatwrap">'+
       '<div class="chatlist"><div class="clh">Gesprekken</div>'+
-        '<div style="padding:10px 12px;border-bottom:1px solid #f0f1f3"><input class="lid-in" style="width:100%" placeholder="Zoek een klant…" value="'+esc(BER.zoek)+'" oninput="berZoek(this.value)"></div>'+
+        '<div class="berzoek"><input class="lid-in" style="width:100%" placeholder="Zoek op naam of in berichten…" value="'+esc(BER.zoekRuw||"")+'" oninput="berZoek(this.value)"></div>'+
+        '<div class="berfilter" id="ber-filter">'+berFilterHtml()+'</div>'+
         '<div id="ber-lijst" style="max-height:560px;overflow:auto" onscroll="berMenuWeg()">'+berLijstHtml()+'</div></div>'+
-      '<div class="thread" id="ber-thread">'+berThreadHtml()+'</div>'+
+      '<div class="thread" id="ber-thread" ondragover="berSleep(event,1)" ondragleave="berSleep(event,0)" ondrop="berLos(event)">'+berThreadHtml()+'</div>'+
       '<div class="chatklant" id="ber-klant">'+berKlantHtml()+'</div>'+
     '</div>';
+  berInvoerKlaar(false); // een concept dat er nog stond terugzetten
   berScroll();
   berKlantLaad();
   chatBijlToon("ber"); // gekozen bijlage-chips terugzetten na een her-render
   if(typeof dashVidSrcs==="function")dashVidSrcs();
 }
-function berCoachF(v){BER.coachF=v;const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();}
-function berZoek(v){BER.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();}
+// Filterknoppen + lijst opnieuw tekenen (na zoeken, filteren, een nieuw bericht…).
+function berLijstZet(){
+  const f=document.getElementById("ber-filter");if(f)f.innerHTML=berFilterHtml();
+  const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();
+}
+function berCoachF(v){BER.coachF=v;berLijstZet();}
+function berZoek(v){BER.zoekRuw=v||"";BER.zoek=(v||"").toLowerCase().trim();berMenuWeg();berLijstZet();}
+function berFilter(v){BER.filter=v;berMenuWeg();berLijstZet();}
 function berLijstVernieuw(){
   berMenuWeg();
-  const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();
+  berLijstZet();
   // De knop in de kop van het open gesprek volgt de stand (gelezen <-> ongelezen)
   const k=document.getElementById("ber-kopactie");if(k)k.innerHTML=berKopActieHtml(BER.cur);
 }
-// Rechterkant van een rij in de lijst: teller + ⋮-menu (alleen als er iets te kiezen valt).
-function berRijRechts(key,n){
-  const a=berLeesActie(key);
-  const kebab=(a==="gelezen"||a==="ongelezen")?'<button class="kebab ber-kebab" title="Meer" onclick="berRijMenu(event,this,\''+key+'\')">⋮</button>':'';
-  if(!n&&!kebab)return "";
-  // Zonder menu een lege plek van dezelfde breedte, zodat de tellers onder elkaar blijven staan
-  return '<span class="ber-rechts">'+(n?'<span class="cpill bad" style="padding:2px 7px">'+n+'</span>':'')+(kebab||'<span class="kebab ber-kebab leeg"></span>')+'</span>';
+
+// ---------- Tijd en datum zoals in WhatsApp (19 nov 2026) ----------
+// In de lijst: vandaag = 14:02, daarna "Gisteren", de dag van de week, of de datum.
+// In het gesprek: een datumregel per dag en in de bubbel alleen de tijd.
+const BER_DAG=["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"];
+const BER_MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+const berEN=()=>typeof LANG!=="undefined"&&LANG==="en";
+const berHM=iso=>{const d=new Date(iso);return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);};
+const berDagKey=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();};
+function berDagenTerug(iso){
+  const d=new Date(iso),n=new Date();
+  return Math.round((new Date(n.getFullYear(),n.getMonth(),n.getDate())-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000);
 }
-function berLijstHtml(){
-  // Groepen bovenaan (nieuwste bericht eerst), daaronder de losse gesprekken.
+function berLijstTijdHtml(iso){
+  if(!iso)return "";
+  const n=berDagenTerug(iso),d=new Date(iso);
+  if(n<=0)return '<span class="cr-tijd" data-notr>'+berHM(iso)+'</span>';
+  if(n===1)return '<span class="cr-tijd">Gisteren</span>';
+  let t;
+  if(n<7)t=berEN()?d.toLocaleDateString("en-GB",{weekday:"short"}):BER_DAG[d.getDay()].slice(0,2);
+  else{
+    t=berEN()?d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):d.getDate()+" "+MAANDKORT[d.getMonth()];
+    if(d.getFullYear()!==new Date().getFullYear())t+=" '"+String(d.getFullYear()).slice(2);
+  }
+  return '<span class="cr-tijd" data-notr>'+esc(t)+'</span>';
+}
+function berDagSepHtml(iso){
+  const n=berDagenTerug(iso),d=new Date(iso);
+  let t,notr=true;
+  if(n<=0){t="Vandaag";notr=false;}
+  else if(n===1){t="Gisteren";notr=false;}
+  else{
+    t=berEN()?d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"}):BER_DAG[d.getDay()]+" "+d.getDate()+" "+BER_MAAND[d.getMonth()];
+    if(d.getFullYear()!==new Date().getFullYear())t+=" "+d.getFullYear();
+  }
+  return '<div class="dagsep" data-dag="'+berDagKey(iso)+'"><span'+(notr?" data-notr":"")+'>'+esc(t)+'</span></div>';
+}
+// Berichten onder elkaar, met een datumregel zodra de dag wisselt.
+function berDraadHtml(ms,bub){
+  let dag="";
+  return ms.map(m=>{const k=berDagKey(m.created_at),sep=k!==dag?berDagSepHtml(m.created_at):"";dag=k;return sep+bub(m);}).join("");
+}
+// Bij een nieuw bericht onderaan: eerst een datumregel als het de eerste van die dag is.
+function berDagErbij(host,m){
+  const seps=host.querySelectorAll(".dagsep"),laatste=seps[seps.length-1];
+  if(!laatste||laatste.dataset.dag!==berDagKey(m.created_at))host.insertAdjacentHTML("beforeend",berDagSepHtml(m.created_at));
+}
+// Vinkjes bij een bericht van de coach-kant: één = verstuurd, twee = gelezen door het lid.
+// read_at wordt door de app van het lid gezet zodra die het gesprek opent.
+function berVinkHtml(m){
+  const gelezen=!!m.read_at;
+  let titel=berEN()?"Sent, not read yet":"Verstuurd, nog niet gelezen";
+  if(gelezen){
+    const d=new Date(m.read_at),n=berDagenTerug(m.read_at);
+    const dag=n<=0?"":(berEN()?d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):d.getDate()+" "+MAANDKORT[d.getMonth()])+" ";
+    titel=(berEN()?"Read ":"Gelezen ")+dag+berHM(m.read_at);
+  }
+  return '<span class="vink'+(gelezen?" gelezen":"")+'" data-notr title="'+esc(titel)+'"><svg viewBox="0 0 '+(gelezen?17:12)+' 11" width="'+(gelezen?15:10.5)+'" height="9.7">'+
+    '<path d="M1 5.9l3.1 3.1L10.5 1.6"/>'+(gelezen?'<path d="M7.7 8.1l.9.9L15 1.6"/>':'')+'</svg></span>';
+}
+
+// ---------- Vastgezette gesprekken ----------
+// De sleutels (klant-id of "g:"+groep-id) staan in de eigen voorkeuren
+// (profiles.notify_prefs.ber_vast), dus ze gelden op elk apparaat van de coach.
+function berVast(){const p=(ME.profile&&ME.profile.notify_prefs)||{};return Array.isArray(p.ber_vast)?p.ber_vast:[];}
+async function berVastWissel(key){
+  berMenuWeg();
+  // Eerst de verse stand ophalen, zodat een wijziging uit een ander venster blijft staan
+  try{const{data}=await db.from("profiles").select("notify_prefs").eq("id",ME.user.id).limit(1);if(data&&data[0])ME.profile.notify_prefs=data[0].notify_prefs;}catch(e){}
+  const nu=berVast(),aan=!nu.includes(key);
+  const fout=await notifPrefsBewaar({ber_vast:aan?nu.concat([key]):nu.filter(k=>k!==key)});
+  if(fout){toast("Vastzetten is niet gelukt");return;}
+  berLijstVernieuw();
+  toast(aan?"Gesprek staat vast bovenaan":"Gesprek staat niet meer vast");
+}
+
+// ---------- Concepten ----------
+// Wat je typt blijft per gesprek bewaard (in deze browser), ook als je naar een
+// ander gesprek klikt of de pagina ververst. In de lijst staat dan "Concept: …".
+const berConceptSleutel=()=>"yp_ber_concept_"+ME.user.id;
+function berConcepten(){try{return JSON.parse(localStorage.getItem(berConceptSleutel()))||{};}catch(e){return {};}}
+function berConcept(key){return key?(berConcepten()[key]||""):"";}
+function berConceptZet(key,tekst){
+  if(!key)return;
+  const c=berConcepten();tekst=String(tekst||"");
+  if(tekst.trim())c[key]=tekst;else delete c[key];
+  try{localStorage.setItem(berConceptSleutel(),JSON.stringify(c));}catch(e){}
+}
+function berTyp(ta){chatGroei(ta);berConceptZet(BER.cur,ta.value);}
+// Tekstvak van het open gesprek klaarzetten: concept terug, hoogte goed, cursor erin.
+function berInvoerKlaar(focus){
+  const inp=document.getElementById("ber-inp");if(!inp)return;
+  const c=berConcept(BER.cur);
+  if(c&&!inp.value)inp.value=c;
+  chatGroei(inp);
+  if(focus){try{inp.focus({preventScroll:true});inp.setSelectionRange(inp.value.length,inp.value.length);}catch(e){}}
+}
+
+// ---------- Plakken en slepen ----------
+// Screenshot plakken met Ctrl+V of een foto/video in het gesprek slepen = bijlage erbij.
+const BER_GEEN_GROEPSMEDIA="In een groepschat kunnen nog geen foto's of video's mee";
+function berPlak(ev){
+  const cd=ev.clipboardData;
+  if(berIsGroep(BER.cur)){
+    if(cd&&cd.files&&cd.files.length&&!(cd.getData("text/plain")||"").trim()){ev.preventDefault();toast(BER_GEEN_GROEPSMEDIA);}
+    return;
+  }
+  chatPlak(ev,"ber");
+}
+function berSleep(ev,aan){
+  if(!ev.dataTransfer||![...ev.dataTransfer.types].includes("Files"))return;
+  ev.preventDefault();
+  const th=document.getElementById("ber-thread");if(!th)return;
+  if(!aan&&ev.relatedTarget&&th.contains(ev.relatedTarget))return; // nog binnen het vak
+  th.classList.toggle("sleep",!!aan&&!!BER.cur&&!berIsGroep(BER.cur));
+}
+function berLos(ev){
+  if(!ev.dataTransfer||!ev.dataTransfer.files||!ev.dataTransfer.files.length)return;
+  ev.preventDefault();
+  const th=document.getElementById("ber-thread");if(th)th.classList.remove("sleep");
+  if(!BER.cur){toast("Kies eerst een gesprek");return;}
+  if(berIsGroep(BER.cur)){toast(BER_GEEN_GROEPSMEDIA);return;}
+  chatBijlErbij("ber",[...ev.dataTransfer.files]);
+  const inp=document.getElementById("ber-inp");if(inp)inp.focus();
+}
+
+// ---------- Gesprekkenlijst ----------
+// Eén rij per gesprek (groep of klant) met het laatste bericht en het aantal ongelezen.
+function berLijstItems(zonderZoek){
+  const z=zonderZoek?"":BER.zoek;
   let gs=BER.groups;
-  if(BER.zoek)gs=gs.filter(g=>(g.name||"").toLowerCase().includes(BER.zoek));
-  const gLaatst=g=>{const ms=berGroepMsgs(g.id);return ms.length?ms[ms.length-1].created_at:g.created_at;};
-  const groepenHtml=gs.slice().sort((a,b)=>gLaatst(b).localeCompare(gLaatst(a))).map(g=>{
-    const ms=berGroepMsgs(g.id),m=ms[ms.length-1]||null;
-    const prev=m?(berNaamAlg(m.sender_id)+": "+m.body):"Nog geen berichten";
-    const n=berGroepOngelezen(g.id);
-    return '<div class="chatrow'+(BER.cur==="g:"+g.id?" on":"")+'" onclick="berOpenGroep(\''+g.id+'\')">'+
-      '<div class="cavc" style="width:34px;height:34px;font-size:13px;flex:none;background:#2a2e35;color:#fff">👥</div>'+
-      '<div style="min-width:0"><b class="sm">'+esc(g.name)+(g.announce_only?' 📢':'')+'</b><div class="prev">'+esc(prev)+'</div></div>'+
-      berRijRechts("g:"+g.id,n)+
-    '</div>';
-  }).join("");
-  const groepenBlok=groepenHtml?'<div class="clh" style="border-top:none">Groepen</div>'+groepenHtml+'<div class="clh">Klanten</div>':'';
+  if(z)gs=gs.filter(g=>(g.name||"").toLowerCase().includes(z));
   let cs=BER.clients;
   if(BER.coachF)cs=cs.filter(c=>c.coach_id===BER.coachF);
-  if(BER.zoek)cs=cs.filter(c=>naamVan(c).toLowerCase().includes(BER.zoek));
-  if(!cs.length&&!groepenHtml)return '<div class="cempty">Geen gesprekken gevonden.</div>';
-  if(!cs.length)return groepenBlok;
-  // Nieuwste gesprek bovenaan; klanten zonder berichten daaronder (alfabetisch).
-  const laatst=c=>{const ms=berMsgsVan(c.id);return ms.length?ms[ms.length-1].created_at:"";};
-  cs=cs.slice().sort((a,b)=>(laatst(b)||"").localeCompare(laatst(a)||""));
-  return groepenBlok+cs.map(c=>{
-    const ms=berMsgsVan(c.id),m=ms[ms.length-1]||null;
-    const prev=m?((m.sender_id===ME.user.id?"Jij: ":"")+chatPreview(m)):"Nog geen berichten";
+  if(z)cs=cs.filter(c=>naamVan(c).toLowerCase().includes(z));
+  // In één keer per klant het laatste bericht en het aantal ongelezen (van het lid zelf)
+  const per={};
+  BER.msgs.forEach(m=>{const p=per[m.athlete_id]||(per[m.athlete_id]={m:null,n:0});p.m=m;if(m.sender_id===m.athlete_id&&!m.read_at)p.n++;});
+  return gs.map(g=>{
+    const ms=berGroepMsgs(g.id),m=ms[ms.length-1]||null;
+    return {key:"g:"+g.id,groep:g,m,laatst:m?m.created_at:g.created_at,n:berGroepOngelezen(g.id)};
+  }).concat(cs.map(c=>{
+    const p=per[c.id]||{m:null,n:0};
     // Geen rode teller bij klanten van coaches waarvan je de meldingen uit hebt
     // gezet (Instellingen > Notificaties); het gesprek zelf blijft gewoon staan.
-    const n=(typeof coachIsGedempt==="function"&&coachIsGedempt(c.coach_id))?0:berOngelezen(c.id);
-    return '<div class="chatrow'+(BER.cur===c.id?" on":"")+'" onclick="berOpen(\''+c.id+'\')">'+
-      '<div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
-      '<div style="min-width:0"><b class="sm">'+naamVan(c)+'</b><div class="prev">'+esc(prev)+'</div></div>'+
-      berRijRechts(c.id,n)+
-    '</div>';
-  }).join("");
+    const n=(typeof coachIsGedempt==="function"&&coachIsGedempt(c.coach_id))?0:p.n;
+    return {key:c.id,klant:c,m:p.m,laatst:p.m?p.m.created_at:"",n};
+  }));
 }
+function berFilterHtml(){
+  const n=berLijstItems(true).filter(it=>it.n).length;
+  return '<button class="bf'+(BER.filter?"":" on")+'" onclick="berFilter(\'\')">Alle</button>'+
+    '<button class="bf'+(BER.filter==="ongelezen"?" on":"")+'" onclick="berFilter(\'ongelezen\')" title="Alleen gesprekken met een ongelezen bericht">Ongelezen'+(n?' <span class="bf-n" data-notr>'+n+'</span>':'')+'</button>';
+}
+function berAvatarHtml(it){
+  return it.groep
+    ?'<div class="cavc" style="width:36px;height:36px;font-size:14px;flex:none;background:#2a2e35;color:#fff">👥</div>'
+    :'<div class="cavc" style="width:36px;height:36px;font-size:11.5px;flex:none;'+avFotoStyle(it.klant)+'">'+avFotoText(it.klant)+'</div>';
+}
+const berItemNaam=it=>it.groep?esc(it.groep.name)+(it.groep.announce_only?' 📢':''):naamVan(it.klant);
+function berRijHtml(it,vast){
+  const k=it.key,m=it.m;
+  const concept=k!==BER.cur?berConcept(k):"";
+  let prev;
+  if(concept)prev='<span class="concept">Concept:</span> <span data-notr>'+esc(concept)+'</span>';
+  else if(!m)prev="Nog geen berichten";
+  else if(it.groep)prev=esc(berNaamAlg(m.sender_id)+": "+(m.body||""));
+  else prev=(m.sender_id===k?"":berVinkHtml(m))+esc((m.sender_id===ME.user.id?"Jij: ":"")+chatPreview(m));
+  return '<div class="chatrow'+(BER.cur===k?" on":"")+(it.n?" nieuw":"")+'" onclick="'+(it.groep?"berOpenGroep('"+it.groep.id+"')":"berOpen('"+k+"')")+'">'+berAvatarHtml(it)+
+    '<div class="cr-mid"><div class="cr-top"><b class="sm">'+berItemNaam(it)+'</b>'+(m?berLijstTijdHtml(m.created_at):"")+'</div>'+
+      '<div class="cr-onder"><div class="prev">'+prev+'</div>'+(vast?'<span class="cr-pin" title="Vastgezet">📌</span>':'')+(it.n?'<span class="cpill bad">'+it.n+'</span>':'')+'</div></div>'+
+    '<button class="kebab ber-kebab" title="Meer" onclick="berRijMenu(event,this,\''+k+'\')">⋮</button></div>';
+}
+// Zoeken in de tekst van berichten: de nieuwste treffers, met het gevonden stukje gemarkeerd.
+function berKnipsel(body,z){
+  const t=String(body).replace(/\s+/g," "),i=t.toLowerCase().indexOf(z);
+  if(i<0)return esc(t.slice(0,90));
+  const van=i>14?i-10:0; // kort stukje ervoor, zodat het gevonden woord in beeld blijft
+  return (van?"…":"")+esc(t.slice(van,i))+'<mark>'+esc(t.slice(i,i+z.length))+'</mark>'+esc(t.slice(i+z.length,i+z.length+80));
+}
+function berZoekHitsHtml(){
+  const z=BER.zoek;if(z.length<2)return "";
+  const raak=m=>m.body&&m.body.toLowerCase().indexOf(z)>=0;
+  const hits=BER.msgs.filter(raak).map(m=>({m,key:m.athlete_id})).concat(BER.gmsgs.filter(raak).map(m=>({m,key:"g:"+m.group_id})));
+  hits.sort((a,b)=>String(b.m.created_at).localeCompare(String(a.m.created_at)));
+  const uit=[];
+  for(const h of hits){
+    if(uit.length>=40)break;
+    const g=berIsGroep(h.key)?berGroep(h.key.slice(2)):null;
+    const c=g?null:BER.clients.find(x=>x.id===h.key);
+    if(!g&&(!c||(BER.coachF&&c.coach_id!==BER.coachF)))continue;
+    const it=g?{groep:g}:{klant:c},m=h.m;
+    // In een groep de voornaam van de afzender erbij (kort, zodat het gevonden woord past)
+    const afz=g?(BER.clients.find(x=>x.id===m.sender_id)||BER.coaches.find(x=>x.id===m.sender_id)):null;
+    const wie=m.sender_id===ME.user.id?(berEN()?"You: ":"Jij: "):(afz&&afz.first_name?afz.first_name+": ":"");
+    uit.push('<div class="chatrow hit" onclick="'+(g?"berOpenGroep('"+g.id+"','"+esc(m.id)+"')":"berOpen('"+c.id+"','"+esc(m.id)+"')")+'">'+berAvatarHtml(it)+
+      '<div class="cr-mid"><div class="cr-top"><b class="sm">'+berItemNaam(it)+'</b>'+berLijstTijdHtml(m.created_at)+'</div>'+
+      '<div class="cr-onder"><div class="prev" data-notr>'+esc(wie)+berKnipsel(m.body,z)+'</div></div></div></div>');
+  }
+  return uit.join("");
+}
+function berLijstHtml(){
+  let items=berLijstItems();
+  // Ongelezen-filter: het open gesprek blijft staan, ook als het net gelezen is
+  if(BER.filter==="ongelezen")items=items.filter(it=>it.n||it.key===BER.cur);
+  const hits=berZoekHitsHtml();
+  if(!items.length&&!hits)return '<div class="cempty">'+(BER.filter==="ongelezen"&&!BER.zoek?"Geen ongelezen gesprekken. Je bent helemaal bij.":"Geen gesprekken gevonden.")+'</div>';
+  // Vastgezet bovenaan, dan groepen, dan klanten; binnen elk blok het nieuwste bericht eerst
+  // (klanten zonder berichten onderaan, op naam).
+  const vast=berVast(),nieuwst=(a,b)=>(b.laatst||"").localeCompare(a.laatst||"");
+  const vastI=items.filter(it=>vast.includes(it.key)).sort(nieuwst);
+  const groepI=items.filter(it=>it.groep&&!vast.includes(it.key)).sort(nieuwst);
+  const klantI=items.filter(it=>it.klant&&!vast.includes(it.key)).sort(nieuwst);
+  let html="",eerste=true;
+  const kop=t=>{const h='<div class="clh"'+(eerste?' style="border-top:none"':'')+'>'+t+'</div>';eerste=false;return h;};
+  if(vastI.length)html+=kop("Vastgezet")+vastI.map(it=>berRijHtml(it,true)).join("");
+  if(groepI.length)html+=kop("Groepen")+groepI.map(it=>berRijHtml(it,false)).join("");
+  if(klantI.length)html+=(eerste?"":kop("Klanten"))+klantI.map(it=>berRijHtml(it,false)).join("");
+  if(hits)html+=kop("Gevonden in berichten")+hits;
+  return html;
+}
+const BER_LEEG_HTML='<div class="cempty" style="margin:auto">Kies links een gesprek.<div class="sm muted" style="margin-top:6px">Tip: plak een screenshot met Ctrl+V of sleep een foto of video in het gesprek.</div></div>';
 function berThreadHtml(){
   if(String(BER.cur||"").indexOf("g:")===0)return berGroepThreadHtml(String(BER.cur).slice(2));
   const c=BER.clients.find(x=>x.id===BER.cur);
-  if(!c)return '<div class="cempty" style="margin:auto">Kies links een gesprek.</div>';
+  if(!c)return BER_LEEG_HTML;
   const coach=BER.coaches.find(x=>x.id===c.coach_id);
   const ms=berMsgsVan(c.id);
   return '<div class="th"><div class="cavc" style="width:34px;height:34px;font-size:11px;flex:none;'+avFotoStyle(c)+'">'+avFotoText(c)+'</div>'+
       '<div style="min-width:0"><b>'+naamVan(c)+'</b>'+(myRole()!=="coach"&&coach?'<div class="sm muted">Coach: '+naamVan(coach)+'</div>':'')+'</div>'+
       '<span class="ber-kopactie" id="ber-kopactie">'+berKopActieHtml(c.id)+'</span></div>'+
-    '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berBubHtml(m,c)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
+    '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,m=>berBubHtml(m,c))||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
     '<div class="gepland" id="ber-gepland">'+berGeplandHtml(c.id)+'</div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
-    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="Typ een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berStuur)" oninput="chatGroei(this)"></textarea>'+
+    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="Typ een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
       '<span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'ber\')">⏱</button></span>'+
-      '<button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>';
+      '<button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>'+
+    '<div class="sleeplaag">Laat los om mee te sturen</div>';
 }
 // Rechts = de coach-kant (alles wat niet van het lid komt), links = het lid.
 // Leest een eigenaar/admin mee, dan staat de naam van de afzender erbij.
 function berBubHtml(m,c){
   const vanLid=m.sender_id===c.id;
-  let meta=tijdNL(m.created_at);
+  let meta=berHM(m.created_at);
   if(!vanLid&&m.sender_id!==ME.user.id)meta=berNaam(m.sender_id)+" · "+meta;
-  return rxRij(m,!vanLid,'<div data-notr class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+meta+'</div></div>');
+  return rxRij(m,!vanLid,'<div data-notr class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?chatTekst(m.body):"")+'<div class="meta"><span class="mt">'+meta+'</span>'+(vanLid?"":berVinkHtml(m))+'</div></div>');
+}
+// Naar één bericht in het open gesprek springen (vanuit de zoekresultaten) en het even laten oplichten.
+function berNaarBericht(mid){
+  const host=document.getElementById("ber-msgs");if(!host)return;
+  const el=[...host.querySelectorAll("[data-mid]")].find(x=>x.dataset.mid===String(mid));
+  if(!el){berScroll();return;}
+  host.scrollTop+=el.getBoundingClientRect().top-host.getBoundingClientRect().top-host.clientHeight/2+el.offsetHeight/2;
+  el.classList.add("flits");setTimeout(()=>el.classList.remove("flits"),2000);
 }
 function berScroll(){const h=document.getElementById("ber-msgs");if(h)h.scrollTop=h.scrollHeight;}
-async function berOpen(id){
+async function berOpen(id,mid){
   BER.cur=id;
   CHATBIJL.ber=[]; // ander gesprek = gekozen bijlagen weg
   const c=BER.clients.find(x=>x.id===id);
-  const th=document.getElementById("ber-thread");if(th)th.innerHTML=berThreadHtml();
+  const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berThreadHtml();}
   const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
   berKlantLaad();
-  berScroll();
+  berInvoerKlaar(true); // concept terug en meteen kunnen typen
+  if(mid)berNaarBericht(mid);else berScroll();
   if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen
   rxVernieuw(berMsgsVan(id).map(m=>m.id)); // emoji-reacties van deze draad erbij
   // gelezen-markering alleen door de eigen coach (RLS staat anderen niet toe)
@@ -233,9 +433,10 @@ function berRijMenu(ev,btn,key){
   const bestond=document.querySelector('.coachmenu.ber-menu[data-voor="'+key+'"]');
   document.querySelectorAll(".coachmenu").forEach(x=>x.remove());
   if(bestond)return;
-  const a=berLeesActie(key);if(a!=="gelezen"&&a!=="ongelezen")return;
+  const a=berLeesActie(key);
   const m=document.createElement("div");m.className="coachmenu ber-menu";m.dataset.voor=key;
-  m.innerHTML='<button onclick="event.stopPropagation();'+(a==="gelezen"?"berZetGelezen":"berZetOngelezen")+'(\''+key+'\')">'+(a==="gelezen"?"Markeer als gelezen":"Markeer als ongelezen")+'</button>';
+  m.innerHTML=((a==="gelezen"||a==="ongelezen")?'<button onclick="event.stopPropagation();'+(a==="gelezen"?"berZetGelezen":"berZetOngelezen")+'(\''+key+'\')">'+(a==="gelezen"?"Markeer als gelezen":"Markeer als ongelezen")+'</button>':'')+
+    '<button onclick="event.stopPropagation();berVastWissel(\''+key+'\')">'+(berVast().includes(key)?"Niet meer vastzetten":"Vastzetten bovenaan")+'</button>';
   document.body.appendChild(m);
   const r=btn.getBoundingClientRect();
   m.style.top=Math.min(r.bottom+4,window.innerHeight-m.offsetHeight-8)+"px";
@@ -277,36 +478,42 @@ async function berZetGelezen(key){
 }
 function berSluitGesprek(){
   BER.cur=null;CHATBIJL.ber=[];
-  const th=document.getElementById("ber-thread");if(th)th.innerHTML=berThreadHtml();
+  const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berThreadHtml();}
   const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
 }
 async function berStuur(){
   const inp=document.getElementById("ber-inp");if(!inp)return;
   const tekst=(inp.value||"").trim();
   if((!tekst&&!CHATBIJL.ber.length)||!BER.cur)return;
+  const aid=BER.cur; // vasthouden: tijdens een upload kan er een ander gesprek geopend worden
   const knop=document.getElementById("ber-verstuur");
   if(knop&&knop.disabled)return; // niet dubbel versturen tijdens een upload
   let media=[];
   if(CHATBIJL.ber.length){
     if(knop){knop.disabled=true;knop.textContent="Uploaden…";}
-    try{media=await chatUpload("ber",BER.cur);}
+    try{media=await chatUpload("ber",aid);}
     catch(e){toast(e.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Versturen";}return;}
   }
-  const{data,error}=await db.from("messages").insert({company_id:ME.profile.company_id,athlete_id:BER.cur,sender_id:ME.user.id,body:tekst,media}).select().single();
+  const{data,error}=await db.from("messages").insert({company_id:ME.profile.company_id,athlete_id:aid,sender_id:ME.user.id,body:tekst,media}).select().single();
   if(knop){knop.disabled=false;knop.textContent="Versturen";}
   if(error){
     if(media.length)try{db.storage.from("media").remove(media.map(x=>x.path));}catch(e){}
     toast(error.message||"Versturen mislukt");return;
   }
-  inp.value="";chatGroei(inp);CHATBIJL.ber=[];chatBijlToon("ber");
-  BER.msgs.push(data||{athlete_id:BER.cur,sender_id:ME.user.id,body:tekst,media,created_at:new Date().toISOString()});
-  berAppend(BER.msgs[BER.msgs.length-1]);
+  berConceptZet(aid,"");
+  if(BER.cur===aid){inp.value="";chatGroei(inp);CHATBIJL.ber=[];chatBijlToon("ber");}
+  BER.msgs.push(data||{athlete_id:aid,sender_id:ME.user.id,body:tekst,media,created_at:new Date().toISOString()});
+  if(BER.cur===aid)berAppend(BER.msgs[BER.msgs.length-1]);
+  // Wie antwoordt heeft het gelezen: openstaande berichten van het lid gaan op gelezen
+  const c=BER.clients.find(x=>x.id===aid);
+  if(c&&c.coach_id===ME.user.id&&berOngelezen(aid)){await berKlantGelezen(aid);if(typeof belMarkeerSoort==="function")belMarkeerSoort(aid,"bericht");}
   berLijstVernieuw();
 }
 function berAppend(m){
   const host=document.getElementById("ber-msgs");if(!host)return;
   const leeg=host.querySelector(".muted");if(leeg)leeg.remove();
   const c=BER.clients.find(x=>x.id===m.athlete_id);if(!c)return;
+  berDagErbij(host,m);
   host.insertAdjacentHTML("beforeend",berBubHtml(m,c));
   if(typeof dashVidSrcs==="function")dashVidSrcs();
   host.scrollTop=host.scrollHeight;
@@ -322,8 +529,26 @@ function berRealtime(){
         if(m.sender_id===ME.user.id)berGeplandLaad(); // een gepland bericht is de deur uit: lijstje bijwerken
         BER.msgs.push(m);
         if(!document.getElementById("ber-lijst"))return; // sectie niet meer in beeld
-        if(BER.cur===m.athlete_id)berAppend(m);
+        if(BER.cur===m.athlete_id){
+          berAppend(m);
+          // Staat dit gesprek open en kijk je ernaar (venster actief), dan is het meteen gelezen
+          const c=BER.clients.find(x=>x.id===m.athlete_id);
+          if(m.sender_id===m.athlete_id&&c&&c.coach_id===ME.user.id&&document.visibilityState==="visible"&&document.hasFocus()){
+            berKlantGelezen(m.athlete_id).then(()=>{if(typeof belMarkeerSoort==="function")belMarkeerSoort(m.athlete_id,"bericht");berLijstVernieuw();});
+          }
+        }
         berLijstVernieuw();
+      })
+      // Gelezen-stand live: het lid opent het gesprek in de app = de vinkjes springen op twee
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"messages"},payload=>{
+        const n=payload.new;if(!n)return;
+        const m=BER.msgs.find(x=>x.id===n.id);
+        if(!m||!!m.read_at===!!n.read_at)return;
+        m.read_at=n.read_at;
+        if(!document.getElementById("ber-lijst"))return;
+        document.querySelectorAll("#ber-msgs .wcrij").forEach(el=>{if(el.dataset.mid===String(m.id)){const v=el.querySelector(".vink");if(v)v.outerHTML=berVinkHtml(m);}});
+        berLijstVernieuw();
+        if(m.sender_id===m.athlete_id)berBadgeBij(); // alleen dan verandert de teller in de bovenbalk
       })
       // Emoji-reacties van de ander live in de open draad
       .on("postgres_changes",{event:"*",schema:"public",table:"message_reactions"},payload=>{
@@ -336,7 +561,7 @@ function berRealtime(){
         if(!document.getElementById("ber-lijst"))return;
         if(BER.cur==="g:"+m.group_id){
           const host=document.getElementById("ber-msgs");
-          if(host){const leeg=host.querySelector(".muted");if(leeg)leeg.remove();host.insertAdjacentHTML("beforeend",berGroepBubHtml(m));host.scrollTop=host.scrollHeight;}
+          if(host){const leeg=host.querySelector(".muted");if(leeg)leeg.remove();berDagErbij(host,m);host.insertAdjacentHTML("beforeend",berGroepBubHtml(m));host.scrollTop=host.scrollHeight;}
           berGroepGelezen(m.group_id);
         }
         berLijstVernieuw();
@@ -346,12 +571,12 @@ function berRealtime(){
 // ---------- Groepschats ----------
 function berGroepBubHtml(m){
   const mij=m.sender_id===ME.user.id;
-  const meta=(mij?"":berNaamAlg(m.sender_id)+" · ")+tijdNL(m.created_at);
-  return '<div data-notr class="bub '+(mij?"me":"them")+'">'+esc(m.body)+'<div class="meta">'+meta+'</div></div>';
+  const meta=(mij?"":berNaamAlg(m.sender_id)+" · ")+berHM(m.created_at);
+  return '<div data-notr class="bub '+(mij?"me":"them")+'" data-mid="'+esc(m.id)+'">'+chatTekst(m.body)+'<div class="meta"><span class="mt">'+meta+'</span></div></div>';
 }
 function berGroepThreadHtml(gid){
   const g=berGroep(gid);
-  if(!g)return '<div class="cempty" style="margin:auto">Kies links een gesprek.</div>';
+  if(!g)return BER_LEEG_HTML;
   const leden=berGroepLeden(gid);
   const ms=berGroepMsgs(gid);
   const beheer=g.created_by===ME.user.id||myRole()!=="coach";
@@ -360,13 +585,17 @@ function berGroepThreadHtml(gid){
       '<span style="margin-left:auto;display:flex;gap:8px;flex:none"><span class="ber-kopactie" id="ber-kopactie">'+berKopActieHtml("g:"+gid)+'</span>'+
       (beheer?'<button class="btn ghost sm" onclick="berGroepLedenBeheer(\''+gid+'\')">Leden</button><button class="btn ghost sm" onclick="berGroepWeg(\''+gid+'\')" title="Groep verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button>':'')+'</span>'+
     '</div>'+
-    '<div class="msgs" id="ber-msgs">'+(ms.map(m=>berGroepBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten in deze groep.</div>')+'</div>'+
-    '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="Bericht aan de groep…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berGroepStuur)" oninput="chatGroei(this)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
+    '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,berGroepBubHtml)||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten in deze groep.</div>')+'</div>'+
+    '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="Bericht aan de groep…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,berGroepStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
 }
-async function berOpenGroep(gid){
+async function berOpenGroep(gid,mid){
   BER.cur="g:"+gid;
-  const th=document.getElementById("ber-thread");if(th)th.innerHTML=berGroepThreadHtml(gid);
-  berScroll();
+  CHATBIJL.ber=[];
+  const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berGroepThreadHtml(gid);}
+  // Het klantpaneel hoort bij een 1-op-1 gesprek; bij een groep gaat het dicht
+  const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
+  berInvoerKlaar(true);
+  if(mid)berNaarBericht(mid);else berScroll();
   await berGroepGelezen(gid);
   berLijstVernieuw();
 }
@@ -388,10 +617,11 @@ async function berGroepStuur(){
   if(!tekst||!gid)return;
   const{data,error}=await db.from("chat_group_messages").insert({group_id:gid,company_id:ME.profile.company_id,sender_id:ME.user.id,body:tekst}).select().single();
   if(error){toast(error.message||"Versturen mislukt");return;}
-  inp.value="";chatGroei(inp);
+  berConceptZet("g:"+gid,"");
+  if(BER.cur==="g:"+gid){inp.value="";chatGroei(inp);}
   BER.gmsgs.push(data);
-  const host=document.getElementById("ber-msgs");
-  if(host){const leeg=host.querySelector(".muted");if(leeg)leeg.remove();host.insertAdjacentHTML("beforeend",berGroepBubHtml(data));host.scrollTop=host.scrollHeight;}
+  const host=BER.cur==="g:"+gid?document.getElementById("ber-msgs"):null;
+  if(host){const leeg=host.querySelector(".muted");if(leeg)leeg.remove();berDagErbij(host,data);host.insertAdjacentHTML("beforeend",berGroepBubHtml(data));host.scrollTop=host.scrollHeight;}
   berLijstVernieuw();
 }
 // Nieuwe groep of leden beheren: zelfde venster (naam + aankondiging alleen bij nieuw).
@@ -629,6 +859,7 @@ async function laterKies(key,wat){
   if(error){toast(error.message||"Plannen mislukt");return;}
   document.querySelectorAll(".latermenu").forEach(m=>m.remove());
   inp.value="";chatGroei(inp);CHATBIJL[key]=[];chatBijlToon(key);
+  if(key==="ber")berConceptZet(aid,"");
   if(data){BER.gepland.push(data);BER.gepland.sort((a,b)=>a.send_at.localeCompare(b.send_at));}
   const h=document.getElementById("ber-gepland");if(h&&BER.cur===aid)h.innerHTML=berGeplandHtml(aid);
   toast("Gepland voor "+laterLabel(tijd.toISOString()));

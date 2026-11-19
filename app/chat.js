@@ -118,6 +118,25 @@ async function chatUpload(key,athleteId,map){
   return uit;
 }
 
+// Tekst van een bericht voor in een bubbel: veilig gemaakt, met klikbare links
+// (http(s)://… en www.…). Een punt of haakje direct achter de link hoort er niet bij.
+function chatTekst(s){
+  return esc(s||"").replace(/(^|[\s(])((?:https?:\/\/|www\.)[^\s<]+)/gi,(alles,voor,url)=>{
+    let rest="";const m=url.match(/(?:[.,!?;:)\]']|&quot;|&gt;)+$/);
+    if(m){rest=m[0];url=url.slice(0,url.length-rest.length);}
+    if(url.replace(/^(?:https?:\/\/|www\.)/i,"").length<3)return alles;
+    return voor+'<a class="chatlink" href="'+(/^www\./i.test(url)?"https://":"")+url+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">'+url+'</a>'+rest;
+  });
+}
+// Plakken (Ctrl+V) van een screenshot of bestand in het tekstvak = bijlage erbij.
+// Zit er ook gewone tekst op het klembord (kopie uit Word of Excel), dan wint de tekst.
+function chatPlak(ev,key){
+  const cd=ev.clipboardData;if(!cd||!cd.files||!cd.files.length)return;
+  if((cd.getData("text/plain")||"").trim())return;
+  ev.preventDefault();
+  chatBijlErbij(key,[...cd.files]);
+}
+
 // Alinea's in de chat (feedbackronde 5, 20 okt): het invoerveld is een
 // meegroeiend tekstvak. Enter = versturen, Shift+Enter = nieuwe regel.
 function chatToets(ev,stuur){
@@ -142,7 +161,7 @@ async function openChatPop(){
     '<span class="chlees" id="chat-ongelezen" style="display:none" title="Markeer als ongelezen" onclick="chatZetOngelezen()">Ongelezen</span>'+
     '<svg class="i" onclick="chatSluit()"><use href="#i-x"/></svg></div>'+
     '<div class="msgs2" id="chat-msgs"><div class="sm muted" style="text-align:center;padding:14px">Laden…</div></div>'+
-    '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)"></textarea><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'pop\')">⏱</button></span><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
+    '<div class="cin"><div class="bijlrij" id="chat-bijl-pop" style="display:none"></div><textarea id="chat-inp" rows="1" placeholder="Schrijf een bericht…" title="Enter = versturen, Shift+Enter = nieuwe regel" onkeydown="return chatToets(event,chatStuur)" oninput="chatGroei(this)" onpaste="chatPlak(event,\'pop\')"></textarea><div class="cinrow"><button class="bijlknop" onclick="chatKies(\'pop\')" title="Foto of video meesturen">📎</button><span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'pop\')">⏱</button></span><button class="send" onclick="chatStuur()">Stuur</button></div></div>';
   document.body.appendChild(pop);
   await chatLaad();
   chatKanaalStart();
@@ -172,9 +191,14 @@ async function chatLaad(){
   host.innerHTML=(data||[]).map(m=>chatBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>';
   host.scrollTop=host.scrollHeight;
   if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen
-  // binnengekomen berichten op gelezen zetten
+  // Binnengekomen berichten van het lid op gelezen zetten. Alleen die van het lid:
+  // read_at op een bericht van de coach-kant betekent "het lid heeft het gelezen"
+  // (de vinkjes op Berichten), dus die laten we met rust. Kijk je naar je eigen
+  // gesprek (staf die meetraint), dan ben jij het lid en gaat het om de rest.
   try{
-    await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",chatAthlete).neq("sender_id",ME.user.id).is("read_at",null);
+    let lees=db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",chatAthlete);
+    lees=chatAthlete===ME.user.id?lees.neq("sender_id",ME.user.id):lees.eq("sender_id",chatAthlete);
+    await lees.is("read_at",null);
     if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
   }catch(e){}
   chatOngelezenKnop((data||[]).some(m=>m.sender_id===chatAthlete));
@@ -204,7 +228,7 @@ async function chatZetOngelezen(){
 }
 function chatBubHtml(m){
   const mij=m.sender_id===ME.user.id;
-  return rxRij(m,mij,'<div data-notr class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>');
+  return rxRij(m,mij,'<div data-notr class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?chatTekst(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>');
 }
 function chatToon(m,scroll){
   const host=document.getElementById("chat-msgs");if(!host)return;
