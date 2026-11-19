@@ -2070,9 +2070,12 @@ async function insWeekwod(id){
   if(String(insDoel||"").indexOf("veld:")===0){toast("Een weekworkout past niet in dit vak; voeg hem toe als blok via + Programma.");return;}
   const w=insBlog.find(x=>x.id===id);if(!w)return;
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
-  if(insDoel==="progcel"){ // in een programma: gewone kopie, een programma kent de koppeling met het gedeelde leaderboard niet
-    if(!(await progZetWorkout(progInsDag.week,progInsDag.day,{title:w.title||null,warmup:w.warmup||null,cooldown:w.cooldown||null},blocks)))return;
-    closeIns();toast("Weekworkout als gewone workout in het programma gezet (zonder gedeeld leaderboard)");await progReloadWorkouts();progSyncNa([progInsDag]);return;
+  if(insDoel==="progcel"){ // in een template: één blok dat naar de weekworkout wijst, zodat een klant die de template krijgt op het gedeelde leaderboard komt
+    const tekst=blocks.map(b=>{const pr=composePresc(b);return (blocks.length>1?(b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n":""):"")+(pr||"");}).join("\n\n");
+    const media=blocks.flatMap(b=>b.media||[]);
+    const blok={kind:"exercise",label:"A",sort:1,linked:false,exercise:w.title||SHOWDOWN,prescription:tekst||null,color:"blue",score_type:(blocks[0]&&blocks[0].score_type)||"text",timecap_seconds:(blocks[0]&&blocks[0].timecap_seconds)||null,cap_score_type:(blocks[0]&&blocks[0].cap_score_type)||"reps",media:media.length?media:null,source_blog_workout_id:w.id};
+    if(!(await progZetWorkout(progInsDag.week,progInsDag.day,{title:w.title||null,warmup:w.warmup||null,cooldown:w.cooldown||null},[blok])))return;
+    closeIns();toast("Weekworkout in de template gezet; een klant die de template krijgt komt op het gedeelde leaderboard");await progReloadWorkouts();progSyncNa([progInsDag]);return;
   }
   if(insDoel==="bouwer"){
     const txt=blocks.map(b=>{const pr=composePresc(b);return (b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n"+pr:"");}).join("\n\n");

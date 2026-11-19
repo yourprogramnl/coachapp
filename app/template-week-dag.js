@@ -15,7 +15,7 @@
 // uitwerken.
 const progIsDag=p=>!!p&&p.type==="dag";
 const progSoortNaam=p=>progIsDag(p)?"Template dag":"Template week";
-const progBlokVelden=b=>({kind:b.kind||"exercise",label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null});
+const progBlokVelden=b=>({kind:b.kind||"exercise",label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null});
 const progSorteer=(a,b)=>(a.week-b.week)||(a.day-b.day)||((a.sort||0)-(b.sort||0))||String(a.created_at||"").localeCompare(String(b.created_at||""));
 
 // Alle workouts van één template, met blokken. In stukken van 1000, want een

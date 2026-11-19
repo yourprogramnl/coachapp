@@ -405,8 +405,8 @@ async function blkOpslaanProg(blok,titel,klaar){
   const week=BLK.week,day=BLK.day;
   // Een open bouwer op een andere dag eerst stil opslaan (zelfde afspraak als Rustdag daar).
   if(!(await progAutoSave()))throw new Error("De open sessie kon niet worden opgeslagen. Los dat eerst op, daarna kan dit blok erbij.");
-  // program_blocks kent geen source_blog_workout_id; verder dezelfde velden als de programma-bouwer.
-  const pb=(pwid,label,sort)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:blok.kind,label,linked:false,exercise:blok.exercise,prescription:blok.prescription,notes:blok.notes,sort,color:blok.color,score_type:blok.score_type,timecap_seconds:blok.timecap_seconds,cap_score_type:blok.cap_score_type,oefening_id:null,media:blok.media,lift_id:blok.lift_id,lift_scheme:blok.lift_scheme,group_title:null});
+  // Zelfde velden als de programma-bouwer, met de koppeling naar een Showdown of leaderboard-workout.
+  const pb=(pwid,label,sort)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:blok.kind,label,linked:false,exercise:blok.exercise,prescription:blok.prescription,notes:blok.notes,sort,color:blok.color,score_type:blok.score_type,timecap_seconds:blok.timecap_seconds,cap_score_type:blok.cap_score_type,oefening_id:null,source_blog_workout_id:blok.source_blog_workout_id||null,media:blok.media,lift_id:blok.lift_id,lift_scheme:blok.lift_scheme,group_title:null});
   const dag=(PROG.workouts||[]).filter(w=>w.week===week&&w.day===day&&!blkIsRust(w)).sort((a,b)=>(a.sort||0)-(b.sort||0));
   if(dag.length){
     const w=dag[dag.length-1],n=blkVolgende(w.program_blocks);

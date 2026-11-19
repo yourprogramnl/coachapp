@@ -22,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.7 (lezen en concepten schrijven)";
+  const VERSIE="2.8 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=8,MAX_DAGEN_VOORUIT=120;
@@ -518,6 +518,7 @@ const ClaudeApi=(()=>{
           "Onderdelen met leaderboard_workout zijn een leaderboard-workout: een 1-op-1 workout met een gedeeld leaderboard voor de atleten die hem in hun kalender hebben. De tekst schrijf je niet zelf over: plaatsen gaat met ClaudeApi.plaatsLeaderboardWorkout, dat de tekst uit de leaderboard-workout haalt. Een week kopiëren neemt zo'n blok wel mee, met zijn koppeling.",
           "Een geschaalde versie voor één atleet (bijvoorbeeld ring rows in plaats van pull-ups) maak je met ClaudeApi.schaalBlok, bij een leaderboard-workout en bij een ingevoegde YP Showdown. Alleen het blok van die atleet verandert; hij staat dan onder Scaled op het gedeelde leaderboard. Doe dit alleen als de coach erom vraagt en zeg vooraf wat je aanpast.",
           "Een leaderboard aanzetten (ClaudeApi.leaderboardAan) maakt scores van atleten zichtbaar voor elkaar. Doe dat alleen als de coach er uitdrukkelijk om vraagt.",
+          "Een Template week of dag kan een YP Showdown of leaderboard-workout bevatten (uit_weekworkout of leaderboard_workout bij het blok in templateWeek). kopieerTemplate zet dat blok bij de atleet met zijn gedeelde leaderboard, precies zoals het in de template staat.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
           "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd. Staat er verouderd:true, dan is er een nieuwere versie live: voer location.reload() uit en begin opnieuw. Naar hetzelfde adres navigeren herlaadt de pagina niet.",
           "Zoek een atleet altijd eerst op met ClaudeApi.atleten(...) en gebruik daarna zijn id. Elk antwoord noemt de atleet bij naam: controleer die naam.",
@@ -1100,7 +1101,7 @@ const ClaudeApi=(()=>{
       const meldingen=[];
       if(zichtbaar.length)meldingen.push((eenDag?"Op "+datum:"In de week van "+maandag)+" staan al "+zichtbaar.length+" zichtbare workouts. De kopie komt ernaast.");
       const rijen=bron.map(pw=>({workout:{workout_date:eenDag?datum:plus(maandag,(pw.day||1)-1),title:pw.title||null,coach_notes:pw.coach_notes||null,warmup:pw.warmup||null,cooldown:pw.cooldown||null,
-          warmup_media:pw.warmup_media||null,cooldown_media:pw.cooldown_media||null},blokken:tplBlokRijen(pw).map(kopieBlok)}));
+          warmup_media:pw.warmup_media||null,cooldown_media:pw.cooldown_media||null},blokken:tplBlokRijen(pw).map(b=>Object.assign(kopieBlok(b),{source_blog_workout_id:b.source_blog_workout_id||null}))}));
       await kopieVideos(rijen,opties.videos,meldingen);
       const ids=await conceptenNeerzetten(a.p,rijen);
       const terug=await leesTerug(ids);

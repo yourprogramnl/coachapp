@@ -778,7 +778,7 @@ function progDayCel(week,day){
     let inner=wos.filter(w=>w.id!==progEditWid).map(progCard).join("");
     const w=progEditWid?wos.find(x=>x.id===progEditWid):null;
     const wObj=w?{id:w.id,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,blocks:(w.program_blocks||[])}:{};
-    inner+='<div class="ib2 pe-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
+    inner+='<div class="ib2 pe-ib prog-ib" onclick="event.stopPropagation()">'+progBuilderHtml(wObj)+'</div>';
     return '<div class="pe-cell"'+bsDagAttr("prog",week+":"+day)+'>'+inner+'</div>';
   }
   return '<div class="pe-cell"'+bsDagAttr("prog",week+":"+day)+'><div class="addrow2"><button class="addnewbtn" onclick="event.stopPropagation();progDayMenu(event,'+week+','+day+')">+ Toevoegen</button>'+
@@ -818,9 +818,11 @@ async function progPickInsert(week,day){
   insDoel="progcel";progInsDag={week,day};
   await openInsModal("in week "+week+" op dag "+((week-1)*7+day));
 }
-// Blokken in de vorm van blocks -> rijen voor program_blocks (die kent geen source_blog_workout_id).
+// Blokken in de vorm van blocks -> rijen voor program_blocks. De koppeling met een YP Showdown of
+// leaderboard-workout (source_blog_workout_id) gaat mee, zodat een klant die de template krijgt op
+// hetzelfde leaderboard komt.
 function progBlokRijen(pwid,blokken){
-  return (blokken||[]).map((b,i)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind||"exercise",label:b.label||String.fromCharCode(65+Math.min(i,25)),linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort||i+1,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+  return (blokken||[]).map((b,i)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind||"exercise",label:b.label||String.fromCharCode(65+Math.min(i,25)),linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort||i+1,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
 }
 // Eén workout met blokken in het programma zetten; true = gelukt.
 async function progZetWorkout(week,day,velden,blokken){
@@ -879,6 +881,7 @@ async function progOpenBuilder(week,day,wid){
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
   if(!(await progAutoSave()))return;
   progEditDay={week,day};progEditWid=wid||null;bouwerDirty=false;progRender();
+  if(typeof bordLaad==="function")bordLaad(); // namen op de leaderboard-balkjes
 }
 function progCloseBuilder(){bouwerDirty=false;progEditDay=null;progEditWid=null;progRender();}
 function progBuilderHtml(w){
@@ -906,7 +909,7 @@ async function progSaveWorkout(){
   // Warming-up of cooldown leeggemaakt? Dan horen de video's er ook niet meer bij.
   if(!wf.warmup)wf.warmup_media=null;
   if(!wf.cooldown)wf.cooldown_media=null;
-  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+  const mkBlocks=pwid=>rows.map(b=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
   try{
     if(progEditWid){
       const{error:ue}=await db.from("program_workouts").update(wf).eq("id",progEditWid);if(ue)throw ue;
@@ -1321,7 +1324,7 @@ async function progSyncDagen(dagen){
       k++;
       const{data:nw,error:we}=await db.from("workouts").insert({company_id:prof.company_id||ME.profile.company_id,coach_id:prof.coach_id||ME.user.id,client_id:d.a.athlete_id,workout_date:d.datum,title:pw.title,coach_notes:pw.coach_notes,warmup:pw.warmup,cooldown:pw.cooldown,warmup_media:pw.warmup_media||null,cooldown_media:pw.cooldown_media||null,audience:"client",assignment_id:d.a.id,day_sort:k}).select("id").single();
       if(we)throw we;
-      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+      (pw.program_blocks||[]).slice().sort((a,b)=>a.sort-b.sort).forEach(b=>blocksAll.push({workout_id:nw.id,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
     }
     if(blocksAll.length){const{error:be}=await db.from("blocks").insert(blocksAll);if(be)throw be;}
     dagenKlaar++;klanten.add(d.a.athlete_id);

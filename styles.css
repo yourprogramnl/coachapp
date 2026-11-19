@@ -1890,3 +1890,8 @@ body.bervenster .chatklant{max-height:none}
 .bordaan:disabled{opacity:.5;cursor:default}
 .sdstrip .borduit{order:9;margin-left:auto}
 .sdstrip .borduit+.sdstrip-sc{margin-left:0}
+/* Template week en dag (19 nov 2026): het leaderboard-balkje ook in de templatebouwer, zonder Scaled-versie (die is per klant) */
+.ib2.prog-ib .sdstrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#eeebfd;border:1px solid #dcd6fb;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px}
+.ib2.prog-ib .sdstrip.sdstrip-uit{background:none;border:none;padding:0;margin:0 0 2px;justify-content:flex-end}
+.ib2.prog-ib .sdstrip .sdstrip-sc{display:none}
+

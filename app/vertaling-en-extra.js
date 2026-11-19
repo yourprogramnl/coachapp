@@ -1061,3 +1061,7 @@ i18nLaad({
   "Nog geen leaderboard-workouts. Zet bij een klant op een blok \"Leaderboard aan\"; daarna staat hij hier en sleep je hem naar andere klanten.": "No leaderboard workouts yet. Turn on \"Leaderboard on\" for a block at a client; it then appears here and you drag it to other clients.",
   "leaderboard-workout · gedeeld leaderboard voor 1-op-1": "leaderboard workout · shared leaderboard for 1-on-1",
 });
+// Template week en dag houden het leaderboard vast (19 nov 2026)
+i18nLaad({
+  "Weekworkout in de template gezet; een klant die de template krijgt komt op het gedeelde leaderboard": "Weekly workout added to the template; a client who gets the template joins the shared leaderboard",
+});
