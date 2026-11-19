@@ -285,6 +285,7 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .exopt .srcbadge{margin-left:auto}
 .vidpop{position:absolute;right:-6px;top:100%;margin-top:6px;z-index:90;background:#fff;border:1px solid #e7e9ec;border-radius:12px;box-shadow:0 16px 44px rgba(15,18,22,.18);width:238px;padding:12px;display:none}
 .vidpop.show{display:block}
+.vidpop.breed{width:320px}
 .vidpop .vt{font-weight:800;font-size:12.5px;margin-bottom:8px;padding-right:18px}
 .vidpop .vprev{background:#0d0f12;border-radius:8px;height:118px;position:relative;margin-bottom:8px;overflow:hidden}
 .vidpop .vp-x{position:absolute;top:9px;right:12px;cursor:pointer;color:#8a919c;font-size:13px;z-index:5}
@@ -1092,6 +1093,15 @@ body.coachmode #cpage.fullbleed{max-width:none;padding:0}
 .vidpop .vzk-lijst{max-height:190px;overflow:auto;margin-top:6px;display:flex;flex-direction:column;gap:2px}
 .vidpop .vzk-rij{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;cursor:pointer;font-size:12px}
 .vidpop .vzk-rij:hover{background:#f4f6f8}
+/* Nieuwe video via een geplakte YouTube-link: miniatuur, naamveld, knop (bouwer en template-popup) */
+.yt-nieuw{display:flex;flex-direction:column;gap:6px;padding:2px;margin-top:6px}
+.yt-nieuw-kop{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#5b626c;line-height:1.3}
+.yt-nieuw-kop img{width:64px;height:40px;object-fit:cover;border-radius:6px;flex:none;background:#0e0e10;cursor:pointer}
+.yt-nieuw label{font-size:11px;font-weight:700;color:#5b626c;margin:2px 0 -2px;text-transform:none;letter-spacing:0}
+.yt-nieuw input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;font-family:inherit}
+.yt-nieuw .vzk-msg{font-size:11.5px;color:#c8373c;line-height:1.35}
+.yt-nieuw .vzk-msg:empty{display:none}
+.yt-nieuw .btn{align-self:flex-start}
 .vidpop .vzk-rij img{width:42px;height:28px;object-fit:cover;border-radius:5px;flex:none;background:#0e0e10}
 
 /* ---------- Groot-weergave: bladerpijltjes bij meerdere bestanden ---------- */
