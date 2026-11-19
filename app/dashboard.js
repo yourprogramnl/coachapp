@@ -223,7 +223,7 @@ function dashRender(){
     const p=byId[w.client_id]||{};
     const blocks=(d.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
     let done=0;
-    const rij=(badge,titel,tekst,r,vids,st)=>{
+    const rij=(badge,titel,tekst,r,vids,st,bid)=>{
       const sc=resultScoreVol(r,st);
       // Video-uploads van het lid bij dit blok (result_media): inline in de feed
       // zoals CoachRx; klik = direct afspelen, geen apart scherm. De src (signed
@@ -238,7 +238,10 @@ function dashRender(){
       // Geschiedenis-knop: opent de geschiedenis-zoeker voor deze klant + oefening (niet bij de warming-up)
       const histBtn=badge!=="W"?'<svg class="i sm-i" title="Zoek in geschiedenis" style="cursor:pointer" data-aid="'+esc(w.client_id)+'" data-ex="'+esc(titel)+'" onclick="dashHistory(this)"><use href="#i-hist"/></svg>':'';
       const noot=resultSplitsHtml(r,"pr2")+((r&&r.note)?'<div class="pr2" style="font-style:italic;color:#8a919c">💬 '+esc(r.note)+'</div>':'');
-      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+noot+vidHtml+'</div>'+
+      // Feedback op dit onderdeel (feedback-venster.js): bij alles wat gelogd is of een video heeft
+      const fbN=bid?(DASH.wc||[]).filter(m=>m.block_id===bid&&m.athlete_id===w.client_id).length:0;
+      const fbKnop=bid&&(r||(vids&&vids.length)||fbN)?'<div style="margin-top:8px"><button class="btn ghost sm" onclick="fbOpen(\''+esc(w.client_id)+'\',\''+esc(bid)+'\''+(vids&&vids.length?',\''+esc(vids[0].storage_path)+'\'':'')+')">💬 Feedback'+(fbN?' ('+fbN+')':'')+'</button></div>':'';
+      return '<div class="fbrow"><span class="fbadge">'+esc(badge)+'</span><div class="fbody"><b>'+esc(titel)+'</b>'+(tekst?'<div class="pr2">'+esc(tekst)+'</div>':'')+(sc?'<div class="loginp">'+esc(sc)+'</div>':'')+noot+vidHtml+fbKnop+'</div>'+
         '<div class="fside">'+statusBtn+histBtn+'</div></div>';
     };
     let rows="";
@@ -246,7 +249,7 @@ function dashRender(){
     blocks.forEach(b=>{
       const r=resByBlock[b.id];if(r&&r.status==="completed")done++;
       const vids=(md||[]).filter(m=>m.block_id===b.id&&m.athlete_id===w.client_id);
-      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r,vids,b.score_type);
+      rows+=rij(b.label||"•",b.exercise||"Onderdeel",composePresc(b),r,vids,b.score_type,b.id);
     });
     return '<div class="feedcard"><div class="fh" style="cursor:pointer" title="Open het programma van '+esc(naamVan(p))+'" onclick="openClient(\''+esc(w.client_id)+'\')"><div class="cavc" style="'+avFotoStyle(p)+'">'+avFotoText(p)+'</div><div style="flex:1"><b>'+naamVan(p)+'</b><div class="sm muted">Gedaan op '+esc(datumNL(w.workout_date))+'</div></div>'+effortChip(ef.find(e=>e.workout_id===w.id&&e.athlete_id===w.client_id))+'</div>'+
       '<div class="fscore">'+done+'/'+blocks.length+'</div>'+rows+
@@ -455,12 +458,23 @@ async function wcReageer(cid,emoji){
     if(error&&!/duplicate|unique/i.test(error.message||"")){WCR[cid]=lijst;wcRender();toast(error.message||"Reageren mislukt");}
   }
 }
+// Naam van het onderdeel waar een reactie bij hoort, uit wat er al geladen is (kalender of feed).
+function wcBlokNaam(m){
+  let b=null;
+  try{
+    const w=(typeof monthWorkouts!=="undefined"&&monthWorkouts[m.workout_id])||(DASH&&(DASH.ws||[]).find(x=>x.id===m.workout_id))||null;
+    b=w&&(w.blocks||[]).find(x=>x.id===m.block_id);
+  }catch(e){}
+  return b&&b.exercise?"Bij "+b.exercise:"Bij een onderdeel";
+}
 function wcRender(){
   const host=document.getElementById("wc-body");if(!host)return;
   host.innerHTML=WCC.map(m=>{
     const mij=m.author_id===ME.user.id;
     const naam=m.author_id===m.athlete_id?naamVan(actieveKlanten().find(x=>x.id===m.athlete_id)||{}):(mij?"Jij":"Coach");
-    return '<div class="wcrij '+(mij?"me":"them")+'"><div class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+esc(naam)+' · '+tijdNL(m.created_at)+'</div></div>'+wcReactiesHtml(m)+'</div>';
+    // Reactie die bij één onderdeel hoort (feedback-venster.js): regeltje erboven, klik = dat onderdeel openen
+    const bij=m.block_id?'<div class="wc-bijblok" title="Open de feedback van dit onderdeel" onclick="fbOpen(\''+esc(m.athlete_id)+'\',\''+esc(m.block_id)+'\')">'+esc(wcBlokNaam(m))+'</div>':'';
+    return '<div class="wcrij '+(mij?"me":"them")+'"><div class="bub '+(mij?"me":"them")+'">'+bij+chatMediaTiles(m)+(m.body?esc(m.body):"")+'<div class="meta">'+esc(naam)+' · '+tijdNL(m.created_at)+'</div></div>'+wcReactiesHtml(m)+'</div>';
   }).join("")||'<div class="sm muted" style="text-align:center;padding:10px">Nog geen reacties op deze dag. Schrijf de eerste.</div>';
   host.scrollTop=host.scrollHeight;
   if(typeof dashVidSrcs==="function")dashVidSrcs(); // kijk-URL's van foto's/video's vullen

@@ -937,12 +937,23 @@ document.addEventListener("focusout",e=>{if(e.target&&e.target.matches&&e.target
 // zodat de coach de hele sessie mét resultaten voor zich heeft.
 // Scoretype van een blok op de geladen kalender (voor de eenheid bij een getal-score).
 function blokScoreType(bid){for(const wid in monthWorkouts){const b=(monthWorkouts[wid].blocks||[]).find(x=>String(x.id)===String(bid));if(b)return b.score_type||"text";}return null;}
+// Tegels achter een gelogd onderdeel: de video's en foto's van het lid en een
+// feedbacktegel (💬 met het aantal reacties; rood als het lid iets nieuws schreef).
+// Klikken opent het feedbackvenster van dat onderdeel (feedback-venster.js).
+function blokTegels(bid){
+  const vids=monthMedia[bid]||[];
+  const open=pad=>'event.stopPropagation();fbOpen(\''+esc(calClient)+'\',\''+esc(bid)+'\''+(pad?',\''+esc(pad)+'\'':'')+')';
+  const t=vids.map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid, klik om feedback te geven" onclick="'+open(v.storage_path)+'">'+(foto?"📷":"▶")+'</span>';}).join("");
+  const fb=monthComments.filter(m=>m.block_id===bid);
+  const nieuw=fb.some(m=>m.author_id===m.athlete_id&&!m.read_at);
+  if(!monthResults[bid]&&!vids.length&&!fb.length)return t;
+  return t+'<span class="vidtile fbtile'+(nieuw?' nieuw':'')+'" title="Feedback op dit onderdeel" onclick="'+open()+'">💬'+(fb.length?' '+fb.length:'')+'</span>';
+}
 function gelogdHtml(bid){
   const r=monthResults[bid],vids=monthMedia[bid]||[];
   if(!r&&!vids.length)return "";
   const miss=!!(r&&r.status==="missed");
-  const padLijst=vids.map(v=>v.storage_path).join("|");
-  const tegels=vids.map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
+  const tegels=blokTegels(bid);
   const sc=r?resultScoreVol(r,blokScoreType(bid)):"";
   return '<div class="gelogd'+(miss?' miss':'')+'"><div class="gelogd-kop">'+(miss?'✕ Gemist':'✓ Gelogd door de sporter')+(r&&r.rx?' · '+(r.rx==="scaled"?"Scaled":"Rx"):'')+'</div>'+
     (sc?'<div class="gelogd-score">'+esc(sc)+'</div>':(r&&!miss?'<div class="gelogd-score muted">Voltooid zonder score</div>':''))+
@@ -1049,8 +1060,7 @@ function ssKaartHtml(g){
     const r=monthResults[b.id];
     if(r&&r.status==="completed")done++;
     const sc=resultScoreVol(r,b.score_type);
-    const padLijst=(monthMedia[b.id]||[]).map(v=>v.storage_path).join("|");
-    const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
+    const vids=blokTegels(b.id);
     h+='<div class="ssrij"><span class="ssnaam">'+esc(b.label||"")+' '+esc(b.exercise||"")+'</span>'+
       (r?'<span class="okc'+(r.status==="missed"?' miss':'')+'"><svg class="i"><use href="#'+(r.status==="missed"?'i-x':'i-check')+'"/></svg></span>':'')+'</div>'+
       ((sc||vids)?'<div class="loginp" style="display:flex;align-items:center;gap:6px"><span style="flex:1">'+esc(sc||"")+'</span>'+vids+'</div>':'')+
@@ -1077,8 +1087,7 @@ function mcardHtml(w){
     const pr=composePresc(b);
     const sc=resultScoreVol(r,b.score_type);
     // Video-uploads van het lid: kleine tegels achter het resultaat, klik = groot afspelen
-    const padLijst=(monthMedia[b.id]||[]).map(v=>v.storage_path).join("|");
-    const vids=(monthMedia[b.id]||[]).map(v=>{const foto=isFotoUpload(v.storage_path);return '<span class="vidtile" title="'+(foto?"Foto":"Video")+' van het lid" onclick="event.stopPropagation();vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(foto?"📷":"▶")+'</span>';}).join("");
+    const vids=blokTegels(b.id);
     inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+(b.media&&b.media.length?' 🎥':'')+'</div>'+
       (pr?'<div class="pr">'+esc(pr)+'</div>':'')+
       ((b.kind!=="conditioning"&&b.notes)?'<div class="pr" style="font-style:italic" title="Coachingtips">💡 '+esc(b.notes)+'</div>':'')+
