@@ -116,7 +116,7 @@ const ClaudeApi=(()=>{
   const BLOK_SCHRIJF=["soort","naam","voorschrift","omschrijving","coachingtips","scoretype","kleur","tijdslimiet_sec","superset_met_vorige","kaarttitel","videos"];
   const BLOK_NEGEER=["id","letter","schema","resultaat","videos_van_atleet","demo_videos","demo_video_ids","videos_uitgezet","uit_weekworkout"];
   const W_SCHRIJF=["datum","titel","rustdag","notitie_coach","warming_up","cooldown","videos","blokken"];
-  const W_NEGEER=["id","dag","status","rpe","minuten","reacties","wacht_op_reactie","uit_weekworkout","demo_videos_warming_up","demo_videos_cooldown"];
+  const W_NEGEER=["id","dag","status","rpe","minuten","rpe_ingevuld_op","reacties","wacht_op_reactie","uit_weekworkout","demo_videos_warming_up","demo_videos_cooldown"];
 
   // ---------- Invoer controleren (er wordt pas geschreven als alles klopt) ----------
   function tekstVeld(o,k,max,waar,fouten){
@@ -515,7 +515,7 @@ const ClaudeApi=(()=>{
         lezen:{
           "ClaudeApi.ik()":"Wie is er ingelogd, welke rol, welke datum is het vandaag.",
           "ClaudeApi.atleten(zoek, alle)":"Lijst van atleten met id. zoek = deel van de naam (optioneel). Standaard alleen je eigen klanten; alle=true toont iedereen die je mag zien.",
-          "ClaudeApi.week(atleetId, datum, weken)":"Het 1-op-1 programma per week, met blokken, resultaten per blok, RPE en reacties. datum = een dag in de laatste week (JJJJ-MM-DD), weken = hoeveel weken terug inclusief die week (1 t/m 8, standaard 1). Concepten staan erbij met status concept.",
+          "ClaudeApi.week(atleetId, datum, weken)":"Het 1-op-1 programma per week, met blokken, resultaten per blok, RPE met trainingstijd en het moment van invullen, en de reacties van atleet en coach (met bij_blok als de reactie bij één blok hoort). datum = een dag in de laatste week (JJJJ-MM-DD), weken = hoeveel weken terug inclusief die week (1 t/m 8, standaard 1). Concepten staan erbij met status concept.",
           "ClaudeApi.notities(atleetId)":"Profiel, doelen, coachnotities, dagnotities en vastgelegde consults.",
           "ClaudeApi.berichten(atleetId, aantal)":"De chat tussen de atleet en zijn coach in de app, oudste eerst. aantal = hoeveel van de laatste berichten (1 t/m 200, standaard 30). Met wacht_op_antwoord als het laatste bericht van de atleet is.",
           "ClaudeApi.berichtenOpen(alle, dagen)":"Bij welke atleten is het laatste chatbericht van de atleet zelf, dus wacht er iets op antwoord. Standaard je eigen klanten en de laatste 14 dagen (dagen = 1 t/m 60).",
@@ -613,8 +613,8 @@ const ClaudeApi=(()=>{
       if(wids.length){
         [res,eff,com,med]=await Promise.all([
           haalIn("results","block_id,workout_id,status,score_text,time_seconds,load_kg,reps,rounds,rx,note,sets,splits,score_value,capped,timer,created_at,updated_at","workout_id",wids,q=>q.eq("athlete_id",a.p.id)),
-          haalIn("workout_effort","workout_id,rpe,minutes","workout_id",wids,q=>q.eq("athlete_id",a.p.id)),
-          haalIn("workout_comments","workout_id,author_id,body,created_at","workout_id",wids,q=>q.order("created_at")),
+          haalIn("workout_effort","workout_id,rpe,minutes,created_at,updated_at","workout_id",wids,q=>q.eq("athlete_id",a.p.id)),
+          haalIn("workout_comments","workout_id,author_id,body,created_at,block_id","workout_id",wids,q=>q.order("created_at")),
           haalIn("result_media","block_id,workout_id","workout_id",wids)
         ]);
       }
@@ -627,8 +627,12 @@ const ClaudeApi=(()=>{
       (ws||[]).forEach(w=>{
         const e=effPerW[w.id];
         const rij=workoutUit(w,b=>({videos_van_atleet:vidPerBlok[b.id]||null,resultaat:resultaatUit(resPerBlok[b.id],b)}),
-          {rpe:e?e.rpe:null,minuten:e?e.minutes:null,
-           reacties:(comPerW[w.id]||[]).map(c=>({van:c.author_id===a.p.id?"atleet":"coach",op:tijd(c.created_at),tekst:c.body})),
+          {rpe:e?e.rpe:null,minuten:e?e.minutes:null,rpe_ingevuld_op:e?tijd(e.updated_at||e.created_at):null,
+           reacties:(comPerW[w.id]||[]).map(c=>{
+             // Een reactie kan bij één blok horen (bijvoorbeeld bij een gelogd resultaat).
+             const b=c.block_id?(w.blocks||[]).find(x=>x.id===c.block_id):null;
+             return schoon({van:c.author_id===a.p.id?"atleet":"coach",op:tijd(c.created_at),bij_blok:b?((b.label||"")+" "+(b.exercise||"")).trim():null,tekst:c.body});
+           }),
            wacht_op_reactie:((comPerW[w.id]||[]).length&&comPerW[w.id][comPerW[w.id].length-1].author_id===a.p.id)?true:null});
         const wk=perWeek[maandagVan(w.workout_date)];if(wk)wk.workouts.push(rij);
       });
