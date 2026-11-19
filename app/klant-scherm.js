@@ -8,6 +8,7 @@ let coachList=[],coachFilterId=null;
 let resWid=null;
 const SIDE=[["kalender","i-cal","Kalender",false],["berichten","i-chat","Berichten",true],["assessment","i-clip","Assessment",true],["metrics","i-chart","Metrics & 1RM",true],["gezondheid","i-chart","Gezondheid",true],["data","i-chart","Data",false],["checkins","i-check","Check-ins & consults",false],["doelen","i-target","Doelen",true],["planning","i-cal","Planning & periodisering",false],["notities","i-doc","Notities & documenten",true],["schema","i-clock","Trainingsschema",true],["prioriteiten","i-doc","Prioriteiten",true],["materiaal","i-gear","Materiaal",true],["coachrx","i-doc","CoachRx-import",false],["profiel","i-user","Profiel",false],["bieb","i-book","Bibliotheek",false],["weekcheck","i-check","Weekcheck",false],["sneltoetsen","i-keys","Sneltoetsen",true]];
 async function openClient(id,opts){
+  bordLaad(); // leaderboard-workouts (voor de balkjes in de bouwer en het kopiëren); wacht er niet op
   opts=opts||{};
   if(typeof autoSaveBouwer==="function"&&!(await autoSaveBouwer()))return;
   calClient=id;calRef=new Date();editDay=null;editWid=null;coachChipNaam="";
@@ -308,13 +309,70 @@ function rowOpts(b){return '<div class="f-opts" style="align-items:center;flex-w
 // leaderboard. Scaled-versie = de coach heeft de workout voor deze klant aangepast (pull-ups
 // worden ring rows); blog_leaderboard zet de klant dan onder Scaled, wat hij in de app ook
 // aantikt. Het balkje is alleen zichtbaar in de bouwer van een klant (#calwrap .ib2, zie styles.css).
+// Leaderboard-workouts (workouts.audience 'bord', 19 nov 2026): de coach zet op een gewoon blok
+// "Leaderboard aan". Er komt dan een bron-workout waar het blok naar wijst, net als bij een
+// ingevoegde Showdown; zet je dezelfde workout bij meer klanten (kopiëren of het bibliotheek-
+// venster), dan delen zij één leaderboard. Alleen wie hem in zijn kalender heeft en de coaches
+// zien het bord (zie de migratie leaderboard_workout_bord).
+let BORD={lijst:null,ids:new Set()};
+const bordIs=id=>!!id&&BORD.ids.has(id);
+const sdStripNaam=bron=>(bordIs(bron)?"Leaderboard-workout":SHOWDOWN)+" · gedeeld leaderboard";
+async function bordLaad(opnieuw){
+  if(BORD.lijst&&!opnieuw)return;
+  if(!ME.profile||!ME.profile.company_id){BORD.lijst=[];return;}
+  const{data}=await db.from("workouts").select("id,title,workout_date,created_at,audience, blocks(*)").eq("company_id",ME.profile.company_id).eq("audience","bord").order("created_at",{ascending:false}).limit(300);
+  BORD.lijst=data||[];BORD.ids=new Set(BORD.lijst.map(w=>w.id));
+  // Balkjes die al op het scherm staan: naam en de link "Leaderboard uit" kloppend maken.
+  document.querySelectorAll(".sdstrip[data-bron]").forEach(el=>{
+    const r=el.closest(".exrow");if(!r||!bordIs(el.dataset.bron))return;
+    el.outerHTML=sdStrip({source_blog_workout_id:r.dataset.srcww||null,ww_bron:r.dataset.bron||null,scaled_versie:r.dataset.scaled==="1"});
+  });
+}
 function sdStrip(b){
-  const bron=b.source_blog_workout_id||b.ww_bron;if(!bron)return "";
-  return '<div class="sdstrip" onclick="event.stopPropagation()"><span class="sdstrip-naam">'+esc(SHOWDOWN)+' · gedeeld leaderboard</span>'+
+  const bron=b.source_blog_workout_id||b.ww_bron;
+  // Nog geen leaderboard: een bescheiden knop om het aan te zetten (niet op een blok in een superset).
+  if(!bron)return b.linked?"":'<div class="sdstrip sdstrip-uit" onclick="event.stopPropagation()"><button class="bordaan" title="Zet een gedeeld leaderboard aan op dit blok. Deze klant en iedereen bij wie je deze workout daarna zet zien elkaars score." onclick="bordAan(this);return false">Leaderboard aan</button></div>';
+  return '<div class="sdstrip" data-bron="'+esc(bron)+'" onclick="event.stopPropagation()"><span class="sdstrip-naam">'+esc(sdStripNaam(bron))+'</span>'+
+    (bordIs(bron)&&b.source_blog_workout_id?'<button class="borduit" title="Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan." onclick="bordUit(this);return false">Leaderboard uit</button>':'')+
     '<label class="sdstrip-sc" title="Zet dit aan als je de workout voor deze klant hebt aangepast, bijvoorbeeld ring rows in plaats van pull-ups. De score staat dan onder Scaled op het gedeelde leaderboard."><input type="checkbox" class="f-scaled"'+(b.scaled_versie?' checked':'')+' onchange="sdScaled(this)"> Scaled-versie</label>'+
     '<button class="btn ghost sm" onclick="wwBordVenster(\''+esc(bron)+'\');return false">Leaderboard</button></div>';
 }
 function sdScaled(cb){const r=cb.closest(".exrow");if(!r)return;r.dataset.scaled=cb.checked?"1":"0";bouwerDirty=true;}
+// Leaderboard aanzetten op een gewoon blok: maakt de bron-workout aan (kopie van dit blok) en
+// koppelt het blok eraan. De koppeling zelf wordt bewaard als de coach de workout opslaat.
+async function bordAan(btn){
+  const r=btn.closest(".exrow");if(!r)return;
+  const o=rowToObj(r);
+  const volgende=r.nextElementSibling;
+  if(!o.exercise){toast("Geef het blok eerst een naam");return;}
+  if(o.linked||(volgende&&volgende.classList.contains("exrow")&&volgende.dataset.linked==="1")){toast("Een leaderboard kan niet op een blok in een superset. Haal het blok eerst uit de superset.");return;}
+  if(o.lift_id){toast("Dit blok is aan een lift gekoppeld; daar is de PR-lijst voor. Een leaderboard zet je op een workout met één score.");return;}
+  const tekst=o.kind==="conditioning"?o.notes:o.prescription;
+  if(!tekst){toast("Vul eerst de workout in; die tekst hoort bij het leaderboard");return;}
+  if(o.score_type==="none"){toast("Kies eerst wat de sporter invult (tijd, rondes + reps…). Zonder score is er geen leaderboard.");return;}
+  if(!confirm("Leaderboard aanzetten voor \""+o.exercise+"\"?\n\nDeze klant en iedereen bij wie je deze workout daarna zet delen één leaderboard. Een sporter staat er standaard op en kan dat in de app zelf uitzetten."))return;
+  btn.disabled=true;
+  const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:todayStr(),title:o.exercise,audience:"bord"}).select("id,title,workout_date,created_at,audience").single();
+  if(error||!nw){btn.disabled=false;toast((error&&error.message)||"Leaderboard aanzetten mislukt");return;}
+  const blok={workout_id:nw.id,kind:o.kind,label:"A",linked:false,exercise:o.exercise,prescription:o.kind==="conditioning"?null:(o.prescription||null),notes:o.notes||null,sort:1,color:"purple",score_type:o.score_type||"text",timecap_seconds:o.timecap_seconds||null,cap_score_type:o.cap_score_type||"reps",media:o.media||null};
+  const{error:be}=await db.from("blocks").insert(blok);
+  if(be){await db.from("workouts").delete().eq("id",nw.id);btn.disabled=false;toast(be.message||"Leaderboard aanzetten mislukt");return;}
+  if(!BORD.lijst)BORD.lijst=[];
+  BORD.lijst.unshift(Object.assign({},nw,{blocks:[blok]}));BORD.ids.add(nw.id);
+  r.dataset.srcww=nw.id;
+  const strip=r.querySelector(".sdstrip");
+  if(strip)strip.outerHTML=sdStrip({source_blog_workout_id:nw.id,scaled_versie:false});
+  bouwerDirty=true;
+  toast("Leaderboard staat aan. Sla de workout op; zet hem bij andere klanten via kopiëren of het bibliotheek-venster.");
+}
+function bordUit(btn){
+  const r=btn.closest(".exrow");if(!r)return;
+  if(!confirm("Leaderboard uitzetten voor dit blok bij deze klant?\n\nScores die al op het bord staan blijven staan."))return;
+  r.dataset.srcww="";r.dataset.scaled="0";
+  const strip=r.querySelector(".sdstrip");
+  if(strip)strip.outerHTML=sdStrip({linked:r.dataset.linked==="1"});
+  bouwerDirty=true;
+}
 function exRow(b){b=b||{};return '<div class="sec exrow'+(b.linked?' linked':'')+'" data-kind="exercise" data-linked="'+(b.linked?'1':'0')+'" data-lift="'+esc(b.lift_id||"")+'" data-liftauto="1" data-liftvoor="'+esc(b.exercise||"")+'" data-geenlift="'+(b.lift_scheme&&b.lift_scheme.geen_lift?'1':'0')+'" data-scheme="'+esc(b.lift_scheme?JSON.stringify(b.lift_scheme):"")+'" data-kleur="'+esc(b.color||"")+'" data-score="'+esc(b.score_type||"")+'" data-cap="'+(b.timecap_seconds||"")+'" data-capst="'+esc(b.cap_score_type||"")+'" data-oefid="'+(b.oefening_id||"")+'" data-srcww="'+(b.source_blog_workout_id||"")+'" data-bron="'+esc(b.ww_bron||"")+'" data-scaled="'+(b.scaled_versie?'1':'0')+'" data-bid="'+(b.id||"")+'" data-media="'+esc(b.media&&b.media.length?JSON.stringify(b.media):"")+'">'+sdStrip(b)+'<div class="gtitle-row" style="display:none"><div class="gtitle-kop"><b class="gt-letter"></b><span class="gtlbl">Kaart in de app</span><input class="gtitle" placeholder="Titel van de kaart, bijv. Special Strength" value="'+esc(b.group_title||"")+'"><span class="gt-wissel" onclick="ssWissel(this)"></span></div><div class="gtitle-uitleg">De sporter ziet de gekoppelde oefeningen hieronder als één kaart met deze titel, elk met een eigen invulbalk en eigen PR-geschiedenis.</div></div><div class="exhead"><b class="lbl-badge" draggable="true" title="Sleep dit blok naar een andere workout op de kalender" ondragstart="blokDragStart(event,this)" ondragend="blokDragEnd()">A</b><input class="exn" placeholder="Naam oefening" value="'+esc(b.exercise||"")+'" oninput="exZoek(this)" onblur="liftAuto(this)" onkeydown="if(event.key===\'Escape\'){event.stopPropagation();exDropWeg(this);}" autocomplete="off"><span class="extools"><button class="ic-btn" title="Omhoog" onclick="schuifRow(this,-1);return false"><svg class="i sm-i"><use href="#i-up"/></svg></button><button class="ic-btn" title="Omlaag" onclick="schuifRow(this,1);return false"><svg class="i sm-i"><use href="#i-down"/></svg></button><button class="ic-btn" title="Geschiedenis: wat deed dit lid eerder?" onclick="openHistory(this.closest(\'.exrow\').querySelector(\'.exn\').value);return false"><svg class="i sm-i"><use href="#i-hist"/></svg></button><button class="ic-btn cam'+((b.oefening_id||(b.media&&b.media.length))?' has-video':'')+'" title="Demo-video" onclick="toggleVid(this);return false"><svg class="i sm-i"><use href="#i-cam"/></svg></button><button class="ic-btn" title="Dupliceer blok (kopie eronder)" onclick="dupRow(this);return false"><svg class="i sm-i"><use href="#i-copy"/></svg></button><button class="ic-btn" title="Kopieer blok om elders te plakken" onclick="blokKopieer(this);return false">📋</button><button class="ic-btn" title="Blok verwijderen" onclick="delRow(this)"><svg class="i sm-i"><use href="#i-x"/></svg></button></span></div><textarea class="f-presc" rows="1" placeholder="Tempo, reps, sets, rust" oninput="schemaVernieuw(this)">'+esc(b.prescription||composePresc(b))+'</textarea>'+(b.notes?'<textarea class="f-tips" rows="1" placeholder="Coachingtips" title="Coachingtips: de sporter ziet ze in de app onder de omschrijving">'+esc(b.notes)+'</textarea>':'')+rowOpts(b)+liftRowHtml(b)+'<div class="vschips"></div><div class="exdrop"></div><div class="vidpop"></div></div>';}
 // Demo-video's op een blok: de chip-rij (app/demo-videos.js) toont gekoppelde
 // video's en voorstellen uit de tekst; "+ Zoek video" zoekt in de bibliotheek
@@ -1331,7 +1389,7 @@ function biebBlokkenVan(item){
   if(item.soort==="oefening"){const l=liftMatch(item.naam);return [{kind:"exercise",exercise:item.naam,prescription:null,color:null,score_type:"text",oefening_id:item.id||null,media:null,linked:false,lift_id:l?l.id:null,lift_scheme:null,group_title:null}];}
   // Weekworkout als één blok: via source_blog_workout_id logt het lid hem met
   // Rx/Scaled en komt hij op het gedeelde leaderboard (zelfde als insWeekwod in de bouwer).
-  if(item.soort==="weekworkout")return [{kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:"blue",score_type:item.score_type||"text",source_blog_workout_id:item.id,media:(item.media&&item.media.length)?item.media:null,linked:false,lift_id:null,lift_scheme:null,group_title:null}];
+  if(item.soort==="weekworkout")return [{kind:"exercise",exercise:item.naam,prescription:item.tekst||null,color:item.kleur||"blue",score_type:item.score_type||"text",source_blog_workout_id:item.id,media:(item.media&&item.media.length)?item.media:null,linked:false,lift_id:null,lift_scheme:null,group_title:null}];
   return itemBlokken({naam:item.naam,instructies:item.tekst||"",kleur:item.kleur,media:item.media,onderdelen:item.onderdelen||null,bron:item.bron||"tpl"});
 }
 function biebInBouwer(item){
@@ -1857,7 +1915,7 @@ async function pickRest(ev){
 }
 // Kopieer-sjabloon van één workout (titel/notes/warmup/cooldown + blokken), voor klembord/plakken.
 function wTemplate(w){return {date:w.workout_date,status:w.status==="draft"?"draft":"published",title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,warmup_oefening_id:w.warmup_oefening_id,cooldown_oefening_id:w.cooldown_oefening_id,warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,
-  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
+  blocks:(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort).map(b=>({kind:b.kind,label:b.label,linked:b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,score_type:b.score_type,timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id,source_blog_workout_id:bordIs(b.source_blog_workout_id)?b.source_blog_workout_id:null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}))};}
 function kopieerDag(ds){
   const wos=monthByDate[ds]||[];
   if(!wos.length){toast("Geen workout op deze dag om te kopiëren");return;}
