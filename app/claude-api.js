@@ -20,7 +20,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.1 (lezen en concepten schrijven)";
+  const VERSIE="2.2 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=8,MAX_DAGEN_VOORUIT=120;
@@ -467,7 +467,7 @@ const ClaudeApi=(()=>{
           "Onderdelen met uit_weekworkout:true zijn de YP Showdown. De tekst daarvan verander je nooit en je schrijft hem nooit zelf. Plaatsen kan alleen met ClaudeApi.plaatsShowdown, dat de tekst letterlijk uit de weekworkout van die week haalt. In een concept mag je het blok verplaatsen of weghalen met vervangBlokken.",
           "Een week kopiëren neemt de Showdown van de bronweek nooit mee: dat is de workout van die ene week. Met {showdown:true} komt op dezelfde plek de Showdown van de doelweek, als die al in de app staat.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
-          "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd.",
+          "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd. Staat er verouderd:true, dan is er een nieuwere versie live: voer location.reload() uit en begin opnieuw. Naar hetzelfde adres navigeren herlaadt de pagina niet.",
           "Zoek een atleet altijd eerst op met ClaudeApi.atleten(...) en gebruik daarna zijn id. Elk antwoord noemt de atleet bij naam: controleer die naam.",
           "Een leeg veld betekent: niet ingevuld. Reken of gok het niet zelf.",
           "Elk schrijf-commando geeft terug wat er nu staat, in dezelfde vorm als ClaudeApi.week. Lees dat na, vooral demo_videos: de herkenning zit er soms naast.",
@@ -527,7 +527,21 @@ const ClaudeApi=(()=>{
 
     ik:veilig(async()=>{
       const vandaag=iso(new Date());
-      return {ok:true,versie:VERSIE,coach:naam(ME.profile),coach_id:ME.user.id,rol:ME.profile.role,vandaag,weekdag:dagVan(vandaag),maandag_deze_week:maandagVan(vandaag)};
+      // Draait deze pagina nog de nieuwste versie? Een pagina die open blijft staan krijgt
+      // een update pas na echt herladen; naar hetzelfde adres navigeren herlaadt niet.
+      let live=null;
+      try{
+        if(typeof fetch==="function"){
+          const r=await fetch("app/claude-api.js?nu="+Date.now(),{cache:"no-store"});
+          const m=r.ok?(await r.text()).match(/const VERSIE="([^"]+)"/):null;
+          live=m?m[1]:null;
+        }
+      }catch(e){live=null;}
+      const oud=!!live&&live!==VERSIE;
+      return schoon({ok:true,versie:VERSIE,
+        verouderd:oud?true:null,
+        let_op:oud?"Er staat een nieuwere versie live ("+live+"), deze pagina draait nog "+VERSIE+". Herlaad de pagina echt voordat je verdergaat: voer location.reload() uit en draai daarna ClaudeApi.ik() opnieuw.":null,
+        coach:naam(ME.profile),coach_id:ME.user.id,rol:ME.profile.role,vandaag,weekdag:dagVan(vandaag),maandag_deze_week:maandagVan(vandaag)});
     }),
 
     atleten:veilig(async(zoek,alle)=>{

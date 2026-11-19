@@ -29,6 +29,9 @@ const GM_AFKO={db:"dumbbell",dbs:"dumbbell",kb:"kettlebell",kbs:"kettlebell swin
 // vorm zonder spaties, zodat "pullovers" en "pull overs" samenvallen).
 function gmNorm(s){
   s=(s||"").toLowerCase().replace(/['’]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
+  // "500m row" en "20cal bike" lezen als "500 m row" en "20 cal bike": zo kan een zoekwoord
+  // als "m row" of "cal bike" erop passen (19 nov 2026).
+  s=s.replace(/\b(\d+)(m|km|cal|kg)\b/g,"$1 $2");
   s=s.split(" ").map(w=>GM_AFKO[w]||w).join(" ");
   s=s.split(" ").map(w=>{
     if(/(ches|shes|xes)$/.test(w)&&w.length>4)return w.slice(0,-2);
@@ -119,6 +122,13 @@ function vsKlaar(){
 // vóór de gewone naam-matches; onderdrukte paren (score<=-2) doen niet mee.
 // voorkeur = oefening-id's die al gekoppeld zijn: bij dubbele bibliotheeknamen
 // wint die rij, zodat er geen tweede chip voor dezelfde oefening komt.
+// Een zoekwoord mag ook naar een oefening met een heel korte naam wijzen ("Row", "Run").
+// Zo'n naam herkennen we bewust niet uit zichzelf (te veel valse treffers), dus hij staat
+// niet in de index; via een zoekwoord als "cal row" kan hij wel gekozen worden.
+function gmKortDoel(id){
+  const o=(LIB.oef||[]).find(x=>x.id===id&&x.youtube_id);
+  return o?{o,norm:gmNorm(o.naam)}:null;
+}
 function gmHerkenRegel(regel,voorkeur){
   const norm=" "+gmNorm(regel)+" ",compact=gmCompact(regel);
   if(gmNorm(regel).length<4)return[];
@@ -127,7 +137,7 @@ function gmHerkenRegel(regel,voorkeur){
   (GM.aliassen||[]).filter(a=>a.score>0).forEach(a=>{
     const t=" "+a.term+" ";
     if(norm.includes(t)||(a.term.replace(/ /g,"").length>=8&&compact.includes(a.term.replace(/ /g,"")))){
-      const ent=GM.index.find(x=>x.o.id===a.oefening_id);
+      const ent=GM.index.find(x=>x.o.id===a.oefening_id)||gmKortDoel(a.oefening_id);
       if(ent)hits.push({o:ent.o,norm:ent.norm,term:a.term,geleerd:true,len:a.term.length});
     }
   });
@@ -148,7 +158,9 @@ function gmHerkenRegel(regel,voorkeur){
     if(!h.geleerd&&uit.some(u=>u.o.id!==h.o.id&&u.len>h.len&&(" "+u.norm+" ").includes(" "+h.term+" ")))return;
     uit.push(h);termen.add(h.term);
   });
-  return uit;
+  // De meest specifieke naam wint, ook van een geleerd zoekwoord: bij "Strict Pull-ups"
+  // niet ook nog de video die aan het losse zoekwoord "pull up" hangt (19 nov 2026).
+  return uit.filter(a=>!uit.some(b=>b!==a&&b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ")));
 }
 // Een sectie (meerdere regels) -> voorstellen, per oefening één.
 function gmHerkenTekst(tekst,voorkeur){
