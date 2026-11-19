@@ -11,6 +11,8 @@
 // goedkeurt. Vaste grenzen, in elk schrijf-commando afgedwongen:
 //   - nieuwe workouts krijgen altijd status 'draft';
 //   - wijzigen en verwijderen kan alleen bij een workout die nog concept is;
+//     enige uitzondering: demo-video's toevoegen (nooit weghalen of vervangen) mag ook bij
+//     een zichtbare workout, via videosToevoegen;
 //   - blog- en groepsprogramma's blijven dicht; de YP Showdown kan alleen als
 //     ongewijzigde kopie van de weekworkout zelf worden geplaatst (plaatsShowdown),
 //     de tekst ervan is nooit te wijzigen;
@@ -20,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.2 (lezen en concepten schrijven)";
+  const VERSIE="2.3 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=8,MAX_DAGEN_VOORUIT=120;
@@ -464,6 +466,7 @@ const ClaudeApi=(()=>{
           "Er is geen commando om goed te keuren, te publiceren of iets te versturen. Dat doet de coach zelf.",
           "Schrijf pas nadat de coach heeft gezegd dat het erin mag (\"zet erin\", \"voer in\").",
           "Een workout die al zichtbaar is voor de atleet kun je niet wijzigen of weghalen. Wil de coach dat toch, dan zet hij hem in de app zelf terug op concept.",
+          "Eén uitzondering: demo-video's toevoegen mag ook bij een zichtbare workout, met ClaudeApi.videosToevoegen of videosToevoegenWeek. Daar kun je alleen video's bij zetten. Weghalen of vervangen kan niet, en de tekst blijft zoals hij is. De atleet ziet de video meteen, dus doe dit alleen als de coach erom vraagt en meld daarna wat je hebt toegevoegd.",
           "Onderdelen met uit_weekworkout:true zijn de YP Showdown. De tekst daarvan verander je nooit en je schrijft hem nooit zelf. Plaatsen kan alleen met ClaudeApi.plaatsShowdown, dat de tekst letterlijk uit de weekworkout van die week haalt. In een concept mag je het blok verplaatsen of weghalen met vervangBlokken.",
           "Een week kopiëren neemt de Showdown van de bronweek nooit mee: dat is de workout van die ene week. Met {showdown:true} komt op dezelfde plek de Showdown van de doelweek, als die al in de app staat.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
@@ -494,7 +497,9 @@ const ClaudeApi=(()=>{
           "ClaudeApi.wijzigBlok(blokId, velden)":"Past één blok van een concept aan. Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Verandert de naam of de tekst, dan worden de demo-video's opnieuw gekozen (videos:\"houden\" laat ze staan).",
           "ClaudeApi.vervangBlokken(workoutId, blokken)":"Zet de hele blokkenlijst van een concept in één keer: een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg. Zo voeg je een blok toe, haal je er een weg of verander je de volgorde.",
           "ClaudeApi.wijzigConcept(workoutId, velden)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown.",
-          "ClaudeApi.verwijderConcept(workoutId)":"Haalt één concept weg, met zijn blokken. Kan alleen bij een concept zonder gelogde resultaten. Doe dit alleen voor een concept dat je zelf hebt klaargezet of als de coach erom vraagt."
+          "ClaudeApi.verwijderConcept(workoutId)":"Haalt één concept weg, met zijn blokken. Kan alleen bij een concept zonder gelogde resultaten. Doe dit alleen voor een concept dat je zelf hebt klaargezet of als de coach erom vraagt.",
+          "ClaudeApi.videosToevoegen(blokId, videos)":"Zet demo-video's bij één blok, ook als de workout al zichtbaar is. videos = \"aanvullen\" (standaard: de herkende bewegingen die nog geen video hebben) of een lijst id's uit videoZoek. Er komt alleen iets bij; wat er staat blijft staan. Werkt niet op de YP Showdown.",
+          "ClaudeApi.videosToevoegenWeek(atleetId, datum)":"Hetzelfde voor alle blokken van één week van een atleet, met de herkende bewegingen. Geeft per blok terug wat erbij is gekomen."
         },
         blok:{
           soort:"oefening (standaard) of conditioning.",
@@ -538,8 +543,10 @@ const ClaudeApi=(()=>{
         }
       }catch(e){live=null;}
       const oud=!!live&&live!==VERSIE;
+      // verouderd staat er altijd in (true of false), zodat te zien is dat de controle werkt;
+      // lukte het ophalen niet, dan zegt versiecontrole dat.
       return schoon({ok:true,versie:VERSIE,
-        verouderd:oud?true:null,
+        verouderd:oud,versie_live:live,versiecontrole:live?"gelukt":"niet gelukt: kon de live versie niet ophalen",
         let_op:oud?"Er staat een nieuwere versie live ("+live+"), deze pagina draait nog "+VERSIE+". Herlaad de pagina echt voordat je verdergaat: voer location.reload() uit en draai daarna ClaudeApi.ik() opnieuw.":null,
         coach:naam(ME.profile),coach_id:ME.user.id,rol:ME.profile.role,vandaag,weekdag:dagVan(vandaag),maandag_deze_week:maandagVan(vandaag)});
     }),
@@ -976,6 +983,71 @@ const ClaudeApi=(()=>{
       ververs(a.p.id);
       return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},geplaatst:"\""+(sd.title||"YP Showdown")+"\" (weekworkout van "+sd.workout_date+")",status:"concept",uitleg:GOEDKEUREN,
         let_op:["De tekst komt letterlijk uit de weekworkout en is niet te wijzigen."],workout:terug[0]});
+    }),
+
+    // ---------- Demo-video's toevoegen, ook bij een zichtbare workout ----------
+    // De enige plek waar iets verandert dat de atleet meteen ziet. Daarom smal gehouden:
+    // er wordt alleen het veld media van een blok bijgewerkt, en er komt alleen iets bij.
+    videosToevoegen:veilig(async(blokId,videos)=>{
+      if(!isUuid(blokId))return fout("Geef het id van het blok (uit ClaudeApi.week).");
+      const lijst=Array.isArray(videos);
+      if(!lijst&&!leeg(videos)&&videos!=="aanvullen")return fout("videos moet \"aanvullen\" zijn of een lijst id's uit ClaudeApi.videoZoek. Weghalen of vervangen kan hier niet.");
+      const{data:b,error}=await db.from("blocks").select("*").eq("id",blokId).maybeSingle();
+      if(error)return fout(error.message);
+      if(!b)return fout("Geen blok gevonden met dit id, of je mag het niet zien.");
+      const{data:w,error:we}=await db.from("workouts").select("id,client_id,audience,status,workout_date,title,source_blog_workout_id").eq("id",b.workout_id).maybeSingle();
+      if(we)return fout(we.message);
+      if(!w||w.audience!=="client"||!w.client_id)return fout("Dit blok hoort niet bij een 1-op-1 workout. Weekworkouts, blog- en groepsprogramma's verander je hier nooit.");
+      if(w.source_blog_workout_id||b.source_blog_workout_id)return fout("Dit is de YP Showdown. Daar verander je niets aan, ook geen video's.");
+      const a=await atleetOphalen(w.client_id);if(a.fout)return fout(a.fout);
+      if(!(await videosKlaar()))return fout("De oefeningenbibliotheek is nog niet geladen. Probeer het over een paar seconden opnieuw.");
+      const fouten=[];
+      let ids=null;
+      if(lijst){ids=videosLees(videos,"videos",fouten,true);if(fouten.length)return fout(fouten.join(" "));}
+      const nieuw=lijst?mediaLijst(ids,"videos",fouten):mediaAuto(blokTekst(b));
+      if(fouten.length)return fout(fouten.join(" "));
+      const basis=(Array.isArray(b.media)?b.media:[]).filter(m=>m&&m.youtube_id),bij=[];
+      nieuw.forEach(m=>{if(basis.length+bij.length<MAX_VIDEOS&&!basis.concat(bij).some(x=>x.youtube_id===m.youtube_id||(x.oefening_id&&x.oefening_id===m.oefening_id)))bij.push(m);});
+      const kop={ok:true,atleet:{id:a.p.id,naam:naam(a.p)},workout:{datum:w.workout_date,titel:w.title||"",status:w.status==="draft"?"concept":"gepubliceerd"},blok:((b.label||"")+" "+(b.exercise||"")).trim()};
+      if(!bij.length)return schoon(Object.assign(kop,{toegevoegd:0,uitleg:"Er is niets toegevoegd: er was niets nieuws te herkennen of de video stond er al.",demo_videos:titels(basis),videos_uitgezet:mediaUitgezet(blokTekst(b),basis)}));
+      const alles=basis.concat(bij);
+      const{error:ue}=await db.from("blocks").update({media:alles}).eq("id",b.id);
+      if(ue)return fout(ue.message);
+      ververs(a.p.id);
+      return schoon(Object.assign(kop,{toegevoegd:bij.length,erbij:titels(bij),demo_videos:titels(alles),videos_uitgezet:mediaUitgezet(blokTekst(b),alles),
+        let_op:w.status==="draft"?null:"Deze workout is zichtbaar: de atleet ziet de nieuwe video meteen."}));
+    }),
+
+    videosToevoegenWeek:veilig(async(atleetId,datum)=>{
+      const a=await atleetOphalen(atleetId);if(a.fout)return fout(a.fout);
+      if(leeg(datum))datum=iso(new Date());
+      if(!isDatum(datum))return fout("datum moet JJJJ-MM-DD zijn: een dag in de week die je wilt nalopen.");
+      const maandag=maandagVan(datum);
+      const{data:ws,error}=await db.from("workouts").select("id,workout_date,title,status,source_blog_workout_id, blocks(*)").eq("client_id",a.p.id).gte("workout_date",maandag).lte("workout_date",plus(maandag,6))
+        .order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
+      if(error)return fout(error.message);
+      if(!(ws||[]).length)return fout("In de week van "+maandag+" staan geen 1-op-1 workouts bij "+naam(a.p)+".");
+      if(!(await videosKlaar()))return fout("De oefeningenbibliotheek is nog niet geladen. Probeer het over een paar seconden opnieuw.");
+      const erbij=[],uitgezet=new Set();let blokken=0,zichtbaar=0;
+      for(const w of ws){
+        if(w.source_blog_workout_id)continue;
+        for(const b of (w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort)){
+          if(b.source_blog_workout_id)continue;
+          blokken++;
+          const basis=(Array.isArray(b.media)?b.media:[]).filter(m=>m&&m.youtube_id),bij=[];
+          mediaAuto(blokTekst(b)).forEach(m=>{if(basis.length+bij.length<MAX_VIDEOS&&!basis.concat(bij).some(x=>x.youtube_id===m.youtube_id||(x.oefening_id&&x.oefening_id===m.oefening_id)))bij.push(m);});
+          mediaUitgezet(blokTekst(b),basis.concat(bij)).forEach(n=>uitgezet.add(n));
+          if(!bij.length)continue;
+          const{error:ue}=await db.from("blocks").update({media:basis.concat(bij)}).eq("id",b.id);
+          if(ue)return {ok:false,fout:"Bijwerken stopte halverwege: "+ue.message,al_toegevoegd:erbij};
+          if(w.status!=="draft")zichtbaar++;
+          erbij.push({datum:w.workout_date,dag:dagVan(w.workout_date),status:w.status==="draft"?"concept":"gepubliceerd",blok:((b.label||"")+" "+(b.exercise||"")).trim(),erbij:titels(bij)});
+        }
+      }
+      ververs(a.p.id);
+      return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},week:maandag,blokken_nagelopen:blokken,blokken_bijgewerkt:erbij.length,
+        let_op:zichtbaar?zichtbaar+" van deze blokken staan in een zichtbare workout: de atleet ziet die video's meteen.":null,
+        videos_uitgezet:[...uitgezet],toegevoegd:erbij});
     })
   };
 })();
