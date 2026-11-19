@@ -547,7 +547,7 @@ const ClaudeApi=(()=>{
       // lukte het ophalen niet, dan zegt versiecontrole dat.
       return schoon({ok:true,versie:VERSIE,
         verouderd:oud,versie_live:live,versiecontrole:live?"gelukt":"niet gelukt: kon de live versie niet ophalen",
-        let_op:oud?"Er staat een nieuwere versie live ("+live+"), deze pagina draait nog "+VERSIE+". Herlaad de pagina echt voordat je verdergaat: voer location.reload() uit en draai daarna ClaudeApi.ik() opnieuw.":null,
+        let_op:oud?"Live staat versie "+live+", deze pagina draait "+VERSIE+". Herlaad de pagina echt voordat je verdergaat: voer location.reload() uit en draai daarna ClaudeApi.ik() opnieuw.":null,
         coach:naam(ME.profile),coach_id:ME.user.id,rol:ME.profile.role,vandaag,weekdag:dagVan(vandaag),maandag_deze_week:maandagVan(vandaag)});
     }),
 
