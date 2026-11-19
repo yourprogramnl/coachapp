@@ -180,7 +180,7 @@ async function berKlantGelezen(id){
   try{
     await db.from("messages").update({read_at:new Date().toISOString()}).eq("athlete_id",id).eq("sender_id",id).is("read_at",null);
     BER.msgs.forEach(m=>{if(m.athlete_id===id&&m.sender_id===id&&!m.read_at)m.read_at=new Date().toISOString();});
-    if(typeof telMsgBadge==="function")telMsgBadge(); // teller op de Berichten-knop bijwerken
+    berBadgeBij(); // teller op de Berichten-knop bijwerken
   }catch(e){}
 }
 // ---------- Gesprek weer op ongelezen zetten (of op gelezen) ----------
@@ -218,6 +218,12 @@ function berNietEigen(key){
   toast(c&&!c.coach_id?"Dit lid heeft geen eigen coach, dus dit gesprek kan niet op gelezen of ongelezen gezet worden"
     :coach?"Alleen de eigen coach van dit lid ("+naamVan(coach)+") kan dit gesprek op gelezen of ongelezen zetten"
     :"Alleen de eigen coach van dit lid kan dit gesprek op gelezen of ongelezen zetten",4500);
+}
+// Bolletje op de Berichten-knop bijwerken. Vanuit het losse venster (geen eigen
+// bovenbalk) krijgt het hoofdvenster een seintje, zodat het daar ook meteen klopt.
+function berBadgeBij(){
+  if(typeof telMsgBadge==="function")telMsgBadge();
+  if(inBerVenster()&&berVensterKanaal){try{berVensterKanaal.postMessage({type:"msgbadge"});}catch(e){}}
 }
 function berMenuWeg(){document.querySelectorAll(".coachmenu.ber-menu").forEach(x=>x.remove());}
 // ⋮ op een rij in de lijst. Het menu hangt aan de body (vaste positie), anders
@@ -257,7 +263,7 @@ async function berZetOngelezen(key){
   // Het open gesprek sluiten, anders springt het bij de eerstvolgende klik weer op gelezen
   if(BER.cur===key)berSluitGesprek();
   berLijstVernieuw();
-  if(typeof telMsgBadge==="function")telMsgBadge(); // bolletje in de bovenbalk telt meteen weer mee
+  berBadgeBij(); // bolletje in de bovenbalk telt meteen weer mee
   toast("Gesprek staat weer op ongelezen");
 }
 async function berZetGelezen(key){
@@ -372,7 +378,7 @@ async function berGroepGelezen(gid){
     const nu=new Date().toISOString();
     await db.from("chat_group_members").update({last_read_at:nu}).eq("id",eigen.id);
     eigen.last_read_at=nu;
-    if(typeof telMsgBadge==="function")telMsgBadge(); // topnav-bolletje bijwerken
+    berBadgeBij(); // topnav-bolletje bijwerken
   }catch(e){}
 }
 async function berGroepStuur(){
