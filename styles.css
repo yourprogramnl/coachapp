@@ -552,6 +552,34 @@ h2{font-size:20px;margin-bottom:4px}h3{font-size:15px;margin:18px 0 10px}
 .thread{position:relative}
 .thread .sleeplaag{display:none;position:absolute;inset:8px;border:2px dashed #3eb3e0;border-radius:12px;background:rgba(234,246,251,.93);align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#1e91b8;pointer-events:none;z-index:6}
 .thread.sleep .sleeplaag{display:flex}
+/* Berichten: invoegen (snelle antwoorden, oefenvideo, training) en bericht aan meerdere (19 nov 2026) */
+.berpop{position:absolute;left:14px;bottom:64px;z-index:8;width:380px;max-width:calc(100% - 28px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 44px rgba(15,18,22,.16);padding:6px;font-size:12.5px}
+.berpop .bp-kop{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a919c;padding:6px 8px 4px}
+.berpop .bp-link{margin-left:auto;border:none;background:none;color:#1e91b8;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;padding:0}
+.berpop .bp-link:hover{text-decoration:underline}
+.berpop .bp-terug{border:none;background:none;color:#5b6470;font-size:18px;line-height:1;cursor:pointer;padding:0 4px 2px 0;font-family:inherit}
+.berpop .bp-zoek{width:calc(100% - 12px);margin:2px 6px 6px}
+.berpop .bp-lijst{max-height:264px;overflow:auto}
+.berpop .bp-rij{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:8px;cursor:pointer;font-family:inherit;font-size:12.5px;color:var(--txt)}
+.berpop .bp-rij:hover,.berpop .bp-rij.sel{background:#f0f8fc}
+.berpop .bp-rij>span:last-child{min-width:0;flex:1}
+.berpop .bp-rij b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.berpop .bp-sub{color:var(--muted);font-size:11.5px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.berpop .bp-ico{flex:none;width:28px;text-align:center;font-size:16px}
+.berpop .bp-thumb{flex:none;width:52px;height:34px;object-fit:cover;border-radius:6px;background:#eef1f4}
+.berpop .bp-dag{flex:none;width:118px;color:#5b6470;font-size:11.5px}
+.berpop .bp-dag::first-letter{text-transform:uppercase}
+.berpop .bp-leeg{color:var(--muted);text-align:center;padding:16px 10px;line-height:1.5}
+.bs-lijst{max-height:260px;overflow:auto;border:1px solid #eef0f3;border-radius:10px;margin-bottom:14px}
+.bs-rij{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line2);font-size:12.5px}
+.bs-rij:last-child{border-bottom:none}
+.bs-rij.on{background:#f0f8fc}
+.bs-rij .bs-tekst{color:#5b6470;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45;margin-top:2px;max-height:58px;overflow:hidden}
+.bs-form{border-top:1px solid var(--line);padding-top:12px}
+.bm-rij{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px}
+.bm-rij:hover{background:#f4f6f8}
+.bm-voorbeeld{margin-top:8px;background:#f0f8fc;border:1px solid #d6ecf6;border-radius:10px;padding:8px 11px;font-size:12.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--txt);max-height:120px;overflow:auto}
+.bm-voorbeeld .sm{display:block;margin-bottom:2px}
 .thread .th .ber-kopactie{margin-left:auto;flex:none}
 .thread .th .ber-kopactie:empty{display:none}
 .thread{flex:1;display:flex;flex-direction:column}

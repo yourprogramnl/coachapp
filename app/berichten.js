@@ -3,7 +3,7 @@
 // Een coach ziet alleen zijn eigen klanten (RLS dwingt dat ook af);
 // eigenaar/platform_admin zien alle gesprekken en kunnen op coach filteren.
 let BER={clients:[],coaches:[],msgs:[],cur:null,coachF:"",zoek:"",filter:"",kanaal:null,
-  groups:[],leden:[],gmsgs:[],programs:[],gepland:[],klantCache:{}};
+  groups:[],leden:[],gmsgs:[],programs:[],gepland:[],klantCache:{},snel:[],pop:null,meer:null};
 
 async function fillBerichten(){
   // Ook staf die meetraint als atleet (eigen coach ingesteld) heeft een gesprek.
@@ -21,6 +21,7 @@ async function fillBerichten(){
   const{data:ms}=await alleRijen(()=>db.from("messages").select("*").order("created_at").order("id"));
   BER.msgs=ms||[];
   await berGeplandLaad();
+  if(typeof berSnelLaad==="function")berSnelLaad(); // snelle antwoorden van deze coach (berichten-snel.js)
   // Groepschats: groepen + lidmaatschappen + berichten + blogprogramma's (voor de snelkeuzes)
   const[gq,lq,gm,pq,bm,np]=await Promise.all([
     db.from("chat_groups").select("*").order("created_at"),
@@ -65,6 +66,7 @@ function berNaam(id){
 }
 function berRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
+  BER.pop=null;
   const filterCoaches=BER.coaches.filter(c=>c.role!=="platform_admin");
   const filter=myRole()!=="coach"&&filterCoaches.length?
     '<select class="lid-in" style="padding:8px 10px" onchange="berCoachF(this.value)">'+
@@ -73,6 +75,7 @@ function berRender(){
     '</select>':'';
   cp.innerHTML='<div class="hrow"><h1>Berichten</h1>'+filter+'<span style="margin-left:auto;display:flex;gap:8px">'+
       (inBerVenster()?'':'<button class="btn ghost sm" onclick="openBerVenster()" title="Berichten in een apart venster openen, handig op een tweede scherm">↗ Los venster</button>')+
+      '<button class="btn ghost sm" onclick="berMeerNieuw()" title="Eén bericht dat bij elke gekozen klant in het eigen gesprek aankomt">Bericht aan meerdere</button>'+
       '<button class="btn ghost sm" onclick="berGroepNieuw()">+ Groepschat</button></span></div>'+
     '<div class="chatwrap">'+
       '<div class="chatlist"><div class="clh">Gesprekken</div>'+
@@ -190,7 +193,7 @@ function berConceptZet(key,tekst){
   if(tekst.trim())c[key]=tekst;else delete c[key];
   try{localStorage.setItem(berConceptSleutel(),JSON.stringify(c));}catch(e){}
 }
-function berTyp(ta){chatGroei(ta);berConceptZet(BER.cur,ta.value);}
+function berTyp(ta){chatGroei(ta);berConceptZet(BER.cur,ta.value);if(typeof berSlash==="function")berSlash(ta);}
 // Tekstvak van het open gesprek klaarzetten: concept terug, hoogte goed, cursor erin.
 function berInvoerKlaar(focus){
   const inp=document.getElementById("ber-inp");if(!inp)return;
@@ -336,7 +339,8 @@ function berThreadHtml(){
     '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,m=>berBubHtml(m,c))||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
     '<div class="gepland" id="ber-gepland">'+berGeplandHtml(c.id)+'</div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
-    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Typ een bericht…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return chatToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
+    '<div class="berpop" id="ber-pop" style="display:none"></div>'+
+    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><button class="bijlknop berpopknop" onclick="berPopMenu(event)" title="Invoegen: snel antwoord, oefenvideo of training">＋</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Typ een bericht…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return berToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
       '<span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'ber\')">⏱</button></span>'+
       '<button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>'+
     '<div class="sleeplaag">Laat los om mee te sturen</div>';
@@ -359,7 +363,7 @@ function berNaarBericht(mid){
 }
 function berScroll(){const h=document.getElementById("ber-msgs");if(h)h.scrollTop=h.scrollHeight;}
 async function berOpen(id,mid){
-  BER.cur=id;
+  BER.cur=id;BER.pop=null;
   CHATBIJL.ber=[]; // ander gesprek = gekozen bijlagen weg
   const c=BER.clients.find(x=>x.id===id);
   const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berThreadHtml();}
@@ -477,7 +481,7 @@ async function berZetGelezen(key){
   berLijstVernieuw();
 }
 function berSluitGesprek(){
-  BER.cur=null;CHATBIJL.ber=[];
+  BER.cur=null;BER.pop=null;CHATBIJL.ber=[];
   const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berThreadHtml();}
   const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
 }
@@ -586,10 +590,11 @@ function berGroepThreadHtml(gid){
       (beheer?'<button class="btn ghost sm" onclick="berGroepLedenBeheer(\''+gid+'\')">Leden</button><button class="btn ghost sm" onclick="berGroepWeg(\''+gid+'\')" title="Groep verwijderen"><svg class="i sm-i"><use href="#i-trash"/></svg></button>':'')+'</span>'+
     '</div>'+
     '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,berGroepBubHtml)||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten in deze groep.</div>')+'</div>'+
-    '<div class="inputbar"><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Bericht aan de groep…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return chatToets(event,berGroepStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
+    '<div class="berpop" id="ber-pop" style="display:none"></div>'+
+    '<div class="inputbar"><button class="bijlknop berpopknop" onclick="berPopMenu(event)" title="Invoegen: snel antwoord of oefenvideo">＋</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Bericht aan de groep…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return berToets(event,berGroepStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
 }
 async function berOpenGroep(gid,mid){
-  BER.cur="g:"+gid;
+  BER.cur="g:"+gid;BER.pop=null;
   CHATBIJL.ber=[];
   const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berGroepThreadHtml(gid);}
   // Het klantpaneel hoort bij een 1-op-1 gesprek; bij een groep gaat het dicht
