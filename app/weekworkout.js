@@ -364,7 +364,8 @@ function wwBewerk(id,concept){
   WW_EDIT_CONCEPT=w?wwIsConcept(w):!!concept;
   const blk=w?wwMainBlock(w):null;
   document.getElementById("wwmodal-titel").textContent=WW_EDIT_CONCEPT?(id?"Concept bewerken":"Nieuw concept"):(id?"Weekworkout bewerken":"Nieuwe weekworkout");
-  document.getElementById("wwmodal-hint").textContent=WW_EDIT_CONCEPT?"Een concept zien leden niet. Zet hem live met Kies showdown.":"De weekworkout staat na het opslaan direct live voor 1-op-1 klanten én blog-leden.";
+  document.getElementById("wwmodal-hint").textContent=WW_EDIT_CONCEPT?"Een concept zien leden niet. Zet hem later live met Kies showdown, of nu meteen met Opslaan en live zetten.":"De weekworkout staat na het opslaan direct live voor 1-op-1 klanten én blog-leden.";
+  document.getElementById("ww-livebtn").style.display=WW_EDIT_CONCEPT&&(!w||wwMagBeheren(w))?"":"none";
   document.getElementById("ww-naam").value=w?(w.title||""):(WW_EDIT_CONCEPT?wwConceptNaam():wwStandaardNaam());
   document.getElementById("ww-score").value=(blk&&blk.score_type)||"time";
   document.getElementById("ww-cap").value=blk&&blk.timecap_seconds?secNaarTijd(blk.timecap_seconds):"";
@@ -376,7 +377,10 @@ function wwBewerk(id,concept){
 }
 function wwModalDicht(){document.getElementById("wwmodal").classList.remove("show");WW_EDIT=null;}
 function wwCapToggle(){const v=document.getElementById("ww-capveld"),s=document.getElementById("ww-score");if(v&&s)v.style.display=s.value==="time"?"":"none";}
-async function wwOpslaan(){
+// daarnaLive: een concept bewaren en meteen het venster Kies showdown erop openen (naam en datum
+// nakijken, dan Zet live). Zo hoeft de coach een concept dat al af is niet apart op te zoeken.
+async function wwOpslaan(daarnaLive){
+  let klaarId=null;const alsConcept=WW_EDIT_CONCEPT;
   // Zonder bedrijf zou de workout onvindbaar zijn (alle lijsten filteren op bedrijf).
   if(!ME.profile.company_id){toast("Dit account is niet aan een bedrijf gekoppeld; de weekworkout zou onvindbaar worden. Log in met een account van het bedrijf.");return;}
   const naam=document.getElementById("ww-naam").value.trim();
@@ -401,7 +405,7 @@ async function wwOpslaan(){
       const{error:be}=await db.from("blocks").insert({workout_id:WW_EDIT,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,timecap_seconds,cap_score_type,color:"yellow"});
       if(be){msg.textContent=be.message||"Opslaan mislukt";msg.className="msg err";return;}
     }
-    const wasConcept=WW_EDIT_CONCEPT;
+    const wasConcept=WW_EDIT_CONCEPT;klaarId=WW_EDIT;
     wwModalDicht();toast(wasConcept?"Concept bijgewerkt":"Weekworkout bijgewerkt");
   }else{
     // Live: publicatiedatum = vandaag, de weekworkout staat direct live (de datum zit al in de naam).
@@ -412,9 +416,11 @@ async function wwOpslaan(){
     const{error:be}=await db.from("blocks").insert({workout_id:nw.id,kind:"conditioning",label:"A",exercise:naam,notes:tekst,sort:0,score_type:score,timecap_seconds,cap_score_type,color:"yellow"});
     if(be){msg.textContent=be.message||"Aanmaken mislukt";msg.className="msg err";return;}
     if(!concept){WW.open={};WW.open[nw.id]=true;}
+    klaarId=nw.id;
     wwModalDicht();toast(concept?"Concept bewaard in de bouwer":"Weekworkout staat live");
   }
   await fillWeekworkout();
+  if(daarnaLive&&alsConcept&&klaarId)wwKies(klaarId);
 }
 async function wwVerwijder(id){
   const concept=wwIsConcept(wwVind(id));
@@ -495,7 +501,7 @@ function ensureWwModals(){
       '<div class="field" id="ww-capveld"><label>Timecap (leeg = geen)</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="ww-cap" placeholder="mm:ss, bijv. 20:00" style="width:150px"><select id="ww-capst" style="flex:1;min-width:220px"><option value="reps">wie de cap niet haalt logt reps</option><option value="rounds_reps">wie de cap niet haalt logt rondes + reps</option></select></div>'+
         '<div class="sm muted" style="margin-top:4px">Finishers staan bovenaan op tijd; wie gecapt is komt daaronder op reps/rondes (zoals Strivee).</div></div>'+
       '<div class="sm muted" id="wwmodal-hint" style="margin-bottom:12px">De weekworkout staat na het opslaan direct live voor 1-op-1 klanten én blog-leden.</div>'+
-      '<div style="display:flex;gap:8px"><button class="btn" onclick="wwOpslaan()">Opslaan</button><button class="btn ghost" onclick="wwModalDicht()">Annuleren</button></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="wwOpslaan()">Opslaan</button><button class="btn ghost" id="ww-livebtn" style="display:none" onclick="wwOpslaan(true)">Opslaan en live zetten</button><button class="btn ghost" onclick="wwModalDicht()">Annuleren</button></div>'+
       '<div class="msg" id="wwmodal-msg"></div></div></div>'+
     '<div class="lmodal" id="wwkiesmodal"><div class="box" style="width:560px;max-width:94vw"><h3>Kies showdown</h3>'+
       '<div class="sm muted" style="margin-bottom:10px">Kies een concept uit de bouwer. Hij komt in de lijst en staat direct live voor 1-op-1 klanten én blog-leden.</div>'+

@@ -1083,3 +1083,8 @@ i18nLaad({
   "Kies eerst een gesprek": "Choose a conversation first",
   "In een groepschat kunnen nog geen foto's of video's mee": "Group chats can't carry photos or videos yet",
 });
+// Concept meteen live zetten (19 nov 2026)
+i18nLaad({
+  "Opslaan en live zetten": "Save and put live",
+  "Een concept zien leden niet. Zet hem later live met Kies showdown, of nu meteen met Opslaan en live zetten.": "Members don't see a draft. Put it live later with Choose showdown, or right now with Save and put live.",
+});
