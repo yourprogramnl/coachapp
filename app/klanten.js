@@ -48,8 +48,10 @@ async function fillKlanten(){
   const leeg=Promise.resolve({data:[]});
   const[tq,wq,mq,pq,cq,iq]=await Promise.all([
     ME.profile.company_id?db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name"):leeg,
-    // Resultaten meteen mee-ophalen bij de workouts: één aanroep, en geen lange lijst workout-id's in de link
-    ids.length?db.from("workouts").select("id,client_id,workout_date,title,results(workout_id,status)").in("client_id",ids).neq("status","draft").gte("workout_date",from90).lte("workout_date",plus14).order("workout_date"):leeg,
+    // Resultaten meteen mee-ophalen bij de workouts, en geen lange lijst workout-id's in de link.
+    // In stukken en met alle bladzijden (19 nov 2026): een beheerder met alle klanten kreeg maar de
+    // eerste 1000 van ruim 4500 workouts, waardoor de cijfers op deze pagina in september bleven steken.
+    ids.length?inStukken(ids,s=>db.from("workouts").select("id,client_id,workout_date,title,results(workout_id,status)").in("client_id",s).neq("status","draft").gte("workout_date",from90).lte("workout_date",plus14).order("workout_date").order("id")):leeg,
     ids.length?db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date()))):leeg,
     ids.length?db.from("profile_tags").select("profile_id,tag_id").in("profile_id",ids):leeg,
     ids.length?db.from("consults").select("athlete_id,consult_date").in("athlete_id",ids):leeg,
@@ -61,12 +63,13 @@ async function fillKlanten(){
   let ws=[],rs=[];
   if(wq.error&&ids.length){
     // Terugvalroute: workouts en resultaten los ophalen (zoals vroeger).
-    ws=(await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).neq("status","draft").gte("workout_date",from90).lte("workout_date",plus14).order("workout_date")).data||[];
+    ws=(await inStukken(ids,s=>db.from("workouts").select("id,client_id,workout_date,title").in("client_id",s).neq("status","draft").gte("workout_date",from90).lte("workout_date",plus14).order("workout_date").order("id"))).data||[];
     const wids=ws.map(w=>w.id);
-    if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
+    if(wids.length)rs=(await inStukken(wids,s=>db.from("results").select("workout_id,status").in("workout_id",s).order("id"),150)).data||[];
   }else{
-    ws=(wq.data||[]).map(w=>{rs=rs.concat(w.results||[]);delete w.results;return w;});
+    ws=(wq.data||[]).map(w=>{(w.results||[]).forEach(r=>rs.push(r));delete w.results;return w;});
   }
+  ws.sort((a,b)=>a.workout_date.localeCompare(b.workout_date)||String(a.id).localeCompare(String(b.id)));
   const msgs=mq.data||[],alleTags=tagsSorteer(tq.data||[]),ptags=pq.data||[],cons=cq.data||[],openInv=iq.data||[];
   const tagsByClient={};ptags.forEach(pt=>{(tagsByClient[pt.profile_id]=tagsByClient[pt.profile_id]||[]).push(pt.tag_id);});
   const lastConsult={};cons.forEach(c=>{if(c.consult_date&&(!lastConsult[c.athlete_id]||c.consult_date>lastConsult[c.athlete_id]))lastConsult[c.athlete_id]=c.consult_date;});
@@ -542,9 +545,12 @@ async function fillCoaches(){
   const td=todayStr(),from30=ymd(addDays(new Date(),-29));
   let ws=[],rs=[],msgs=[],cons=[];
   if(ids.length){
-    ws=((await db.from("workouts").select("id,client_id,workout_date,title").in("client_id",ids).neq("status","draft").gte("workout_date",from30).lte("workout_date",td)).data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
-    const wids=ws.map(w=>w.id);
-    if(wids.length)rs=(await db.from("results").select("workout_id,status").in("workout_id",wids)).data||[];
+    // Workouts met hun resultaten in één keer, in stukken en met alle bladzijden (19 nov 2026).
+    // Was: eerst de workouts (afgekapt op 1000) en dan de resultaten met alle workout-id's in de
+    // link; die link was bij een beheerder 37.000 tekens en werd geweigerd, dus compliance bleef leeg.
+    const wq=await inStukken(ids,s=>db.from("workouts").select("id,client_id,workout_date,title,results(workout_id,status)").in("client_id",s).neq("status","draft").gte("workout_date",from30).lte("workout_date",td).order("workout_date").order("id"));
+    ws=(wq.data||[]).filter(w=>!/^rest ?day$/i.test((w.title||"").trim()));
+    ws.forEach(w=>{(w.results||[]).forEach(r=>rs.push(r));delete w.results;});
     msgs=(await db.from("messages").select("athlete_id").in("athlete_id",ids).gte("created_at",ymd(mondayOf(new Date())))).data||[];
     cons=(await db.from("consults").select("athlete_id").in("athlete_id",ids).gte("consult_date",from30)).data||[];
   }

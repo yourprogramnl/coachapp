@@ -33,6 +33,30 @@ const VERS={};
 function versZet(k,v){VERS[k]={t:Date.now(),v};}
 function versPak(k,maxMs){const e=VERS[k];return (e&&Date.now()-e.t<maxMs)?e.v:null;}
 function versWis(){for(const k in VERS)delete VERS[k];}
+// De database geeft per aanroep hoogstens 1000 rijen terug en kapt de rest zonder melding af.
+// alleRijen haalt alle bladzijden op en plakt ze aan elkaar. maak() bouwt telkens dezelfde
+// aanroep, met een vaste volgorde (.order) zodat de bladzijden op elkaar aansluiten.
+async function alleRijen(maak){
+  let uit=[];
+  for(let van=0;;van+=1000){
+    const{data,error}=await maak().range(van,van+999);
+    if(error)return{data:null,error};
+    uit=uit.concat(data||[]);
+    if(!data||data.length<1000)break;
+  }
+  return{data:uit,error:null};
+}
+// Een .in() met honderden id's geeft een link die te lang is; die weigert de database (400).
+// inStukken knipt de lijst in stukken, haalt ze tegelijk op (elk met alle bladzijden) en plakt
+// de rijen aan elkaar. maak(stuk) bouwt de aanroep voor één stuk id's.
+async function inStukken(ids,maak,per){
+  per=per||50;
+  const stukken=[];for(let i=0;i<ids.length;i+=per)stukken.push(ids.slice(i,i+per));
+  const delen=await Promise.all(stukken.map(s=>alleRijen(()=>maak(s))));
+  const fout=delen.find(d=>d.error);
+  if(fout)return{data:null,error:fout.error};
+  return{data:delen.reduce((a,d)=>a.concat(d.data),[]),error:null};
+}
 const MAANDKORT=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 function toast(t,ms){let e=document.getElementById("toast2");if(!e){e=document.createElement("div");e.id="toast2";e.className="toast2";document.body.appendChild(e);}e.textContent=t;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),ms||2600);}
 // Upload van een lid: foto of video? Het opslagpad eindigt op de extensie.
