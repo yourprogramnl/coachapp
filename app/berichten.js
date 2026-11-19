@@ -410,6 +410,25 @@ function berLeesActie(key){
   if(c.coach_id!==ME.user.id)return "niet-eigen";
   return berOngelezen(key)?"gelezen":"ongelezen";
 }
+// Waarom op gelezen of ongelezen zetten bij dit gesprek niet kan (voor het menu
+// van een rij). Leeg als het wel kan, of als berNietEigen het al uitlegt.
+function berLeesUitleg(key){
+  const a=berLeesActie(key);
+  if(a)return "";
+  if(berIsGroep(key)){
+    const gid=String(key).slice(2);
+    if(!BER.leden.some(m=>m.group_id===gid&&m.profile_id===ME.user.id))return "Je zit zelf niet in deze groep, dus er is voor jou niets op ongelezen te zetten";
+    return "In deze groep staat nog geen bericht van een ander";
+  }
+  const c=BER.clients.find(x=>x.id===key);
+  if(c&&c.id===ME.user.id)return "Dit is je eigen gesprek. Op ongelezen zetten kan daar alleen in de app";
+  return "Dit lid heeft zelf nog geen bericht gestuurd, dus er valt niets op ongelezen te zetten";
+}
+function berLeesWaarom(key){
+  berMenuWeg();
+  if(berLeesActie(key)==="niet-eigen")berNietEigen(key);
+  else toast(berLeesUitleg(key),4500);
+}
 function berKopActieHtml(key){
   const a=berLeesActie(key);if(!a)return "";
   if(a==="niet-eigen")return '<button class="btn ghost sm" style="opacity:.55" onclick="berNietEigen(\''+key+'\')">'+(berOngelezen(key)?"Markeer als gelezen":"Markeer als ongelezen")+'</button>';
@@ -439,7 +458,12 @@ function berRijMenu(ev,btn,key){
   if(bestond)return;
   const a=berLeesActie(key);
   const m=document.createElement("div");m.className="coachmenu ber-menu";m.dataset.voor=key;
-  m.innerHTML=((a==="gelezen"||a==="ongelezen")?'<button onclick="event.stopPropagation();'+(a==="gelezen"?"berZetGelezen":"berZetOngelezen")+'(\''+key+'\')">'+(a==="gelezen"?"Markeer als gelezen":"Markeer als ongelezen")+'</button>':'')+
+  // Kan het hier niet (klant van een andere coach, nog geen bericht van het lid, eigen
+  // gesprek), dan staat de keuze er grijs en legt een klik uit waarom.
+  const kan=a==="gelezen"||a==="ongelezen";
+  m.innerHTML=(kan
+      ?'<button onclick="event.stopPropagation();'+(a==="gelezen"?"berZetGelezen":"berZetOngelezen")+'(\''+key+'\')">'+(a==="gelezen"?"Markeer als gelezen":"Markeer als ongelezen")+'</button>'
+      :'<button style="opacity:.5" onclick="event.stopPropagation();berLeesWaarom(\''+key+'\')">'+(a==="niet-eigen"&&berOngelezen(key)?"Markeer als gelezen":"Markeer als ongelezen")+'</button>')+
     '<button onclick="event.stopPropagation();berVastWissel(\''+key+'\')">'+(berVast().includes(key)?"Niet meer vastzetten":"Vastzetten bovenaan")+'</button>';
   document.body.appendChild(m);
   const r=btn.getBoundingClientRect();
