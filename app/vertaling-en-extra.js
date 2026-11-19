@@ -969,3 +969,10 @@ i18nLaad({
   "Kies een datum.": "Choose a date.",
   "Live zetten mislukt. Ververs de pagina en probeer het opnieuw.": "Putting it live failed. Refresh the page and try again.",
 });
+// Scaled-versie van een ingevoegde Showdown (19 nov 2026)
+i18nLaad({
+  "Scaled-versie": "Scaled version",
+  "YP Showdown · gedeeld leaderboard": "YP Showdown · shared leaderboard",
+  "Zet dit aan als je de workout voor deze klant hebt aangepast, bijvoorbeeld ring rows in plaats van pull-ups. De score staat dan onder Scaled op het gedeelde leaderboard.": "Turn this on if you adapted the workout for this client, for example ring rows instead of pull-ups. The score then appears under Scaled on the shared leaderboard.",
+  "Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Een klant met het vinkje Scaled-versie staat onder Scaled.": "One shared leaderboard for 1-on-1 clients and free blog members. A client with Scaled version ticked appears under Scaled.",
+});

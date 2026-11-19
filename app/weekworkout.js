@@ -161,7 +161,7 @@ function wwCmp(st){
   };
 }
 function wwBoardInner(id){
-  const w=WW.list.find(x=>x.id===id),rows=WW.boards[id]||[];
+  const w=WW.list.find(x=>x.id===id)||(WW_VENSTER&&WW_VENSTER.id===id?WW_VENSTER:null),rows=WW.boards[id]||[];
   if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
   const st=(wwMainBlock(w)||{}).score_type||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
@@ -180,6 +180,28 @@ function wwBoardInner(id){
   });
   return html;
 }
+// Het leaderboard van één Showdown in een los venster, vanaf elke plek in de app (de bouwer bij
+// een klant gebruikt dit voor een ingevoegde Showdown). Zelfde regels, fist bumps en reacties
+// als op het Showdown-scherm: het venster heeft het id dat wwRefreshBoard ververst.
+let WW_VENSTER=null;
+async function wwBordVenster(id){
+  ensureWwModals();
+  let w=wwVind(id);
+  if(!w){
+    const{data,error}=await db.from("workouts").select("id,title,workout_date,coach_id,created_at,audience, blocks(*)").eq("id",id).maybeSingle();
+    if(error||!data){toast("Deze "+SHOWDOWN+" is niet meer te vinden");return;}
+    w=data;
+  }
+  WW_VENSTER=w;
+  document.getElementById("wwbord-titel").textContent=(w.title||SHOWDOWN)+" · "+datumNL(w.workout_date);
+  const body=document.getElementById("wwbord-body");
+  body.innerHTML='<div id="ww-board-'+esc(id)+'"><div class="cempty">Leaderboard laden…</div></div>';
+  document.getElementById("wwbordmodal").classList.add("show");
+  await wwLoadBoardFor(id);
+  if(!WW_VENSTER||WW_VENSTER.id!==id)return; // intussen gesloten of een ander bord geopend
+  const el=document.getElementById("ww-board-"+id);if(el)el.innerHTML=wwBoardInner(id);
+}
+function wwBordVensterDicht(){document.getElementById("wwbordmodal").classList.remove("show");document.getElementById("wwbord-body").innerHTML="";WW_VENSTER=null;}
 // Eén regel op een leaderboard (Showdown én blogprogramma's). De score staat vooraan;
 // de notitie van de sporter is dicht tot je op de naam klikt (verzoek Stefan 22 okt:
 // "scores wil ik zien, wat ze typen is alleen handig als ik het wil uitklappen").
@@ -480,6 +502,10 @@ function ensureWwModals(){
         '<button class="btn ghost" id="wwkies-leeg" style="display:none" onclick="wwKiesNaarBouwer()">Naar de Bouwer</button>'+
         '<button class="btn ghost" onclick="wwKiesDicht()">Annuleren</button></div>'+
       '<div class="msg" id="wwkies-msg"></div></div></div>'+
+    '<div class="lmodal" id="wwbordmodal" style="z-index:396"><div class="box" style="width:680px;max-width:96vw">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0" id="wwbord-titel">Leaderboard</h3><span onclick="wwBordVensterDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
+      '<div class="sm muted" style="margin-bottom:8px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Een klant met het vinkje Scaled-versie staat onder Scaled.</div>'+
+      '<div id="wwbord-body"></div></div></div>'+
     '<div class="lmodal" id="wwcommodal" style="z-index:398"><div class="box" style="width:480px;max-width:94vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0" id="wwcom-titel">Reacties</h3><span onclick="wwComDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
       '<div id="wwcom-lijst" style="max-height:46vh;overflow:auto;margin-bottom:10px"></div>'+

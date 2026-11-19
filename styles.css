@@ -1812,3 +1812,10 @@ body.bervenster .chatklant{max-height:none}
 .sdb-keuze:hover{border-color:#c9c2fa}
 .sdb-keuze.on{border-color:#8b7cf6;background:#eeebfd}
 .sdb-keuzetekst{font-size:12px;color:#5d6570;margin-top:3px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+/* Ingevoegde Showdown bij een klant: balkje met Scaled-versie en Leaderboard (19 nov 2026).
+   Alleen in de bouwer van een klant; in de blog- en templatebouwer heeft het vinkje geen betekenis. */
+.sdstrip{display:none}
+#calwrap .ib2:not(.pe-ib) .sdstrip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#eeebfd;border:1px solid #dcd6fb;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px}
+.sdstrip-naam{font-weight:800;color:#5b4bd1}
+.sdstrip-sc{display:inline-flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin-left:auto}
+.sdstrip-sc input{width:15px;height:15px;margin:0;accent-color:#8b7cf6}
