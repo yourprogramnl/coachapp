@@ -342,9 +342,12 @@ let WW_EDIT=null,WW_EDIT_CONCEPT=false;
 function wwMaandag(iso){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()-((d.getDay()+6)%7));return ymd(d);}
 // Datum uit een naam als "YP Showdown 27 november" of "YP showdown 29 mei 2026".
 // Zonder jaartal: dit jaar, of volgend jaar als die dag al ruim voorbij is.
+// Maandnamen in het Nederlands en het Engels: staat het dashboard op Engels, dan is MAANDVOL Engels
+// ("November") en heet een nieuw concept ook zo.
+const WW_MAANDEN=[["januari","january"],["februari","february"],["maart","march"],["april"],["mei","may"],["juni","june"],["juli","july"],["augustus","august"],["september"],["oktober","october"],["november"],["december"]];
 function wwDatumUitNaam(naam){
   const m=String(naam||"").toLowerCase().match(/(\d{1,2})\s+([a-zé]+)(?:\s+(\d{4}))?/);if(!m)return null;
-  const mnd=MAANDVOL.indexOf(m[2]),dag=parseInt(m[1],10);if(mnd<0||dag<1||dag>31)return null;
+  const mnd=WW_MAANDEN.findIndex(l=>l.includes(m[2])),dag=parseInt(m[1],10);if(mnd<0||dag<1||dag>31)return null;
   const nu=new Date();let jaar=m[3]?parseInt(m[3],10):nu.getFullYear();
   let d=new Date(jaar,mnd,dag,12);
   if(!m[3]&&nu-d>120*864e5)d=new Date(++jaar,mnd,dag,12);
