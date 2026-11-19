@@ -1142,3 +1142,18 @@ i18nLaad({
   "Verstuurd naar {n} klant": "Sent to {n} client",
   "Verstuurd naar {n} klanten": "Sent to {n} clients",
 });
+// Berichten pakket 2 (19 nov 2026): antwoorden op een bericht, bewerken, verwijderen, spraakbericht
+i18nLaad({
+  "Antwoorden": "Reply",
+  "Bericht bewerken": "Edit message",
+  "Enter slaat de wijziging op.": "Enter saves the change.",
+  "Een leeg bericht kan niet. Verwijder het bericht als het weg moet.": "An empty message is not possible. Delete the message if it has to go.",
+  "Dit bericht verwijderen? Het verdwijnt ook bij je klant.": "Delete this message? It also disappears for your client.",
+  "Verwijderen is niet gelukt": "Deleting failed",
+  "Bericht verwijderd": "Message deleted",
+  "Spraakbericht opnemen": "Record a voice message",
+  "Een spraakbericht opnemen werkt in Chrome, Edge of Safari. Werk je browser bij als het daar niet lukt.": "Recording a voice message works in Chrome, Edge or Safari. Update your browser if it doesn't work there.",
+  "Geef de browser toegang tot je microfoon om een spraakbericht op te nemen.": "Give the browser access to your microphone to record a voice message.",
+  "Opnemen is niet gelukt": "Recording failed",
+  "Rond eerst de opname af met Klaar.": "Finish the recording with Done first.",
+});

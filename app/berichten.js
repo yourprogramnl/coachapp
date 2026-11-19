@@ -3,7 +3,7 @@
 // Een coach ziet alleen zijn eigen klanten (RLS dwingt dat ook af);
 // eigenaar/platform_admin zien alle gesprekken en kunnen op coach filteren.
 let BER={clients:[],coaches:[],msgs:[],cur:null,coachF:"",zoek:"",filter:"",kanaal:null,
-  groups:[],leden:[],gmsgs:[],programs:[],gepland:[],klantCache:{},snel:[],pop:null,meer:null};
+  groups:[],leden:[],gmsgs:[],programs:[],gepland:[],klantCache:{},snel:[],pop:null,meer:null,antw:null,bew:null};
 
 async function fillBerichten(){
   // Ook staf die meetraint als atleet (eigen coach ingesteld) heeft een gesprek.
@@ -193,7 +193,7 @@ function berConceptZet(key,tekst){
   if(tekst.trim())c[key]=tekst;else delete c[key];
   try{localStorage.setItem(berConceptSleutel(),JSON.stringify(c));}catch(e){}
 }
-function berTyp(ta){chatGroei(ta);berConceptZet(BER.cur,ta.value);if(typeof berSlash==="function")berSlash(ta);}
+function berTyp(ta){chatGroei(ta);if(!BER.bew)berConceptZet(BER.cur,ta.value);if(typeof berSlash==="function")berSlash(ta);}
 // Tekstvak van het open gesprek klaarzetten: concept terug, hoogte goed, cursor erin.
 function berInvoerKlaar(focus){
   const inp=document.getElementById("ber-inp");if(!inp)return;
@@ -338,9 +338,10 @@ function berThreadHtml(){
       '<span class="ber-kopactie" id="ber-kopactie">'+berKopActieHtml(c.id)+'</span></div>'+
     '<div class="msgs" id="ber-msgs">'+(berDraadHtml(ms,m=>berBubHtml(m,c))||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>')+'</div>'+
     '<div class="gepland" id="ber-gepland">'+berGeplandHtml(c.id)+'</div>'+
+    '<div id="ber-balk">'+(typeof berBalkHtml==="function"?berBalkHtml():"")+'</div><div id="ber-opn"></div>'+
     '<div class="bijlrij" id="chat-bijl-ber" style="display:none;padding:6px 14px 0"></div>'+
     '<div class="berpop" id="ber-pop" style="display:none"></div>'+
-    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><button class="bijlknop berpopknop" onclick="berPopMenu(event)" title="Invoegen: snel antwoord, oefenvideo of training">＋</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Typ een bericht…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return berToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
+    '<div class="inputbar"><button class="bijlknop" onclick="chatKies(\'ber\')" title="Foto of video meesturen">📎</button><button class="bijlknop berpopknop" onclick="berPopMenu(event)" title="Invoegen: snel antwoord, oefenvideo of training">＋</button><button class="bijlknop" id="ber-mic" onclick="berOpnStart()" title="Spraakbericht opnemen">🎤</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Typ een bericht…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return berToets(event,berStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea>'+
       '<span class="laterwrap"><button class="klokknop" title="Later versturen (morgen 09:00, maandag 09:00 of een eigen tijd)" onclick="laterMenu(this,\'ber\')">⏱</button></span>'+
       '<button class="btn sm2" id="ber-verstuur" onclick="berStuur()">Versturen</button></div>'+
     '<div class="sleeplaag">Laat los om mee te sturen</div>';
@@ -351,7 +352,9 @@ function berBubHtml(m,c){
   const vanLid=m.sender_id===c.id;
   let meta=berHM(m.created_at);
   if(!vanLid&&m.sender_id!==ME.user.id)meta=berNaam(m.sender_id)+" · "+meta;
-  return rxRij(m,!vanLid,'<div data-notr class="bub '+(vanLid?"them":"me")+'">'+chatMediaTiles(m)+(m.body?chatTekst(m.body):"")+'<div class="meta"><span class="mt">'+meta+'</span>'+(vanLid?"":berVinkHtml(m))+'</div></div>');
+  if(m.edited_at)meta+=" · "+(berEN()?"edited":"bewerkt");
+  const knop=typeof berBubKnopHtml==="function"?berBubKnopHtml(m):"",citaat=typeof berCitaatHtml==="function"?berCitaatHtml(m):"";
+  return rxRij(m,!vanLid,'<div data-notr class="bub '+(vanLid?"them":"me")+'">'+knop+citaat+chatMediaTiles(m)+(m.body?chatTekst(m.body):"")+'<div class="meta"><span class="mt">'+meta+'</span>'+(vanLid?"":berVinkHtml(m))+'</div></div>');
 }
 // Naar één bericht in het open gesprek springen (vanuit de zoekresultaten) en het even laten oplichten.
 function berNaarBericht(mid){
@@ -363,7 +366,8 @@ function berNaarBericht(mid){
 }
 function berScroll(){const h=document.getElementById("ber-msgs");if(h)h.scrollTop=h.scrollHeight;}
 async function berOpen(id,mid){
-  BER.cur=id;BER.pop=null;
+  if(typeof berOpnStop==="function")berOpnStop(true);
+  BER.cur=id;BER.pop=null;BER.antw=null;BER.bew=null;
   CHATBIJL.ber=[]; // ander gesprek = gekozen bijlagen weg
   const c=BER.clients.find(x=>x.id===id);
   const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berThreadHtml();}
@@ -481,15 +485,19 @@ async function berZetGelezen(key){
   berLijstVernieuw();
 }
 function berSluitGesprek(){
-  BER.cur=null;BER.pop=null;CHATBIJL.ber=[];
+  if(typeof berOpnStop==="function")berOpnStop(true);
+  BER.cur=null;BER.pop=null;BER.antw=null;BER.bew=null;CHATBIJL.ber=[];
   const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berThreadHtml();}
   const kl=document.getElementById("ber-klant");if(kl)kl.innerHTML=berKlantHtml();
 }
 async function berStuur(){
   const inp=document.getElementById("ber-inp");if(!inp)return;
   const tekst=(inp.value||"").trim();
+  if(BER.bew&&typeof berBewerkOpslaan==="function"){await berBewerkOpslaan(tekst);return;}
+  if(typeof BEROPN!=="undefined"&&BEROPN){toast("Rond eerst de opname af met Klaar.");return;}
   if((!tekst&&!CHATBIJL.ber.length)||!BER.cur)return;
   const aid=BER.cur; // vasthouden: tijdens een upload kan er een ander gesprek geopend worden
+  const antw=BER.antw||null;
   const knop=document.getElementById("ber-verstuur");
   if(knop&&knop.disabled)return; // niet dubbel versturen tijdens een upload
   let media=[];
@@ -498,15 +506,17 @@ async function berStuur(){
     try{media=await chatUpload("ber",aid);}
     catch(e){toast(e.message||"Upload mislukt");if(knop){knop.disabled=false;knop.textContent="Versturen";}return;}
   }
-  const{data,error}=await db.from("messages").insert({company_id:ME.profile.company_id,athlete_id:aid,sender_id:ME.user.id,body:tekst,media}).select().single();
+  const rij={company_id:ME.profile.company_id,athlete_id:aid,sender_id:ME.user.id,body:tekst,media};
+  if(antw)rij.reply_to=antw;
+  const{data,error}=await db.from("messages").insert(rij).select().single();
   if(knop){knop.disabled=false;knop.textContent="Versturen";}
   if(error){
     if(media.length)try{db.storage.from("media").remove(media.map(x=>x.path));}catch(e){}
     toast(error.message||"Versturen mislukt");return;
   }
   berConceptZet(aid,"");
-  if(BER.cur===aid){inp.value="";chatGroei(inp);CHATBIJL.ber=[];chatBijlToon("ber");}
-  BER.msgs.push(data||{athlete_id:aid,sender_id:ME.user.id,body:tekst,media,created_at:new Date().toISOString()});
+  if(BER.cur===aid){inp.value="";chatGroei(inp);CHATBIJL.ber=[];chatBijlToon("ber");BER.antw=null;if(typeof berBalkZet==="function")berBalkZet();}
+  BER.msgs.push(data||Object.assign({created_at:new Date().toISOString()},rij));
   if(BER.cur===aid)berAppend(BER.msgs[BER.msgs.length-1]);
   // Wie antwoordt heeft het gelezen: openstaande berichten van het lid gaan op gelezen
   const c=BER.clients.find(x=>x.id===aid);
@@ -546,13 +556,22 @@ function berRealtime(){
       // Gelezen-stand live: het lid opent het gesprek in de app = de vinkjes springen op twee
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"messages"},payload=>{
         const n=payload.new;if(!n)return;
-        const m=BER.msgs.find(x=>x.id===n.id);
-        if(!m||!!m.read_at===!!n.read_at)return;
-        m.read_at=n.read_at;
+        const m=BER.msgs.find(x=>x.id===n.id);if(!m)return;
+        const leesAnders=!!m.read_at!==!!n.read_at;
+        const tekstAnders=(m.body||"")!==(n.body||"")||+new Date(m.edited_at||0)!==+new Date(n.edited_at||0);
+        if(!leesAnders&&!tekstAnders)return;
+        m.read_at=n.read_at;m.body=n.body;m.edited_at=n.edited_at;
         if(!document.getElementById("ber-lijst"))return;
-        document.querySelectorAll("#ber-msgs .wcrij").forEach(el=>{if(el.dataset.mid===String(m.id)){const v=el.querySelector(".vink");if(v)v.outerHTML=berVinkHtml(m);}});
+        if(tekstAnders&&typeof berRijVervang==="function"){berRijVervang(m);berCitatenVan(m.id);} // bewerkt door de afzender
+        else document.querySelectorAll("#ber-msgs .wcrij").forEach(el=>{if(el.dataset.mid===String(m.id)){const v=el.querySelector(".vink");if(v)v.outerHTML=berVinkHtml(m);}});
         berLijstVernieuw();
-        if(m.sender_id===m.athlete_id)berBadgeBij(); // alleen dan verandert de teller in de bovenbalk
+        if(leesAnders&&m.sender_id===m.athlete_id)berBadgeBij(); // alleen dan verandert de teller in de bovenbalk
+      })
+      // Verwijderd door de afzender: weg uit de lijst en de open draad
+      .on("postgres_changes",{event:"DELETE",schema:"public",table:"messages"},payload=>{
+        const o=payload.old;if(!o||!o.id||typeof berBerichtWeg!=="function")return;
+        if(!BER.msgs.some(x=>x.id===o.id))return;
+        berBerichtWeg(o.id);berBadgeBij();
       })
       // Emoji-reacties van de ander live in de open draad
       .on("postgres_changes",{event:"*",schema:"public",table:"message_reactions"},payload=>{
@@ -594,7 +613,8 @@ function berGroepThreadHtml(gid){
     '<div class="inputbar"><button class="bijlknop berpopknop" onclick="berPopMenu(event)" title="Invoegen: snel antwoord of oefenvideo">＋</button><textarea id="ber-inp" rows="1" placeholder="'+esc(t("Bericht aan de groep…"))+'" title="'+esc(t("Enter = versturen, Shift+Enter = nieuwe regel"))+'" onkeydown="return berToets(event,berGroepStuur)" oninput="berTyp(this)" onpaste="berPlak(event)"></textarea><button class="btn sm2" onclick="berGroepStuur()">Versturen</button></div>';
 }
 async function berOpenGroep(gid,mid){
-  BER.cur="g:"+gid;BER.pop=null;
+  if(typeof berOpnStop==="function")berOpnStop(true);
+  BER.cur="g:"+gid;BER.pop=null;BER.antw=null;BER.bew=null;
   CHATBIJL.ber=[];
   const th=document.getElementById("ber-thread");if(th){th.classList.remove("sleep");th.innerHTML=berGroepThreadHtml(gid);}
   // Het klantpaneel hoort bij een 1-op-1 gesprek; bij een groep gaat het dicht

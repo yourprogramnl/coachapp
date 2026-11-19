@@ -61,8 +61,9 @@ const chatIsFoto=f=>String(f.type||"").startsWith("image");
 function chatPreview(m){
   if(m.body)return m.body;
   const md=m.media||[];
-  const fotos=md.filter(x=>x.kind==="image").length,vids=md.length-fotos;
+  const fotos=md.filter(x=>x.kind==="image").length,spraak=md.filter(x=>x.kind==="audio").length,vids=md.length-fotos-spraak;
   const delen=[];
+  if(spraak)delen.push("🎤 "+(typeof LANG!=="undefined"&&LANG==="en"?"Voice message":"Spraakbericht"));
   if(fotos)delen.push("📷 "+(fotos>1?fotos+" foto's":"Foto"));
   if(vids)delen.push("🎥 "+(vids>1?vids+" video's":"Video"));
   return delen.join(" · ");
@@ -70,11 +71,22 @@ function chatPreview(m){
 // Miniaturen in een chat-bubbel; dashVidSrcs() vult daarna de kijk-URL's
 // (private bucket, signed URL) en klikken opent groot via vidSpeel().
 function chatMediaTiles(m){
-  const md=m.media||[];if(!md.length)return "";
+  const alle=m.media||[];if(!alle.length)return "";
+  // Spraakberichten: een gewone geluidsspeler met de lengte erbij (de kijk-URL komt van dashVidSrcs)
+  const spraak=alle.filter(x=>x.kind==="audio").map(x=>'<div class="chataudio"><span class="ca-ico">🎤</span><audio class="dashvid" controls preload="none" data-vp="'+esc(x.path)+'"></audio>'+(x.duur?'<span class="ca-duur">'+chatDuur(x.duur)+'</span>':'')+'</div>').join("");
+  const md=alle.filter(x=>x.kind!=="audio");if(!md.length)return spraak;
   const lijst=md.map(x=>x.path).join("|"); // groot bekijken = bladeren door alle bijlagen van dit bericht
-  return '<div class="chatmedia">'+md.map(x=>x.kind==="image"
+  return spraak+'<div class="chatmedia">'+md.map(x=>x.kind==="image"
     ?'<img class="dashvid" data-vp="'+esc(x.path)+'" onclick="vidSpeel(\''+esc(x.path)+'\',\''+esc(lijst)+'\')" alt="Foto">'
     :'<video class="dashvid" data-vp="'+esc(x.path)+'" preload="metadata" muted playsinline onclick="vidSpeel(\''+esc(x.path)+'\',\''+esc(lijst)+'\')"></video>').join("")+'</div>';
+}
+const chatDuur=s=>{s=Math.max(0,Math.round(s||0));return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2);};
+// Citaat boven de tekst van een antwoord. lijst = de berichten van dit gesprek,
+// naam(m) = naam van de afzender als platte tekst, klik = optionele onclick.
+function chatCitaatHtml(m,lijst,naam,klik){
+  if(!m.reply_to)return "";
+  const o=(lijst||[]).find(x=>x.id===m.reply_to);if(!o)return "";
+  return '<div class="bubcit"'+(klik?' onclick="'+klik(o)+'"':'')+'><b>'+esc(naam(o))+'</b><span>'+esc(String(chatPreview(o)).replace(/\s+/g," ").slice(0,160))+'</span></div>';
 }
 function chatKies(key){ // opent de bestandskiezer voor deze invoerbalk
   let inp=document.getElementById("chat-file-"+key);
@@ -97,7 +109,9 @@ function chatBijlErbij(key,files){
 function chatBijlWeg(key,i){CHATBIJL[key].splice(i,1);chatBijlToon(key);}
 function chatBijlToon(key){
   const host=document.getElementById("chat-bijl-"+key);if(!host)return;
-  host.innerHTML=CHATBIJL[key].map((f,i)=>'<span class="bijlchip">'+(chatIsFoto(f)?"📷":"🎥")+' '+esc(f.name.length>20?f.name.slice(0,18)+"…":f.name)+'<b onclick="chatBijlWeg(\''+key+'\','+i+')" title="Weghalen">×</b></span>').join("");
+  host.innerHTML=CHATBIJL[key].map((f,i)=>f._audio
+    ?'<span class="bijlchip spraak">🎤 <audio controls preload="metadata" src="'+esc(f._url||"")+'"></audio><span data-notr>'+chatDuur(f._duur)+'</span><b onclick="chatBijlWeg(\''+key+'\','+i+')" title="Weghalen">×</b></span>'
+    :'<span class="bijlchip">'+(chatIsFoto(f)?"📷":"🎥")+' '+esc(f.name.length>20?f.name.slice(0,18)+"…":f.name)+'<b onclick="chatBijlWeg(\''+key+'\','+i+')" title="Weghalen">×</b></span>').join("");
   host.style.display=CHATBIJL[key].length?"flex":"none";
 }
 // Uploadt de gekozen bestanden en geeft de media-array voor het bericht terug.
@@ -113,7 +127,7 @@ async function chatUpload(key,athleteId,map){
       if(uit.length)try{await db.storage.from("media").remove(uit.map(x=>x.path));}catch(e){}
       throw new Error(error.message||"Upload mislukt");
     }
-    uit.push({path,kind:chatIsFoto(f)?"image":"video"});
+    uit.push(f._audio?{path,kind:"audio",duur:f._duur||null}:{path,kind:chatIsFoto(f)?"image":"video"});
   }
   return uit;
 }
@@ -184,8 +198,10 @@ function chatKanaalStart(){
 }
 function chatSluitKanaal(){try{if(chatKanaal){db.removeChannel(chatKanaal);chatKanaal=null;}}catch(e){}}
 function chatSluit(){const pop=document.getElementById("chatpop");if(pop)pop.classList.remove("show");chatSluitKanaal();}
+let CHATMSGS=[]; // berichten van de open popup (voor citaten)
 async function chatLaad(){
   const{data}=await db.from("messages").select("*").eq("athlete_id",chatAthlete).order("created_at");
+  CHATMSGS=data||[];
   await rxLaad((data||[]).map(m=>m.id)); // emoji-reacties van deze draad
   const host=document.getElementById("chat-msgs");if(!host)return;
   host.innerHTML=(data||[]).map(m=>chatBubHtml(m)).join("")||'<div class="sm muted" style="text-align:center;padding:14px">Nog geen berichten. Stuur het eerste bericht.</div>';
@@ -228,10 +244,13 @@ async function chatZetOngelezen(){
 }
 function chatBubHtml(m){
   const mij=m.sender_id===ME.user.id;
-  return rxRij(m,mij,'<div data-notr class="bub '+(mij?"me":"them")+'">'+chatMediaTiles(m)+(m.body?chatTekst(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+'</div></div>');
+  const en=typeof LANG!=="undefined"&&LANG==="en";
+  const citaat=chatCitaatHtml(m,CHATMSGS,o=>o.sender_id===ME.user.id?(en?"You":"Jij"):(o.sender_id===chatAthlete?((typeof coachClients!=="undefined"&&coachClients||[]).find(x=>x.id===chatAthlete)||{}).first_name||"Lid":"Coach"));
+  return rxRij(m,mij,'<div data-notr class="bub '+(mij?"me":"them")+'">'+citaat+chatMediaTiles(m)+(m.body?chatTekst(m.body):"")+'<div class="meta">'+tijdNL(m.created_at)+(m.edited_at?" · "+(en?"edited":"bewerkt"):"")+'</div></div>');
 }
 function chatToon(m,scroll){
   const host=document.getElementById("chat-msgs");if(!host)return;
+  if(m.id&&!CHATMSGS.some(x=>x.id===m.id))CHATMSGS.push(m);
   const leeg=host.querySelector(".muted");if(leeg)leeg.remove();
   host.insertAdjacentHTML("beforeend",chatBubHtml(m));
   if(typeof dashVidSrcs==="function")dashVidSrcs();

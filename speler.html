@@ -11,13 +11,16 @@
   #fout{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#d6d6d6;text-align:center;padding:28px;font-size:15px;line-height:1.55}
   #status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8a8a90;font-size:14px;pointer-events:none}
   #versie{position:absolute;right:6px;bottom:4px;color:#3a3a40;font-size:10px;pointer-events:none}
+  #vak.geluid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#141416}
+  #vak.geluid audio{position:static;width:86%;max-width:420px;height:44px;background:none}
+  #vak.geluid .mic{font-size:34px;line-height:1}
 </style>
 </head>
 <body>
 <div id="status">Video laden…</div>
 <div id="vak"></div>
 <div id="fout"></div>
-<div id="versie">speler v2</div>
+<div id="versie">speler v3</div>
 <script>
 // Dit is de videospeler van de FORGE-app: VideoSheet in de app laadt deze
 // pagina in een webvenster. NIET verwijderen of hernoemen; ook oudere
@@ -25,6 +28,7 @@
 //
 // Aanroep:  speler.html#v=<youtube-id>
 //    of:    speler.html#u=<encodeURIComponent(video-url)>   (eigen uploads/mp4)
+//    of:    speler.html#u=<…>&a=1   (spraakbericht: alleen geluid, compacte speler)
 // De waarden staan in de hash (niet in de querystring) zodat tijdelijke
 // signed upload-links nooit in serverlogs terechtkomen. De querystring wordt
 // als reserve ook gelezen.
@@ -41,6 +45,20 @@
   var p=lees(location.hash);if(!p.v&&!p.u)p=lees(location.search);
   var geldigId=/^[A-Za-z0-9_-]{6,20}$/;
 
+  if(p.u&&p.a==="1"){
+    // Spraakbericht uit de chat: een geluidsspeler in plaats van een zwart videovlak.
+    document.title="Spraakbericht";
+    vak.className="geluid";
+    var mic=document.createElement("div");mic.className="mic";mic.textContent="🎤";vak.appendChild(mic);
+    var a=document.createElement("audio");
+    a.src=p.u;a.controls=true;a.autoplay=true;
+    a.onloadeddata=function(){status("");};
+    a.oncanplay=function(){status("");};
+    a.onerror=function(){toonFout("Dit spraakbericht kan niet worden afgespeeld.");};
+    status("Spraakbericht laden…");
+    vak.appendChild(a);
+    return;
+  }
   if(p.u){
     // Eigen upload of los videobestand: gewone videospeler.
     var v=document.createElement("video");

@@ -345,7 +345,7 @@ async function heicNaarUrl(signedUrl,pad){
 }
 // Signed URL's voor alle inline feed-video's in één keer ophalen en zetten.
 async function dashVidSrcs(){
-  const els=[...document.querySelectorAll("video.dashvid[data-vp]:not([src]),img.dashvid[data-vp]:not([src])")];
+  const els=[...document.querySelectorAll("video.dashvid[data-vp]:not([src]),img.dashvid[data-vp]:not([src]),audio.dashvid[data-vp]:not([src])")];
   if(!els.length)return;
   try{
     const paden=[...new Set(els.map(e=>e.dataset.vp))];
