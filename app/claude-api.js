@@ -291,7 +291,9 @@ const ClaudeApi=(()=>{
     let schema=null;
     if(n.kind==="exercise"){
       const os=oud&&oud.lift_scheme;
-      if(os&&os.hand)schema=os;
+      // Voorschrift niet veranderd: het schema blijft precies zoals het was (ook als dat leeg is).
+      if(oud&&oud.kind===n.kind&&(oud.prescription||null)===(n.prescription||null))schema=os||null;
+      else if(os&&os.hand)schema=os;
       else{
         try{schema=typeof schemaLees==="function"?schemaLees(n.prescription||""):null;}catch(e){schema=null;}
         if(os&&os.geen_lift)schema=Object.assign(schema||{},{geen_lift:true});
