@@ -660,6 +660,12 @@ i18nLaad({
   "Zoek een oefening of plak een YouTube-link…": "Search an exercise or paste a YouTube link…",
   "Meerdere video's kan; ze gaan mee voor het lid.": "Several videos are fine; they go along for the member.",
   "Deze YouTube-link toevoegen": "Add this YouTube link",
+  // Berichten in een los venster (19 nov 2026)
+  "↗ Los venster": "↗ Separate window",
+  "Berichten in een apart venster openen, handig op een tweede scherm": "Open Messages in a separate window, handy on a second screen",
+  "Open deze klant in het hoofdvenster": "Open this client in the main window",
+  "Geopend in het hoofdvenster": "Opened in the main window",
+  "Het venster werd geblokkeerd. Sta pop-ups toe voor deze site en probeer het opnieuw.": "The window was blocked. Allow pop-ups for this site and try again.",
   // Nieuwe video een naam geven en meteen in de bibliotheek zetten (19 nov 2026)
   "Deze video staat al in de bibliotheek:": "This video is already in the library:",
   "Dit is nog geen hele YouTube-link. Plak de link zoals hij in de adresbalk staat.": "This is not a complete YouTube link yet. Paste the link as shown in the address bar.",

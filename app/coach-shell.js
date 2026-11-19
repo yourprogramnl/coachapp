@@ -118,6 +118,7 @@ function parseHash(){
   if(p[0]==="companies"&&p[1])return{type:"section",section:"companies"}; // fillCompanies leest het id uit de link
   if(p[0]==="bieb")return{type:"bieb"}; // de bibliotheek in een los venster (app/bieb-venster.js)
   if(p[0]==="weekcheck")return{type:"weekcheck",id:p[1]||null}; // de Weekcheck in een los venster (app/weekcheck.js)
+  if(p[0]==="berichtenvenster")return{type:"bervenster",id:p[1]?decodeURIComponent(p[1]):null}; // Berichten in een los venster (app/berichten.js)
   const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
@@ -139,6 +140,10 @@ async function routeHash(){
   const r=parseHash();
   if(r.type==="bieb"){renderBiebVenster();return;}
   if(r.type==="weekcheck"){await ensureClients();renderWeekcheckVenster(r.id);return;}
+  if(r.type==="bervenster"){renderBerVenster(r.id);return;}
+  // Het hoofdvenster luistert naar de losse vensters ("open deze klant"), ook na
+  // een herlaad en zonder dat er al een klant open stond.
+  if(typeof biebKanaal==="function")biebKanaal();
   if(r.type==="client"){
     await ensureClients();
     if((coachClients||[]).some(x=>x.id===r.id)){
