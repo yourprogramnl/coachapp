@@ -390,7 +390,7 @@ const ClaudeApi=(()=>{
     const bl=(ww.blocks||[]).slice().sort((x,y)=>x.sort-y.sort);
     if(bl.length===1){
       const b=bl[0];
-      return [{kind:b.kind,linked:false,exercise:b.exercise||ww.title||"YP Showdown",prescription:b.prescription||null,notes:b.notes||null,color:b.color||"purple",
+      return [{kind:b.kind,linked:false,exercise:b.exercise||ww.title||"YP Showdown",prescription:b.prescription==null?null:b.prescription,notes:b.notes==null?null:b.notes,color:b.color||"purple",
         score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,
         media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:null,source_blog_workout_id:ww.id}];
     }
