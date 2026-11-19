@@ -159,6 +159,12 @@ const HELP_HOOFDSTUKKEN=[
       {titel:"In het gesprek",
        img:"img/help/berichten-02-gesprek.png",
        tekst:"Klik op een naam en het gesprek opent rechts. Je kunt meteen typen: Enter is versturen, Shift+Enter een nieuwe regel. Nieuwe berichten komen er live in. 1 per dag staat er een datumregel, in het bubbeltje staat de tijd. 2 de vinkjes bij je eigen bericht: één is verstuurd, twee is gelezen door je klant. 3 met de paperclip stuur je een foto of video mee. Een screenshot plakken met Ctrl+V of een bestand in het gesprek slepen kan ook. 4 met het klokje verstuur je het bericht later, bijvoorbeeld morgen om 09:00. 5 rechts de cijfers van je klant, zodat je weet hoe het gaat terwijl je typt. Wat je typt blijft per gesprek bewaard als je wegklikt; in de lijst staat dan Concept. Links in een bericht zijn klikbaar en onder elk bericht kun je met een emoji reageren."},
+      {titel:"Snelle antwoorden en invoegen",
+       img:"img/help/berichten-03-snel.png",
+       tekst:"Voor zinnen die je vaak stuurt en voor dingen die je erbij wilt zetten. 1 het plusje naast de paperclip: kies een snel antwoord, een oefenvideo uit de bibliotheek (die komt als link in je bericht, je klant tikt hem aan in de app) of een training van deze klant, zodat duidelijk is over welke training je het hebt. 2 typ je / in het typvak, dan opent de lijst met je snelle antwoorden. Typ door om te zoeken en kies met de pijltjes en Enter. 3 met Beheren voeg je antwoorden toe, pas je ze aan of haal je ze weg. Iedere coach heeft zijn eigen lijstje. Zet {voornaam} in de tekst en de voornaam van je klant komt er vanzelf in."},
+      {titel:"Eén bericht naar meerdere klanten",
+       img:"img/help/berichten-04-meerdere.png",
+       tekst:"Met Bericht aan meerdere stuur je één tekst naar een groep klanten zonder dat het een groepschat wordt: ieder krijgt het bericht in zijn eigen gesprek met jou en niemand ziet wie het nog meer kreeg. 1 typ het bericht; met {voornaam} ziet elke klant zijn eigen naam. 2 kies snel een groep, bijvoorbeeld alle 1-op-1 klanten, of 3 vink zelf aan wie het moet krijgen. 4 je ziet eerst hoeveel berichten het worden en hoe het er bij de eerste klant uitziet. Pas na Ja, verstuur gaat het de deur uit; terughalen kan daarna niet. 5 de knop staat boven de gesprekken."},
     ],
   },
   {
