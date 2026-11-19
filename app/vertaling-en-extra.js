@@ -947,7 +947,6 @@ i18nLaad({
 // Feedback per onderdeel (app/feedback-venster.js, 19 nov 2026)
 i18nLaad({
   "Feedback aan {naam}": "Feedback for {naam}",
-  "Onderdeel": "Exercise",
   "Bij dit onderdeel staat geen video of foto.": "There is no video or photo with this exercise.",
   "Openen mislukt.": "Could not open.",
   "Nog niets gelogd bij dit onderdeel.": "Nothing logged for this exercise yet.",
@@ -966,7 +965,6 @@ i18nLaad({
   "Kwart snelheid": "Quarter speed",
   "Beeldje terug": "Frame back",
   "Beeldje verder": "Frame forward",
-  "Opnemen": "Record",
   "Annuleer": "Cancel",
   "Stop": "Stop",
   "Pauzeer": "Pause",

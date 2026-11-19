@@ -167,7 +167,7 @@ function fbRender(){
           '</div>'+
           '<div id="fbv-video" style="display:none">'+
             '<div class="sm muted" id="fbv-hint"></div>'+
-            '<div class="fbv-opnrij" id="fbv-opnrij"><button class="btn" data-fb="opname" id="fbv-opn">Opnemen</button><button class="btn ghost" data-fb="pauze" id="fbv-pauze" style="display:none">Pauzeer</button><label class="fbv-vink"><input type="checkbox" id="fbv-camaan" checked> Mijn gezicht in beeld</label><span class="fbv-klok" id="fbv-klok"></span></div>'+
+            '<div class="fbv-opnrij" id="fbv-opnrij"><button class="btn" data-fb="opname" id="fbv-opn" data-notr>'+(LANG==="en"?"Record":"Opnemen")+'</button><button class="btn ghost" data-fb="pauze" id="fbv-pauze" style="display:none">Pauzeer</button><label class="fbv-vink"><input type="checkbox" id="fbv-camaan" checked> Mijn gezicht in beeld</label><span class="fbv-klok" id="fbv-klok"></span></div>'+
             '<div class="fbv-klaar" id="fbv-klaar" style="display:none"></div>'+
           '</div>'+
         '</div>'+
@@ -373,7 +373,8 @@ function fbVideoUi(){
   else cam.disabled=FB.fase==="op"||FB.fase==="pauze";
   rij.style.display=FB.fase==="klaar"?"none":"";
   klaar.style.display=FB.fase==="klaar"?"":"none";
-  opn.textContent=FB.fase==="rust"?"Opnemen":FB.fase==="tel"?"Annuleer":"Stop";
+  // Own translation here: "Opnemen" already means Include elsewhere (export), so the dictionary cannot hold both.
+  opn.textContent=FB.fase==="rust"?(LANG==="en"?"Record":"Opnemen"):t(FB.fase==="tel"?"Annuleer":"Stop");
   opn.classList.toggle("fbv-rood",FB.fase==="op"||FB.fase==="pauze");
   pauze.style.display=FB.fase==="op"||FB.fase==="pauze"?"":"none";
   pauze.textContent=FB.fase==="pauze"?"Ga verder":"Pauzeer";
