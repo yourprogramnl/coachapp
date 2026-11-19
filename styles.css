@@ -1773,3 +1773,29 @@ body.wcvenster .wrap,body.wcvenster .cwrap{min-width:0;max-width:none}
 .btn.conceptalle{background:#d9a441;border-color:#d9a441;color:#fff}
 .btn.conceptalle b{background:rgba(255,255,255,.28);border-radius:999px;padding:0 6px;margin-left:4px}
 @media print{.conceptbtn,.conceptalle{display:none!important}}
+/* Showdown-bouwer (19 nov 2026): Showdowns naast elkaar, concepten en Kies showdown */
+.lbwrap.sdb-breed{max-width:none}
+.sdb-kop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sdb-knoppen{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.sdb-tel{display:inline-block;min-width:18px;text-align:center;background:#fde9bf;color:#8a5a00;border-radius:999px;padding:0 6px;margin-left:4px;font-size:11px;font-weight:800}
+.sdb-sec{margin:22px 0 10px}
+.sdb-sec h2{font-size:16px;font-weight:800;margin-bottom:2px}
+.sdb-sec h2 span{font-size:11.5px;font-weight:700;color:#8a919c;background:#eef1f4;border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle}
+.sdb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:12px;align-items:start}
+.sdb-card{background:#eeebfd;border:1px solid #dcd6fb;border-radius:10px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.sdb-card.concept{background:#fffaf0;border:1px dashed #e2c078}
+.sdb-titel{font-weight:800;font-size:13.5px;line-height:1.3}
+.sdb-sub{font-size:11.5px;color:#8a919c;margin-top:-3px}
+.sdb-sub .conceptpill{margin:0}
+.sdb-tekst{font-size:12.5px;line-height:1.5;overflow-wrap:anywhere}
+.sdb-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.sdb-pills .cpill.purple{background:#fff}
+.sdb-acties{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.sdb-x{margin-left:auto;background:none;border:none;color:#b3b9c2;font-size:19px;line-height:1;cursor:pointer;padding:2px 4px}
+.sdb-x:hover{color:#e5484d}
+.sdb-nieuw{border:1px dashed #c9ced6;border-radius:10px;background:none;min-height:120px;color:#8a919c;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
+.sdb-nieuw:hover{border-color:#8b7cf6;color:#8b7cf6}
+.sdb-keuze{border:1px solid #e7e9ec;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:13px}
+.sdb-keuze:hover{border-color:#c9c2fa}
+.sdb-keuze.on{border-color:#8b7cf6;background:#eeebfd}
+.sdb-keuzetekst{font-size:12px;color:#5d6570;margin-top:3px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
