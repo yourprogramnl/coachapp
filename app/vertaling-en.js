@@ -1842,5 +1842,10 @@ i18nLaad({
 "Dit wachtwoord wordt te vaak gebruikt en is makkelijk te raden. Kies een ander wachtwoord, bijvoorbeeld drie losse woorden met een cijfer erbij.":"This password is used too often and is easy to guess. Choose another one, for example three separate words with a number.",
 "Je account is nog niet gekoppeld":"Your account isn't linked yet",
 "Geen Showdown-leden.":"No Showdown members.",
-"Wie alleen de gratis Showdown doet":"Everyone who only does the free Showdown"
+"Wie alleen de gratis Showdown doet":"Everyone who only does the free Showdown",
+"Concept: de volgers zien deze workout pas na goedkeuren":"Draft: followers only see this workout after you approve it",
+"Alle concepten in deze week zichtbaar maken voor de volgers":"Make all drafts in this week visible to the followers",
+"Goedgekeurd: de volgers zien deze workout nu":"Approved: the followers can see this workout now",
+"{n} concept(en) goedkeuren? De volgers van dit programma zien ze daarna meteen.":"Approve {n} draft(s)? The followers of this program will see them right away.",
+"Concepten goedgekeurd":"Drafts approved"
 });

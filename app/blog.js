@@ -370,6 +370,7 @@ function blogKalenderHtml(){
       '<button class="btn ghost sm" style="margin-left:14px" onclick="blogWeekGa(0)">Vandaag</button>'+
       '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(-1)">‹</button>'+
       '<button class="wtab" style="width:auto;padding:0 10px" onclick="blogWeekGa(1)">›</button>'+
+      blogConceptKopKnop()+
       blogKopChips()+
     '</div>'+
     '<div class="pe-cal"><div class="pe-hd7" style="grid-template-columns:'+cols+'">'+koppen+'</div>'+
@@ -509,12 +510,34 @@ function blogCard(w){
   const blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   const sel=blogSel.has(w.id)?" selected":"";
   const isRest=!blocks.length&&/^rest ?day$/i.test((w.title||"").trim());
-  if(isRest)return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span style="color:#27b376">Rustdag</span></div></div>';
+  if(isRest)return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+blogConceptPill(w)+'<div class="msc"><span style="color:#27b376">Rustdag</span></div>'+blogConceptKnop(w)+'</div>';
   let inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
   blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+(b.label?esc(b.label)+') ':'')+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
-  return '<div class="mcard planned'+sel+'"'+bsKaartAttr("blog",w.id)+' onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
+  return '<div class="mcard planned'+sel+'"'+bsKaartAttr("blog",w.id)+' onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+blogConceptPill(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+blogConceptKnop(w)+'</div>';
+}
+// ---------- Concepten in een blogprogramma (20 nov 2026) ----------
+// Een workout met status 'draft' zien de volgers niet (de database verbergt hem, en de ochtendmail
+// neemt alleen zichtbare workouts mee). Concepten komen van de Claude-koppeling; wat een coach hier
+// zelf maakt blijft meteen zichtbaar, zoals altijd. Goedkeuren maakt een concept zichtbaar.
+function blogConceptPill(w){return w.status==="draft"?'<span class="conceptpill" title="Concept: de volgers zien deze workout pas na goedkeuren">Concept</span>':'';}
+function blogConceptKnop(w){return w.status==="draft"?'<button class="conceptbtn" onclick="event.stopPropagation();blogConceptGoedkeuren(\''+w.id+'\')">Goedkeuren</button>':'';}
+const blogConceptIds=()=>(BLOG.workouts||[]).filter(w=>w.status==="draft").map(w=>w.id);
+function blogConceptKopKnop(){const n=blogConceptIds().length;return n?'<button class="btn sm conceptalle" style="margin-left:10px" title="Alle concepten in deze week zichtbaar maken voor de volgers" onclick="blogConceptenGoedkeuren()">Concepten goedkeuren<b>'+n+'</b></button>':'';}
+async function blogConceptGoedkeuren(wid){
+  const{data,error}=await db.from("workouts").update({status:"published"}).eq("id",wid).eq("blog_program_id",BLOG.cur.id).eq("status","draft").select("id");
+  if(error||!(data||[]).length){toast(t("Goedkeuren mislukt")+(error?": "+error.message:""));return;}
+  toast("Goedgekeurd: de volgers zien deze workout nu");
+  await blogHerlaad();
+}
+async function blogConceptenGoedkeuren(){
+  const ids=blogConceptIds();if(!ids.length)return;
+  if(!confirm(tf("{n} concept(en) goedkeuren? De volgers van dit programma zien ze daarna meteen.",{n:ids.length})))return;
+  const{error}=await db.from("workouts").update({status:"published"}).in("id",ids).eq("blog_program_id",BLOG.cur.id).eq("status","draft");
+  if(error){toast(t("Goedkeuren mislukt")+": "+error.message);return;}
+  toast("Concepten goedgekeurd");
+  await blogHerlaad();
 }
 // ---------- Slepen, dag kopiëren en selecteren (zelfde gedrag als de klant-kalender) ----------
 let blogDragWid=null,blogSel=new Set();
@@ -545,7 +568,7 @@ async function blogDropDay(ev,ds){
 function blogKopieerDag(datum){
   const wos=BLOG.workouts.filter(w=>w.workout_date===datum);
   if(!wos.length){toast("Geen workout op deze dag");return;}
-  klembordZet(wos.map(wTemplate));
+  klembordZet(wos.map(blogTemplate));
   toast(wos.length>1?wos.length+" workouts gekopieerd, ga naar een dag en kies Plakken":"Workout gekopieerd, ga naar een dag en kies Plakken");
 }
 function blogToggleSelect(cb,wid){
@@ -562,7 +585,7 @@ function blogSelClear(){
 function blogSelKopieer(){
   const ws=[...blogSel].map(id=>BLOG.workouts.find(w=>w.id===id)).filter(Boolean);
   if(!ws.length){toast("Niets geselecteerd");return;}
-  klembordZet(ws.map(wTemplate));
+  klembordZet(ws.map(blogTemplate));
   toast(ws.length+" workout"+(ws.length>1?"s":"")+" gekopieerd, ga naar een dag en kies Plakken");
 }
 async function blogSelVerwijder(){
@@ -614,7 +637,7 @@ async function blogPlak(datum){
   for(const t of kb){
     const off=(t.date&&base)?dagenTussen(t.date,base):0;
     const dd=off?ymdPlus(datum,off):datum;
-    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:dd,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
+    const{data:w,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,status:(t.status==="draft"||t.concept)?"draft":"published",workout_date:dd,title:t.title,coach_notes:t.coach_notes,warmup:t.warmup,cooldown:t.cooldown,warmup_oefening_id:t.warmup_oefening_id,cooldown_oefening_id:t.cooldown_oefening_id,warmup_media:t.warmup_media||null,cooldown_media:t.cooldown_media||null}).select().single();
     if(error){toast(error.message||"Plakken mislukt");return;}
     if(t.blocks.length){const{error:be}=await db.from("blocks").insert(t.blocks.map(b=>Object.assign({workout_id:w.id},b,{source_blog_workout_id:null})));if(be){toast(be.message);return;}}
   }
@@ -624,9 +647,11 @@ async function blogPlak(datum){
 // Kopiëren vanaf een blog-kaart (zelfde klembord-formaat als de klant-kalender).
 function blogKopieer(id){
   const w=BLOG.workouts.find(x=>x.id===id);if(!w)return;
-  klembordZet([wTemplate(w)]);
+  klembordZet([blogTemplate(w)]);
   toast("Workout gekopieerd, ga naar een dag en kies Plakken");
 }
+// Kopie voor het klembord; een kopie van een concept blijft in een blogprogramma een concept.
+function blogTemplate(w){const t=wTemplate(w);if(w.status==="draft")t.concept=true;return t;}
 async function blogRustdag(datum){
   document.querySelectorAll(".daymenu").forEach(x=>x.remove());
   const{error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:datum,title:"Rest Day"});
