@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>YourProgram · Live bord</title>
+<!--
+  Live bord (20 nov 2026, wens Stefan): de pagina die op een tv of beamer staat tijdens een
+  trainingsdag. Open link met een geheime code (?c=...), zonder inloggen. Haalt elke twee
+  seconden de stand op via de functie live_bord_stand: het onderdeel dat de coach nu toont
+  en de scores daarbij. Het logo staat vast bovenaan, zodat het op elke foto staat.
+  Bediening en klaarzetten: app/live-bord.js in de coach-app.
+-->
+<style>
+:root{--ink:#0E0E10;--vlak:#17171A;--lijn:#2a2a2e;--goud:#D9B44A;--tekst:#f2f2f2;--zacht:#9a9aa0;--groen:#6fcf8a;--rood:#e5484d;--paars:#b9a2ff}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--tekst);font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;overflow:hidden}
+#bord{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+header{position:relative;text-align:center;padding:1.6vh 3vw 1.2vh;border-bottom:1px solid var(--lijn)}
+header img{height:8.5vh;min-height:44px;max-width:80vw;object-fit:contain;display:block;margin:0 auto}
+#kop{margin-top:.5vh;font-size:clamp(13px,2.1vh,26px);color:var(--zacht)}
+#kop b{color:var(--tekst);font-weight:600}
+#live{color:var(--groen);white-space:nowrap}
+#live.weg{color:var(--rood)}
+#klok{position:absolute;right:3vw;top:50%;transform:translateY(-50%);font-size:clamp(16px,3.6vh,44px);font-variant-numeric:tabular-nums;color:var(--zacht)}
+main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
+main.split{grid-template-columns:minmax(0,42fr) minmax(0,58fr)}
+.vak{min-height:0;min-width:0;padding:2.2vh 2.4vw;display:flex;flex-direction:column}
+main.split .vak+.vak{border-left:1px solid var(--lijn)}
+.label{color:var(--goud);font-size:clamp(12px,1.9vh,22px);letter-spacing:.04em;margin-bottom:.8vh;flex:none}
+.titel{font-size:clamp(20px,4.2vh,54px);font-weight:700;line-height:1.15;margin:0 0 1.4vh;flex:none}
+.tekst{flex:1;min-height:0;overflow:hidden;white-space:pre-wrap;line-height:1.45;color:#dcdce0}
+.cap{flex:none;margin-top:1.2vh;color:var(--zacht);font-size:clamp(12px,2vh,24px)}
+.scores{flex:1;min-height:0;overflow:hidden;column-width:17em;column-gap:1.6em;column-fill:auto}
+.kopblok{break-inside:avoid}
+.groep{color:var(--goud);font-size:.72em;letter-spacing:.05em;margin:.5em 0 .35em}
+.kopblok:first-child .groep{margin-top:0}
+.groep span{color:var(--paars)}
+.rij{break-inside:avoid;display:flex;align-items:baseline;gap:.6em;background:var(--vlak);border:1px solid transparent;border-radius:.4em;padding:.38em .7em;margin-bottom:.32em}
+.rij.nieuw{border-color:var(--goud);background:#22201a}
+.rij .nr{color:var(--goud);width:1.5em;flex:none;text-align:right;font-variant-numeric:tabular-nums}
+.rij .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rij .sc{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+.rij .tag{font-size:.62em;color:var(--paars);border:1px solid var(--paars);border-radius:.3em;padding:0 .35em;margin-left:.4em;vertical-align:.15em}
+.rij .nw{font-size:.62em;color:var(--goud);margin-left:.5em}
+.leeg{color:var(--zacht);text-align:center;margin:auto;font-size:clamp(15px,2.8vh,34px);line-height:1.5;padding:0 6vw}
+.alleen .titel,.alleen .label{text-align:center}
+.alleen .tekst{text-align:center}
+footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:var(--zacht);font-size:clamp(11px,1.7vh,20px)}
+#vol{position:fixed;right:14px;bottom:14px;background:var(--vlak);color:var(--tekst);border:1px solid var(--lijn);border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer;transition:opacity .4s}
+#vol.uit{opacity:0;pointer-events:none}
+@media (max-width:820px),(orientation:portrait){
+  body{overflow:auto}
+  #bord{height:auto;min-height:100vh}
+  main.split{grid-template-columns:minmax(0,1fr)}
+  main.split .vak+.vak{border-left:none;border-top:1px solid var(--lijn)}
+  .tekst,.scores{overflow:visible;flex:none}
+  .scores{column-width:auto;column-count:1}
+  #klok{display:none}
+}
+</style>
+</head>
+<body>
+<div id="bord">
+  <header>
+    <img src="img/logo-yp-2021.png" alt="YourProgram">
+    <div id="kop"><b id="kop-titel">Live bord</b> <span id="kop-datum"></span> <span id="live">&#9679; live</span></div>
+    <div id="klok"></div>
+  </header>
+  <main id="main"><div class="leeg">Bord laden…</div></main>
+  <footer>Log je score in de YourProgram-app &middot; yourprogram.nl</footer>
+</div>
+<button id="vol" type="button">Volledig scherm</button>
+<script>
+const SUPABASE_URL="https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
+const SUPABASE_KEY="sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
+const CODE=new URLSearchParams(location.search).get("c")||"";
+const ELKE_MS=2000,NIEUW_MS=25000;
+const MAANDVOL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const EENHEID={calories:"cal",meters:"m",km:"km",cm:"cm",watt:"W",rpm:"rpm",bpm:"bpm",spm:"spm"};
+const komma=v=>String(v).replace(".",",");
+
+// Zelfde regels als het leaderboard in de coach-app en de telefoon-app (weekworkout.js).
+function scoreTxt(r,st){
+  let t="";
+  if(r.score_value!=null)t=komma(r.score_value)+(EENHEID[st]?" "+EENHEID[st]:"");
+  else if(r.time_seconds!=null)t=Math.floor(r.time_seconds/60)+":"+pad(r.time_seconds%60);
+  else if(r.load_kg!=null)t=komma(r.load_kg)+" kg";
+  else if(r.rounds!=null)t=r.rounds+" rondes"+(r.reps!=null?" + "+r.reps:"");
+  else if(r.reps!=null)t=r.reps+" reps";
+  else t=r.score_text||"";
+  return (r.capped?"CAP · ":"")+(t||"–");
+}
+function vergelijk(st){
+  const n=(v,d)=>v==null?d:Number(v);
+  return (a,b)=>{
+    if(st==="time"){
+      const ca=a.capped?1:0,cb=b.capped?1:0;if(ca!==cb)return ca-cb;
+      if(ca)return (n(b.rounds,-1)-n(a.rounds,-1))||(n(b.reps,-1)-n(a.reps,-1));
+      return n(a.time_seconds,1e15)-n(b.time_seconds,1e15);
+    }
+    if(st==="load")return n(b.load_kg,-1)-n(a.load_kg,-1);
+    if(st==="reps")return n(b.reps,-1)-n(a.reps,-1);
+    if(st==="rounds_reps")return (n(b.rounds,-1)-n(a.rounds,-1))||(n(b.reps,-1)-n(a.reps,-1));
+    if(EENHEID[st])return n(b.score_value,-1e9)-n(a.score_value,-1e9);
+    return new Date(a.created_at)-new Date(b.created_at);
+  };
+}
+function datumNL(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");if(!m)return "";
+  return Number(m[3])+" "+MAANDVOL[Number(m[2])-1]+" "+m[1];
+}
+
+// Welke scores zijn nieuw sinds dit onderdeel op het bord kwam? Die krijgen even een gouden rand.
+let stand=null,vorige="",fouten=0,onderdeelId=null,gezien={},nieuwTot={};
+function merkNieuw(s){
+  const o=s.onderdeel,oid=o?o.id:null,nu=Date.now();
+  const eerste=oid!==onderdeelId;
+  if(eerste){onderdeelId=oid;gezien={};nieuwTot={};}
+  (s.scores||[]).forEach(r=>{
+    const sleutel=r.id+"|"+scoreTxt(r,o&&o.score_type)+"|"+(r.rx||"");
+    if(gezien[r.id]!==sleutel){
+      if(!eerste)nieuwTot[r.id]=nu+NIEUW_MS;
+      gezien[r.id]=sleutel;
+    }
+  });
+}
+function scoresHtml(s){
+  const o=s.onderdeel,st=(o&&o.score_type)||"text",rows=s.scores||[],nu=Date.now();
+  if(!rows.length)return '<div class="leeg">Nog geen scores. Log je score in de app, dan staat hij hier meteen.</div>';
+  const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
+  const groepen=[];
+  cats.forEach(cat=>["rx","scaled"].forEach(rx=>{
+    const g=rows.filter(r=>((r.gender==="man"||r.gender==="vrouw")?r.gender:"overig")===cat[0]&&(r.rx==="scaled"?"scaled":"rx")===rx).sort(vergelijk(st));
+    if(g.length)groepen.push({naam:cat[1],rx,rijen:g});
+  }));
+  // Eén groep zonder man/vrouw-indeling: geen kopje nodig.
+  const kaal=groepen.length===1&&groepen[0].naam==="Overig"&&groepen[0].rx==="rx";
+  return '<div class="scores" id="scores">'+groepen.map(g=>{
+    const rijen=g.rijen.map((r,i)=>{
+      const nieuw=(nieuwTot[r.id]||0)>nu;
+      return '<div class="rij'+(nieuw?' nieuw':'')+'"><span class="nr">'+(i+1)+'</span><span class="nm">'+esc(r.naam||"Naamloos")+
+        (nieuw?'<span class="nw">nieuw</span>':'')+'</span><span class="sc">'+esc(scoreTxt(r,st))+'</span></div>';
+    });
+    if(kaal)return rijen.join("");
+    // Het kopje blijft bij de eerste regel van zijn groep (nooit los onderaan een kolom).
+    return '<div class="kopblok"><div class="groep">'+g.naam+' / '+(g.rx==="rx"?'Rx':'<span>Scaled</span>')+'</div>'+rijen[0]+'</div>'+rijen.slice(1).join("");
+  }).join("")+'</div>';
+}
+function workoutHtml(s,alleen){
+  const o=s.onderdeel;
+  const cap=o.soort==="workout"&&o.score_type==="time"&&o.timecap?'<div class="cap">Tijdslimiet '+Math.floor(o.timecap/60)+":"+pad(o.timecap%60)+'</div>':'';
+  return '<div class="vak'+(alleen?' alleen':'')+'"><div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div>'+
+    '<h1 class="titel">'+esc(o.titel||"")+'</h1><div class="tekst" id="tekst">'+esc(o.tekst||"")+'</div>'+cap+'</div>';
+}
+function teken(){
+  const main=document.getElementById("main"),s=stand;
+  if(!s){main.className="";main.innerHTML='<div class="leeg">Dit bord bestaat niet (meer). Controleer de link.</div>';return;}
+  document.getElementById("kop-titel").textContent=s.titel||"Live bord";
+  document.getElementById("kop-datum").textContent=s.datum?"· "+datumNL(s.datum)+" ·":"·";
+  document.title=(s.titel||"Live bord")+" · YourProgram";
+  const o=s.onderdeel;
+  if(!o){main.className="";main.innerHTML='<div class="leeg">Het bord staat klaar. Het eerste onderdeel verschijnt hier zo.</div>';return;}
+  const n=(s.scores||[]).length;
+  const scoresVak=kop=>'<div class="vak">'+(kop?'<div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div><h1 class="titel">'+esc(o.titel||"")+'</h1>':'')+
+    '<div class="label">Scores'+(n?' · '+n+' binnen':'')+'</div>'+scoresHtml(s)+'</div>';
+  if(o.soort!=="workout"||s.weergave==="workout"){main.className="";main.innerHTML=workoutHtml(s,true);}
+  else if(s.weergave==="scores"){main.className="";main.innerHTML=scoresVak(true);}
+  else{main.className="split";main.innerHTML=workoutHtml(s,false)+scoresVak(false);}
+  pasAan();
+}
+// Letters zo groot mogelijk, maar alles moet in beeld passen (een tv scrolt niet).
+function pas(el,max,min){
+  if(!el)return;
+  let f=max,n=0;el.style.fontSize=f+"px";
+  while(f>min&&n++<80&&(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1)){f=Math.max(min,f*0.95);el.style.fontSize=f+"px";}
+}
+function pasAan(){
+  const smal=window.matchMedia("(max-width:820px),(orientation:portrait)").matches;
+  const t=document.getElementById("tekst"),sc=document.getElementById("scores");
+  if(smal){if(t)t.style.fontSize="17px";if(sc)sc.style.fontSize="16px";return;}
+  const h=window.innerHeight,alleen=!document.getElementById("main").classList.contains("split");
+  pas(t,Math.round(h*(alleen?0.06:0.043)),12);
+  pas(sc,Math.round(h*0.036),11);
+}
+window.addEventListener("resize",()=>{if(stand)pasAan();});
+
+async function haal(){
+  const stop=new AbortController(),klok=setTimeout(()=>stop.abort(),8000);
+  try{
+    const r=await fetch(SUPABASE_URL+"/rest/v1/rpc/live_bord_stand",{method:"POST",cache:"no-store",signal:stop.signal,
+      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json"},
+      body:JSON.stringify({p_code:CODE})});
+    if(!r.ok)throw new Error("http "+r.status);
+    const s=await r.json();
+    fouten=0;document.getElementById("live").className="";document.getElementById("live").innerHTML="&#9679; live";
+    if(s)merkNieuw(s);
+    // Alleen opnieuw tekenen als er iets veranderd is, of als een gouden rand moet verlopen.
+    const nu=Date.now(),actief=Object.keys(nieuwTot).filter(id=>nieuwTot[id]>nu).sort().join(",");
+    const sleutel=JSON.stringify(s)+"#"+actief;
+    if(sleutel!==vorige){vorige=sleutel;stand=s;teken();}
+  }catch(e){
+    fouten++;
+    if(fouten>=3){const l=document.getElementById("live");l.className="weg";l.innerHTML="&#9679; geen verbinding";}
+  }finally{clearTimeout(klok);setTimeout(haal,ELKE_MS);}
+}
+function tikKlok(){const d=new Date();document.getElementById("klok").textContent=pad(d.getHours())+":"+pad(d.getMinutes());}
+tikKlok();setInterval(tikKlok,10000);
+
+// Scherm wakker houden (waar de browser dat toestaat) en een knop voor volledig scherm.
+async function wakker(){try{if(navigator.wakeLock&&document.visibilityState==="visible")await navigator.wakeLock.request("screen");}catch(e){}}
+document.addEventListener("visibilitychange",wakker);wakker();
+const vol=document.getElementById("vol");let volKlok=null;
+function volToon(){vol.classList.remove("uit");clearTimeout(volKlok);volKlok=setTimeout(()=>vol.classList.add("uit"),5000);}
+vol.addEventListener("click",()=>{try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen();}catch(e){}});
+document.addEventListener("fullscreenchange",()=>{vol.textContent=document.fullscreenElement?"Volledig scherm uit":"Volledig scherm";});
+["mousemove","touchstart","keydown"].forEach(ev=>document.addEventListener(ev,volToon,{passive:true}));
+if(!document.documentElement.requestFullscreen)vol.style.display="none";
+volToon();
+
+if(!CODE){document.getElementById("main").innerHTML='<div class="leeg">Deze link is niet compleet. Kopieer de link van het bord opnieuw uit de coach-app.</div>';}
+else haal();
+</script>
+</body>
+</html>

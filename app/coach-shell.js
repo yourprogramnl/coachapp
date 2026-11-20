@@ -94,7 +94,7 @@ function sectionFromHash(){
   if(h.indexOf("settings")===0)h="settings"; // #settings/<pagina> telt als settings
   if(h.indexOf("help")===0)h="help"; // #help/<hoofdstuk> telt als help
   if(h.indexOf("companies/")===0)h="companies"; // #companies/<id> = één bedrijf (fillCompanies)
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]); // settings/notifs/help zitten niet in de topnav
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen","live"]); // settings/notifs/help zitten niet in de topnav
   return geldig.includes(h)?h:"dash";
 }
 // De link kan een sectie zijn (#dash) of een geopende klant (#klant/<id>[/metric/<naam>][/data]).
@@ -120,7 +120,7 @@ function parseHash(){
   if(p[0]==="bieb")return{type:"bieb"}; // de bibliotheek in een los venster (app/bieb-venster.js)
   if(p[0]==="weekcheck")return{type:"weekcheck",id:p[1]||null}; // de Weekcheck in een los venster (app/weekcheck.js)
   if(p[0]==="berichtenvenster")return{type:"bervenster",id:p[1]?decodeURIComponent(p[1]):null}; // Berichten in een los venster (app/berichten.js)
-  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen"]);
+  const geldig=cnavItems().map(n=>n[0]).concat(["settings","notifs","help","meldingen","live"]);
   return{type:"section",section:geldig.includes(h)?h:"dash"};
 }
 // Zet de link zonder de router opnieuw te laten vuren (eigen wijziging).
@@ -204,6 +204,7 @@ function coachShellHtml(inner){
     '<div class="avmenu" id="avmenu">'+
       '<div class="avm-kop"><span class="avm-av" style="'+avFotoStyle(ME.profile)+'">'+avFotoText(ME.profile)+'</span><span><b>'+esc(naamVan(ME.profile))+'</b><span class="avm-rol">'+esc(ROLE_NL[myRole()]||"")+'</span></span></div>'+
       '<button onclick="coachGo(\'settings\')"><svg class="i sm-i"><use href="#i-gear"/></svg> Instellingen</button>'+
+      '<button onclick="avMenuDicht();coachGo(\'live\')"><svg class="i sm-i"><use href="#i-chart"/></svg> Live bord</button>'+
       '<button onclick="signOut()"><svg class="i sm-i"><use href="#i-x"/></svg> Uitloggen</button>'+
     '</div></div>'+(typeof taalMenuHtml==="function"?taalMenuHtml():"")+'</div></div>'+
     '<div id="cpage">'+inner+'</div></div>';
@@ -225,6 +226,7 @@ function beheerGa(sectie){
 document.addEventListener("click",e=>{
   if(!e.target.closest(".beheerwrap")){const m=document.getElementById("beheermenu");if(m)m.classList.remove("show");}
 });
+function avMenuDicht(){const m=document.getElementById("avmenu");if(m)m.classList.remove("show");}
 function avMenuToggle(ev){
   ev.stopPropagation();
   const m=document.getElementById("avmenu");if(m)m.classList.toggle("show");
@@ -253,6 +255,7 @@ function coachRenderSection(){
   if(coachSection==="data"){c.innerHTML=coachShellHtml('<h1>Data</h1><div class="spin">Laden…</div>');fillData();return;}
   if(coachSection==="ai"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillAiCoach();return;}
   if(coachSection==="notifs"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillNotifCentrum();return;}
+  if(coachSection==="live"){c.innerHTML=coachShellHtml('<h1>Live bord</h1><div class="spin">Laden…</div>');fillLiveBord();return;}
   if(coachSection==="settings"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillInstellingen();return;}
   if(coachSection==="help"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillHelp();return;}
   if(coachSection==="meldingen"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillMeldingen();return;}
