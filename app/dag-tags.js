@@ -61,9 +61,11 @@ function klantToonZonderDag(){
   klantTags.clear();klantTags.add(KLANT_GEEN_DAG);
   klantTagDropWeg();klantenRender();
 }
-// Rood labeltje in de Tags-kolom; opent de tag-kiezer van die klant.
+// Rood labeltje in de Tags-kolom; opent de tag-kiezer van die klant. Niet bij
+// Showdown-leden: die krijgen geen programma van een coach en dus geen dag
+// (wens Stefan, 20 nov 2026: het leek alsof nog veel meer mensen een dag misten).
 function klantGeenDagLabel(p){
-  if(p.archived||!dagTagsBestaan()||klantHeeftDag(p))return "";
+  if(p.archived||isShowdownLid(p)||!dagTagsBestaan()||klantHeeftDag(p))return "";
   return '<button class="geendag-label" title="Deze klant heeft nog geen dag. Klik om er een te kiezen." onclick="event.stopPropagation();openTagPicker(event,\''+p.id+'\')">geen dag</button>';
 }
 // Optie "Zonder dag (n)" onderaan de Kies tag-lijst.
@@ -114,7 +116,9 @@ function ksTagActief(){
   if(ksTag===KLANT_GEEN_DAG)return ksDagTagsBestaan()?ksTag:null;
   return ksTagVan(ksTag)?ksTag:null;
 }
-function ksPastBijTag(p,tag){return tag===KLANT_GEEN_DAG?!ksHeeftDag(p):ksHeeftTag(p,tag);}
+// "Zonder dag": blogleden tellen niet mee, die krijgen geen eigen programmering
+// en dus geen dag (zelfde regel als de weekcheck, app/weekcheck.js).
+function ksPastBijTag(p,tag){return tag===KLANT_GEEN_DAG?(!ksHeeftDag(p)&&p.membership_type!=="free_blog"):ksHeeftTag(p,tag);}
 // Klanten binnen de coach-keuze (staff: de gekozen coach; coach: zijn eigen lijst).
 function ksCoachKlanten(){return myRole()!=="coach"?actieveKlanten().filter(k=>k.coach_id===coachFilterId):actieveKlanten();}
 // Klanten voor het klantmenu: coach-keuze + tagfilter, de open klant blijft er altijd in.
@@ -161,7 +165,7 @@ function ksTagDropHtml(){
     html+='<div class="pd-sep"></div>'+tagLijstMetScheiding(KSTAG.tags,t=>rij(t.id,t.name,tagKleur(t.color),basis.filter(k=>ksHeeftTag(k,t.id)).length),'<div class="pd-sep"></div>');
   }
   if(ksDagTagsBestaan()){
-    const n=basis.filter(k=>!ksHeeftDag(k)).length;
+    const n=basis.filter(k=>ksPastBijTag(k,KLANT_GEEN_DAG)).length;
     html+='<div class="pd-sep"></div>'+rij(KLANT_GEEN_DAG,"Zonder dag",n?"#e5484d":"#c3c8cf",n,n?' style="color:#e5484d"':' style="color:#8a919c"');
   }
   return html;
