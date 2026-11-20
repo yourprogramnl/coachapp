@@ -1983,3 +1983,7 @@ body.bervenster .chatklant{max-height:none}
 .bordmeer-dag{color:#8a919c;margin-left:auto;white-space:nowrap}
 /* Duidelijke status op het balkje: het leaderboard staat aan (20 nov 2026) */
 .sdstrip-aan{font-weight:800;color:#15803d;background:#dcfce7;border-radius:999px;padding:2px 9px;white-space:nowrap}
+/* Sectie Leaderboards: alle borden onder elkaar (20 nov 2026) */
+.lbs-wrap{max-width:1180px}
+.lbs-tekst{margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.lbs-wrap .trow b{overflow-wrap:anywhere}
