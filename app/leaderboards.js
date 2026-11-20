@@ -8,8 +8,10 @@ let LBS={lijst:null,coaches:{},zoek:"",soort:"alle"};
 try{const s=localStorage.getItem("forge_lbs_soort");if(["alle","bord","blog"].includes(s))LBS.soort=s;}catch(e){}
 
 async function fillLeaderboards(){
-  // results(count) = aantal scores op het bord; lukt dat niet, dan de lijst zonder aantallen.
-  const haal=metAantal=>db.from("workouts").select("id,title,workout_date,coach_id,created_at,audience, blocks(*)"+(metAantal?", results(count)":""))
+  // results(count) = aantal scores op het bord: alleen openbare, want een score die de atleet
+  // op alleen-coach zet staat er niet op. Lukt het tellen niet, dan de lijst zonder aantallen.
+  const haal=metAantal=>{const q=haalBasis(metAantal);return metAantal?q.eq("results.is_public",true):q;};
+  const haalBasis=metAantal=>db.from("workouts").select("id,title,workout_date,coach_id,created_at,audience, blocks(*)"+(metAantal?", results(count)":""))
     .eq("company_id",ME.profile.company_id).in("audience",["bord","blog"]).is("blog_program_id",null)
     .order("workout_date",{ascending:false}).limit(600);
   let r=await haal(true);
