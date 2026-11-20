@@ -15,14 +15,15 @@
 //     een zichtbare workout kan nooit, en een blok waarop al gelogd is blijft staan;
 //   - blog- en groepsprogramma's blijven dicht; de YP Showdown kan alleen als
 //     ongewijzigde kopie van de weekworkout zelf worden geplaatst (plaatsShowdown),
-//     de tekst ervan is nooit te wijzigen;
+//     de tekst ervan is nooit te wijzigen. Een nieuwe Showdown kan alleen als concept in de
+//     bouwer worden gezet (maakShowdownConcept, 20 nov 2026); live zetten doet de coach zelf;
 //   - er is geen commando om goed te keuren, te publiceren of iets te versturen.
 // Dit verkleint de kans op fouten; het is geen slot. De echte grens blijft RLS.
 //
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.13 (lezen en concepten schrijven)";
+  const VERSIE="2.14 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -54,6 +55,18 @@ const ClaudeApi=(()=>{
   const kleurenLijst=()=>{try{return TPLKLEUREN.slice();}catch(e){return ["yellow","blue","purple","red","green","orange"];}};
   const scoreLijst=()=>{try{return SCORETYPES.map(s=>s[0]);}catch(e){return ["text","time","load","reps","rounds_reps","none"];}};
   const gelijk=(a,b)=>JSON.stringify(a===undefined?null:a)===JSON.stringify(b===undefined?null:b);
+  // Datum uit een Showdown-naam als "YP showdown 27 november 2026". Zo leest de bouwer hem ook
+  // (wwDatumUitNaam): zonder jaartal dit jaar, of volgend jaar als die dag al ruim voorbij is.
+  const MAANDEN_NL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  const MAANDEN_EN=["january","february","march","april","may","june","july","august","september","october","november","december"];
+  function datumUitNaam(t){
+    const m=String(t||"").toLowerCase().match(/(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?/);if(!m)return null;
+    const mnd=Math.max(MAANDEN_NL.indexOf(m[2]),MAANDEN_EN.indexOf(m[2])),dag=parseInt(m[1],10);if(mnd<0||dag<1||dag>31)return null;
+    const nu=new Date();let jaar=m[3]?parseInt(m[3],10):nu.getFullYear();
+    let d=new Date(jaar,mnd,dag,12);
+    if(!m[3]&&nu-d>120*864e5)d=new Date(++jaar,mnd,dag,12);
+    return d.getMonth()===mnd?iso(d):null;
+  }
 
   function nietKlaar(){
     if(typeof db==="undefined"||!db||!ME||!ME.user||!ME.profile)return "Niet ingelogd. Log eerst in op de coach-app en probeer het opnieuw.";
@@ -338,6 +351,9 @@ const ClaudeApi=(()=>{
   // keuze: undefined | "auto" | "geen" | "houden" | [oefening-id's]. oud = wat er nu staat
   // (undefined bij een nieuw onderdeel). Zonder keuze: nieuw of gewijzigde tekst = automatisch,
   // ongewijzigde tekst = laten staan.
+  // Een video die de app zelf koos heeft een term (het herkende woord). Zonder term is hij er
+  // door de coach bij gezet: met de hand, als lijst, of meegekomen uit Strivee of CoachRx.
+  const heeftVideos=m=>Array.isArray(m)&&m.some(x=>x&&x.youtube_id&&!x.term);
   function mediaKies(keuze,tekst,oud,gewijzigd,waar,fouten,indexOk){
     if(Array.isArray(keuze)){const m=mediaLijst(keuze,waar,fouten,oud);return m.length?m:null;}
     if(keuze==="geen")return null;
@@ -349,7 +365,11 @@ const ClaudeApi=(()=>{
       });
       return basis.length?basis:null;
     }
-    if(keuze==="houden"||(keuze===undefined&&oud!==undefined&&!gewijzigd))return oud||null;
+    // Niets meegegeven bij iets dat al bestaat en waar de coach zelf een video bij heeft gezet
+    // (heeftVideos): alles blijft staan, ook als de tekst verandert (verzoek Michel, 20 nov 2026:
+    // eigen video's verdwenen bij een tekstwijziging). Had de app alle video's zelf gekozen, of
+    // stond er geen, dan kiest hij opnieuw bij een andere tekst.
+    if(keuze==="houden"||(keuze===undefined&&oud!==undefined&&(!gewijzigd||heeftVideos(oud))))return oud||null;
     if(!indexOk)return oud||null;
     const m=mediaAuto(tekst||"");return m.length?m:null;
   }
@@ -598,7 +618,7 @@ const ClaudeApi=(()=>{
           "Nieuw werk komt altijd als concept. Wat al zichtbaar is voor de atleet pas je alleen aan als de coach daar in dit gesprek uitdrukkelijk om vraagt. Geef dan {zichtbaar:true} mee als laatste argument van wijzigBlok, vervangBlokken of wijzigConcept. De atleet ziet de wijziging meteen: zeg vooraf wat je gaat veranderen en meld daarna wat er staat.",
           "Ook met {zichtbaar:true} kan niet: een zichtbare workout weghalen, een blok weghalen waarop al gelogd is, het scoretype of de tijdslimiet veranderen van een blok waarop al gelogd is, en alles met de YP Showdown.",
           "Alleen video's erbij zetten kan zonder {zichtbaar:true}, met ClaudeApi.videosToevoegen of videosToevoegenWeek. Video's weghalen of vervangen bij een zichtbaar blok doe je met wijzigBlok(blokId, {videos:[id's]}, {zichtbaar:true}).",
-          "Onderdelen met uit_weekworkout:true zijn de YP Showdown. De tekst daarvan verander je nooit en je schrijft hem nooit zelf. Plaatsen kan alleen met ClaudeApi.plaatsShowdown, dat de tekst letterlijk uit de weekworkout van die week haalt. In een concept mag je het blok verplaatsen of weghalen met vervangBlokken.",
+          "Onderdelen met uit_weekworkout:true zijn de YP Showdown. De tekst daarvan verander je nooit en je schrijft hem nooit zelf in een workout van een atleet. Plaatsen kan alleen met ClaudeApi.plaatsShowdown, dat de tekst letterlijk uit de weekworkout van die week haalt. Een nieuwe Showdown maak je alleen als de coach erom vraagt, met ClaudeApi.maakShowdownConcept: dat wordt een concept in de Bouwer dat de coach zelf live zet. Een concept of een live Showdown wijzig of verwijder je nooit. In een concept mag je het blok verplaatsen of weghalen met vervangBlokken.",
           "Een week kopiëren neemt de Showdown van de bronweek nooit mee: dat is de workout van die ene week. Met {showdown:true} komt op dezelfde plek de Showdown van de doelweek, als die al in de app staat.",
           "ClaudeApi.showdowns leest de Showdowns en de concepten uit de bouwer, bijvoorbeeld om te zien welke bewegingen en vormen al vaak terugkwamen. Een nieuwe Showdown of een concept schrijf je niet zelf in de app: leg je voorstel aan de coach voor, hij zet het in de bouwer.",
           "Onderdelen met leaderboard_workout zijn een leaderboard-workout: een 1-op-1 workout met een gedeeld leaderboard voor de atleten die hem in hun kalender hebben. De tekst schrijf je niet zelf over: plaatsen gaat met ClaudeApi.plaatsLeaderboardWorkout, dat de tekst uit de leaderboard-workout haalt. Een week kopiëren neemt zo'n blok wel mee, met zijn koppeling.",
@@ -644,12 +664,13 @@ const ClaudeApi=(()=>{
           "ClaudeApi.schrijfTemplateWeek(templateId, week, dagen, opties)":"Zet dagen in één week van een template. dagen = lijst in de vorm van template_voorbeeld: per dag (1 = maandag) een lijst workouts, elk zoals een workout in schrijfConcept maar zonder datum. Dagen die je niet noemt blijven staan. Staat er op een dag al iets, dan gebeurt er niets, tenzij je {overschrijf:true} meegeeft: die dagen worden dan vervangen (een dag met workouts:[] wordt leeg). Wat templateWeek teruggeeft kun je zo weer meegeven. week mag een bestaande week zijn of de eerstvolgende nieuwe.",
           "ClaudeApi.wijzigTemplate(templateId, velden)":"Past de naam of de omschrijving van een template aan: {naam:\"...\"} en/of {omschrijving:\"...\"}.",
           "ClaudeApi.verwijderTemplate(templateId, opties)":"Verwijdert een hele template met alle weken. Kan niet worden teruggedraaid. Alleen op uitdrukkelijk verzoek van de coach, met ter controle de exacte naam: {naam:\"...\"}. Een template die aan een klant is toegewezen kun je niet verwijderen.",
+          "ClaudeApi.maakShowdownConcept(showdown, opties)":"Zet een nieuwe YP Showdown als concept in de Bouwer, alleen als de coach erom vraagt. showdown = {datum:\"JJJJ-MM-DD\" (de vrijdag van die week), tekst (de RX version, een streep en de Scaled version, net als de andere Showdowns; kijk met ClaudeApi.showdowns hoe ze eruitzien), scoretype (verplicht: het leaderboard rangschikt erop), tijdslimiet_sec (alleen bij time), bij_tijdslimiet (\"reps\" of \"rounds_reps\": wat iemand logt die de limiet niet haalt; standaard reps), naam (weglaten = \"YP showdown 27 november 2026\", met de datum erin), videos (weglaten = geen, \"auto\" = de app kiest uit de tekst, of een lijst id's uit ClaudeApi.videoZoek)}. Het blijft een concept: leden zien het niet en het staat bij geen enkele atleet. De coach zet het zelf live in de Bouwer met Kies showdown; dan komt het leaderboard er vanzelf bij en werkt ClaudeApi.plaatsShowdown. Staat er voor die week al een Showdown of een concept, dan gebeurt er niets (bewust een tweede: opties {toch:true}; een andere dag dan vrijdag: opties {andereDag:true}). Een concept of een live Showdown wijzigen of weghalen kan niet: dat doet de coach in de Bouwer. Lees het antwoord dus na en meld de coach wat er staat.",
           "ClaudeApi.plaatsShowdown(atleetId, datum, opties)":"Zet de YP Showdown van de week van datum als concept bij de atleet, op datum. De tekst komt letterlijk uit de weekworkout; je kunt hem niet meegeven of wijzigen. Staat de Showdown van die week nog niet in de app, dan krijg je een melding en gebeurt er niets. Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
           "ClaudeApi.plaatsLeaderboardWorkout(atleetId, leaderboardWorkoutId, datum, opties)":"Zet een bestaande leaderboard-workout als concept bij de atleet, op datum. De tekst komt letterlijk uit de leaderboard-workout. Staat hij die week al bij de atleet, dan gebeurt er niets (met {toch:true} toch). Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
           "ClaudeApi.schaalBlok(blokId, tekst, opties)":"Maakt van een ingevoegde YP Showdown of leaderboard-workout een geschaalde versie voor deze ene atleet: het blok krijgt de tekst die je meegeeft en het vinkje Scaled-versie, zodat de atleet onder Scaled op het gedeelde leaderboard staat. De workout zelf verandert niet. Met {terug:true} (tekst mag dan leeg) komt de oorspronkelijke tekst terug en gaat het vinkje uit. Bij een zichtbare workout alleen met {zichtbaar:true}.",
           "ClaudeApi.leaderboardAan(blokId, opties)":"Zet een gedeeld leaderboard aan op een gewoon blok: er komt een leaderboard-workout met de naam en de tekst van het blok, en het blok wordt eraan gekoppeld. Kan niet op een blok in een superset, een blok met een lift of een blok zonder scoretype. Bij een zichtbare workout alleen met {zichtbaar:true}. Het antwoord geeft het id waarmee je hem bij andere atleten plaatst.",
           "ClaudeApi.koppelLeaderboard(leaderboardId, blokIds, opties)":"Zet een leaderboard alsnog aan op blokken die al bij atleten in de kalender staan. leaderboardId = het id van een leaderboard-workout (leaderboard_workout bij een blok, of uit leaderboardWorkouts) of van de YP Showdown van die week (uit showdowns). blokIds = lijst met de id's van de blokken, één per atleet (uit week). De tekst van de blokken verandert niet. Een score die al was ingevuld blijft staan en komt meteen op het bord. Blokken met een ander scoretype dan het leaderboard worden geweigerd. Bij zichtbare workouts alleen met {zichtbaar:true}. Het antwoord zegt per blok of het gelukt is en zo niet waarom.",
-          "ClaudeApi.wijzigBlok(blokId, velden, opties)":"Past één blok aan (bij een zichtbare workout alleen met opties {zichtbaar:true}). Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Verandert de naam of de tekst, dan worden de demo-video's opnieuw gekozen (videos:\"houden\" laat ze staan).",
+          "ClaudeApi.wijzigBlok(blokId, velden, opties)":"Past één blok aan (bij een zichtbare workout alleen met opties {zichtbaar:true}). Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Staat er een demo-video bij die de coach er zelf bij heeft gezet (met de hand, als lijst, of meegekomen uit Strivee of CoachRx), dan blijven alle video's staan, ook als de naam of de tekst verandert; je krijgt dan een melding. Had de app ze allemaal zelf gekozen, dan kiest hij opnieuw bij een andere naam of tekst. Zelf sturen: videos:\"houden\", videos:\"auto\" (opnieuw kiezen) of videos:\"aanvullen\" (ontbrekende erbij).",
           "ClaudeApi.vervangBlokken(workoutId, blokken, opties)":"Zet de hele blokkenlijst in één keer (bij een zichtbare workout alleen met opties {zichtbaar:true}): een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg. Zo voeg je een blok toe, haal je er een weg of verander je de volgorde.",
           "ClaudeApi.wijzigConcept(workoutId, velden, opties)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown, en de demo-video's van die twee vakken met videos_warming_up en videos_cooldown (zie workout in deze uitleg). Bij een zichtbare workout alleen met opties {zichtbaar:true}.",
           "ClaudeApi.verwijderConcept(workoutId)":"Haalt één concept weg, met zijn blokken. Kan alleen bij een concept zonder gelogde resultaten. Doe dit alleen voor een concept dat je zelf hebt klaargezet of als de coach erom vraagt.",
@@ -668,7 +689,7 @@ const ClaudeApi=(()=>{
           tijdslimiet_sec:"Alleen bij scoretype time.",
           superset_met_vorige:"true = hoort bij het blok erboven (B1, B2). De letters zet de app zelf.",
           kaarttitel:"Titel boven een superset, op het eerste blok van de groep.",
-          videos:"Weglaten = de app kiest zelf uit de tekst (bij een bestaand blok alleen als naam of tekst verandert). \"aanvullen\" = laten staan en ontbrekende toevoegen, \"auto\" = opnieuw kiezen, \"houden\", \"geen\", of een exacte lijst id's. Een id is een getal uit ClaudeApi.videoZoek of een waarde uit demo_video_ids van week() (die staan in dezelfde volgorde als demo_videos, dus zo houd je video's met dezelfde naam uit elkaar)."
+          videos:"Weglaten = bij een nieuw blok kiest de app zelf uit de tekst; bij een bestaand blok blijft alles staan zodra er een video bij staat die de coach er zelf bij heeft gezet (anders kiest de app opnieuw als naam of tekst verandert). \"aanvullen\" = laten staan en ontbrekende toevoegen, \"auto\" = opnieuw kiezen, \"houden\", \"geen\", of een exacte lijst id's. Een id is een getal uit ClaudeApi.videoZoek of een waarde uit demo_video_ids van week() (die staan in dezelfde volgorde als demo_videos, dus zo houd je video's met dezelfde naam uit elkaar)."
         },
         workout:{
           datum:"Verplicht, JJJJ-MM-DD.",
@@ -676,7 +697,7 @@ const ClaudeApi=(()=>{
           notitie_coach:"Tekst boven de workout.",
           warming_up:"Tekst van het vak Warming-up.",
           cooldown:"Tekst van het vak Cooldown.",
-          videos_warming_up:"Demo-video's bij de warming-up. Weglaten = de app kiest zelf uit de tekst. \"aanvullen\", \"auto\", \"houden\", \"geen\", of een exacte lijst id's (getallen uit ClaudeApi.videoZoek of waarden uit demo_video_ids_warming_up van week()). Kan alleen als er een warming_up-tekst is.",
+          videos_warming_up:"Demo-video's bij de warming-up. Weglaten = de app kiest zelf uit de tekst (bij wijzigConcept blijft alles staan zodra er een video bij staat die de coach er zelf bij heeft gezet). \"aanvullen\", \"auto\", \"houden\", \"geen\", of een exacte lijst id's (getallen uit ClaudeApi.videoZoek of waarden uit demo_video_ids_warming_up van week()). Kan alleen als er een warming_up-tekst is.",
           videos_cooldown:"Hetzelfde voor de cooldown (demo_video_ids_cooldown).",
           videos:"Eén keuze voor warming-up en cooldown samen: \"auto\", \"aanvullen\", \"houden\" of \"geen\". Een lijst geef je per vak.",
           blokken:"Lijst blokken, zie blok."
@@ -875,7 +896,8 @@ const ClaudeApi=(()=>{
     // ---------- YP Showdowns lezen ----------
     // Alle Showdowns van het bedrijf (nieuwste eerst) met de volledige tekst, zodat te zien is
     // wat al vaak terugkwam. Concepten uit de bouwer (audience 'blog_concept') staan erbij.
-    // Alleen lezen: een Showdown of concept maakt of wijzigt de coach zelf in de app.
+    // Alleen lezen. Een nieuw concept maken kan met maakShowdownConcept (hieronder); wijzigen,
+    // live zetten en weghalen doet de coach zelf in de app.
     showdowns:veilig(async(zoek,opties)=>{
       opties=leeg(opties)?{}:opties;
       if(!isObject(opties))return fout("opties moet een object zijn, bijvoorbeeld {vanaf:\"2026-09-01\"}.");
@@ -916,7 +938,7 @@ const ClaudeApi=(()=>{
       return schoon({ok:true,
         filter:[z?"naam of tekst bevat \""+z+"\"":"",periode].filter(Boolean).join(", ")||"geen",
         aantal_live:lijst.length,totaal_live:alleLive.length,aantal_concepten:con.length,totaal_concepten:alleCon.length,
-        let_op:"Alleen lezen. Een Showdown of concept maak of wijzig je niet zelf: dat doet de coach in de app onder YP Showdown, weergave Bouwer."
+        let_op:"Alleen lezen. Een Showdown of een concept wijzig je niet: dat doet de coach in de app onder YP Showdown, weergave Bouwer. Een nieuw concept maak je alleen als de coach erom vraagt, met ClaudeApi.maakShowdownConcept."
           +(alleCon.length?" Een concept is nog niet zichtbaar voor leden en heeft nog geen datum.":"")
           +(alleLive.length===300?" Er zijn meer dan 300 Showdowns: beperk de periode met {vanaf, tot}.":""),
         concepten:con.map(rij(true)),
@@ -1050,7 +1072,8 @@ const ClaudeApi=(()=>{
       const zb=c.w.status!=="draft";
       if(zb&&scoreAnders(n,oud)&&(await logBlokken(c.w.id)).has(blokId))return fout("Er is niets gewijzigd. Op dit blok zijn al resultaten gelogd; het scoretype of de tijdslimiet veranderen zou die score onleesbaar maken. Laat dit aan de coach.");
       const gewijzigd=blokTekst(n)!==blokTekst(normUitRij(oud));
-      const wilAuto=n.videos==="auto"||n.videos==="aanvullen"||(n.videos===undefined&&gewijzigd);
+      const hield=n.videos===undefined&&gewijzigd&&heeftVideos(oud.media);
+      const wilAuto=n.videos==="auto"||n.videos==="aanvullen"||(n.videos===undefined&&gewijzigd&&!hield);
       const indexOk=(Array.isArray(n.videos)||wilAuto)?await videosKlaar():false;
       n.media=mediaKies(n.videos,blokBron(n),oud.media||null,gewijzigd,"blok "+(oud.label||""),fouten,indexOk);
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
@@ -1060,6 +1083,7 @@ const ClaudeApi=(()=>{
       ververs(c.p.id);
       const meldingen=[];
       if(!indexOk&&wilAuto)meldingen.push("De oefeningenbibliotheek was niet geladen: de demo-video's zijn niet opnieuw gekozen.");
+      if(hield)meldingen.push("De demo-video's zijn blijven staan ("+titels(oud.media).join(", ")+"), omdat er een video bij staat die de coach er zelf bij heeft gezet. Passen ze niet meer bij de nieuwe tekst, kies dan opnieuw met {videos:\"auto\"} of vul aan met {videos:\"aanvullen\"}.");
       return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:"blok "+(n.label||"")+" van \""+(c.w.title||"")+"\" op "+c.w.workout_date,status:statusNaam(c.w),let_op:meldingen.concat(zb?[ZICHTBAAR]:[]),workout:terug[0]});
     }),
 
@@ -1096,9 +1120,11 @@ const ClaudeApi=(()=>{
       if(stFout)return fout("Er is niets gewijzigd. Op blok \""+(stFout.exercise||"")+"\" zijn al resultaten gelogd; het scoretype of de tijdslimiet veranderen kan dan niet. Laat dit aan de coach.");
       const indexOk=await videosKlaar();
       letters(normen);
+      let gehouden=0;
       normen.forEach((n,i)=>{
         const o=n.id?oud[n.id]:null;
         const gewijzigd=!o||blokTekst(n)!==blokTekst(normUitRij(o));
+        if(o&&n.raak&&gewijzigd&&n.videos===undefined&&heeftVideos(o.media))gehouden++;
         n.media=mediaKies(n.videos,blokBron(n),o?(o.media||null):undefined,gewijzigd,"blok "+(i+1),fouten,indexOk);
       });
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
@@ -1107,7 +1133,9 @@ const ClaudeApi=(()=>{
       ververs(c.p.id);
       return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},gewijzigd:"blokken van \""+(c.w.title||"")+"\" op "+c.w.workout_date,
         nieuw:uit.nieuw||null,verwijderd:uit.verwijderd||null,status:statusNaam(c.w),
-        let_op:(indexOk?[]:["De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen voor nieuwe of gewijzigde blokken."]).concat(zb?[ZICHTBAAR]:[]),workout:terug[0]});
+        let_op:(indexOk?[]:["De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen voor nieuwe of gewijzigde blokken."])
+          .concat(gehouden?["Bij "+gehouden+" gewijzigd"+(gehouden===1?" blok":"e blokken")+" zijn de demo-video's blijven staan, omdat de coach er zelf een video bij had gezet. Opnieuw kiezen kan per blok met videos:\"auto\", aanvullen met videos:\"aanvullen\"."]:[])
+          .concat(zb?[ZICHTBAAR]:[]),workout:terug[0]});
     }),
 
     wijzigConcept:veilig(async(workoutId,velden,opties)=>{
@@ -1372,6 +1400,86 @@ const ClaudeApi=(()=>{
     }),
 
     // ---------- YP Showdown plaatsen ----------
+    // ---------- Een YP Showdown als concept in de bouwer zetten (20 nov 2026, verzoek Michel) ----------
+    // Zoals de insert in Strivee: één keer maken, daarna bij iedereen invoegen. Het wordt altijd
+    // een concept (audience 'blog_concept'): leden zien het nergens. Live zetten doet de coach
+    // zelf in de bouwer met Kies showdown; dan krijgt hij zijn datum en het leaderboard. Er is
+    // bewust geen commando om een concept of een live Showdown te wijzigen of weg te halen.
+    // De rijen zijn dezelfde als die van de bouwer (wwOpslaan in weekworkout.js).
+    maakShowdownConcept:veilig(async(invoer,opties)=>{
+      opties=isObject(opties)?opties:{};
+      if(!isObject(invoer))return fout("Geef één object: {datum, tekst, scoretype} en eventueel naam, tijdslimiet_sec, bij_tijdslimiet, videos. Zie ClaudeApi.hulp().");
+      const mag=["naam","datum","tekst","scoretype","tijdslimiet_sec","bij_tijdslimiet","videos"];
+      const onbekend=Object.keys(invoer).filter(k=>!mag.includes(k));
+      if(onbekend.length)return fout("Onbekend veld: "+onbekend.join(", ")+". Toegestaan: "+mag.join(", ")+".");
+      if(!ME.profile.company_id)return fout("Dit account is niet aan een bedrijf gekoppeld; de Showdown zou onvindbaar worden.");
+      const fouten=[],vandaag=iso(new Date()),datum=invoer.datum;
+      let datumOk=false;
+      if(!isDatum(datum))fouten.push("datum moet JJJJ-MM-DD zijn: de vrijdag van de week van deze Showdown.");
+      else if(datum<vandaag)fouten.push("datum "+datum+" ligt in het verleden.");
+      else if(dagenTussenIso(vandaag,datum)>366)fouten.push("datum "+datum+" ligt meer dan een jaar vooruit.");
+      else if(opDag(datum).getDay()!==5&&opties.andereDag!==true)fouten.push("datum "+datum+" valt op "+dagVan(datum)+", niet op vrijdag. De Showdown staat op vrijdag; is een andere dag bewust, geef dan {andereDag:true} mee als tweede argument.");
+      else datumOk=true;
+      const standaardNaam=datumOk?"YP showdown "+opDag(datum).getDate()+" "+MAANDEN_NL[opDag(datum).getMonth()]+" "+opDag(datum).getFullYear():"";
+      let titel=tekstVeld(invoer,"naam",200,"Showdown",fouten);
+      if(!titel)titel=standaardNaam;
+      // De bouwer leest de datum uit de naam zodra de coach hem live zet: die twee moeten kloppen.
+      else if(datumOk&&datumUitNaam(titel)!==datum)fouten.push("naam: de datum in de naam moet "+datum+" zijn, zoals \""+standaardNaam+"\" (de Bouwer leest de datum uit de naam). Laat naam weg, dan krijgt hij die naam vanzelf.");
+      const tekst=tekstVeld(invoer,"tekst",MAX_TEKST,"Showdown",fouten);
+      if(!tekst)fouten.push("tekst ontbreekt: de RX version, een streep en de Scaled version, zoals bij de andere Showdowns (zie ClaudeApi.showdowns).");
+      const soorten=scoreLijst().filter(x=>x!=="none"),score_type=invoer.scoretype;
+      if(leeg(score_type))fouten.push("scoretype ontbreekt. Kies uit: "+soorten.join(", ")+". Het leaderboard rangschikt op dit type.");
+      else if(!soorten.includes(score_type))fouten.push("onbekend scoretype \""+score_type+"\". Kies uit: "+soorten.join(", ")+".");
+      let timecap_seconds=null;
+      if(!leeg(invoer.tijdslimiet_sec)){
+        timecap_seconds=Number(invoer.tijdslimiet_sec);
+        if(!Number.isInteger(timecap_seconds)||timecap_seconds<1||timecap_seconds>14400){fouten.push("tijdslimiet_sec moet een heel aantal seconden zijn (1 t/m 14400).");timecap_seconds=null;}
+        else if(score_type!=="time"){fouten.push("tijdslimiet_sec kan alleen bij scoretype time.");timecap_seconds=null;}
+      }
+      let cap_score_type="reps";
+      if(!leeg(invoer.bij_tijdslimiet)){
+        if(invoer.bij_tijdslimiet!=="reps"&&invoer.bij_tijdslimiet!=="rounds_reps")fouten.push("bij_tijdslimiet moet \"reps\" of \"rounds_reps\" zijn: wat iemand logt die de tijdslimiet niet haalt.");
+        else if(!timecap_seconds)fouten.push("bij_tijdslimiet kan alleen samen met tijdslimiet_sec.");
+        else cap_score_type=invoer.bij_tijdslimiet;
+      }
+      // Video's: weglaten = geen (zoals in de bouwer), "auto" = de app kiest uit de tekst, of een lijst id's.
+      let vk="geen";
+      if(!leeg(invoer.videos)){
+        if(invoer.videos!=="auto"&&invoer.videos!=="geen"&&!Array.isArray(invoer.videos))fouten.push("videos moet \"auto\", \"geen\" of een lijst id's uit ClaudeApi.videoZoek zijn.");
+        else{const v=videosLees(invoer.videos,"Showdown",fouten,true);if(v!==undefined)vk=v;}
+      }
+      if(fouten.length)return {ok:false,fout:"Er is niets gemaakt. Los dit eerst op.",fouten};
+      // Staat er voor die week al iets? Dan niets doen: wijzigen is aan de coach.
+      const maandag=maandagVan(datum);
+      const live=await showdownVanWeek(maandag);
+      const{data:con,error:ce}=await db.from("workouts").select("id,title").eq("company_id",ME.profile.company_id).eq("audience","blog_concept").is("blog_program_id",null).limit(200);
+      if(ce)return fout(ce.message);
+      const zelfde=(con||[]).filter(w=>{const d=datumUitNaam(w.title);return (d&&maandagVan(d)===maandag)||String(w.title||"").trim().toLowerCase()===titel.toLowerCase();});
+      if((live.length||zelfde.length)&&opties.toch!==true){
+        const wat=[live.length?"een live Showdown ("+live.map(w=>w.workout_date+" \""+(w.title||"")+"\"").join(", ")+")":"",zelfde.length?"een concept ("+zelfde.map(w=>"\""+(w.title||"")+"\"").join(", ")+")":""].filter(Boolean).join(" en ");
+        return fout("Er is niets gemaakt. Voor de week van "+maandag+" staat al "+wat+". Wijzigen kan alleen de coach in de Bouwer. Wil de coach er bewust een tweede bij, geef dan {toch:true} mee als tweede argument.");
+      }
+      const indexOk=vk==="geen"?false:await videosKlaar();
+      const media=mediaKies(vk,{naam:"",tekst},undefined,true,"Showdown, videos",fouten,indexOk);
+      if(fouten.length)return {ok:false,fout:"Er is niets gemaakt. Los dit eerst op.",fouten};
+      const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:vandaag,title:titel,audience:"blog_concept"}).select("id").single();
+      if(error)return fout("Er is niets gemaakt: "+error.message);
+      const{error:be}=await db.from("blocks").insert({workout_id:nw.id,kind:"conditioning",label:"A",exercise:titel,notes:tekst,sort:0,score_type,timecap_seconds,cap_score_type,color:"yellow",media:media||null});
+      if(be){
+        // Geen half concept achterlaten.
+        await db.from("workouts").delete().eq("id",nw.id).eq("audience","blog_concept");
+        return fout("Er is niets gemaakt: "+be.message);
+      }
+      try{if(typeof fillWeekworkout==="function"&&document.getElementById("ww-cards"))fillWeekworkout();}catch(e){}
+      return schoon({ok:true,
+        concept:schoon({id:nw.id,naam:titel,status:"concept",bedoeld_voor:datum,dag:dagVan(datum),scoretype:score_type,tijdslimiet_sec:timecap_seconds,
+          bij_tijdslimiet:timecap_seconds?cap_score_type:null,tekst,demo_videos:titels(media)}),
+        let_op:["Dit is een concept: leden zien het niet en het staat bij geen enkele atleet. De coach zet het zelf live in de app onder YP Showdown, weergave Bouwer, met Kies showdown. Dan komt het leaderboard er vanzelf bij en kun je het met ClaudeApi.plaatsShowdown bij atleten zetten.",
+          "Een concept wijzigen of weghalen kan alleen de coach in de Bouwer. Lees de tekst hierboven na en meld de coach wat er staat.",
+          /scaled/i.test(tekst)?"":"In de tekst staat geen Scaled version. De andere Showdowns hebben de RX version, een streep en de Scaled version.",
+          vk==="auto"&&!indexOk?"De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen.":""].filter(Boolean)});
+    }),
+
     plaatsShowdown:veilig(async(atleetId,datum,opties)=>{
       const a=await atleetOphalen(atleetId);if(a.fout)return fout(a.fout);
       opties=isObject(opties)?opties:{};
