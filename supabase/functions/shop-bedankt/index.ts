@@ -255,8 +255,9 @@ async function stripeSessie(id: string): Promise<Sessie | null> {
 type Order = {
   id: string; status: string; email: string | null; account_state: string | null; profile_id: string | null;
   invite_id: string | null; blog_program_id: string | null; thanks_token: string | null; created_at: string;
+  eerste_betaling: string | null; // overstaplink: de eerste afschrijving volgt later
 };
-const ORDER_KOLOMMEN = "id,status,email,account_state,profile_id,invite_id,blog_program_id,thanks_token,created_at";
+const ORDER_KOLOMMEN = "id,status,email,account_state,profile_id,invite_id,blog_program_id,thanks_token,created_at,eerste_betaling";
 
 // Stand van een NIEUW account: kan de koper hier nog een wachtwoord kiezen ("nieuw"), is het
 // al ingesteld ("klaar"), of is de tijd hier om maar staat er nog geen wachtwoord ("verlopen":
@@ -315,7 +316,9 @@ Deno.serve(async (req) => {
       ? await db.from("blog_programs").select("name").eq("id", o.blog_program_id).maybeSingle() : { data: null };
     let account: string = o.account_state || "onbekend"; // onbekend = betaald, maar niets om aan te koppelen (wij nemen contact op)
     if (account === "nieuw") { try { account = await nieuwStand(db, o); } catch (_e) { return tijdelijk(); } }
-    return json(200, { status: "paid", email: o.email, programma: p?.name || null, account, ...app() });
+    // Overstaplink: er is nog niets afgeschreven. De pagina zegt dan wanneer de eerste betaling is.
+    const later = o.eerste_betaling && new Date(o.eerste_betaling).getTime() > Date.now() ? o.eerste_betaling : null;
+    return json(200, { status: "paid", email: o.email, programma: p?.name || null, account, ...(later ? { eerste_betaling: later } : {}), ...app() });
   }
 
   if (body.actie === "wachtwoord") {
