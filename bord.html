@@ -19,6 +19,11 @@
     en de verdeling van het scherm. Beweeg de muis (of tik) en linksonder komt een klein
     balkje, naar het voorbeeld van de tv van SugarWOD. Het werkt meteen, geldt alleen voor dit
     scherm (browsergeheugen) en verdwijnt vanzelf, net als de muisaanwijzer.
+  Chromecast (20 nov 2026, naar de BoxTV van de CrossFit Capelle app): op /cast (zie vercel.json)
+  draait deze pagina op de Chromecast zelf, als Google Cast custom receiver. De YourProgram-app
+  op de telefoon zet hem daar neer en stuurt over het kanaal urn:x-cast:nl.yourprogram.bord het
+  bericht {type:'bord', code}. Daarna leest de pagina het bord zoals altijd en mag de telefoon
+  weg; bedienen gaat via de database (afstandsbediening in de app of de website).
   Bediening en klaarzetten: app/live-bord.js in de coach-app.
 -->
 <style>
@@ -64,7 +69,7 @@ main.split .vak+.vak{border-left:1px solid var(--lijn)}
 .midden .titel,.midden>.label,.midden .tekst,.midden .cap{text-align:center}
 footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:var(--zacht);font-size:clamp(11px,1.7vh,20px)}
 #balk{position:fixed;left:14px;bottom:14px;z-index:7;display:flex;align-items:center;gap:6px;background:rgba(18,18,21,.97);border:1px solid #3a3a3f;border-radius:10px;padding:7px 9px;font-size:14px;color:var(--zacht)}
-#balk.uit{display:none}
+#balk.uit,body.cast #balk{display:none}
 #balk span{margin:0 2px 0 8px}
 #balk span:first-child{margin-left:2px}
 #balk button{background:#26262b;color:var(--tekst);border:1px solid #3a3a3f;border-radius:7px;min-width:38px;height:36px;padding:0 10px;font-size:15px;cursor:pointer;font-family:inherit}
@@ -97,7 +102,8 @@ footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:
 <script>
 const SUPABASE_URL="https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
 const SUPABASE_KEY="sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
-const CODE=new URLSearchParams(location.search).get("c")||"";
+const CAST=location.pathname.replace(/\/+$/,"")==="/cast"; // op de Chromecast: de code komt van de telefoon
+let CODE=new URLSearchParams(location.search).get("c")||"";
 const ELKE_MS=2000,NIEUW_MS=25000,WISSEL_MS=12000;
 const MAANDVOL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -140,20 +146,20 @@ function datumNL(iso){
 // ingesteld. Alleen de workout-tekst (grootte, links of midden), de verdeling van het scherm
 // en de rand zijn instelbaar; de scores deelt het bord zelf in.
 // Dezelfde standaardwaarden als lvbOpmaak() in app/live-bord.js.
-const LOKAAL_SLEUTEL="lvb_opmaak_"+CODE;
+const lokaalSleutel=()=>"lvb_opmaak_"+CODE,serverSleutel=()=>"lvb_server_"+CODE;
 let lokaal={};
-try{const v=JSON.parse(localStorage.getItem(LOKAAL_SLEUTEL)||"{}");if(v&&typeof v==="object")lokaal=v;}catch(e){lokaal={};}
-function lokaalBewaar(){try{localStorage.setItem(LOKAAL_SLEUTEL,JSON.stringify(lokaal));}catch(e){}}
+function lokaalLaad(){lokaal={};try{const v=JSON.parse(localStorage.getItem(lokaalSleutel())||"{}");if(v&&typeof v==="object")lokaal=v;}catch(e){lokaal={};}}
+lokaalLaad();
+function lokaalBewaar(){try{localStorage.setItem(lokaalSleutel(),JSON.stringify(lokaal));}catch(e){}}
 // Verandert de coach de opmaak via de afstandsbediening in de app of op de website, dan wint
 // dat van wat eerder op dit scherm zelf was ingesteld: de eigen instelling van het scherm
 // wordt gewist. Zo doet de afstandsbediening altijd wat de coach verwacht. De laatst geziene
 // opmaak van de coach staat in het browsergeheugen, zodat verversen niets wist.
-const SERVER_SLEUTEL="lvb_server_"+CODE;
 function serverOpmaak(s){
   try{
-    const nu=JSON.stringify(s.opmaak||{}),vorig=localStorage.getItem(SERVER_SLEUTEL);
-    if(vorig!==null&&vorig!==nu){lokaal={};localStorage.removeItem(LOKAAL_SLEUTEL);}
-    if(vorig!==nu)localStorage.setItem(SERVER_SLEUTEL,nu);
+    const nu=JSON.stringify(s.opmaak||{}),vorig=localStorage.getItem(serverSleutel());
+    if(vorig!==null&&vorig!==nu){lokaal={};localStorage.removeItem(lokaalSleutel());}
+    if(vorig!==nu)localStorage.setItem(serverSleutel(),nu);
   }catch(e){}
 }
 function opmaakVan(s){
@@ -347,6 +353,8 @@ function pasAan(){
 }
 window.addEventListener("resize",()=>{if(stand)pasAan();});
 
+let haalLoopt=false;
+function startHalen(){if(haalLoopt||!CODE)return;haalLoopt=true;haal();}
 async function haal(){
   const stop=new AbortController(),klok=setTimeout(()=>stop.abort(),8000);
   try{
@@ -408,8 +416,42 @@ document.addEventListener("keydown",e=>{
 });
 balkTeken();balkToon();
 
-if(!CODE){document.getElementById("main").innerHTML='<div class="leeg">Deze link is niet compleet. Kopieer de link van het bord opnieuw uit de coach-app.</div>';}
-else haal();
+// ---------- Chromecast (app.yourprogram.nl/cast) ----------
+const CAST_NS="urn:x-cast:nl.yourprogram.bord";
+function castBord(code){
+  code=String(code||"");
+  if(!/^[0-9a-f]{12,40}$/.test(code)||code===CODE)return;
+  CODE=code;lokaalLaad();
+  stand=null;vorige="";onderdeelId=null;gezien={};nieuwTot={};pagina=0;
+  document.getElementById("main").innerHTML='<div class="leeg">Bord laden…</div>';
+  startHalen();
+}
+function startCast(){
+  document.body.classList.add("cast");
+  window.bordBericht=(m)=>{if(m&&m.type==="bord")castBord(m.code);return {type:"status",code:CODE};}; // testen zonder telefoon
+  document.getElementById("main").innerHTML='<div class="leeg">Verbonden met de tv. Open in de app het Live bord, dan verschijnt het hier.</div>';
+  const s=document.createElement("script");
+  s.src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js";
+  s.onload=()=>{
+    const ctx=cast.framework.CastReceiverContext.getInstance();
+    ctx.addCustomMessageListener(CAST_NS,(ev)=>{
+      try{const m=ev.data||{};if(m.type==="bord")castBord(m.code);}catch(e){console.error(e);}
+      try{ctx.sendCustomMessage(CAST_NS,ev.senderId,{type:"status",code:CODE,titel:stand?stand.titel:""});}catch(e){}
+    });
+    const opts=new cast.framework.CastReceiverOptions();
+    opts.customNamespaces={[CAST_NS]:cast.framework.system.MessageType.JSON};
+    opts.disableIdleTimeout=true; // geen video: anders sluit de Chromecast de pagina na een tijdje
+    opts.skipPlayersLoad=true;
+    opts.statusText="YourProgram Live bord";
+    ctx.start(opts);
+  };
+  s.onerror=()=>{document.getElementById("main").innerHTML='<div class="leeg">De koppeling met de Chromecast kon niet laden. Controleer de internetverbinding van de tv.</div>';};
+  document.head.appendChild(s);
+}
+
+if(CAST){startCast();if(CODE)startHalen();}
+else if(!CODE){document.getElementById("main").innerHTML='<div class="leeg">Deze link is niet compleet. Kopieer de link van het bord opnieuw uit de coach-app.</div>';}
+else startHalen();
 </script>
 </body>
 </html>
