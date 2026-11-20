@@ -19,7 +19,7 @@
 //     dataset.oefid (oude enkele koppeling, wordt ook als chip getoond)
 
 // Veelgebruikte afkortingen in programmeerteksten -> volledige woorden.
-const GM_AFKO={db:"dumbbell",dbs:"dumbbell",kb:"kettlebell",kbs:"kettlebell swing",bb:"barbell",ohs:"overhead squat",hspu:"handstand push up",shspu:"strict handstand push up",t2b:"toes to bar",ttb:"toes to bar",c2b:"chest to bar",ctb:"chest to bar",du:"double under",dus:"double under",rdl:"romanian deadlift",mu:"muscle up",bmu:"bar muscle up",rmu:"ring muscle up",s2oh:"shoulder to overhead",g2oh:"ground to overhead",wb:"wall ball",wbs:"wall ball",bjo:"box jump over",bbjo:"burpee box jump over",bfb:"bar facing burpee",ghdsu:"ghd sit up",sa:"single arm",oh:"overhead",dl:"deadlift",fs:"front squat",bs:"back squat",sp:"strict press",pp:"push press",pj:"push jerk",sj:"split jerk",cnj:"clean and jerk",hc:"hang clean",pc:"power clean",ps:"power snatch",
+const GM_AFKO={db:"dumbbell",dbs:"dumbbell",kb:"kettlebell",kbs:"kettlebell swing",bb:"barbell",ohs:"overhead squat",hspu:"handstand push up",shspu:"strict handstand push up",t2b:"toes to bar",ttb:"toes to bar",c2b:"chest to bar",ctb:"chest to bar",du:"double under",rdl:"romanian deadlift",mu:"muscle up",bmu:"bar muscle up",rmu:"ring muscle up",s2oh:"shoulder to overhead",g2oh:"ground to overhead",wb:"wall ball",wbs:"wall ball",bjo:"box jump over",bbjo:"burpee box jump over",bfb:"bar facing burpee",ghdsu:"ghd sit up",sa:"single arm",oh:"overhead",dl:"deadlift",fs:"front squat",bs:"back squat",sp:"strict press",pp:"push press",pj:"push jerk",sj:"split jerk",cnj:"clean and jerk",hc:"hang clean",pc:"power clean",ps:"power snatch",
   scap:"scapula",scaps:"scapula",scapular:"scapula",alt:"alternating",bw:"bodyweight",sl:"single leg",dbl:"double",ohp:"overhead press",sdhp:"sumo deadlift high pull",ghr:"glute ham raise",rfess:"rear foot elevated split squat",bss:"bulgarian split squat",tgu:"turkish get up",hrpu:"hand release push up",k2e:"knees to elbow",kte:"knees to elbow",bj:"box jump",mb:"medicine ball",medball:"medicine ball",fr:"front rack",ext:"extension",hs:"handstand",hsw:"handstand walk",wtd:"weighted",pullup:"pull up",pullups:"pull up",pushup:"push up",pushups:"push up",situp:"sit up",situps:"sit up",chinup:"chin up",chinups:"chin up",stepup:"step up",stepups:"step up"};
 
 // Normaliseren: kleine letters, leestekens weg, afkortingen uitschrijven,
@@ -28,14 +28,17 @@ const GM_AFKO={db:"dumbbell",dbs:"dumbbell",kb:"kettlebell",kbs:"kettlebell swin
 // "Scap pull-ups" en "Scapula Pull-Up" elkaar vinden (ook via de compacte
 // vorm zonder spaties, zodat "pullovers" en "pull overs" samenvallen).
 function gmNorm(s){
-  s=(s||"").toLowerCase().replace(/['’]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
+  // "dus" is ook een gewoon Nederlands woord ("gebruik dus een licht gewicht"). Alleen als
+  // afkorting lezen met hoofdletters (DUs, DU's) of direct na een getal (50 dus) (20 nov 2026).
+  s=(s||"").replace(/\bDU['’]?[sS]\b/g,"double under").replace(/(\d\s*)dus\b/gi,"$1double under");
+  s=s.toLowerCase().replace(/['’]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
   // "500m row" en "20cal bike" lezen als "500 m row" en "20 cal bike": zo kan een zoekwoord
   // als "m row" of "cal bike" erop passen (19 nov 2026).
   s=s.replace(/\b(\d+)(m|km|cal|kg)\b/g,"$1 $2");
   s=s.split(" ").map(w=>GM_AFKO[w]||w).join(" ");
   s=s.split(" ").map(w=>{
     if(/(ches|shes|xes)$/.test(w)&&w.length>4)return w.slice(0,-2);
-    if(w.length>=3&&w.endsWith("s")&&!w.endsWith("ss"))return w.slice(0,-1);
+    if(w.length>=3&&w.endsWith("s")&&!w.endsWith("ss")&&w!=="dus")return w.slice(0,-1);
     return w;
   }).join(" ");
   return s.replace(/\s+/g," ").trim();
