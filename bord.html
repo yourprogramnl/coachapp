@@ -70,8 +70,7 @@ footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:
 #balk button{background:#26262b;color:var(--tekst);border:1px solid #3a3a3f;border-radius:7px;min-width:38px;height:36px;padding:0 10px;font-size:15px;cursor:pointer;font-family:inherit}
 #balk button:hover{border-color:var(--goud)}
 #balk button.aan{background:var(--goud);color:#111;border-color:var(--goud)}
-#balk button.klein{font-size:12px}
-#balk button.groot{font-size:19px}
+#balk button.teken{font-size:21px;font-weight:600;line-height:1}
 @media (max-width:820px),(orientation:portrait){
   body{overflow:auto}
   #bord{height:auto;min-height:100vh;padding:0 !important}
@@ -377,7 +376,7 @@ function volKlik(){try{if(document.fullscreenElement)document.exitFullscreen();e
 function balkTeken(){
   const om=opmaakVan(stand),alleen=staatAlleen(stand),plek=plekVan(om,alleen),split=!!(stand&&stand.onderdeel)&&!alleen&&stand.weergave!=="scores";
   const keuze=(veld,nu,opties)=>opties.map(x=>'<button class="'+(nu===x[0]?"aan":"")+'" onclick="balkZet(\''+veld+'\',\''+x[0]+'\')" title="'+x[2]+'">'+x[1]+'</button>').join("");
-  balk.innerHTML='<span>Letters</span><button class="klein" onclick="balkLetter(-1)" title="Workout-tekst kleiner">A</button><button class="groot" onclick="balkLetter(1)" title="Workout-tekst groter">A</button>'+
+  balk.innerHTML='<span>Letters</span><button class="teken" onclick="balkLetter(-1)" title="Workout-tekst kleiner">−</button><button class="teken" onclick="balkLetter(1)" title="Workout-tekst groter">+</button>'+
     '<span>Tekst</span>'+keuze("workoutPlek",plek,[["links","Links","Workout-tekst links"],["midden","Midden","Workout-tekst in het midden"]])+
     (split?'<span>Workout / scores</span>'+keuze("verdeling",om.verdeling,[["70","70 / 30","Workout 70 procent van het scherm, scores 30"],["60","60 / 40","Workout 60 procent, scores 40"],["50","50 / 50","Workout en scores even breed"]]):'')+
     (document.documentElement.requestFullscreen?'<span></span><button onclick="volKlik()">'+(document.fullscreenElement?"Volledig scherm uit":"Volledig scherm")+'</button>':'');
