@@ -113,6 +113,10 @@ function crxParse(ruw){
   };
   let beste=null;
   for(let sj=2020;sj<=2027;sj++){const k=metJaren(sj);if(!beste||k.goed>beste.goed)beste=k;}
+  // 20 nov 2026: heeft de PDF ergens ingesprongen resultaten, dan is een blok zonder zulke regels
+  // gewoon niet gelogd. Zonder deze check las de terugval hieronder de laatste regel van het
+  // voorschrift (b.v. "Rest 90 sec. x 3 sets" na een "*"-regel) als score.
+  const PDF_HEEFT_MARKS=ruw.includes(CRX_RES_MARK);
   const STERK=/^(Complete|\d{1,2}:\d{2}(\s*min\.?)?|\d+([.,]\d+)?(\s*(kg|reps|rondes|rounds|cal))?)$/i;
   const uit=beste.uit.map(d=>{
     const blokken=[];const warmup=[];let blok=null;
@@ -129,6 +133,9 @@ function crxParse(ruw){
         // inspringing (zie crxTekstUitPdf), ongeacht de stijl van de coach.
         voorschrift=b.regels.filter(r=>!r.startsWith(CRX_RES_MARK));
         resultaat=b.regels.filter(r=>r.startsWith(CRX_RES_MARK)).map(r=>r.slice(CRX_RES_MARK.length));
+      }else if(PDF_HEEFT_MARKS){
+        // Niet gelogd: alles is voorschrift.
+        voorschrift=[...b.regels];resultaat=[];
       }else{
         // Terugval (PDF zonder bruikbare inspringing): splits op de laatste
         // "*"-instructieregel, anders simpele score-regels van achteren afpellen.
