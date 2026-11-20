@@ -1831,5 +1831,9 @@ i18nLaad({
 "Uitleg of een warming-up als eigen blok: geen letter en geen score":"An explanation or warm-up as its own block: no letter and no score",
 "Titel (bijv. Warming-up of Uitleg)":"Title (e.g. Warm-up or Explanation)",
 "Tekst voor de sporter":"Text for the athlete",
-"Tekstblok: geen letter en geen score. Sleep dit blok naar een andere workout op de kalender":"Text block: no letter and no score. Drag this block to another workout on the calendar"
+"Tekstblok: geen letter en geen score. Sleep dit blok naar een andere workout op de kalender":"Text block: no letter and no score. Drag this block to another workout on the calendar",
+"Maak een keuze":"Make a choice",
+"Zo sta je met je naam in de juiste lijst op het leaderboard.":"This puts you on the leaderboard under your name, in the right list.",
+"Vul je voornaam en achternaam in.":"Enter your first and last name.",
+"Kies bij geslacht een van de opties.":"Choose one of the options for gender."
 });
