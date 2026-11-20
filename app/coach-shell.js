@@ -81,7 +81,7 @@ function cnavItems(){
   if(role!=="coach")n.push(["coaches","Coaches"]);
   // "Meldingen" (verzoek Stefan, 10 aug): notificaties + weekoverzicht per
   // klant op één duidelijke plek, rechts van Berichten.
-  n.push(["blog","Blog"],["week",SHOWDOWN],["msgs","Berichten"],["notifs","Meldingen"],["data","Data"]);
+  n.push(["blog","Blog"],["week",SHOWDOWN],["boards","Leaderboards"],["msgs","Berichten"],["notifs","Meldingen"],["data","Data"]);
   // Alleen voor platform_admin, samen onder één knop "Beheer" (derde element):
   // het AI-coach-testpaneel (coaches zien het bewust nog niet) en Bedrijven
   // (alleen tellingen per bedrijf, AVG; zie fillCompanies).
@@ -241,6 +241,7 @@ function coachRenderSection(){
   if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
   if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());ensureLibModals();libLaad();libLijst();return;}
   if(coachSection==="week"){c.innerHTML=coachShellHtml('<div class="lbwrap"><div class="spin">Laden…</div></div>');fillWeekworkout();return;}
+  if(coachSection==="boards"){c.innerHTML=coachShellHtml('<h1>Leaderboards</h1><div class="spin">Laden…</div>');fillLeaderboards();return;}
   if(coachSection==="blog"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillBlog();return;}
   if(coachSection==="msgs"){c.innerHTML=coachShellHtml('<h1>Berichten</h1><div class="spin">Laden…</div>');fillBerichten();return;}
   if(coachSection==="data"){c.innerHTML=coachShellHtml('<h1>Data</h1><div class="spin">Laden…</div>');fillData();return;}

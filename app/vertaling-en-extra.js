@@ -1186,3 +1186,13 @@ i18nLaad({
   "Leaderboard staat aan": "Leaderboard is on",
   "Dit blok staat op een gedeeld leaderboard. De klant ziet het bord in de app en staat er met zijn score op.": "This block is on a shared leaderboard. The client sees the board in the app and is on it with their score.",
 });
+// Sectie Leaderboards (20 nov 2026)
+i18nLaad({
+  "Alle workouts met een leaderboard onder elkaar: bij 1-op-1 klanten en de YP Showdown. Klik op een workout om het bord te openen.": "Every workout with a leaderboard in one list: for 1-on-1 clients and the YP Showdown. Click a workout to open its board.",
+  "Zoek op workout, beweging of datum…": "Search by workout, movement or date…",
+  "{n} leaderboard": "{n} leaderboard", "{n} leaderboards": "{n} leaderboards",
+  "{n} score": "{n} score", "{n} scores": "{n} scores",
+  "Geen leaderboard gevonden voor deze zoekopdracht.": "No leaderboard found for this search.",
+  "Leaderboards laden mislukt. Ververs de pagina en probeer het opnieuw.": "Loading leaderboards failed. Refresh the page and try again.",
+  "Nog geen leaderboards. Zet bij een klant op een blok \"Leaderboard aanzetten\", of maak een YP Showdown.": "No leaderboards yet. Turn on \"Leaderboard\" on a block at a client, or create a YP Showdown.",
+});
