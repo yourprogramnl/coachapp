@@ -363,7 +363,7 @@ async function bordAan(btn){
     bordAnderen(r.querySelector(".bordmeer"),true);
     return;
   }
-  if(!confirm("Leaderboard aanzetten voor \""+o.exercise+"\"?\n\nDeze klant en iedereen bij wie je deze workout daarna zet delen één leaderboard. Een sporter staat er standaard op en kan dat in de app zelf uitzetten."))return;
+  if(!confirm("Leaderboard aanzetten voor \""+o.exercise+"\"?\n\nDeze klant en iedereen bij wie je deze workout daarna zet delen één leaderboard. Wie een score logt staat erop; uitzetten kan een sporter niet."))return;
   btn.disabled=true;
   const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:todayStr(),title:o.exercise,audience:"bord"}).select("id,title,workout_date,created_at,audience").single();
   if(error||!nw){btn.disabled=false;toast((error&&error.message)||"Leaderboard aanzetten mislukt");return;}

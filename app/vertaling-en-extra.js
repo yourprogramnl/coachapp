@@ -1186,3 +1186,12 @@ i18nLaad({
   "Leaderboard staat aan": "Leaderboard is on",
   "Dit blok staat op een gedeeld leaderboard. De klant ziet het bord in de app en staat er met zijn score op.": "This block is on a shared leaderboard. The client sees the board in the app and is on it with their score.",
 });
+// Een score op een leaderboard is altijd zichtbaar, het vinkje Openbaar is weg (20 nov 2026)
+i18nLaad({
+  "Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Elke score die een lid logt staat erop.": "One shared leaderboard for 1-on-1 clients and free blog members. Every score a member logs is on it.",
+  "Nog geen scores. Zodra leden hun score loggen, verschijnen ze hier.": "No scores yet. Once members log their score, they'll appear here.",
+  "Nog geen scores op deze workout. Zodra volgers loggen, staan ze hier.": "No scores on this workout yet. As soon as followers log, they appear here.",
+  "Je score komt op het leaderboard. Wie deze workout ook doet ziet je score.": "Your score goes on the leaderboard. Everyone who does this workout can see your score.",
+  "De scores staan gesplitst op mannen, vrouwen en Rx of scaled, en zijn gesorteerd op het scoretype dat je koos. Per regel zie je de naam, de score en of iemand {n}-op-{n} klant of blog-lid is. {n} is de fist-bump ('goed gedaan'), {n} zijn de reacties. Elke score die een lid logt staat hier.": "The scores are split by men, women and Rx or scaled, and sorted by the score type you chose. Each row shows the name, the score and whether someone is a {n}-on-{n} client or blog member. {n} is the fist bump ('well done'), {n} are the comments. Every score a member logs appears here.",
+  "Alleen bij de YP Showdown is er een leaderboard; gewone workouts blijven privé tussen jou en je klant. {n} hier logt hij zijn score en kiest hij Rx of scaled. Elke score die hij logt staat op het leaderboard. {n} iedereen kan filteren op Rx of scaled. {n} per score zie je de naam, of iemand {n}-op-{n} klant of blog-volger is, de notitie, en de duimpjes en reacties van anderen.": "Only the YP Showdown has a leaderboard; regular workouts stay private between you and your client. {n} here they log their score and choose Rx or scaled. Every score they log is on the leaderboard. {n} everyone can filter on Rx or scaled. {n} per score you see the name, whether someone is a {n}-on-{n} client or blog follower, the note, and the thumbs-ups and comments from others.",
+});

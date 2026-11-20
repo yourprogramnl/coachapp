@@ -146,7 +146,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"Elke YP Showdown staat als kaart onder elkaar, de nieuwste bovenaan. Met + Nieuwe YP Showdown maak je er een: naam, de workout-tekst met Rx en scaled, en het scoretype (tijd, rondes plus reps, reps, gewicht of vrije tekst). Hij staat direct live. Met de deel-link stuur je hem naar je leden."},
       {titel:"Het leaderboard lezen",
        img:"img/help/week-02-leaderboard.png",
-       tekst:"De scores staan gesplitst op mannen, vrouwen en Rx of scaled, en zijn gesorteerd op het scoretype dat je koos. Per regel zie je de naam, de score en of iemand 1-op-1 klant of blog-lid is. 3 is de fist-bump ('goed gedaan'), 4 zijn de reacties. Alleen scores die een lid zelf op openbaar zet komen hier; privé-scores ziet alleen zijn eigen coach."},
+       tekst:"De scores staan gesplitst op mannen, vrouwen en Rx of scaled, en zijn gesorteerd op het scoretype dat je koos. Per regel zie je de naam, de score en of iemand 1-op-1 klant of blog-lid is. 3 is de fist-bump ('goed gedaan'), 4 zijn de reacties. Elke score die een lid logt staat hier."},
     ],
   },
   {
@@ -203,7 +203,7 @@ const HELP_HOOFDSTUKKEN=[
        tekst:"Na Start workout gaat hij per onderdeel door de dag heen, met bovenin de teller (hier 2 van 5). 1 het invoerveld staat al goed: hier vraagt de app om een gewicht, bij een metcon om rondes of een tijd. 2 met + Notitie schrijft hij erbij hoe het ging. 3 Opslaan zet het onderdeel op voltooid. 4 niet gedaan? Dan Gemist, zodat jij het ziet in plaats van dat de dag leeg blijft. Boven het veld zitten nog Demo-video, Historie (wat deed ik vorige keer) en % voor een percentage van zijn 1RM."},
       {titel:"De YP Showdown en het leaderboard",
        img:"img/help/app-03-weekworkout.png",telefoon:true,
-       tekst:"Alleen bij de YP Showdown is er een leaderboard; gewone workouts blijven privé tussen jou en je klant. 1 hier logt hij zijn score, kiest hij Rx of scaled, en zet hij zelf of de score openbaar mag. Privé betekent: alleen jij en hij zien hem. 2 iedereen kan filteren op Rx of scaled. 3 per score zie je de naam, of iemand 1-op-1 klant of blog-volger is, de notitie, en de duimpjes en reacties van anderen."},
+       tekst:"Alleen bij de YP Showdown is er een leaderboard; gewone workouts blijven privé tussen jou en je klant. 1 hier logt hij zijn score en kiest hij Rx of scaled. Elke score die hij logt staat op het leaderboard. 2 iedereen kan filteren op Rx of scaled. 3 per score zie je de naam, of iemand 1-op-1 klant of blog-volger is, de notitie, en de duimpjes en reacties van anderen."},
       {titel:"Chat met jou",
        img:"img/help/app-04-chat.png",telefoon:true,
        tekst:"1 dit is precies dezelfde chat als bij Berichten in je dashboard: wat jij daar typt, komt hier binnen. Boven het gesprek staat jouw naam en je profielfoto, dus zet die in Instellingen goed. Je klant ziet direct wie hem antwoordt."},
