@@ -567,6 +567,7 @@ type Bestelling = {
   taal: Taal; accent: string; logoUrl: string | null; bedrijfsNaam: string; voornaam: string; naar: string;
   programma: string; prijs: string | null; interval: string; besteldOp: string; bedenkTot: string; orderId: string;
   account: string | null; voorwaardenHtml: string | null; versie: string; toegang: string | null;
+  eersteBetaling?: string | null; // overstaplink: bij het bestellen is niets afgeschreven, de eerste afschrijving is op deze dag
 };
 function bestellingHtml(o: Bestelling): string {
   const a = o.accent, en = o.taal === "en";
@@ -594,7 +595,9 @@ function bestellingHtml(o: Bestelling): string {
     ? rij("Programme", wit(o.programma)) +
       (o.toegang ? rij("Access", `${wit(o.toegang)}, plus programmes added later`) : "") +
       (o.prijs ? rij("Price", `${wit(o.prijs + " per " + periode)}, including VAT`) : "") +
-      rij("Payment", `You pay the first ${periode} when ordering. After that our payment partner Stripe collects the amount automatically every ${periode}.`) +
+      rij("Payment", o.eersteBetaling
+        ? `Nothing was charged when you ordered. The first ${periode} is collected on ${wit(o.eersteBetaling)}; after that our payment partner Stripe collects the amount automatically every ${periode}. If you used iDEAL you saw a check payment of €0.01, which was refunded straight away.`
+        : `You pay the first ${periode} when ordering. After that our payment partner Stripe collects the amount automatically every ${periode}.`) +
       rij("Term", `Per ${periode}, renews automatically. No minimum term.`) +
       rij("Cancelling", `Any time, in the app under Profile &gt; My subscription. The notice period is one month: your subscription ends exactly one month after you cancel, and the last month is charged pro rata.`) +
       rij("Ordered on", esc(o.besteldOp)) +
@@ -602,13 +605,19 @@ function bestellingHtml(o: Bestelling): string {
     : rij("Programma", wit(o.programma)) +
       (o.toegang ? rij("Toegang", `${wit(o.toegang)}, en programma's die er later bijkomen`) : "") +
       (o.prijs ? rij("Prijs", `${wit(o.prijs + " per " + periode)}, inclusief btw`) : "") +
-      rij("Betaling", `De eerste ${periode} betaal je bij het bestellen. Daarna schrijft onze betaalpartner Stripe het bedrag elke ${periode} automatisch af.`) +
+      rij("Betaling", o.eersteBetaling
+        ? `Bij het bestellen is er niets afgeschreven. De eerste ${periode} wordt op ${wit(o.eersteBetaling)} afgeschreven; daarna schrijft onze betaalpartner Stripe het bedrag elke ${periode} automatisch af. Koos je iDEAL, dan zag je een controlebetaling van €0,01. Die is meteen teruggestort.`
+        : `De eerste ${periode} betaal je bij het bestellen. Daarna schrijft onze betaalpartner Stripe het bedrag elke ${periode} automatisch af.`) +
       rij("Looptijd", `Per ${periode}, verlengt automatisch. Geen minimale looptijd.`) +
       rij("Opzeggen", `Kan altijd, in de app onder Profiel &gt; Mijn abonnement. De opzegtermijn is één maand: je abonnement stopt precies een maand na je opzegging. De laatste maand betaal je naar rato.`) +
       rij("Besteld op", esc(o.besteldOp)) +
       rij("Bestelnummer", `<span style="color:#8a919c;font-size:12px">${esc(o.orderId)}</span>`);
 
-  const bedenktijd = en
+  const bedenktijd = o.eersteBetaling
+    ? (en
+      ? `You can withdraw without giving a reason up to and including ${wit(o.bedenkTot)}. When ordering you asked us to start right away. If you withdraw, your subscription stops immediately. If nothing has been charged yet, you pay nothing. If the first payment has already been collected, you only pay for the days since then and the rest is refunded within 14 days. Withdraw in the app under Profile &gt; My subscription (button Withdraw), or send an email to ${mailAdres}. At the bottom of this email is a form you can use for that, but a clear message is enough.`
+      : `Je kunt tot en met ${wit(o.bedenkTot)} zonder opgave van reden herroepen. Je hebt bij het bestellen gevraagd om direct te starten. Herroep je, dan stopt je abonnement meteen. Is er dan nog niets afgeschreven, dan betaal je niets. Is de eerste betaling al afgeschreven, dan betaal je alleen voor de dagen sinds die betaling en krijg je de rest binnen 14 dagen terug. Herroepen doe je in de app onder Profiel &gt; Mijn abonnement (knop Herroepen), of met een mail aan ${mailAdres}. Onderaan deze mail staat een formulier dat je daarvoor kunt gebruiken, maar een duidelijke boodschap is genoeg.`)
+    : en
     ? `You can withdraw without giving a reason up to and including ${wit(o.bedenkTot)}. When ordering you asked us to start right away. If you withdraw, your subscription stops immediately, you only pay for the days you had access and the rest of your first payment is refunded within 14 days. Withdraw in the app under Profile &gt; My subscription (button Withdraw), or send an email to ${mailAdres}. At the bottom of this email is a form you can use for that, but a clear message is enough.`
     : `Je kunt tot en met ${wit(o.bedenkTot)} zonder opgave van reden herroepen. Je hebt bij het bestellen gevraagd om direct te starten. Herroep je, dan stopt je abonnement meteen, betaal je alleen voor de dagen dat je toegang had en krijg je de rest van je eerste betaling binnen 14 dagen terug. Herroepen doe je in de app onder Profiel &gt; Mijn abonnement (knop Herroepen), of met een mail aan ${mailAdres}. Onderaan deze mail staat een formulier dat je daarvoor kunt gebruiken, maar een duidelijke boodschap is genoeg.`;
 
@@ -724,7 +733,7 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const naar = rij.recipient_email as string;
     if (!naar) { await klaar({ status: "skipped", last_error: "geen e-mailadres" }); return "skipped"; }
     const { data: o } = await db.from("shop_orders")
-      .select("id,status,blog_program_id,company_id,profile_id,account_state,terms_version,terms_accepted_at,created_at")
+      .select("id,status,blog_program_id,company_id,profile_id,account_state,terms_version,terms_accepted_at,created_at,eerste_betaling")
       .eq("id", payload.order_id as string).maybeSingle();
     if (!o) { await klaar({ status: "skipped", last_error: "bestelling niet gevonden" }); return "skipped"; }
     const pogingenB = (rij.attempts as number) || 0;
@@ -761,11 +770,15 @@ async function verwerkRij(rij: Record<string, unknown>): Promise<string> {
     const besteldOp = start.toLocaleString(locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: TZ });
     const bedenkTot = eindeBedenktijd(start).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: TZ });
     const bedrijfsNaamB = bedrijfB?.name || BEDRIJF.handelsnaam;
+    // Overstaplink: de eerste afschrijving volgt later dan de bestelling.
+    const eersteB = o.eerste_betaling ? new Date(String(o.eerste_betaling)) : null;
+    const eersteBetaling = eersteB && eersteB.getTime() > start.getTime()
+      ? eersteB.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: TZ }) : null;
     const html = bestellingHtml({
       taal: taalB, accent: accentVan(bedrijfB?.theme), logoUrl: bedrijfB?.logo_url || null, bedrijfsNaam: bedrijfsNaamB,
       voornaam: prof?.first_name || "", naar, programma, prijs, interval: prog?.price_interval || "month",
       besteldOp, bedenkTot, orderId: o.id, account: o.account_state || null,
-      voorwaardenHtml: vw?.html || null, versie: (o.terms_version as string) || vw?.versie || "", toegang,
+      voorwaardenHtml: vw?.html || null, versie: (o.terms_version as string) || vw?.versie || "", toegang, eersteBetaling,
     });
     const onderwerpB = enB ? `Order confirmation: ${programma}` : `Bevestiging van je bestelling: ${programma}`;
     const rB = await verstuur(naar, bedrijfsNaamB, onderwerpB, html, ingevuld(BEDRIJF.email) ? BEDRIJF.email : undefined);
