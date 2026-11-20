@@ -22,6 +22,12 @@ function pwProbleem(pw){
   if(!/[0-9]/.test(pw))return "Het wachtwoord moet minstens één cijfer bevatten.";
   return "";
 }
+// De inlogdienst weigert wachtwoorden die in lijsten met gelekte of veelgebruikte wachtwoorden staan
+// en zegt dat in het Engels. Wij zeggen het in gewone taal, met wat wel werkt.
+function authFoutTekst(t){
+  if(/known to be weak|easy to guess|pwned|weak_password/i.test(String(t||"")))return "Dit wachtwoord wordt te vaak gebruikt en is makkelijk te raden. Kies een ander wachtwoord, bijvoorbeeld drie losse woorden met een cijfer erbij.";
+  return t;
+}
 let inviteRol="";
 // Nieuwe uitnodigingsflow: het account is al door de coach aangemaakt en de
 // klant hoeft alleen nog een wachtwoord te kiezen (invite-account Edge Function).
@@ -143,7 +149,7 @@ async function submitAuth(){
       return;
     }
     await loadApp();
-  }catch(e){setMsg(e.message||"Er ging iets mis.","err");}
+  }catch(e){setMsg(authFoutTekst(e.message)||"Er ging iets mis.","err");}
   document.getElementById("go").disabled=false;
 }
 
