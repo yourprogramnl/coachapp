@@ -22,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.9 (lezen en concepten schrijven)";
+  const VERSIE="2.10 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -482,7 +482,7 @@ const ClaudeApi=(()=>{
   const tplSoort=t=>t.type==="dag"?"dag":"week";
   async function templateOphalen(id){
     if(!isUuid(id))return {fout:"Geef het id van de template (uit ClaudeApi.templates)."};
-    const{data,error}=await db.from("program_templates").select("id,name,type,description,company_id").eq("id",id).maybeSingle();
+    const{data,error}=await db.from("program_templates").select("id,name,type,description,company_id,weeks,sync_changes").eq("id",id).maybeSingle();
     if(error)return {fout:error.message};
     if(!data||data.company_id!==ME.profile.company_id)return {fout:"Geen template gevonden met dit id."};
     return {t:data};
@@ -505,6 +505,43 @@ const ClaudeApi=(()=>{
       demo_videos_warming_up:titels(pw.warmup_media),demo_videos_cooldown:titels(pw.cooldown_media),
       demo_video_ids_warming_up:videoIds(pw.warmup_media),demo_video_ids_cooldown:videoIds(pw.cooldown_media),blokken:tplBlokRijen(pw).map(blokUit)});
   }
+  // ---------- Template week en dag schrijven ----------
+  const MAX_TPL_PER_DAG=4,MAX_TPL_WORKOUTS=21;
+  const TPL_GEEN_RECHT="Je hebt geen rechten om deze template te wijzigen. Vraag een beheerder.";
+  const rlsFout=m=>/row-level security/i.test(String(m||""))?TPL_GEEN_RECHT:m;
+  // Wie mag een template wijzigen: beheerders, en coaches die bij de template als bewerker staan.
+  // De database bewaakt dat zelf ook; hier vangen we het af met een duidelijke melding.
+  async function templateSchrijfbaar(id){
+    const t=await templateOphalen(id);if(t.fout)return t;
+    if(!["platform_admin","eigenaar"].includes(ME.profile.role)){
+      const{data,error}=await db.from("program_editors").select("id").eq("program_id",t.t.id).eq("profile_id",ME.user.id).limit(1);
+      if(error)return {fout:error.message};
+      if(!(data||[]).length)return {fout:TPL_GEEN_RECHT};
+    }
+    const{data:asg,error:ae}=await db.from("program_assignments").select("id").eq("program_id",t.t.id);
+    if(ae)return {fout:ae.message};
+    t.toegewezen=(asg||[]).length;
+    return t;
+  }
+  // Een workout voor een template is een workout zonder datum; de rest van de controle is gelijk.
+  function templateWorkoutLees(w,waar,fouten){
+    if(!isObject(w)){fouten.push(waar+": een workout moet een object zijn.");return null;}
+    const kopie=Object.assign({},w,{datum:iso(new Date())});
+    const bord=b=>isObject(b)&&(b.uit_weekworkout||b.leaderboard_workout);
+    if(Array.isArray(w.blokken)&&w.blokken.some(bord)){
+      fouten.push(waar+": een YP Showdown of leaderboard-workout zet je niet via de koppeling in een template. Laat dat blok weg; de coach plaatst het zelf in de Template builder.");
+      kopie.blokken=w.blokken.filter(b=>!bord(b));
+    }
+    return workoutLees(kopie,waar,fouten,{});
+  }
+  async function templateWeekTerug(pid,week){
+    const rijen=await haalAlles(()=>db.from("program_workouts").select("*, program_blocks(*)").eq("program_id",pid).eq("week",week).order("day").order("sort").order("id"));
+    const dagen={};
+    rijen.forEach(pw=>{(dagen[pw.day]=dagen[pw.day]||[]).push(tplWorkoutUit(pw));});
+    return Object.keys(dagen).map(Number).sort((x,y)=>x-y).map(d=>({dag:d,dagnaam:TPLDAG[d-1],workouts:dagen[d]}));
+  }
+  // Staat de bibliotheek open, dan laden we de lijst met templates opnieuw.
+  function tplVerversen(){try{if(typeof programLaad==="function"){const r=programLaad();if(r&&r.catch)r.catch(()=>{});}}catch(e){}}
   // Blokrij voor een kopie (uit een week van de atleet of uit een template): alles gaat mee zoals het er staat.
   const kopieBlok=b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,
     score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,
@@ -545,6 +582,7 @@ const ClaudeApi=(()=>{
           "Een geschaalde versie voor één atleet (bijvoorbeeld ring rows in plaats van pull-ups) maak je met ClaudeApi.schaalBlok, bij een leaderboard-workout en bij een ingevoegde YP Showdown. Alleen het blok van die atleet verandert; hij staat dan onder Scaled op het gedeelde leaderboard. Doe dit alleen als de coach erom vraagt en zeg vooraf wat je aanpast.",
           "Een leaderboard aanzetten (ClaudeApi.leaderboardAan) maakt scores van atleten zichtbaar voor elkaar. Doe dat alleen als de coach er uitdrukkelijk om vraagt.",
           "Een Template week of dag kan een YP Showdown of leaderboard-workout bevatten (uit_weekworkout of leaderboard_workout bij het blok in templateWeek). kopieerTemplate zet dat blok bij de atleet met zijn gedeelde leaderboard, precies zoals het in de template staat.",
+          "Templates (Template week en Template dag) zijn van het hele bedrijf en hebben geen conceptstatus: wat je schrijft staat er meteen voor alle coaches. Maak of overschrijf een template alleen als de coach erom vraagt, zeg vooraf welke template en welke week, en overschrijf (met {overschrijf:true}) alleen dagen die je eerst met templateWeek hebt gelezen. Een atleet ziet een template niet; pas met kopieerTemplate komt er een concept bij een atleet. Een YP Showdown of leaderboard-workout zet je niet zelf in een template.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
           "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd. Staat er verouderd:true, dan is er een nieuwere versie live: voer location.reload() uit en begin opnieuw. Naar hetzelfde adres navigeren herlaadt de pagina niet.",
           "Zoek een atleet altijd eerst op met ClaudeApi.atleten(...) en gebruik daarna zijn id. Elk antwoord noemt de atleet bij naam: controleer die naam.",
@@ -577,6 +615,10 @@ const ClaudeApi=(()=>{
           "ClaudeApi.schrijfConcept(atleetId, workouts, opties)":"Zet één of meer workouts als concept klaar (maximaal "+MAX_WORKOUTS+" per keer, dus een hele week in één keer). workouts = lijst in de vorm van het voorbeeld hieronder. opties (optioneel): {toch:true} als er op die dag al een concept met dezelfde titel staat en je er bewust een naast wilt; {verleden:true} voor een datum in het verleden; {videos:\"geen\"} om geen demo-video's te laten kiezen.",
           "ClaudeApi.kopieerWeek(atleetId, vanDatum, naarDatum, opties)":"Kopieert alle 1-op-1 workouts uit de week van vanDatum naar de week van naarDatum, op dezelfde weekdagen, als concept. Resultaten en reacties gaan niet mee, demo-video's wel. Daarna pas je met wijzigBlok alleen aan wat verandert. opties (optioneel): {showdown:true} zet de YP Showdown van de doelweek op de plek waar hij in de bronweek stond (zonder die optie wordt hij overgeslagen en gemeld); {videos:\"aanvullen\"} voegt ontbrekende demo-video's toe, {videos:\"auto\"} kiest ze allemaal opnieuw.",
           "ClaudeApi.kopieerTemplate(atleetId, templateId, week, datum, opties)":"Zet een week uit een Template week bij de atleet als concept: dag 1 op de maandag van de week van datum. Met {dag:n} alleen die ene templatedag, precies op datum. Alles gaat mee zoals het in de template staat, ook de demo-video's. Het is een losse kopie zonder koppeling met de template. Zelfde opties voor videos als kopieerWeek.",
+          "ClaudeApi.maakTemplate(naam, opties)":"Maakt een lege Template week (standaard) of Template dag aan. opties (optioneel): {soort:\"dag\"}, {omschrijving:\"...\"}, {toch:true} als er al een template met die naam is en je er bewust een tweede naast wilt. Geeft het id terug.",
+          "ClaudeApi.schrijfTemplateWeek(templateId, week, dagen, opties)":"Zet dagen in één week van een template. dagen = lijst in de vorm van template_voorbeeld: per dag (1 = maandag) een lijst workouts, elk zoals een workout in schrijfConcept maar zonder datum. Dagen die je niet noemt blijven staan. Staat er op een dag al iets, dan gebeurt er niets, tenzij je {overschrijf:true} meegeeft: die dagen worden dan vervangen (een dag met workouts:[] wordt leeg). Wat templateWeek teruggeeft kun je zo weer meegeven. week mag een bestaande week zijn of de eerstvolgende nieuwe.",
+          "ClaudeApi.wijzigTemplate(templateId, velden)":"Past de naam of de omschrijving van een template aan: {naam:\"...\"} en/of {omschrijving:\"...\"}.",
+          "ClaudeApi.verwijderTemplate(templateId, opties)":"Verwijdert een hele template met alle weken. Kan niet worden teruggedraaid. Alleen op uitdrukkelijk verzoek van de coach, met ter controle de exacte naam: {naam:\"...\"}. Een template die aan een klant is toegewezen kun je niet verwijderen.",
           "ClaudeApi.plaatsShowdown(atleetId, datum, opties)":"Zet de YP Showdown van de week van datum als concept bij de atleet, op datum. De tekst komt letterlijk uit de weekworkout; je kunt hem niet meegeven of wijzigen. Staat de Showdown van die week nog niet in de app, dan krijg je een melding en gebeurt er niets. Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
           "ClaudeApi.plaatsLeaderboardWorkout(atleetId, leaderboardWorkoutId, datum, opties)":"Zet een bestaande leaderboard-workout als concept bij de atleet, op datum. De tekst komt letterlijk uit de leaderboard-workout. Staat hij die week al bij de atleet, dan gebeurt er niets (met {toch:true} toch). Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
           "ClaudeApi.schaalBlok(blokId, tekst, opties)":"Maakt van een ingevoegde YP Showdown of leaderboard-workout een geschaalde versie voor deze ene atleet: het blok krijgt de tekst die je meegeeft en het vinkje Scaled-versie, zodat de atleet onder Scaled op het gedeelde leaderboard staat. De workout zelf verandert niet. Met {terug:true} (tekst mag dan leeg) komt de oorspronkelijke tekst terug en gaat het vinkje uit. Bij een zichtbare workout alleen met {zichtbaar:true}.",
@@ -624,6 +666,17 @@ const ClaudeApi=(()=>{
                 {soort:"conditioning",naam:"AMRAP 12",omschrijving:"12 Wall Balls\n9 Toes to Bar\n6 Burpee Box Jump Overs",scoretype:"rounds_reps",kleur:"blue"}
               ]},
             {datum:"2026-11-24",rustdag:true}
+          ]
+        },
+        template_voorbeeld:{
+          aanroep:"const t = await ClaudeApi.maakTemplate(\"Testweek kracht\"); await ClaudeApi.schrijfTemplateWeek(t.template.id, 1, dagen)",
+          dagen:[
+            {dag:1,workouts:[
+              {titel:"Sessie 1: back squat tester",warming_up:"3 rounds:\n10 Air Squats\n10 Banded Good Mornings",
+                blokken:[{naam:"Back Squat",voorschrift:"Build to 1RM; rest 3 min.",scoretype:"load",kleur:"orange"}]},
+              {titel:"Sessie 2 (optioneel)",blokken:[{soort:"conditioning",naam:"Easy flush",omschrijving:"20 min Air Bike @ praattempo",kleur:"blue"}]}
+            ]},
+            {dag:2,workouts:[{rustdag:true}]}
           ]
         },
         scoretypes,kleuren};
@@ -1120,6 +1173,142 @@ const ClaudeApi=(()=>{
         uit.push({week:w,dagen:Object.keys(dagen).map(Number).sort((x,y)=>x-y).map(d=>({dag:d,dagnaam:TPLDAG[d-1],workouts:dagen[d]}))});
       }
       return {ok:true,template:kop,let_op:"Dag 1 is maandag. Een template is geen programma van een atleet: zet hem bij een atleet met ClaudeApi.kopieerTemplate.",weken:uit};
+    }),
+
+    maakTemplate:veilig(async(naamT,opties)=>{
+      opties=isObject(opties)?opties:{};
+      const fouten=[];
+      const name=tekstVeld({naam:naamT},"naam",120,"template",fouten);
+      const description=tekstVeld(opties,"omschrijving",2000,"template",fouten);
+      const soort=leeg(opties.soort)?"week":opties.soort;
+      if(soort!=="week"&&soort!=="dag")fouten.push("template: soort moet week of dag zijn.");
+      if(!name)fouten.push("template: naam ontbreekt.");
+      if(fouten.length)return {ok:false,fout:"Er is niets gemaakt. Los dit eerst op.",fouten};
+      const{data:al,error:e1}=await db.from("program_templates").select("id,name").eq("company_id",ME.profile.company_id);
+      if(e1)return fout(e1.message);
+      const zelfde=(al||[]).filter(t=>(t.name||"").trim().toLowerCase()===name.toLowerCase());
+      if(zelfde.length&&opties.toch!==true)return fout("Er is niets gemaakt. Er bestaat al een template met de naam \""+name+"\" (id "+zelfde[0].id+"). Schrijf daarin met ClaudeApi.schrijfTemplateWeek, of geef {toch:true} mee als je er bewust een tweede naast wilt.");
+      const{data,error}=await db.from("program_templates").insert({company_id:ME.profile.company_id,created_by:ME.user.id,name,description,type:soort==="dag"?"dag":"standard",weeks:1}).select("id,name,type,description").single();
+      if(error)return fout(rlsFout(error.message));
+      tplVerversen();
+      return {ok:true,template:schoon({id:data.id,naam:data.name,soort:tplSoort(data),omschrijving:data.description}),
+        uitleg:"De template is leeg. Vul hem met ClaudeApi.schrijfTemplateWeek(id, 1, dagen)."};
+    }),
+
+    wijzigTemplate:veilig(async(templateId,velden)=>{
+      const t=await templateSchrijfbaar(templateId);if(t.fout)return fout(t.fout);
+      const mag=["naam","omschrijving"];
+      if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef de velden die veranderen: naam, omschrijving.");
+      const onbekend=Object.keys(velden).filter(k=>!mag.includes(k));
+      if(onbekend.length)return fout("Onbekend veld: "+onbekend.join(", ")+". Toegestaan: "+mag.join(", ")+". De dagen wijzig je met ClaudeApi.schrijfTemplateWeek.");
+      const fouten=[],upd={};
+      if("naam" in velden){const n=tekstVeld(velden,"naam",120,"template",fouten);if(!n)fouten.push("template: naam mag niet leeg zijn.");else upd.name=n;}
+      if("omschrijving" in velden)upd.description=tekstVeld(velden,"omschrijving",2000,"template",fouten);
+      if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
+      const{data,error}=await db.from("program_templates").update(upd).eq("id",t.t.id).select("id,name,type,description");
+      if(error)return fout(rlsFout(error.message));
+      if(!(data||[]).length)return fout(TPL_GEEN_RECHT);
+      tplVerversen();
+      return {ok:true,gewijzigd:Object.keys(velden).join(", "),template:schoon({id:data[0].id,naam:data[0].name,soort:tplSoort(data[0]),omschrijving:data[0].description})};
+    }),
+
+    schrijfTemplateWeek:veilig(async(templateId,week,dagen,opties)=>{
+      opties=isObject(opties)?opties:{};
+      const t=await templateSchrijfbaar(templateId);if(t.fout)return fout(t.fout);
+      const kop={id:t.t.id,naam:t.t.name,soort:tplSoort(t.t)};
+      const weken=Math.max(1,t.t.weeks||1);
+      week=Number(week);
+      if(!Number.isInteger(week)||week<1)return fout("week moet een heel getal vanaf 1 zijn.");
+      if(tplSoort(t.t)==="dag"&&week!==1)return fout("Een Template dag heeft alleen week 1.");
+      if(week>weken+1)return fout("Deze template heeft "+weken+(weken===1?" week":" weken")+". Je kunt een bestaande week schrijven of week "+(weken+1)+" erbij zetten, geen week overslaan.");
+      if(isObject(dagen))dagen=[dagen];
+      if(!Array.isArray(dagen)||!dagen.length)return fout("Geef een lijst dagen in de vorm [{dag:1, workouts:[...]}]. Zie template_voorbeeld in ClaudeApi.hulp().");
+      const fouten=[],gelezen=[],gezien=new Set();
+      dagen.forEach((d,i)=>{
+        if(!isObject(d)){fouten.push("dag "+(i+1)+": een dag moet een object zijn: {dag:1, workouts:[...]}.");return;}
+        const dag=Number(d.dag),waar=Number.isInteger(dag)&&dag>=1&&dag<=7?TPLDAG[dag-1]+" (dag "+dag+")":"dag "+(i+1);
+        const onbekend=Object.keys(d).filter(k=>!["dag","dagnaam","workouts"].includes(k));
+        if(onbekend.length)fouten.push(waar+": onbekend veld "+onbekend.join(", ")+". Een dag heeft dag en workouts; titel en blokken horen in een workout.");
+        if(!Number.isInteger(dag)||dag<1||dag>7){fouten.push(waar+": dag moet 1 t/m 7 zijn (1 = maandag).");return;}
+        if(gezien.has(dag)){fouten.push(waar+": deze dag staat twee keer in de lijst. Zet meer sessies op één dag in dezelfde workouts-lijst.");return;}
+        gezien.add(dag);
+        let ws=d.workouts;
+        if(leeg(ws))ws=[];
+        if(isObject(ws))ws=[ws];
+        if(!Array.isArray(ws)){fouten.push(waar+": workouts moet een lijst zijn.");return;}
+        if(ws.length>MAX_TPL_PER_DAG)fouten.push(waar+": maximaal "+MAX_TPL_PER_DAG+" workouts op één dag.");
+        gelezen.push({dag,waar,normen:ws.map((w,j)=>templateWorkoutLees(w,waar+(ws.length>1?", workout "+(j+1):""),fouten)).filter(Boolean)});
+      });
+      if(gelezen.reduce((n,g)=>n+g.normen.length,0)>MAX_TPL_WORKOUTS)fouten.push("Maximaal "+MAX_TPL_WORKOUTS+" workouts per keer.");
+      if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
+      // Wat staat er al in deze week?
+      const bestaand=await haalAlles(()=>db.from("program_workouts").select("id,day,title,sort, program_blocks(id,source_blog_workout_id)").eq("program_id",t.t.id).eq("week",week).order("id"));
+      const opDag=d=>bestaand.filter(b=>b.day===d);
+      const bezet=gelezen.filter(g=>opDag(g.dag).length);
+      if(bezet.length&&opties.overschrijf!==true)return fout("Er is niets geschreven. In week "+week+" van \""+t.t.name+"\" staat al iets op "+bezet.map(g=>TPLDAG[g.dag-1]+" ("+opDag(g.dag).map(b=>"\""+(b.title||"zonder titel")+"\"").join(", ")+")").join(", ")+". Lees de week met ClaudeApi.templateWeek. Wil je die dagen vervangen, geef dan {overschrijf:true} mee: wat er op die dagen staat gaat dan weg.");
+      const bord=bezet.filter(g=>opDag(g.dag).some(b=>(b.program_blocks||[]).some(x=>x.source_blog_workout_id)));
+      if(bord.length)return fout("Er is niets geschreven. Op "+bord.map(g=>TPLDAG[g.dag-1]).join(", ")+" staat een YP Showdown of leaderboard-workout in de template. Die dag vervang je niet via de koppeling; laat hem aan de coach.");
+      if(!gelezen.some(g=>g.normen.length)&&!bezet.length)return fout("Er valt niets te schrijven: de dagen zijn leeg en er stond nog niets.");
+      const indexOk=await videosKlaar();
+      const rijen=[];
+      gelezen.forEach(g=>g.normen.forEach((w,j)=>{
+        const waar=g.waar+(g.normen.length>1?", workout "+(j+1):"");
+        letters(w.blokken);
+        w.blokken.forEach((n,k)=>{n.media=mediaKies(n.videos,blokBron(n),undefined,true,waar+", blok "+(k+1),fouten,indexOk);});
+        rijen.push({workout:{program_id:t.t.id,company_id:ME.profile.company_id,week,day:g.dag,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+            warmup_media:w.warmup?mediaKies(w.videosWu===undefined?w.videos:w.videosWu,w.warmup,undefined,true,waar+", videos_warming_up",fouten,indexOk):null,
+            cooldown_media:w.cooldown?mediaKies(w.videosCd===undefined?w.videos:w.videosCd,w.cooldown,undefined,true,waar+", videos_cooldown",fouten,indexOk):null,sort:j+1},
+          blokken:w.blokken.map(n=>blokRij(n,null))});
+      }));
+      if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
+      // Eerst het nieuwe neerzetten, dan pas het oude weghalen: gaat er iets mis, dan staat het oude er nog.
+      const nieuw=[];
+      const opruimen=async()=>{if(nieuw.length)try{await db.from("program_workouts").delete().in("id",nieuw);}catch(e){}};
+      try{
+        for(const r of rijen){
+          const{data,error}=await db.from("program_workouts").insert(r.workout).select("id").single();
+          if(error)throw new Error(rlsFout(error.message));
+          nieuw.push(data.id);
+          for(const deel of stukken(r.blokken.map(b=>Object.assign({program_workout_id:data.id,company_id:ME.profile.company_id},b)),200)){
+            const{error:be}=await db.from("program_blocks").insert(deel);
+            if(be)throw new Error(rlsFout(be.message));
+          }
+        }
+      }catch(e){
+        await opruimen();
+        return fout("Er is niets gewijzigd: "+(e&&e.message||"onbekende fout")+".");
+      }
+      const let_op=["Dit is een template: een atleet ziet er niets van tot hij wordt toegewezen of je ClaudeApi.kopieerTemplate gebruikt."];
+      const oud=bezet.reduce((u,g)=>u.concat(opDag(g.dag).map(b=>b.id)),[]);
+      if(oud.length){
+        // Lukt het weghalen van het oude niet, dan halen we het nieuwe weer weg: liever niets gewijzigd dan dubbel.
+        const{data:weg,error}=await db.from("program_workouts").delete().in("id",oud).select("id");
+        if(error||(weg||[]).length!==oud.length){
+          if(!(weg||[]).length){await opruimen();return fout("Er is niets gewijzigd: de oude dagen konden niet worden weggehaald"+(error?" ("+rlsFout(error.message)+")":"")+".");}
+          let_op.push("Niet alle oude workouts op deze dagen konden worden weggehaald. Lees de week na met ClaudeApi.templateWeek en meld het aan de coach.");
+        }
+      }
+      // Vanaf hier staat het nieuwe er. Wat nu nog misgaat is een melding, geen reden om iets terug te draaien.
+      if(week>weken){const{error}=await db.from("program_templates").update({weeks:week}).eq("id",t.t.id);if(error)let_op.push("Het aantal weken van de template kon niet worden bijgewerkt ("+rlsFout(error.message)+"). Meld dat aan de coach.");}
+      let terug=null;
+      try{terug=await templateWeekTerug(t.t.id,week);}catch(e){let_op.push("De week is geschreven, maar teruglezen lukte niet. Lees hem met ClaudeApi.templateWeek.");}
+      tplVerversen();
+      if(!indexOk)let_op.push("De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen.");
+      if(t.t.sync_changes&&t.toegewezen)let_op.push("Bij deze template staat Doorzetten aan en hij is aan "+t.toegewezen+(t.toegewezen===1?" klant":" klanten")+" toegewezen. Deze wijziging is NIET doorgezet naar hun kalender. Meld dat aan de coach; hij zet door in de Template builder.");
+      return schoon({ok:true,template:kop,week,geschreven:rijen.length,vervangen:oud.length||null,let_op,dagen:terug});
+    }),
+
+    verwijderTemplate:veilig(async(templateId,opties)=>{
+      opties=isObject(opties)?opties:{};
+      const t=await templateSchrijfbaar(templateId);if(t.fout)return fout(t.fout);
+      if(typeof opties.naam!=="string"||opties.naam.trim()!==(t.t.name||"").trim())return fout("Er is niets verwijderd. Geef ter controle de exacte naam van de template mee: {naam:\"...\"}. Die staat in ClaudeApi.templates.");
+      if(t.toegewezen)return fout("Er is niets verwijderd. Deze template is aan "+t.toegewezen+(t.toegewezen===1?" klant":" klanten")+" toegewezen. Verwijderen kan alleen de coach zelf, in de app.");
+      const rijen=await haalAlles(()=>db.from("program_workouts").select("id,week,day, program_blocks(id,source_blog_workout_id)").eq("program_id",t.t.id).order("id"));
+      const{data,error}=await db.from("program_templates").delete().eq("id",t.t.id).select("id");
+      if(error)return fout(rlsFout(error.message));
+      if(!(data||[]).length)return fout(TPL_GEEN_RECHT);
+      tplVerversen();
+      return {ok:true,verwijderd:{naam:t.t.name,soort:tplSoort(t.t),weken:rijen.reduce((m,r)=>Math.max(m,r.week||0),0),workouts:rijen.length,blokken:rijen.reduce((n,r)=>n+(r.program_blocks||[]).length,0)}};
     }),
 
     kopieerTemplate:veilig(async(atleetId,templateId,week,datum,opties)=>{
