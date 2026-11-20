@@ -1232,6 +1232,7 @@ i18nLaad({
   "Bij {n} klant staat hij deze week al.": "{n} client already has it this week.",
   "Bij {n} klanten staat hij deze week al.": "{n} clients already have it this week.",
   "Let op: {n} daarvan van een andere coach.": "Note: {n} of them belong to another coach.",
+  "Vooraf aangevinkt: wie de Showdown de afgelopen vier weken ook kreeg.": "Pre-ticked: everyone who also had the Showdown in the past four weeks.",
   "Vink eerst een klant aan.": "Tick a client first.",
   "Bezig… {n} van {n}": "Working… {n} of {n}",
   "Gezet bij {n} klant, onder de workout van die dag.": "Added to {n} client, under that day's workout.",

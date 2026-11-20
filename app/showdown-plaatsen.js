@@ -115,7 +115,11 @@ async function sdpLaad(eerste){
       (h.data||[]).forEach(b=>{const x=b.workouts;if(!x||!x.client_id||!x.workout_date)return;if(!laatst[x.client_id]||x.workout_date>laatst[x.client_id])laatst[x.client_id]=x.workout_date;});
       S.klanten.forEach(k=>{const d=laatst[k.id];if(d){k.dag=S.dagen[(new Date(d+"T12:00:00").getDay()+6)%7];k.vorige=true;}});
     }catch(e){}
-    S.klanten.forEach(k=>{k.aan=k.mijn&&!k.al&&!k.los;});
+    // Niet elke klant doet de Showdown (20 nov 2026: ongeveer 40 van de 118). Vooraf aangevinkt
+    // staat daarom wie hem de laatste vier weken ook kreeg; de rest zet de coach zelf aan, of
+    // iedereen tegelijk met Alles aan of uit. Kreeg nog niemand hem, dan staat iedereen aan.
+    S.opVorige=S.klanten.some(k=>k.mijn&&k.vorige);
+    S.klanten.forEach(k=>{k.aan=k.mijn&&!k.al&&!k.los&&(!S.opVorige||!!k.vorige);});
   }
   return null;
 }
@@ -157,7 +161,8 @@ function sdpTel(){
   const ok=document.getElementById("sdp-ok");
   ok.disabled=S.bezig||!kies.length;ok.textContent=kies.length?"Bij "+sdpAantal(kies.length)+" zetten":"Bij klanten zetten";
   const verborgen=kies.filter(k=>!S.anderen&&!k.mijn).length;
-  document.getElementById("sdp-tel").textContent=(kies.length?sdpAantal(kies.length)+" aangevinkt.":"Niemand aangevinkt.")+(al?" Bij "+sdpAantal(al)+" staat hij deze week al.":"")+(verborgen?" Let op: "+verborgen+" daarvan van een andere coach.":"");
+  document.getElementById("sdp-tel").textContent=(kies.length?sdpAantal(kies.length)+" aangevinkt.":"Niemand aangevinkt.")+(al?" Bij "+sdpAantal(al)+" staat hij deze week al.":"")+(verborgen?" Let op: "+verborgen+" daarvan van een andere coach.":"")+
+    (S.opVorige&&!S.gedaan?" Vooraf aangevinkt: wie de Showdown de afgelopen vier weken ook kreeg.":"");
 }
 function sdpVind(id){return SDP?SDP.klanten.find(k=>k.id===id):null;}
 function sdpVink(id,aan){const k=sdpVind(id);if(!k)return;k.aan=!!aan;sdpTel();}
