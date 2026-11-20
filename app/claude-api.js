@@ -249,7 +249,9 @@ const ClaudeApi=(()=>{
       const in_=(a,b)=>b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ");
       // Staat a ook nog los in de regel, buiten de preciezere namen? "power clean + hang power
       // clean" zijn twee bewegingen; in "dumbbell seal row" staat "seal row" niet los.
-      const los=(a,preciezer,norm)=>{let r=" "+norm+" ";preciezer.forEach(b=>{r=r.split(" "+b.term+" ").join(" | ");});return r.includes(" "+a.term+" ");};
+      // Elk woord krijgt zijn eigen spaties, zodat twee namen achter elkaar allebei gevonden worden.
+      const wijd=t=>" "+String(t).split(" ").join("  ")+" ";
+      const los=(a,preciezer,norm)=>{let r=wijd(norm);preciezer.slice().sort((x,y)=>y.term.length-x.term.length).forEach(b=>{r=r.split(wijd(b.term)).join(" | ");});return r.includes(wijd(a.term));};
       const valtWeg=(a,hits,norm)=>{const p=hits.filter(b=>b!==a&&in_(a,b));return p.length>0&&!los(a,p,norm);};
       const lees=(tekst,naam)=>{
         const alle=[];
