@@ -2052,3 +2052,8 @@ body.bervenster .chatklant{max-height:none}
 .lvb-hit{display:block;width:100%;text-align:left;background:#f6f7f9;border:1px solid #e6e8ec;border-radius:8px;padding:8px 10px;margin-top:6px;cursor:pointer;font-family:inherit;font-size:13px}
 .lvb-hit:hover{border-color:var(--accent);background:#f6f9ff}
 .lvb-gekozen{margin-top:6px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lvb-opgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px 26px}
+.lvb-oprij{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}
+.lvb-stap{display:flex;align-items:center;gap:8px}
+.lvb-stap b{min-width:52px;text-align:center}
+.lvb-link{background:none;border:none;padding:0;color:var(--accent);cursor:pointer;font-family:inherit;font-size:inherit;text-decoration:underline}

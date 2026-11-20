@@ -34,11 +34,13 @@ main.split .vak+.vak{border-left:1px solid var(--lijn)}
 .tekst{flex:1;min-height:0;overflow:hidden;white-space:pre-wrap;line-height:1.45;color:#dcdce0}
 .cap{flex:none;margin-top:1.2vh;color:var(--zacht);font-size:clamp(12px,2vh,24px)}
 .scores{flex:1;min-height:0;overflow:hidden;column-width:17em;column-gap:1.6em;column-fill:auto}
+.scores.een{column-width:auto;column-count:1;width:100%;max-width:24em;margin-left:auto;margin-right:auto}
+.slabel{break-after:avoid;color:var(--goud);font-size:.6em;letter-spacing:.04em;margin-bottom:.7em}
 .kopblok{break-inside:avoid}
 .groep{color:var(--goud);font-size:.72em;letter-spacing:.05em;margin:.5em 0 .35em}
 .kopblok:first-child .groep{margin-top:0}
 .groep span{color:var(--paars)}
-.rij{break-inside:avoid;display:flex;align-items:baseline;gap:.6em;background:var(--vlak);border:1px solid transparent;border-radius:.4em;padding:.38em .7em;margin-bottom:.32em}
+.rij{max-width:27em;break-inside:avoid;display:flex;align-items:baseline;gap:.6em;background:var(--vlak);border:1px solid transparent;border-radius:.4em;padding:.38em .7em;margin-bottom:.32em}
 .rij.nieuw{border-color:var(--goud);background:#22201a}
 .rij .nr{color:var(--goud);width:1.5em;flex:none;text-align:right;font-variant-numeric:tabular-nums}
 .rij .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -57,7 +59,9 @@ footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:
   main.split{grid-template-columns:minmax(0,1fr)}
   main.split .vak+.vak{border-left:none;border-top:1px solid var(--lijn)}
   .tekst,.scores{overflow:visible;flex:none}
-  .scores{column-width:auto;column-count:1}
+  .scores{column-width:auto;column-count:1;max-width:none}
+  .rij{max-width:none}
+  #bord{padding:0 !important}
   #klok{display:none}
 }
 </style>
@@ -131,7 +135,7 @@ function merkNieuw(s){
 }
 function scoresHtml(s){
   const o=s.onderdeel,st=(o&&o.score_type)||"text",rows=s.scores||[],nu=Date.now();
-  if(!rows.length)return '<div class="leeg">Nog geen scores. Log je score in de app, dan staat hij hier meteen.</div>';
+  if(!rows.length)return '<div class="label">Scores</div><div class="leeg">Nog geen scores. Log je score in de app, dan staat hij hier meteen.</div>';
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
   const groepen=[];
   cats.forEach(cat=>["rx","scaled"].forEach(rx=>{
@@ -140,7 +144,7 @@ function scoresHtml(s){
   }));
   // Eén groep zonder man/vrouw-indeling: geen kopje nodig.
   const kaal=groepen.length===1&&groepen[0].naam==="Overig"&&groepen[0].rx==="rx";
-  return '<div class="scores" id="scores">'+groepen.map(g=>{
+  return '<div class="scores" id="scores"><div class="slabel">Scores · '+rows.length+' binnen</div>'+groepen.map(g=>{
     const rijen=g.rijen.map((r,i)=>{
       const nieuw=(nieuwTot[r.id]||0)>nu;
       return '<div class="rij'+(nieuw?' nieuw':'')+'"><span class="nr">'+(i+1)+'</span><span class="nm">'+esc(r.naam||"Naamloos")+
@@ -151,6 +155,13 @@ function scoresHtml(s){
     return '<div class="kopblok"><div class="groep">'+g.naam+' / '+(g.rx==="rx"?'Rx':'<span>Scaled</span>')+'</div>'+rijen[0]+'</div>'+rijen.slice(1).join("");
   }).join("")+'</div>';
 }
+// De opmaak die de coach per bord instelt (grootte, links of midden, verdeling, rand).
+function opmaakVan(s){
+  const o=(s&&s.opmaak)||{},pct=v=>{v=Number(v);return v>=40&&v<=160?v/100:1;};
+  return {scores:pct(o.scores),workout:pct(o.workout),scoresPlek:o.scoresPlek==="links"?"links":"midden",workoutPlek:o.workoutPlek==="midden"?"midden":"links",
+    verdeling:(o.verdeling==="smal"||o.verdeling==="half")?o.verdeling:"normaal",rand:Math.max(0,Math.min(8,Number(o.rand)||0))};
+}
+const VERDELING={smal:"minmax(0,33fr) minmax(0,67fr)",normaal:"minmax(0,42fr) minmax(0,58fr)",half:"minmax(0,1fr) minmax(0,1fr)"};
 function workoutHtml(s,alleen){
   const o=s.onderdeel;
   const cap=o.soort==="workout"&&o.score_type==="time"&&o.timecap?'<div class="cap">Tijdslimiet '+Math.floor(o.timecap/60)+":"+pad(o.timecap%60)+'</div>':'';
@@ -165,27 +176,36 @@ function teken(){
   document.title=(s.titel||"Live bord")+" · YourProgram";
   const o=s.onderdeel;
   if(!o){main.className="";main.innerHTML='<div class="leeg">Het bord staat klaar. Het eerste onderdeel verschijnt hier zo.</div>';return;}
-  const n=(s.scores||[]).length;
   const scoresVak=kop=>'<div class="vak">'+(kop?'<div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div><h1 class="titel">'+esc(o.titel||"")+'</h1>':'')+
-    '<div class="label">Scores'+(n?' · '+n+' binnen':'')+'</div>'+scoresHtml(s)+'</div>';
+    scoresHtml(s)+'</div>';
+  const om=opmaakVan(s);
+  document.getElementById("bord").style.padding=om.rand?(om.rand+"vh "+om.rand+"vw"):"";
+  main.style.gridTemplateColumns="";
   if(o.soort!=="workout"||s.weergave==="workout"){main.className="";main.innerHTML=workoutHtml(s,true);}
   else if(s.weergave==="scores"){main.className="";main.innerHTML=scoresVak(true);}
-  else{main.className="split";main.innerHTML=workoutHtml(s,false)+scoresVak(false);}
+  else{main.className="split";main.style.gridTemplateColumns=VERDELING[om.verdeling];main.innerHTML=workoutHtml(s,om.workoutPlek==="midden")+scoresVak(false);}
   pasAan();
 }
 // Letters zo groot mogelijk, maar alles moet in beeld passen (een tv scrolt niet).
+const past=el=>!(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1);
 function pas(el,max,min){
-  if(!el)return;
+  if(!el)return true;
   let f=max,n=0;el.style.fontSize=f+"px";
-  while(f>min&&n++<80&&(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1)){f=Math.max(min,f*0.95);el.style.fontSize=f+"px";}
+  while(f>min&&n++<80&&!past(el)){f=Math.max(min,f*0.95);el.style.fontSize=f+"px";}
+  return past(el);
 }
 function pasAan(){
   const smal=window.matchMedia("(max-width:820px),(orientation:portrait)").matches;
   const t=document.getElementById("tekst"),sc=document.getElementById("scores");
-  if(smal){if(t)t.style.fontSize="17px";if(sc)sc.style.fontSize="16px";return;}
-  const h=window.innerHeight,alleen=!document.getElementById("main").classList.contains("split");
-  pas(t,Math.round(h*(alleen?0.06:0.043)),12);
-  pas(sc,Math.round(h*0.036),11);
+  if(smal){if(t)t.style.fontSize="17px";if(sc){sc.classList.remove("een");sc.style.fontSize="16px";}return;}
+  const om=opmaakVan(stand),h=window.innerHeight*(1-om.rand/50),alleen=!document.getElementById("main").classList.contains("split");
+  pas(t,Math.round(h*(alleen?0.06:0.043)*om.workout),12);
+  if(!sc)return;
+  // Scores in het midden: eerst als één smalle kolom. Past dat niet meer (veel scores), dan over de hele breedte in kolommen.
+  const max=Math.round(h*0.032*om.scores);
+  sc.classList.toggle("een",om.scoresPlek==="midden");
+  if(om.scoresPlek==="midden"&&!pas(sc,max,Math.max(11,max*0.65)))sc.classList.remove("een");
+  if(!sc.classList.contains("een"))pas(sc,max,11);
 }
 window.addEventListener("resize",()=>{if(stand)pasAan();});
 

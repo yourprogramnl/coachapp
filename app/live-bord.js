@@ -79,6 +79,7 @@ function lvbBordHtml(){
         '<h2 style="font-size:16px">Onderdelen <span class="cpill teal">'+ond.length+'</span></h2><div class="seg">'+seg+'</div></div>'+
       (rijen||'<div class="cempty" style="padding:18px 0">Nog geen onderdelen. Voeg hieronder een tekst toe (bijvoorbeeld de warming-up) of een workout met leaderboard.</div>')+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="lvbPick()">+ Workout met leaderboard</button><button class="btn ghost" onclick="lvbOndNieuw()">+ Tekst (warming-up, uitleg)</button></div></div>'+
+    '<div class="card" style="padding:18px" id="lvb-opmaak">'+lvbOpmaakHtml()+'</div>'+
     '<div class="card" style="padding:18px" id="lvb-scores">'+lvbScoresHtml()+'</div>'+
     '<div style="margin:6px 0 30px"><button class="btn ghost sm" onclick="lvbVerwijder()">Bord verwijderen</button></div>';
 }
@@ -109,6 +110,42 @@ async function lvbKopieer(){
   catch(e){const el=document.getElementById("lvb-link");if(el){el.focus();el.select();}toast("Kopieer de link met Ctrl+C");}
 }
 function lvbWeergave(w){lvbBewaar({weergave:w});}
+// Opmaak van het bord (20 nov 2026, wens Stefan na de eerste test op de tv): de coach stelt zelf
+// in hoe groot de scores en de workout-tekst zijn, of ze links of in het midden staan, hoe het
+// scherm verdeeld is en hoeveel rand er omheen zit. Staat in live_borden.opmaak; bord.html past
+// het binnen twee seconden toe. Dezelfde standaardwaarden als opmaakVan() in bord.html.
+function lvbOpmaak(){
+  const o=(LVB.cur&&LVB.cur.opmaak)||{},pct=v=>{v=Number(v);return v>=40&&v<=160?Math.round(v/10)*10:100;};
+  return {scores:pct(o.scores),workout:pct(o.workout),scoresPlek:o.scoresPlek==="links"?"links":"midden",workoutPlek:o.workoutPlek==="midden"?"midden":"links",
+    verdeling:(o.verdeling==="smal"||o.verdeling==="half")?o.verdeling:"normaal",rand:Math.max(0,Math.min(8,Math.round(Number(o.rand)||0)))};
+}
+function lvbOpmaakHtml(){
+  const o=lvbOpmaak();
+  const stap=(veld,tekst)=>'<div class="lvb-stap"><button class="btn ghost sm" title="Kleiner" onclick="lvbOpmaakStap(\''+veld+'\',-1)">−</button><b>'+tekst+'</b><button class="btn ghost sm" title="Groter" onclick="lvbOpmaakStap(\''+veld+'\',1)">+</button></div>';
+  const seg=(veld,opties)=>'<div class="seg">'+opties.map(x=>'<button class="'+(o[veld]===x[0]?"on":"")+'" onclick="lvbOpmaakZet(\''+veld+'\',\''+x[0]+'\')">'+x[1]+'</button>').join("")+'</div>';
+  const rij=(naam,inhoud)=>'<div class="lvb-oprij"><span>'+naam+'</span>'+inhoud+'</div>';
+  return '<h2 style="font-size:16px">Opmaak van het bord</h2><div class="sm muted" style="margin:3px 0 12px">Stel het bord af op je tv. Een wijziging staat binnen twee seconden op het bord.</div>'+
+    '<div class="lvb-opgrid">'+
+      rij("Grootte scores",stap("scores",o.scores+"%"))+
+      rij("Scores staan",seg("scoresPlek",[["links","Links"],["midden","In het midden"]]))+
+      rij("Grootte workout-tekst",stap("workout",o.workout+"%"))+
+      rij("Workout-tekst staat",seg("workoutPlek",[["links","Links"],["midden","In het midden"]]))+
+      rij("Verdeling van het scherm",seg("verdeling",[["smal","Workout smal"],["normaal","Normaal"],["half","Half om half"]]))+
+      rij("Rand om het bord",stap("rand",o.rand===0?"geen":String(o.rand)))+
+    '</div><div class="sm muted" style="margin-top:8px">Snijdt de tv de randen af (logo of onderste regel half in beeld)? Zet dan de rand hoger. '+
+    '<button class="lvb-link" onclick="lvbOpmaakTerug()">Terug naar standaard</button></div>';
+}
+function lvbOpmaakBewaar(o){
+  lvbBewaar({opmaak:o},true).then(ok=>{const h=document.getElementById("lvb-opmaak");if(ok&&h)h.innerHTML=lvbOpmaakHtml();});
+}
+function lvbOpmaakZet(veld,waarde){const o=lvbOpmaak();o[veld]=waarde;lvbOpmaakBewaar(o);}
+function lvbOpmaakStap(veld,d){
+  const o=lvbOpmaak(),g=veld==="rand"?[0,8,1]:[40,160,10];
+  const nieuw=Math.max(g[0],Math.min(g[1],o[veld]+d*g[2]));
+  if(nieuw===o[veld]){toast(d>0?"Groter kan niet":"Kleiner kan niet");return;}
+  o[veld]=nieuw;lvbOpmaakBewaar(o);
+}
+function lvbOpmaakTerug(){lvbOpmaakBewaar({});}
 function lvbToon(i){LVB.rows=null;LVB.rowsVoor=null;lvbBewaar({actief:i});}
 // Onderdelen opslaan en het onderdeel dat nu op het bord staat op het bord houden, ook als de volgorde wijzigt.
 function lvbOndBewaar(nieuw){
