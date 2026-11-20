@@ -263,7 +263,7 @@ function biebRender(behoudFilters){
     totaal=hits.length;
     kaarten=hits.map(w=>biebKaartWeek(w,true));
     if(BIEB.bord===null)hint='<div class="cempty">Laden…</div>';
-    else if(!hits.length&&!v)hint='<div class="cempty">Nog geen leaderboard-workouts. Zet bij een klant op een blok "Leaderboard aan"; daarna staat hij hier en sleep je hem naar andere klanten.</div>';
+    else if(!hits.length&&!v)hint='<div class="cempty">Nog geen leaderboard-workouts. Klik bij een klant op een blok op "Leaderboard aanzetten"; daarna staat hij hier en sleep je hem naar andere klanten.</div>';
   }else if(biebIsProg()){
     const u=biebProgKaarten(v);totaal=u.totaal;kaarten=u.kaarten;hint=u.hint;
   }else if(BIEB.tab==="benchmarks"){

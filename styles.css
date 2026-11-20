@@ -1981,3 +1981,5 @@ body.bervenster .chatklant{max-height:none}
 .bordmeer-rij input{width:16px;height:16px;margin:0;flex:none;accent-color:#8b7cf6}
 .bordmeer-naam{font-weight:700}
 .bordmeer-dag{color:#8a919c;margin-left:auto;white-space:nowrap}
+/* Duidelijke status op het balkje: het leaderboard staat aan (20 nov 2026) */
+.sdstrip-aan{font-weight:800;color:#15803d;background:#dcfce7;border-radius:999px;padding:2px 9px;white-space:nowrap}

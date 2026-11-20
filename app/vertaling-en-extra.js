@@ -1058,7 +1058,7 @@ i18nLaad({
   "Leaderboard aanzetten mislukt": "Turning on the leaderboard failed",
   "Leaderboard staat aan. Sla de workout op; zet hem bij andere klanten via kopiëren of het bibliotheek-venster.": "Leaderboard is on. Save the workout; give it to other clients by copying or through the library window.",
   "Gedeeld leaderboard van de klanten bij wie deze workout in de kalender staat. Een klant met het vinkje Scaled-versie staat onder Scaled.": "Shared leaderboard of the clients who have this workout in their calendar. A client with Scaled version ticked appears under Scaled.",
-  "Nog geen leaderboard-workouts. Zet bij een klant op een blok \"Leaderboard aan\"; daarna staat hij hier en sleep je hem naar andere klanten.": "No leaderboard workouts yet. Turn on \"Leaderboard on\" for a block at a client; it then appears here and you drag it to other clients.",
+  "Nog geen leaderboard-workouts. Klik bij een klant op een blok op \"Leaderboard aanzetten\"; daarna staat hij hier en sleep je hem naar andere klanten.": "No leaderboard workouts yet. Click \"Turn on leaderboard\" for a block at a client; it then appears here and you drag it to other clients.",
   "leaderboard-workout · gedeeld leaderboard voor 1-op-1": "leaderboard workout · shared leaderboard for 1-on-1",
 });
 // Template week en dag houden het leaderboard vast (19 nov 2026)
@@ -1179,4 +1179,10 @@ i18nLaad({
   "Zoeken bij andere klanten mislukt": "Searching other clients failed",
   "Dit blok hangt nu aan het bestaande leaderboard. Sla de workout op.": "This block is now on the existing leaderboard. Save the workout.",
   "Dit blok staat bij geen andere klant in de week ervoor of erna. Er wordt gezocht op precies dezelfde naam.": "No other client has this block in the week before or after. The search uses exactly the same name.",
+});
+// Knoppen zeggen wat ze doen, het balkje zegt dat het leaderboard aan staat (20 nov 2026)
+i18nLaad({
+  "Leaderboard uitzetten": "Turn off leaderboard",
+  "Leaderboard staat aan": "Leaderboard is on",
+  "Dit blok staat op een gedeeld leaderboard. De klant ziet het bord in de app en staat er met zijn score op.": "This block is on a shared leaderboard. The client sees the board in the app and is on it with their score.",
 });

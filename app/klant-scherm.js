@@ -333,9 +333,9 @@ async function bordLaad(opnieuw){
 function sdStrip(b){
   const bron=b.source_blog_workout_id||b.ww_bron;
   // Nog geen leaderboard: een bescheiden knop om het aan te zetten (niet op een blok in een superset).
-  if(!bron)return b.linked?"":'<div class="sdstrip sdstrip-uit" onclick="event.stopPropagation()"><button class="bordaan" title="Zet een gedeeld leaderboard aan op dit blok. Deze klant en iedereen bij wie je deze workout daarna zet zien elkaars score." onclick="bordAan(this);return false">Leaderboard aan</button></div>';
-  return '<div class="sdstrip" data-bron="'+esc(bron)+'" onclick="event.stopPropagation()"><span class="sdstrip-naam">'+esc(sdStripNaam(bron))+'</span>'+
-    (b.source_blog_workout_id?'<button class="borduit" title="Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan." onclick="bordUit(this);return false">Leaderboard uit</button>':'')+
+  if(!bron)return b.linked?"":'<div class="sdstrip sdstrip-uit" onclick="event.stopPropagation()"><button class="bordaan" title="Zet een gedeeld leaderboard aan op dit blok. Deze klant en iedereen bij wie je deze workout daarna zet zien elkaars score." onclick="bordAan(this);return false">Leaderboard aanzetten</button></div>';
+  return '<div class="sdstrip" data-bron="'+esc(bron)+'" onclick="event.stopPropagation()"><span class="sdstrip-aan" title="Dit blok staat op een gedeeld leaderboard. De klant ziet het bord in de app en staat er met zijn score op.">Leaderboard staat aan</span><span class="sdstrip-naam">'+esc(sdStripNaam(bron))+'</span>'+
+    (b.source_blog_workout_id?'<button class="borduit" title="Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan." onclick="bordUit(this);return false">Leaderboard uitzetten</button>':'')+
     '<label class="sdstrip-sc" title="Zet dit aan als je de workout voor deze klant hebt aangepast, bijvoorbeeld ring rows in plaats van pull-ups. De score staat dan onder Scaled op het gedeelde leaderboard."><input type="checkbox" class="f-scaled"'+(b.scaled_versie?' checked':'')+' onchange="sdScaled(this)"> Scaled-versie</label>'+
     (b.source_blog_workout_id?'<button class="btn ghost sm bordmeer" title="Staat dit blok ook al bij andere klanten? Zet het leaderboard daar in één keer aan. Scores die al zijn ingevuld blijven staan en komen op het bord." onclick="bordAnderen(this);return false">Ook bij andere klanten</button>':'')+
     '<button class="btn ghost sm" onclick="wwBordVenster(\''+esc(bron)+'\');return false">Leaderboard</button></div>';
