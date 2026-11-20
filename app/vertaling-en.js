@@ -1840,5 +1840,7 @@ i18nLaad({
 "Het leaderboard heeft een lijst voor mannen en een voor vrouwen. In welke lijst hoor jij?":"The leaderboard has a list for men and one for women. Which list are you in?",
 "Sla over":"Skip",
 "Dit wachtwoord wordt te vaak gebruikt en is makkelijk te raden. Kies een ander wachtwoord, bijvoorbeeld drie losse woorden met een cijfer erbij.":"This password is used too often and is easy to guess. Choose another one, for example three separate words with a number.",
-"Je account is nog niet gekoppeld":"Your account isn't linked yet"
+"Je account is nog niet gekoppeld":"Your account isn't linked yet",
+"Geen Showdown-leden.":"No Showdown members.",
+"Gratis Showdown- en blog-leden, zonder 1-op-1 coaching":"Free Showdown and blog members, without 1-on-1 coaching"
 });

@@ -42,13 +42,14 @@ function klantHeeftDag(p){return (KDATA.tagsByClient[p.id]||[]).some(id=>isDagTa
 // de tags nog laden of als het bedrijf (nog) geen dagtags heeft.
 function klantenZonderDag(){
   if(!KDATA||KDATA.laden||!dagTagsBestaan())return [];
-  return klantScope().filter(p=>!p.archived&&!klantHeeftDag(p));
+  // Showdown-leden hebben geen programma van een coach en dus geen dag nodig.
+  return klantScope().filter(p=>!p.archived&&!isShowdownLid(p)&&!klantHeeftDag(p));
 }
 // Waarschuwingsregel boven de lijst.
 function klantGeenDagMelding(){
   const z=klantenZonderDag();if(!z.length)return "";
   const n=z.length;
-  const alGefilterd=klantTags.size===1&&klantTags.has(KLANT_GEEN_DAG)&&!klantArchief;
+  const alGefilterd=klantTags.size===1&&klantTags.has(KLANT_GEEN_DAG)&&!klantArchief&&!klantShowdown;
   return '<div class="geendag-melding"><span class="geendag-uitroep">!</span>'+
     '<b>'+(n===1?"1 klant heeft nog geen dag.":n+" klanten hebben nog geen dag.")+'</b>'+
     '<span class="muted">Geef iedereen een dagtag, dan mis je niemand bij het programmeren.</span>'+
@@ -56,7 +57,7 @@ function klantGeenDagMelding(){
   '</div>';
 }
 function klantToonZonderDag(){
-  klantArchief=false;klantZoek="";klantAf.clear();
+  klantArchief=false;klantShowdown=false;klantZoek="";klantAf.clear();
   klantTags.clear();klantTags.add(KLANT_GEEN_DAG);
   klantTagDropWeg();klantenRender();
 }

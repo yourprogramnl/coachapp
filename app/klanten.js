@@ -1,7 +1,10 @@
 // app/klanten.js — de mensen- en bedrijfspagina's van de coach-kant:
 // Klanten, Coaches en Bedrijven, plus de uitnodigingsflow (invites).
 // ---------- KLANTEN-pagina (naar het ontwerp) ----------
-let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="",klantArchief=false;
+let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="",klantArchief=false,klantShowdown=false;
+// Gratis Showdown- en blog-leden (geen 1-op-1): eigen tabblad Showdown, zodat de lijst met
+// 1-op-1 klanten kort blijft en de cijfers bovenaan alleen over die klanten gaan (Stefan, 20 nov 2026).
+const isShowdownLid=p=>!!p&&p.membership_type==="free_blog";
 // Tag-filter op de lijst + afstreep-lijstje voor het programmeren (verzoek
 // Stefan 22 juli): vink klanten af terwijl je ze programmeert; geldt zolang de
 // pagina open staat. Sinds 25 juli kun je op meerdere tags tegelijk filteren
@@ -26,9 +29,10 @@ function klantAfToggle(pid){if(klantAf.has(pid))klantAf.delete(pid);else klantAf
 function klantAfReset(){klantAf.clear();klantenRender();}
 // Alle klanten binnen de huidige coach-selectie (beide tabs, actief + archief).
 function klantScope(){return klantCoachFilter?coachClients.filter(p=>p.coach_id===klantCoachFilter):coachClients;}
-// De klanten in het actieve tabblad (Actief of Archief).
-function klantLijst(){return klantScope().filter(p=>!!p.archived===klantArchief);}
-function klantTab(a){klantArchief=a;if(typeof klantKijk!=="undefined")klantKijk=false;klantenRender();}
+// De klanten in het actieve tabblad (Actief, Showdown of Archief).
+function klantLijst(){return klantScope().filter(p=>klantArchief?!!p.archived:(!p.archived&&isShowdownLid(p)===klantShowdown));}
+// a: false = Actief, true = Archief, "showdown" = Showdown.
+function klantTab(a){klantArchief=a===true;klantShowdown=a==="showdown";if(typeof klantKijk!=="undefined")klantKijk=false;klantenRender();}
 // Laadvolgnummer: ben je al doorgeklikt voordat de data binnen is, dan tekent
 // een oude lading niets meer over het nieuwe scherm heen.
 let klantLaadNr=0;
@@ -142,7 +146,8 @@ function klantRijen(){
 function klantZoekF(v){klantZoek=v;const h=document.getElementById("klantrows");if(h)h.innerHTML=((typeof kijkTabOpen==="function"&&kijkTabOpen())?kijkRijen():klantRijen())||'<div class="trow"><span class="muted">Geen klanten gevonden.</span></div>';}
 function klantenRender(){
   const cp=document.getElementById("cpage");if(!cp||!KDATA)return;
-  const scope=klantScope(),actief=scope.filter(p=>!p.archived),archief=scope.filter(p=>p.archived);
+  const scope=klantScope(),actief=scope.filter(p=>!p.archived&&!isShowdownLid(p)),showdown=scope.filter(p=>!p.archived&&isShowdownLid(p)),archief=scope.filter(p=>p.archived);
+  if(klantShowdown&&!showdown.length)klantShowdown=false; // tabblad bestaat niet (meer): terug naar Actief
   const msgIds=new Set(KDATA.msgs.map(m=>m.athlete_id));
   const totaal=klantComp(actief);
   const cmTot=actief.length?Math.round(actief.filter(p=>msgIds.has(p.id)).length/actief.length*100):null;
@@ -165,10 +170,12 @@ function klantenRender(){
       '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="openTagBeheer()">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
     klantTagBanner()+
     klantGeenDagMelding()+
-    '<div class="ctabs"><button class="'+(klantArchief||kijkOpenTab?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief&&!kijkOpenTab?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button>'+(typeof kijkTabHtml==="function"?kijkTabHtml():'')+'</div>'+
+    '<div class="ctabs"><button class="'+(klantArchief||klantShowdown||kijkOpenTab?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button>'+
+      (showdown.length?'<button class="'+(klantShowdown&&!kijkOpenTab?'on':'')+'" onclick="klantTab(\'showdown\')" title="Gratis Showdown- en blog-leden, zonder 1-op-1 coaching">Showdown <span style="font-weight:600;color:#8a919c">'+showdown.length+'</span></button>':'')+
+      '<button class="'+(klantArchief&&!kijkOpenTab?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button>'+(typeof kijkTabHtml==="function"?kijkTabHtml():'')+'</div>'+
     (kijkOpenTab?kijkLijstHtml():
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
-    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>');
+    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':(klantShowdown?'Geen Showdown-leden.':'Nog geen klanten gekoppeld.'))+'</span></div>')+'</div></div>');
 }
 // ---------- CSV-export met kolomkeuze (zoals CoachRx) ----------
 // [sleutel, kop, waarde-functie(p, ctx)]. Alleen kolommen die we echt kunnen vullen.
@@ -212,7 +219,7 @@ function openExportModal(){
   ensureExportModal();
   exportCols=new Set(EXPORT_COLS.map(c=>c[0]));
   const n=klantLijst().length;
-  document.getElementById("exp-sub").textContent="Kies de kolommen. "+n+" klant"+(n===1?" wordt":"en worden")+" geëxporteerd"+(klantCoachFilter?" (van "+klantCoachNaam+")":"")+(klantArchief?" – archief":"")+".";
+  document.getElementById("exp-sub").textContent="Kies de kolommen. "+n+" klant"+(n===1?" wordt":"en worden")+" geëxporteerd"+(klantCoachFilter?" (van "+klantCoachNaam+")":"")+(klantArchief?" – archief":(klantShowdown?" – Showdown":""))+".";
   exportRender();document.getElementById("expmodal").classList.add("show");
 }
 function exportRender(){
@@ -260,7 +267,7 @@ async function doExport(){
   const regels=lijst.map(p=>cols.map(c=>q(c[2](p,ctx))).join(";"));
   const blob=new Blob(["﻿"+kop+"\n"+regels.join("\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-  a.download="klanten"+(klantCoachFilter?"-"+(klantCoachNaam||"coach").replace(/[^a-z0-9]+/gi,"-").toLowerCase():"")+(klantArchief?"-archief":"")+".csv";
+  a.download="klanten"+(klantCoachFilter?"-"+(klantCoachNaam||"coach").replace(/[^a-z0-9]+/gi,"-").toLowerCase():"")+(klantArchief?"-archief":(klantShowdown?"-showdown":""))+".csv";
   a.click();URL.revokeObjectURL(a.href);
   closeExport();toast(lijst.length+" klant"+(lijst.length===1?"":"en")+" geëxporteerd");
 }
