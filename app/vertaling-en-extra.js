@@ -1161,3 +1161,22 @@ i18nLaad({
   "Mijn klanten": "My clients",
   "Kies van wie je de gesprekken wilt zien; je keuze wordt onthouden": "Choose whose conversations you want to see; your choice is remembered",
 });
+// Leaderboard alsnog bij andere klanten aanzetten (20 nov 2026)
+i18nLaad({
+  "Ook bij andere klanten": "Other clients too",
+  "Staat dit blok ook al bij andere klanten? Zet het leaderboard daar in één keer aan. Scores die al zijn ingevuld blijven staan en komen op het bord.": "Is this block already in other clients' calendars? Turn the leaderboard on there in one go. Scores already entered stay and go on the board.",
+  "Leaderboard bij andere klanten": "Leaderboard for other clients",
+  "Leaderboard aanzetten": "Turn on leaderboard",
+  "Alles aan of uit": "All on or off",
+  "{n} klant aangevinkt": "{n} client ticked",
+  "{n} klanten aangevinkt": "{n} clients ticked",
+  "Vink minstens één klant aan.": "Tick at least one client.",
+  "aangepaste tekst": "adapted text",
+  "tweede blok van deze klant": "second block for this client",
+  "zit in een superset": "is in a superset",
+  "ander scoretype": "different score type",
+  "Niet gelukt:": "Not done:",
+  "Zoeken bij andere klanten mislukt": "Searching other clients failed",
+  "Dit blok hangt nu aan het bestaande leaderboard. Sla de workout op.": "This block is now on the existing leaderboard. Save the workout.",
+  "Dit blok staat bij geen andere klant in de week ervoor of erna. Er wordt gezocht op precies dezelfde naam.": "No other client has this block in the week before or after. The search uses exactly the same name.",
+});
