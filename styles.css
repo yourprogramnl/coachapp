@@ -1987,3 +1987,16 @@ body.bervenster .chatklant{max-height:none}
 .lbs-wrap{max-width:1180px}
 .lbs-tekst{margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 .lbs-wrap .trow b{overflow-wrap:anywhere}
+/* Showdown bij klanten zetten (20 nov 2026) + Scaled gaat vanzelf aan bij een aangepaste tekst */
+.sdp-balk{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.sdp-balk .lid-in{flex:1;min-width:150px;width:auto}
+.sdp-veld{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#5d6570;cursor:pointer;white-space:nowrap}
+.sdp-veld select,.sdp-rij .sdp-dag{width:auto;border:1px solid #e7e9ec;border-radius:7px;padding:5px 8px;font-size:12.5px;font-family:inherit;background:#fff;color:#1d2129}
+.sdp-veld input{width:15px;height:15px;margin:0;padding:0;accent-color:#8b7cf6}
+.sdp-rij .bordmeer-naam{white-space:nowrap}
+.sdp-rij .sdp-dag{margin-left:auto;flex:none}
+.sdp-rij .cpill{flex:none}
+.sdp-rij.uit .cpill:last-child{margin-left:auto}
+.sdp-waar{flex:1 1 0;color:#8a919c;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sdp-waar+.sdp-dag{margin-left:0}
+.sdstrip-auto{font-weight:700;color:#8a5a00;background:#fde9bf;border-radius:999px;padding:2px 9px;white-space:nowrap}

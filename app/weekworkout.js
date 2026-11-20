@@ -39,6 +39,10 @@ function wwStandaardNaam(){const d=new Date();return WW_NAAM_PREFIX+" "+d.getDat
 const WW_SCORES=[["time","tijd (For Time)"],["rounds_reps","rondes + reps (AMRAP)"],["reps","reps"],["load","gewicht (kg)"],["calories","calorieën"],["meters","meters"],["km","kilometers"],["cm","centimeters"],["watt","watt"],["rpm","rpm"],["bpm","bpm"],["spm","spm"],["text","vrije tekst"]];
 
 const wwIsConcept=w=>!!w&&w.audience===WW_CONCEPT;
+// De bouwer staat ook in de Bibliotheek (20 nov 2026, wens Stefan): daar tekent wwRender in
+// het vak #ww-host, altijd als bouwer en zonder de schakelaar Lijst/Bouwer.
+const wwInBieb=()=>!!document.getElementById("ww-host");
+const wwBouwerAan=()=>wwInBieb()||WW.view==="bouwer";
 const wwVind=id=>WW.list.find(x=>x.id===id)||WW.concepten.find(x=>x.id===id)||null;
 const wwMagBeheren=w=>ME.user.id===w.coach_id||["eigenaar","platform_admin"].includes((ME.profile||{}).role);
 function wwTekst(w){const b=wwMainBlock(w);return b?(composePresc(b)||""):"";}
@@ -51,11 +55,16 @@ function wwMatch(w,metTekst){
   return !!metTekst&&wwTekst(w).toLowerCase().includes(z);
 }
 function wwRender(){
-  const cp=document.getElementById("cpage");if(!cp)return;
-  const bouwer=WW.view==="bouwer",nc=WW.concepten.length,iets=WW.list.length||nc;
+  const bieb=document.getElementById("ww-host");
+  // Intussen naar een ander deel van de Bibliotheek geklikt: niet over die lijst heen tekenen.
+  if(!bieb&&typeof coachSection!=="undefined"&&coachSection==="library")return;
+  const cp=bieb||document.getElementById("cpage");if(!cp)return;
+  const bouwer=wwBouwerAan(),nc=WW.concepten.length,iets=WW.list.length||nc;
   cp.innerHTML='<div class="lbwrap'+(bouwer?' sdb-breed':'')+'">'+
-    '<div class="sdb-kop"><h1>'+esc(SHOWDOWN)+'</h1>'+
-      '<div class="seg"><button class="'+(bouwer?'':'on')+'" onclick="wwView(\'lijst\')">Lijst</button><button class="'+(bouwer?'on':'')+'" onclick="wwView(\'bouwer\')">Bouwer</button></div></div>'+
+    (bieb?'<div class="sdb-kop"><div><h2 style="font-size:16px">'+esc(SHOWDOWN)+' <span class="cpill teal">'+WW.list.length+' live</span></h2>'+
+        '<div class="sm muted" style="font-size:12.5px;margin-top:3px">Alle Showdowns naast elkaar. Dit is dezelfde bouwer als onder '+esc(SHOWDOWN)+' in het menu. Staat er één live, dan zet je hem met Bij klanten zetten in één keer in het programma van je klanten.</div></div></div>'
+      :'<div class="sdb-kop"><h1>'+esc(SHOWDOWN)+'</h1>'+
+      '<div class="seg"><button class="'+(bouwer?'':'on')+'" onclick="wwView(\'lijst\')">Lijst</button><button class="'+(bouwer?'on':'')+'" onclick="wwView(\'bouwer\')">Bouwer</button></div></div>')+
     '<div class="sdb-knoppen"><button class="btn" onclick="wwBewerk(null)">+ Nieuwe '+esc(SHOWDOWN)+'</button>'+
       '<button class="btn ghost" onclick="wwKies()">Kies showdown'+(nc?' <b class="sdb-tel">'+nc+'</b>':'')+'</button></div>'+
     (iets?'<div style="margin:12px 0 14px"><input class="lid-in" id="ww-zoek" placeholder="'+(bouwer?"Zoek op naam, datum of beweging (bijv. sandbag)…":"Zoek op naam of datum (bijv. 15 juli)…")+'" style="width:100%;max-width:340px" oninput="wwZoek(this.value)" value="'+esc(WW.zoek)+'"></div>':'')+
@@ -68,7 +77,7 @@ function wwView(v){
   try{localStorage.setItem("forge_ww_view",WW.view);}catch(e){}
   wwRender();
 }
-function wwZoek(v){WW.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("ww-cards");if(h)h.innerHTML=WW.view==="bouwer"?wwBouwerHtml():wwCardsHtml();}
+function wwZoek(v){WW.zoek=(v||"").toLowerCase().trim();const h=document.getElementById("ww-cards");if(h)h.innerHTML=wwBouwerAan()?wwBouwerHtml():wwCardsHtml();}
 function wwCardsHtml(){
   if(!WW.list.length)return '<div class="card" style="padding:26px;text-align:center"><div class="muted" style="margin-bottom:12px">Nog geen '+esc(SHOWDOWN)+'. Maak de eerste aan; 1-op-1 klanten én blog-leden loggen hun score en komen samen op één leaderboard.</div><button class="btn" onclick="wwBewerk(null)">+ Nieuwe '+esc(SHOWDOWN)+'</button></div>';
   const hits=WW.list.filter(w=>wwMatch(w,false));
@@ -98,13 +107,14 @@ function wwBouwKaart(w){
     '<div class="sdb-tekst">'+(tekst||'<span class="muted">Nog geen tekst.</span>')+'</div>'+
     ((soort||cap)?'<div class="sdb-pills">'+(soort?'<span class="cpill purple">'+esc(soort)+'</span>':'')+(cap?'<span class="cpill gray">timecap '+esc(cap)+'</span>':'')+'</div>':'')+
     '<div class="sdb-acties">'+
-      (concept?(mag?'<button class="btn sm" onclick="wwKies(\''+w.id+'\')">Zet live</button>':''):'<button class="btn ghost sm" onclick="wwNaarBord(\''+w.id+'\')">Leaderboard'+(n!=null?' · '+n:'')+'</button>')+
+      (concept?(mag?'<button class="btn sm" onclick="wwKies(\''+w.id+'\')">Zet live</button>':''):'<button class="btn sm" title="Zet deze Showdown in één keer in het programma van je klanten. Per klant kies je de dag; daarna pas je hem bij een klant nog aan als dat nodig is." onclick="sdPlaats(\''+w.id+'\')">Bij klanten zetten</button><button class="btn ghost sm" onclick="wwNaarBord(\''+w.id+'\')">Leaderboard'+(n!=null?' · '+n:'')+'</button>')+
       (mag?'<button class="btn ghost sm" onclick="wwBewerk(\''+w.id+'\')">Bewerken</button>':'')+
       (concept&&mag?'<button class="sdb-x" title="Concept verwijderen" onclick="wwVerwijder(\''+w.id+'\')">×</button>':'')+
     '</div></div>';
 }
 // Vanuit de bouwer naar het leaderboard: terug naar de lijst, met dit bord open en in beeld.
 async function wwNaarBord(id){
+  if(wwInBieb()){wwBordVenster(id);return;} // in de Bibliotheek: het bord in een los venster
   WW.view="lijst";try{localStorage.setItem("forge_ww_view","lijst");}catch(e){}
   WW.zoek="";WW.open[id]=true;
   if(!WW.boards[id])await wwLoadBoardFor(id);
@@ -127,6 +137,7 @@ function wwCard(w){
       '<span class="cpill gray">gepubliceerd '+datumNL(w.workout_date)+'</span></div></div>'+
     '<div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">'+
       '<button class="btn ghost sm2" onclick="wwDeelLink()"><svg class="i sm-i"><use href="#i-link"/></svg> Deel-link kopiëren</button>'+
+      '<button class="btn ghost sm2" title="Zet deze Showdown in één keer in het programma van je klanten." onclick="sdPlaats(\''+w.id+'\')">Bij klanten zetten</button>'+
       (magBeheren?'<div style="display:flex;gap:8px"><button class="btn ghost sm2" onclick="wwBewerk(\''+w.id+'\')">Bewerken</button><button class="btn ghost sm2" style="color:#e5484d;border-color:#f3b8ba" onclick="wwVerwijder(\''+w.id+'\')">Verwijderen</button></div>':'')+
     '</div></div>'+
     '<div style="margin-top:14px"><button class="btn ghost sm2" onclick="wwToggleBoard(\''+w.id+'\')">'+(open?"Leaderboard verbergen":"Leaderboard")+'</button></div>'+
@@ -140,7 +151,7 @@ async function wwToggleBoard(id){
     if(el){el.style.display="";el.innerHTML='<div class="cempty">Leaderboard laden…</div>';}
     await wwLoadBoardFor(id);
   }
-  const h=document.getElementById("ww-cards");if(h&&WW.view!=="bouwer")h.innerHTML=wwCardsHtml();
+  const h=document.getElementById("ww-cards");if(h&&!wwBouwerAan())h.innerHTML=wwCardsHtml();
 }
 // Sortering volgt het scoretype van het hoofdblok.
 function wwCmp(st){
@@ -469,7 +480,7 @@ function wwKiesSel(id){
   wwKiesRender();
 }
 function wwKiesDicht(){document.getElementById("wwkiesmodal").classList.remove("show");WW_KIES=null;}
-function wwKiesNaarBouwer(){wwKiesDicht();wwView("bouwer");}
+function wwKiesNaarBouwer(){wwKiesDicht();if(wwInBieb())wwRender();else wwView("bouwer");}
 async function wwKiesLive(){
   const msg=document.getElementById("wwkies-msg");
   const fout=t=>{msg.textContent=t;msg.className="msg err";};

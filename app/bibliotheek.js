@@ -26,8 +26,12 @@ const ytIdVan=u=>{const m=(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-
 
 function libShellHtml(){
   // Template week (was "Programma's") en Template dag staan onder Workouts (verzoek Stefan, 18 nov 2026).
-  const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["programs","Template week"],["progdag","Template dag"],["cooldown","Cooldowns"],["benchmarks","Benchmarks"]]
+  const nav=[["oef","Oefeningen"],["warmup","Warming-ups"],["workout","Workouts"],["programs","Template week"],["progdag","Template dag"],["showdown",SHOWDOWN],["cooldown","Cooldowns"],["benchmarks","Benchmarks"]]
     .map(m=>'<button class="'+(LIB.mode===m[0]?"on":"")+'" onclick="libZetMode(\''+m[0]+'\')">'+m[1]+'</button>').join("");
+  // YP Showdown (20 nov 2026): de bouwer uit de sectie YP Showdown, hier nog een keer.
+  // app/weekworkout.js tekent hem in #ww-host.
+  if(LIB.mode==="showdown")return '<h1>Bibliotheek</h1><div class="libgrid"><div class="card libnav">'+nav+'</div>'+
+    '<div class="card" style="padding:18px;min-width:0"><div id="ww-host"><div class="spin">Laden…</div></div></div></div>';
   return '<h1>Bibliotheek</h1><div class="libgrid">'+
     '<div class="card libnav">'+nav+'</div>'+
     '<div>'+

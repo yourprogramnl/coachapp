@@ -239,7 +239,11 @@ function coachRenderSection(){
   if(coachSection==="dash"){c.innerHTML=coachShellHtml('<h1>Dashboard</h1><div class="dashgrid"><div class="panel"><div class="spin">Laden…</div></div><div></div></div>');fillDashboard();return;}
   if(coachSection==="coaches"){c.innerHTML=coachShellHtml('<h1>Coaches</h1><div class="spin">Laden…</div>');fillCoaches();return;}
   if(coachSection==="companies"){c.innerHTML=coachShellHtml('<h1>Bedrijven</h1><div class="spin">Laden…</div>');fillCompanies();return;}
-  if(coachSection==="library"){c.innerHTML=coachShellHtml(libShellHtml());ensureLibModals();libLaad();libLijst();return;}
+  if(coachSection==="library"){
+    c.innerHTML=coachShellHtml(libShellHtml());ensureLibModals();
+    if(LIB.mode==="showdown"){fillWeekworkout();return;} // de Showdown-bouwer in de Bibliotheek
+    libLaad();libLijst();return;
+  }
   if(coachSection==="week"){c.innerHTML=coachShellHtml('<div class="lbwrap"><div class="spin">Laden…</div></div>');fillWeekworkout();return;}
   if(coachSection==="boards"){c.innerHTML=coachShellHtml('<h1>Leaderboards</h1><div class="spin">Laden…</div>');fillLeaderboards();return;}
   if(coachSection==="blog"){c.innerHTML=coachShellHtml('<div class="spin">Laden…</div>');fillBlog();return;}

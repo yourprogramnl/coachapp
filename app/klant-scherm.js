@@ -336,11 +336,56 @@ function sdStrip(b){
   if(!bron)return b.linked?"":'<div class="sdstrip sdstrip-uit" onclick="event.stopPropagation()"><button class="bordaan" title="Zet een gedeeld leaderboard aan op dit blok. Deze klant en iedereen bij wie je deze workout daarna zet zien elkaars score." onclick="bordAan(this);return false">Leaderboard aanzetten</button></div>';
   return '<div class="sdstrip" data-bron="'+esc(bron)+'" onclick="event.stopPropagation()"><span class="sdstrip-aan" title="Dit blok staat op een gedeeld leaderboard. De klant ziet het bord in de app en staat er met zijn score op.">Leaderboard staat aan</span><span class="sdstrip-naam">'+esc(sdStripNaam(bron))+'</span>'+
     (b.source_blog_workout_id?'<button class="borduit" title="Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan." onclick="bordUit(this);return false">Leaderboard uitzetten</button>':'')+
-    '<label class="sdstrip-sc" title="Zet dit aan als je de workout voor deze klant hebt aangepast, bijvoorbeeld ring rows in plaats van pull-ups. De score staat dan onder Scaled op het gedeelde leaderboard."><input type="checkbox" class="f-scaled"'+(b.scaled_versie?' checked':'')+' onchange="sdScaled(this)"> Scaled-versie</label>'+
+    '<label class="sdstrip-sc" title="Aan = de score van deze klant staat onder Scaled op het gedeelde leaderboard; de klant hoeft zelf niets te kiezen. Bij de '+esc(SHOWDOWN)+' gaat het vinkje vanzelf aan zodra je de tekst voor deze klant aanpast, bijvoorbeeld ring rows in plaats van pull-ups. Klopt dat een keer niet, dan zet je het zelf aan of uit."><input type="checkbox" class="f-scaled"'+(b.scaled_versie?' checked':'')+' onchange="sdScaled(this)"> Scaled-versie</label>'+
+    '<span class="sdstrip-auto" style="display:none">tekst aangepast</span>'+
     (b.source_blog_workout_id?'<button class="btn ghost sm bordmeer" title="Staat dit blok ook al bij andere klanten? Zet het leaderboard daar in één keer aan. Scores die al zijn ingevuld blijven staan en komen op het bord." onclick="bordAnderen(this);return false">Ook bij andere klanten</button>':'')+
     '<button class="btn ghost sm" onclick="wwBordVenster(\''+esc(bron)+'\');return false">Leaderboard</button></div>';
 }
-function sdScaled(cb){const r=cb.closest(".exrow");if(!r)return;r.dataset.scaled=cb.checked?"1":"0";bouwerDirty=true;}
+// Zelf aan- of uitgezet: vanaf dat moment blijft het automatische vinkje van dit blok af.
+function sdScaled(cb){const r=cb.closest(".exrow");if(!r)return;r.dataset.scaled=cb.checked?"1":"0";r.dataset.scaledhand="1";sdAutoLabel(r,false);bouwerDirty=true;}
+// ---------- Aangepaste Showdown telt vanzelf als Scaled (20 nov 2026, wens Stefan) ----------
+// Past de coach bij een klant de tekst van een ingevoegde YP Showdown aan (ring rows in plaats
+// van pull-ups), dan gaat Scaled-versie vanzelf aan: de klant staat onder Scaled en hoeft daar
+// zelf niet over na te denken, en het Rx-bord blijft zuiver. Zet de coach de tekst terug, dan
+// gaat het vinkje weer uit. Alleen bij de Showdown: bij een leaderboard-workout van 1-op-1
+// klanten is de bron een kopie van het eerste blok en geen vaste tekst. Alleen het veld met de
+// workout telt; de coachingtips (notes van een oefening-blok) mag je vrij invullen.
+const SD_BRON={}; // bron-id -> Promise van {showdown, teksten:Set} (genormaliseerd)
+function sdBronTeksten(bron){
+  if(SD_BRON[bron])return SD_BRON[bron];
+  const p=(async()=>{
+    const{data,error}=await db.from("workouts").select("id,title,audience,blog_program_id, blocks(*)").eq("id",bron).maybeSingle();
+    if(error||!data){delete SD_BRON[bron];return null;}
+    const bl=(data.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0)),t=new Set();
+    const zet=s=>{const n=bordNorm(s);if(n)t.add(n);};
+    // Elke vorm waarin de tekst bij een klant kan staan: het losse blok, of alle blokken onder
+    // elkaar zoals het bibliotheek-venster en "Bij klanten zetten" ze samenvoegen.
+    bl.forEach(b=>{zet(composePresc(b));zet(b.kind==="conditioning"?b.notes:b.prescription);});
+    zet(bl.map(b=>{const pr=composePresc(b);return (b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n"+pr:"");}).join("\n\n"));
+    zet(bl.map(b=>{const pr=composePresc(b);return (bl.length>1?(b.label?b.label+") ":"")+(b.exercise||"")+(pr?"\n":""):"")+(pr||"");}).join("\n\n"));
+    return{showdown:data.audience==="blog"&&!data.blog_program_id,teksten:t};
+  })();
+  SD_BRON[bron]=p;return p;
+}
+function sdAutoLabel(r,aan){const s=r.querySelector(".sdstrip-auto");if(s)s.style.display=aan?"":"none";}
+async function sdAutoScaled(r){
+  const bron=r.dataset.srcww||r.dataset.bron;if(!bron||r.dataset.scaledhand==="1")return;
+  const cb=r.querySelector(".sdstrip .f-scaled");if(!cb||cb.offsetParent===null)return; // alleen waar het vinkje te zien is (kalender van een klant)
+  const info=await sdBronTeksten(bron);
+  if(!info||!info.showdown||!r.isConnected||r.dataset.scaledhand==="1")return;
+  const veld=r.querySelector(r.dataset.kind==="conditioning"?".f-desc":".f-presc");if(!veld)return;
+  const anders=!info.teksten.has(bordNorm(veld.value));
+  if(anders&&r.dataset.scaled!=="1"){
+    r.dataset.scaled="1";r.dataset.scaledauto="1";cb.checked=true;sdAutoLabel(r,true);
+    if(!r.dataset.scaledtoast){r.dataset.scaledtoast="1";toast("Tekst aangepast: deze klant staat nu onder Scaled op het leaderboard. Klopt dat niet, haal dan het vinkje Scaled-versie weg.",6000);}
+  }else if(!anders&&r.dataset.scaledauto==="1"){
+    r.dataset.scaled="0";delete r.dataset.scaledauto;cb.checked=false;sdAutoLabel(r,false);
+  }
+}
+document.addEventListener("input",e=>{
+  const t=e.target;if(!t||!t.classList||!(t.classList.contains("f-presc")||t.classList.contains("f-desc")))return;
+  const r=t.closest(".exrow");if(r&&(r.dataset.srcww||r.dataset.bron))sdAutoScaled(r);
+});
 // Leaderboard aanzetten op een gewoon blok: maakt de bron-workout aan (kopie van dit blok) en
 // koppelt het blok eraan. De koppeling zelf wordt bewaard als de coach de workout opslaat.
 async function bordAan(btn){

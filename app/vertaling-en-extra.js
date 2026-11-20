@@ -1205,3 +1205,58 @@ i18nLaad({
   "Leaderboards laden mislukt. Ververs de pagina en probeer het opnieuw.": "Loading leaderboards failed. Refresh the page and try again.",
   "Nog geen leaderboards. Zet bij een klant op een blok \"Leaderboard aanzetten\", of maak een YP Showdown.": "No leaderboards yet. Turn on \"Leaderboard\" on a block at a client, or create a YP Showdown.",
 });
+// Showdown in de Bibliotheek, Bij klanten zetten, Scaled gaat vanzelf aan (20 nov 2026)
+i18nLaad({
+  "Bij klanten zetten": "Add to clients",
+  "Bij {n} klant zetten": "Add to {n} client",
+  "Bij {n} klanten zetten": "Add to {n} clients",
+  "{n} live": "{n} live",
+  "Alle Showdowns naast elkaar. Dit is dezelfde bouwer als onder YP Showdown in het menu. Staat er één live, dan zet je hem met Bij klanten zetten in één keer in het programma van je klanten.": "All Showdowns side by side. This is the same builder as under YP Showdown in the menu. Once one is live, Add to clients puts it in your clients' programs in one go.",
+  "Zet deze Showdown in één keer in het programma van je klanten. Per klant kies je de dag; daarna pas je hem bij een klant nog aan als dat nodig is.": "Put this Showdown in your clients' programs in one go. You pick the day per client; afterwards you can still adjust it for a client if needed.",
+  "Zet deze Showdown in één keer in het programma van je klanten.": "Put this Showdown in your clients' programs in one go.",
+  "De Showdown komt in de kalender van elke klant die je aanvinkt, op de dag die erachter staat. Staat er die dag al een workout, dan komt hij daar als laatste blok onder. De klant logt zijn score en staat op het gedeelde leaderboard. Daarna pas je hem bij een klant nog aan als dat nodig is; een aangepaste tekst telt vanzelf als Scaled.": "The Showdown goes into the calendar of every client you tick, on the day shown next to the name. If there is already a workout that day, it is added as the last block. The client logs a score and appears on the shared leaderboard. Afterwards you can still adjust it for a client; a changed text counts as Scaled automatically.",
+  "Klanten laden…": "Loading clients…",
+  "Klanten laden mislukt. Sluit het venster en probeer het opnieuw.": "Loading clients failed. Close the window and try again.",
+  "Iedereen op": "Everyone on",
+  "per klant": "per client",
+  "Ook klanten van andere coaches ({n})": "Also clients of other coaches ({n})",
+  "andere coach": "other coach",
+  "eigen workout": "own workout",
+  "Op welke dag komt de Showdown bij deze klant?": "Which day does this client get the Showdown?",
+  "Er staat deze week al een blok met de naam van de Showdown, maar zonder leaderboard. Vink je deze klant aan, dan komt de Showdown er als extra blok bij. Je kunt ook het bestaande blok aan het leaderboard hangen: open de klant en klik bij dat blok op Leaderboard aanzetten.": "This week already has a block with the Showdown's name, but without a leaderboard. If you tick this client, the Showdown is added as an extra block. You can also put the existing block on the leaderboard: open the client and click Turn on leaderboard on that block.",
+  "Geen klant gevonden.": "No client found.",
+  "Je hebt nog geen {n}-op-{n} klanten om de Showdown bij te zetten.": "You have no {n}-on-{n} clients yet to add the Showdown to.",
+  "{n} klant aangevinkt.": "{n} client ticked.",
+  "{n} klanten aangevinkt.": "{n} clients ticked.",
+  "Niemand aangevinkt.": "Nobody ticked.",
+  "Bij {n} klant staat hij deze week al.": "{n} client already has it this week.",
+  "Bij {n} klanten staat hij deze week al.": "{n} clients already have it this week.",
+  "Let op: {n} daarvan van een andere coach.": "Note: {n} of them belong to another coach.",
+  "Vink eerst een klant aan.": "Tick a client first.",
+  "Bezig… {n} van {n}": "Working… {n} of {n}",
+  "Gezet bij {n} klant, onder de workout van die dag.": "Added to {n} client, under that day's workout.",
+  "Gezet bij {n} klanten, onder de workout van die dag.": "Added to {n} clients, under that day's workout.",
+  "Gezet bij {n} klant, als eigen workout.": "Added to {n} client, as a workout of its own.",
+  "Gezet bij {n} klanten, als eigen workout.": "Added to {n} clients, as a workout of its own.",
+  "Gezet bij {n} klanten: bij {n} onder de workout van die dag, bij {n} als eigen workout.": "Added to {n} clients: for {n} under that day's workout, for {n} as a workout of its own.",
+  "Er is niets gezet.": "Nothing was added.",
+  "Bij {n} klant stond hij er intussen al.": "{n} client already had it in the meantime.",
+  "Bij {n} klanten stond hij er intussen al.": "{n} clients already had it in the meantime.",
+  "Weer weggehaald bij {n} klant.": "Removed again from {n} client.",
+  "Weer weggehaald bij {n} klanten.": "Removed again from {n} clients.",
+  "Showdown gezet bij {n} klant": "Showdown added to {n} client",
+  "Showdown gezet bij {n} klanten": "Showdown added to {n} clients",
+  "Deze YP Showdown staat nog niet live. Zet hem eerst live met Kies showdown.": "This YP Showdown is not live yet. Put it live first with Pick showdown.",
+  "Deze YP Showdown heeft nog geen tekst.": "This YP Showdown has no text yet.",
+  "Dit account is niet aan een bedrijf gekoppeld.": "This account is not linked to a company.",
+  "tekst aangepast": "text changed",
+  "Tekst aangepast: deze klant staat nu onder Scaled op het leaderboard. Klopt dat niet, haal dan het vinkje Scaled-versie weg.": "Text changed: this client now appears under Scaled on the leaderboard. If that is not right, untick Scaled version.",
+  "Aan = de score van deze klant staat onder Scaled op het gedeelde leaderboard; de klant hoeft zelf niets te kiezen. Bij de YP Showdown gaat het vinkje vanzelf aan zodra je de tekst voor deze klant aanpast, bijvoorbeeld ring rows in plaats van pull-ups. Klopt dat een keer niet, dan zet je het zelf aan of uit.": "On = this client's score appears under Scaled on the shared leaderboard; the client does not have to choose anything. For the YP Showdown the box ticks itself as soon as you change the text for this client, for example ring rows instead of pull-ups. If that is ever wrong, tick or untick it yourself."
+});
+i18nRegel(/^(.+) bij klanten zetten$/, "Add $1 to clients");
+i18nRegel(/^onder "(.+)" [(]concept[)]$/, 'under "$1" (draft)');
+i18nRegel(/^onder "(.+)"$/, 'under "$1"');
+i18nRegel(/^staat er al · (.+)$/, "already there · $1");
+i18nRegel(/^eigen blok zonder leaderboard · (.+)$/, "own block without leaderboard · $1");
+i18nRegel(/^"(.+)" bij ([0-9]+) klant(en)? in de kalender zetten[?] De klant ziet hem meteen, behalve als hij onder een workout komt die nog concept is[.]$/, 'Add "$1" to the calendar of $2 client(s)? The client sees it right away, unless it lands under a workout that is still a draft.');
+i18nRegel(/^De Showdown weer weghalen bij de ([0-9]+) klant(en)? waar je hem net hebt gezet[?] Heeft een klant intussen al een score ingevuld, dan gaat die score mee weg[.]$/, "Remove the Showdown again from the $1 client(s) you just added it to? If a client has logged a score in the meantime, that score is removed too.");
