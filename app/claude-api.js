@@ -22,10 +22,10 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.8 (lezen en concepten schrijven)";
+  const VERSIE="2.9 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
-  const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=8,MAX_DAGEN_VOORUIT=120;
+  const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
   const pad2=n=>String(n).padStart(2,"0");
   const iso=d=>d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
   const opDag=s=>new Date(s+"T12:00:00"); // midden op de dag: veilig voor zomertijd
@@ -124,13 +124,14 @@ const ClaudeApi=(()=>{
       rustdag:(!blokken.length&&isRust(w.title))?true:null,
       notitie_coach:w.coach_notes,warming_up:w.warmup,cooldown:w.cooldown,
       demo_videos_warming_up:titels(w.warmup_media),demo_videos_cooldown:titels(w.cooldown_media),
+      demo_video_ids_warming_up:videoIds(w.warmup_media),demo_video_ids_cooldown:videoIds(w.cooldown_media),
       uit_weekworkout:w.source_blog_workout_id&&!isBord(w.source_blog_workout_id)?true:null,
       leaderboard_workout:isBord(w.source_blog_workout_id)?w.source_blog_workout_id:null},extra||{},{blokken}));
   }
   const BLOK_SCHRIJF=["soort","naam","voorschrift","omschrijving","coachingtips","scoretype","kleur","tijdslimiet_sec","superset_met_vorige","kaarttitel","videos"];
   const BLOK_NEGEER=["id","letter","schema","resultaat","videos_van_atleet","demo_videos","demo_video_ids","videos_uitgezet","uit_weekworkout","leaderboard_workout","scaled_versie"];
-  const W_SCHRIJF=["datum","titel","rustdag","notitie_coach","warming_up","cooldown","videos","blokken"];
-  const W_NEGEER=["id","dag","status","rpe","minuten","rpe_ingevuld_op","reacties","wacht_op_reactie","uit_weekworkout","leaderboard_workout","demo_videos_warming_up","demo_videos_cooldown"];
+  const W_SCHRIJF=["datum","titel","rustdag","notitie_coach","warming_up","cooldown","videos","videos_warming_up","videos_cooldown","blokken"];
+  const W_NEGEER=["id","dag","status","rpe","minuten","rpe_ingevuld_op","reacties","wacht_op_reactie","uit_weekworkout","leaderboard_workout","demo_videos_warming_up","demo_videos_cooldown","demo_video_ids_warming_up","demo_video_ids_cooldown"];
 
   // ---------- Invoer controleren (er wordt pas geschreven als alles klopt) ----------
   function tekstVeld(o,k,max,waar,fouten){
@@ -145,7 +146,7 @@ const ClaudeApi=(()=>{
     if(v===undefined||v===null)return undefined;
     if(v==="auto"||v==="geen"||v==="houden"||v==="aanvullen")return v;
     if(magLijst&&Array.isArray(v)){
-      if(v.length>MAX_VIDEOS){fouten.push(waar+": maximaal "+MAX_VIDEOS+" video's per blok.");return undefined;}
+      if(v.length>MAX_VIDEOS){fouten.push(waar+": maximaal "+MAX_VIDEOS+" video's per lijst.");return undefined;}
       // Een getal is een oefening-id; "yt:..." is een video zoals week() hem in demo_video_ids geeft.
       const ids=v.map(x=>(typeof x==="string"&&/^yt:[\w-]{5,20}$/.test(x))?x:Number(x));
       if(ids.some(n=>typeof n!=="string"&&(!Number.isInteger(n)||n<1))){fouten.push(waar+": videos moet een lijst id's zijn: getallen uit ClaudeApi.videoZoek, of de waarden uit demo_video_ids van week().");return undefined;}
@@ -210,9 +211,13 @@ const ClaudeApi=(()=>{
       if(blokken.length)fouten.push(waar+": een rustdag heeft geen blokken.");
       title="Rest Day";
     }else if(!title)fouten.push(waar+": titel ontbreekt.");
-    return {datum:w.datum,rust,title,coach_notes:tekstVeld(w,"notitie_coach",MAX_TEKST,waar,fouten),
-      warmup:tekstVeld(w,"warming_up",MAX_TEKST,waar,fouten),cooldown:tekstVeld(w,"cooldown",MAX_TEKST,waar,fouten),
-      videos:videosLees(w.videos,waar,fouten,false),blokken};
+    const warmup=tekstVeld(w,"warming_up",MAX_TEKST,waar,fouten),cooldown=tekstVeld(w,"cooldown",MAX_TEKST,waar,fouten);
+    // Eigen lijst per vak: videos_warming_up en videos_cooldown gaan voor op videos.
+    const videosWu=videosLees(w.videos_warming_up,waar+", videos_warming_up",fouten,true),videosCd=videosLees(w.videos_cooldown,waar+", videos_cooldown",fouten,true);
+    if(Array.isArray(videosWu)&&videosWu.length&&!warmup)fouten.push(waar+": videos_warming_up kan alleen als er ook een warming_up-tekst is.");
+    if(Array.isArray(videosCd)&&videosCd.length&&!cooldown)fouten.push(waar+": videos_cooldown kan alleen als er ook een cooldown-tekst is.");
+    return {datum:w.datum,rust,title,coach_notes:tekstVeld(w,"notitie_coach",MAX_TEKST,waar,fouten),warmup,cooldown,
+      videos:videosLees(w.videos,waar,fouten,false),videosWu,videosCd,blokken};
   }
 
   // ---------- Letters (A, B1, B2, C) en volgorde, zoals de bouwer ze zet ----------
@@ -233,10 +238,15 @@ const ClaudeApi=(()=>{
   // Per regel herkennen, en binnen een regel wint de meest specifieke naam: bij
   // "Barbell Strict Press" niet ook nog de video van "Strict Press" erbij. Daarna
   // elke oefening en elke video hooguit één keer.
-  function mediaAuto(tekst){
+  // bron = losse tekst (warming-up, cooldown) of een blok {naam, tekst, naamAlleen}.
+  // Bij een blok gaat de naam voor. Bij een oefening is de naam de oefening: is die
+  // herkend, dan komt er niets meer uit het voorschrift bij (daar staat hooguit een
+  // verwijzing in, zoals "70% van je back squat"). Bij conditioning staan de bewegingen
+  // in de omschrijving: eerst de naam, daarna de tekst.
+  function mediaAuto(bron){
     try{
       const uit=[];
-      String(tekst||"").split(/\n/).map(r=>r.trim()).filter(Boolean).forEach(regel=>{
+      const lees=tekst=>String(tekst||"").split(/\n/).map(r=>r.trim()).filter(Boolean).forEach(regel=>{
         const hits=gmHerkenRegel(regel,new Set()).filter(h=>h.o&&h.o.youtube_id);
         const in_=(a,b)=>b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ");
         hits.filter(a=>!hits.some(b=>b!==a&&in_(a,b))).forEach(h=>{
@@ -244,6 +254,10 @@ const ClaudeApi=(()=>{
           uit.push({youtube_id:h.o.youtube_id,titel:h.o.naam,oefening_id:h.o.id,term:h.term});
         });
       });
+      if(bron&&typeof bron==="object"){
+        lees(bron.naam);
+        if(!(bron.naamAlleen&&uit.length))lees(bron.tekst);
+      }else lees(bron);
       return uit.slice(0,MAX_VIDEOS);
     }catch(e){return [];}
   }
@@ -313,6 +327,8 @@ const ClaudeApi=(()=>{
     const m=mediaAuto(tekst||"");return m.length?m:null;
   }
   const blokTekst=n=>[n.exercise,n.kind==="conditioning"?n.notes:n.prescription].filter(Boolean).join("\n");
+  // Voor het kiezen van demo-video's: naam en tekst apart, zodat de naam voor kan gaan.
+  const blokBron=n=>({naam:n.exercise,tekst:n.kind==="conditioning"?n.notes:n.prescription,naamAlleen:n.kind!=="conditioning"});
 
   // ---------- Van gecontroleerde invoer naar databaserij ----------
   function blokRij(n,oud){
@@ -477,7 +493,8 @@ const ClaudeApi=(()=>{
   const tplBlokRijen=pw=>(pw.program_blocks||[]).slice().sort((x,y)=>x.sort-y.sort);
   function tplWorkoutUit(pw){
     return schoon({id:pw.id,titel:pw.title,notitie_coach:pw.coach_notes,warming_up:pw.warmup,cooldown:pw.cooldown,
-      demo_videos_warming_up:titels(pw.warmup_media),demo_videos_cooldown:titels(pw.cooldown_media),blokken:tplBlokRijen(pw).map(blokUit)});
+      demo_videos_warming_up:titels(pw.warmup_media),demo_videos_cooldown:titels(pw.cooldown_media),
+      demo_video_ids_warming_up:videoIds(pw.warmup_media),demo_video_ids_cooldown:videoIds(pw.cooldown_media),blokken:tplBlokRijen(pw).map(blokUit)});
   }
   // Blokrij voor een kopie (uit een week van de atleet of uit een template): alles gaat mee zoals het er staat.
   const kopieBlok=b=>({kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription,notes:b.notes,sort:b.sort,color:b.color,
@@ -489,7 +506,7 @@ const ClaudeApi=(()=>{
     if(!(await videosKlaar())){meldingen.push("De oefeningenbibliotheek was niet geladen: de demo-video's zijn gekopieerd zoals ze waren.");return;}
     const f=[];
     rijen.forEach(r=>{
-      r.blokken.forEach(b=>{if(!b.source_blog_workout_id)b.media=mediaKies(keuze,blokTekst(b),b.media||null,true,"",f,true);});
+      r.blokken.forEach(b=>{if(!b.source_blog_workout_id)b.media=mediaKies(keuze,blokBron(b),b.media||null,true,"",f,true);});
       if(r.workout.warmup)r.workout.warmup_media=mediaKies(keuze,r.workout.warmup,r.workout.warmup_media||null,true,"",f,true);
       if(r.workout.cooldown)r.workout.cooldown_media=mediaKies(keuze,r.workout.cooldown,r.workout.cooldown_media||null,true,"",f,true);
     });
@@ -527,6 +544,8 @@ const ClaudeApi=(()=>{
           "De chat lees je met ClaudeApi.berichten. Je kunt geen berichten versturen en niets als gelezen markeren; dat doet de coach zelf.",
           "Elk schrijf-commando geeft terug wat er nu staat, in dezelfde vorm als ClaudeApi.week. Lees dat na, vooral demo_videos: de herkenning zit er soms naast.",
           "Demo-video's: een nieuw blok krijgt ze vanzelf, een gekopieerd blok houdt de video's die het had. Mist er een, gebruik dan videos:\"aanvullen\" (laat staan wat er staat en voegt herkende oefeningen toe). Staat er bij een blok videos_uitgezet, dan hebben coaches die video eerder bewust weggehaald: kies hem alleen als de coach het vraagt, met videos:[id] uit videoZoek. Bestaat er voor een beweging geen video in de bibliotheek (bijvoorbeeld Echo Bike), dan kan er ook niets gekozen worden: meld dat aan de coach.",
+          "Hoe de app zelf kiest: de naam van het blok gaat voor. Bij een oefening telt alleen de naam als die herkend wordt; uit het voorschrift komt er dan niets bij (zet een tweede beweging dus in een eigen blok, of geef videos:[...] mee). Wordt de naam niet herkend, dan kijkt de app in het voorschrift. Bij conditioning komt eerst de naam en daarna elke beweging uit de omschrijving. Per blok, warming-up of cooldown passen er hooguit "+MAX_VIDEOS+" video's.",
+          "Een tweede sessie op dezelfde dag is een tweede workout met dezelfde datum en een eigen titel, bijvoorbeeld \"Sessie 2 (optioneel)\". De volgorde in de lijst van schrijfConcept is de volgorde op de dag. Een vinkje optioneel of prio bestaat nog niet: zet het in de titel.",
           "Staat er ok:false, dan is er niets geschreven, tenzij de fout zelf iets anders zegt.",
           "Een groot antwoord (vier weken van een atleet die veel traint is al snel 75 kB) kan in je browsergereedschap afgekapt worden. Bewaar het dan in een variabele (window.w = await ClaudeApi.week(...)) en lees het per week of per dag uit, of vraag één week per keer op."
         ],
@@ -555,7 +574,7 @@ const ClaudeApi=(()=>{
           "ClaudeApi.leaderboardAan(blokId, opties)":"Zet een gedeeld leaderboard aan op een gewoon blok: er komt een leaderboard-workout met de naam en de tekst van het blok, en het blok wordt eraan gekoppeld. Kan niet op een blok in een superset, een blok met een lift of een blok zonder scoretype. Bij een zichtbare workout alleen met {zichtbaar:true}. Het antwoord geeft het id waarmee je hem bij andere atleten plaatst.",
           "ClaudeApi.wijzigBlok(blokId, velden, opties)":"Past één blok aan (bij een zichtbare workout alleen met opties {zichtbaar:true}). Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Verandert de naam of de tekst, dan worden de demo-video's opnieuw gekozen (videos:\"houden\" laat ze staan).",
           "ClaudeApi.vervangBlokken(workoutId, blokken, opties)":"Zet de hele blokkenlijst in één keer (bij een zichtbare workout alleen met opties {zichtbaar:true}): een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg. Zo voeg je een blok toe, haal je er een weg of verander je de volgorde.",
-          "ClaudeApi.wijzigConcept(workoutId, velden, opties)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown. Bij een zichtbare workout alleen met opties {zichtbaar:true}.",
+          "ClaudeApi.wijzigConcept(workoutId, velden, opties)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown, en de demo-video's van die twee vakken met videos_warming_up en videos_cooldown (zie workout in deze uitleg). Bij een zichtbare workout alleen met opties {zichtbaar:true}.",
           "ClaudeApi.verwijderConcept(workoutId)":"Haalt één concept weg, met zijn blokken. Kan alleen bij een concept zonder gelogde resultaten. Doe dit alleen voor een concept dat je zelf hebt klaargezet of als de coach erom vraagt.",
           "ClaudeApi.voegTemplateIn(workoutId, templateId, opties)":"Zet een template uit de bibliotheek in één keer in een workout, precies zoals de knop in de app dat doet: tekst, kleur en de demo-video's van de template gaan mee, en een template met meerdere liften wordt een superset. Een warming-up- of cooldown-template komt in dat vak te staan (achter wat er al staat); elke andere template komt als laatste blok. opties (optioneel): {plek:\"blok\"} om een warming-up-template toch als blok te zetten, {plek:\"warming_up\"} of {plek:\"cooldown\"} om het vak te kiezen, {zichtbaar:true} voor een workout die al zichtbaar is. Verplaatsen doe je daarna met vervangBlokken.",
           "ClaudeApi.videosToevoegen(blokId, videos)":"Zet demo-video's bij één blok, ook als de workout al zichtbaar is. videos = \"aanvullen\" (standaard: de herkende bewegingen die nog geen video hebben) of een lijst id's uit videoZoek. Er komt alleen iets bij; wat er staat blijft staan. Werkt niet op de YP Showdown.",
@@ -573,6 +592,17 @@ const ClaudeApi=(()=>{
           superset_met_vorige:"true = hoort bij het blok erboven (B1, B2). De letters zet de app zelf.",
           kaarttitel:"Titel boven een superset, op het eerste blok van de groep.",
           videos:"Weglaten = de app kiest zelf uit de tekst (bij een bestaand blok alleen als naam of tekst verandert). \"aanvullen\" = laten staan en ontbrekende toevoegen, \"auto\" = opnieuw kiezen, \"houden\", \"geen\", of een exacte lijst id's. Een id is een getal uit ClaudeApi.videoZoek of een waarde uit demo_video_ids van week() (die staan in dezelfde volgorde als demo_videos, dus zo houd je video's met dezelfde naam uit elkaar)."
+        },
+        workout:{
+          datum:"Verplicht, JJJJ-MM-DD.",
+          titel:"Verplicht, behalve bij rustdag:true.",
+          notitie_coach:"Tekst boven de workout.",
+          warming_up:"Tekst van het vak Warming-up.",
+          cooldown:"Tekst van het vak Cooldown.",
+          videos_warming_up:"Demo-video's bij de warming-up. Weglaten = de app kiest zelf uit de tekst. \"aanvullen\", \"auto\", \"houden\", \"geen\", of een exacte lijst id's (getallen uit ClaudeApi.videoZoek of waarden uit demo_video_ids_warming_up van week()). Kan alleen als er een warming_up-tekst is.",
+          videos_cooldown:"Hetzelfde voor de cooldown (demo_video_ids_cooldown).",
+          videos:"Eén keuze voor warming-up en cooldown samen: \"auto\", \"aanvullen\", \"houden\" of \"geen\". Een lijst geef je per vak.",
+          blokken:"Lijst blokken, zie blok."
         },
         voorbeeld:{
           aanroep:"await ClaudeApi.schrijfConcept(atleetId, workouts)",
@@ -829,10 +859,10 @@ const ClaudeApi=(()=>{
         const waar="workout "+(i+1)+" ("+w.datum+")";
         const wk=w.videos===undefined?standaard:w.videos;
         letters(w.blokken);
-        w.blokken.forEach((n,j)=>{n.media=mediaKies(n.videos===undefined?standaard:n.videos,blokTekst(n),undefined,true,waar+", blok "+(j+1),fouten,indexOk);});
+        w.blokken.forEach((n,j)=>{n.media=mediaKies(n.videos===undefined?standaard:n.videos,blokBron(n),undefined,true,waar+", blok "+(j+1),fouten,indexOk);});
         return {workout:{workout_date:w.datum,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
-            warmup_media:w.warmup?mediaKies(wk,w.warmup,undefined,true,waar,fouten,indexOk):null,
-            cooldown_media:w.cooldown?mediaKies(wk,w.cooldown,undefined,true,waar,fouten,indexOk):null},
+            warmup_media:w.warmup?mediaKies(w.videosWu===undefined?wk:w.videosWu,w.warmup,undefined,true,waar+", videos_warming_up",fouten,indexOk):null,
+            cooldown_media:w.cooldown?mediaKies(w.videosCd===undefined?wk:w.videosCd,w.cooldown,undefined,true,waar+", videos_cooldown",fouten,indexOk):null},
           blokken:w.blokken.map(n=>blokRij(n,null))};
       });
       if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
@@ -934,7 +964,7 @@ const ClaudeApi=(()=>{
       const gewijzigd=blokTekst(n)!==blokTekst(normUitRij(oud));
       const wilAuto=n.videos==="auto"||n.videos==="aanvullen"||(n.videos===undefined&&gewijzigd);
       const indexOk=(Array.isArray(n.videos)||wilAuto)?await videosKlaar():false;
-      n.media=mediaKies(n.videos,blokTekst(n),oud.media||null,gewijzigd,"blok "+(oud.label||""),fouten,indexOk);
+      n.media=mediaKies(n.videos,blokBron(n),oud.media||null,gewijzigd,"blok "+(oud.label||""),fouten,indexOk);
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
       const normen=letters(c.w.blocks.map(b=>b.id===blokId?n:normUitRij(b)));
       await blokkenSync(c.w,normen);
@@ -981,7 +1011,7 @@ const ClaudeApi=(()=>{
       normen.forEach((n,i)=>{
         const o=n.id?oud[n.id]:null;
         const gewijzigd=!o||blokTekst(n)!==blokTekst(normUitRij(o));
-        n.media=mediaKies(n.videos,blokTekst(n),o?(o.media||null):undefined,gewijzigd,"blok "+(i+1),fouten,indexOk);
+        n.media=mediaKies(n.videos,blokBron(n),o?(o.media||null):undefined,gewijzigd,"blok "+(i+1),fouten,indexOk);
       });
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
       const uit=await blokkenSync(c.w,normen);
@@ -995,8 +1025,8 @@ const ClaudeApi=(()=>{
     wijzigConcept:veilig(async(workoutId,velden,opties)=>{
       opties=isObject(opties)?opties:{};
       const c=await conceptOphalen(workoutId,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
-      if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef de velden die veranderen: datum, titel, notitie_coach, warming_up, cooldown.");
-      const mag=["datum","titel","notitie_coach","warming_up","cooldown","videos"];
+      if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef de velden die veranderen: datum, titel, notitie_coach, warming_up, cooldown, videos_warming_up, videos_cooldown.");
+      const mag=["datum","titel","notitie_coach","warming_up","cooldown","videos","videos_warming_up","videos_cooldown"];
       const onbekend=Object.keys(velden).filter(k=>!mag.includes(k));
       if(onbekend.length)return fout("Onbekend veld: "+onbekend.join(", ")+". Toegestaan: "+mag.join(", ")+". Blokken wijzig je met wijzigBlok of vervangBlokken.");
       const fouten=[],waar="\""+(c.w.title||"workout")+"\"",upd={};
@@ -1009,13 +1039,20 @@ const ClaudeApi=(()=>{
       if("warming_up" in velden)upd.warmup=tekstVeld(velden,"warming_up",MAX_TEKST,waar,fouten);
       if("cooldown" in velden)upd.cooldown=tekstVeld(velden,"cooldown",MAX_TEKST,waar,fouten);
       const vk=videosLees(velden.videos,waar,fouten,false);
+      const vkW=videosLees(velden.videos_warming_up,waar+", videos_warming_up",fouten,true),vkC=videosLees(velden.videos_cooldown,waar+", videos_cooldown",fouten,true);
       if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
+      // Eigen lijst per vak gaat voor op videos (dat voor allebei geldt).
+      const wuK=vkW===undefined?vk:vkW,cdK=vkC===undefined?vk:vkC;
       const wuAnders="warmup" in upd&&(upd.warmup||"")!==(c.w.warmup||""),cdAnders="cooldown" in upd&&(upd.cooldown||"")!==(c.w.cooldown||"");
-      if(wuAnders||cdAnders||vk!==undefined){
-        const indexOk=(vk==="geen"||vk==="houden")?false:await videosKlaar();
+      if(wuAnders||cdAnders||wuK!==undefined||cdK!==undefined){
+        const zonder=k=>k==="geen"||k==="houden";
+        const indexOk=(zonder(wuK)&&zonder(cdK))?false:await videosKlaar();
         const wu="warmup" in upd?upd.warmup:c.w.warmup,cd="cooldown" in upd?upd.cooldown:c.w.cooldown;
-        if(wuAnders||vk!==undefined)upd.warmup_media=wu?mediaKies(vk,wu,c.w.warmup_media||null,wuAnders,waar,fouten,indexOk):null;
-        if(cdAnders||vk!==undefined)upd.cooldown_media=cd?mediaKies(vk,cd,c.w.cooldown_media||null,cdAnders,waar,fouten,indexOk):null;
+        if(Array.isArray(wuK)&&wuK.length&&!wu)fouten.push(waar+": videos_warming_up kan alleen als er een warming_up-tekst staat.");
+        if(Array.isArray(cdK)&&cdK.length&&!cd)fouten.push(waar+": videos_cooldown kan alleen als er een cooldown-tekst staat.");
+        if(wuAnders||wuK!==undefined)upd.warmup_media=wu?mediaKies(wuK,wu,c.w.warmup_media||null,wuAnders,waar+", videos_warming_up",fouten,indexOk):null;
+        if(cdAnders||cdK!==undefined)upd.cooldown_media=cd?mediaKies(cdK,cd,c.w.cooldown_media||null,cdAnders,waar+", videos_cooldown",fouten,indexOk):null;
+        if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
       }
       // Alleen bijwerken zolang de status nog is wat we lazen (de coach kan intussen hebben goedgekeurd).
       const{data,error}=await db.from("workouts").update(upd).eq("id",c.w.id).eq("status",c.w.status).select("id");
@@ -1339,7 +1376,7 @@ const ClaudeApi=(()=>{
       const fouten=[];
       let ids=null;
       if(lijst){ids=videosLees(videos,"videos",fouten,true);if(fouten.length)return fout(fouten.join(" "));}
-      const nieuw=lijst?mediaLijst(ids,"videos",fouten,b.media):mediaAuto(blokTekst(b));
+      const nieuw=lijst?mediaLijst(ids,"videos",fouten,b.media):mediaAuto(blokBron(b));
       if(fouten.length)return fout(fouten.join(" "));
       const basis=(Array.isArray(b.media)?b.media:[]).filter(m=>m&&m.youtube_id),bij=[];
       nieuw.forEach(m=>{if(basis.length+bij.length<MAX_VIDEOS&&!basis.concat(bij).some(x=>x.youtube_id===m.youtube_id||(x.oefening_id&&x.oefening_id===m.oefening_id)))bij.push(m);});
@@ -1370,7 +1407,7 @@ const ClaudeApi=(()=>{
           if(b.source_blog_workout_id)continue;
           blokken++;
           const basis=(Array.isArray(b.media)?b.media:[]).filter(m=>m&&m.youtube_id),bij=[];
-          mediaAuto(blokTekst(b)).forEach(m=>{if(basis.length+bij.length<MAX_VIDEOS&&!basis.concat(bij).some(x=>x.youtube_id===m.youtube_id||(x.oefening_id&&x.oefening_id===m.oefening_id)))bij.push(m);});
+          mediaAuto(blokBron(b)).forEach(m=>{if(basis.length+bij.length<MAX_VIDEOS&&!basis.concat(bij).some(x=>x.youtube_id===m.youtube_id||(x.oefening_id&&x.oefening_id===m.oefening_id)))bij.push(m);});
           mediaUitgezet(blokTekst(b),basis.concat(bij)).forEach(n=>uitgezet.add(n));
           if(!bij.length)continue;
           const{error:ue}=await db.from("blocks").update({media:basis.concat(bij)}).eq("id",b.id);
