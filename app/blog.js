@@ -474,7 +474,7 @@ function blogBoardHtml(wid){
     '<button class="'+(rx==="scaled"?"on":"")+'" onclick="blogBoardRx(\'scaled\')">Scaled <span>'+tel("scaled")+'</span></button></div>'+
     '<span class="sm muted">Klik op een naam voor de notitie van de sporter.</span>'+wwNotitiesKnop("blogboard-body",secties.flatMap(s=>s.rows.filter(r=>(r.rx==="scaled"?"scaled":"rx")===rx)))+'</div>';
   if(!secties.length)return html+'<div class="cempty">Deze workout heeft nog geen onderdelen.</div>';
-  if(!secties.some(s=>s.rows.length))return html+'<div class="cempty">Nog geen openbare scores op deze workout. Zodra volgers loggen en hun score op "openbaar" zetten, staan ze hier.</div>';
+  if(!secties.some(s=>s.rows.length))return html+'<div class="cempty">Nog geen scores op deze workout. Zodra volgers loggen, staan ze hier.</div>';
   return html+toon.map(s=>{
     const st=(s.blok&&s.blok.score_type)||"text";
     let h='<div class="lbcat" style="margin-top:14px;font-size:13px">'+esc(s.kop)+(s.blok&&s.blok.timecap_seconds?' <span class="muted" style="font-weight:500">· cap '+secNaarTijd(s.blok.timecap_seconds)+'</span>':'')+'</div>';

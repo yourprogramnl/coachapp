@@ -1467,7 +1467,7 @@ const ClaudeApi=(()=>{
       ververs(a.p.id);
       return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},geplaatst:"\""+(bron.title||"Leaderboard-workout")+"\" (leaderboard-workout)",status:"concept",uitleg:GOEDKEUREN,
         let_op:["De tekst komt letterlijk uit de leaderboard-workout. Een aangepaste versie voor deze atleet maak je daarna met ClaudeApi.schaalBlok.",
-          "Na goedkeuren ziet de atleet het gedeelde leaderboard en staat hij er met zijn score standaard op. Hij kan dat in de app zelf uitzetten."],workout:terug[0]});
+          "Na goedkeuren ziet de atleet het gedeelde leaderboard en staat hij er met zijn score op. Uitzetten kan hij niet: wie een score logt staat op het bord."],workout:terug[0]});
     }),
 
     // Geschaalde versie voor één atleet van een ingevoegde Showdown of leaderboard-workout: alleen
@@ -1549,7 +1549,7 @@ const ClaudeApi=(()=>{
         atleten:(data.blokken||[]).map(wie),
         overgeslagen:(data.overgeslagen||[]).map(x=>Object.assign(wie(x.blok),{reden:x.reden})),
         niet_gevonden_of_niet_van_jou:data.geen_rechten_of_niet_gevonden||null,
-        let_op:["Deze atleten zien elkaars score op dit leaderboard. Een score die al was ingevuld staat er meteen op; een atleet kan dat in de app zelf uitzetten.",
+        let_op:["Deze atleten zien elkaars score op dit leaderboard. Een score die al was ingevuld staat er meteen op. Uitzetten kan een atleet niet: wie een score logt staat op het bord.",
           bron.audience==="blog"?"Dit is het leaderboard van de YP Showdown: ook de blog-leden zien deze scores.":null,
           "Heeft een atleet een aangepaste versie, zet dan met schaalBlok het vinkje Scaled-versie, anders staat hij standaard onder Rx."].filter(Boolean)});
     }),
@@ -1583,7 +1583,7 @@ const ClaudeApi=(()=>{
       ververs(c.p.id);
       return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},status:statusNaam(c.w),leaderboard_workout:{id:nw.id,naam:oud.exercise},
         let_op:["Zet dezelfde workout bij andere atleten met ClaudeApi.plaatsLeaderboardWorkout(atleetId, \""+nw.id+"\", datum). Typ je de tekst opnieuw, dan krijgt die atleet een los blok zonder leaderboard.",
-          "Een atleet ziet het bord zodra de workout bij hem zichtbaar is, en staat er met zijn score standaard op. Hij kan dat in de app zelf uitzetten.",
+          "Een atleet ziet het bord zodra de workout bij hem zichtbaar is, en staat er met zijn score op. Uitzetten kan hij niet: wie een score logt staat op het bord.",
           c.w.status!=="draft"?ZICHTBAAR:null].filter(Boolean),workout:terug[0]});
     }),
 

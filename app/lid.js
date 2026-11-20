@@ -241,7 +241,7 @@ async function lidEigenLaad(){
   const blk=wwMainBlock(LID.blog);if(!blk)return;
   const{data}=await db.from("results").select("*").eq("block_id",blk.id).eq("athlete_id",ME.user.id);
   LID.eigen=(data||[])[0]||null;
-  if(LID.eigen){LID.rx=LID.eigen.rx==="scaled"?"scaled":"rx";LID.openbaar=!!LID.eigen.is_public;}
+  if(LID.eigen){LID.rx=LID.eigen.rx==="scaled"?"scaled":"rx";LID.openbaar=true;}
   else{LID.rx="rx";LID.openbaar=true;}
 }
 function lidWeekHtml(){
@@ -269,7 +269,7 @@ function lidLogHtml(blk){
       '<input class="lid-in" id="lid-note" placeholder="notitie (optioneel)" style="flex:1;min-width:170px">'+
     '</div>'+
     '<div style="display:flex;gap:12px;align-items:center;margin-top:13px;flex-wrap:wrap">'+
-      '<button class="tgl'+(LID.openbaar?" on":"")+'" onclick="this.classList.toggle(\'on\');LID.openbaar=this.classList.contains(\'on\')"><span class="sw"></span> Openbaar op het leaderboard</button>'+
+      '<div class="sm muted" style="margin:6px 0">Je score komt op het leaderboard. Wie deze workout ook doet ziet je score.</div>'+
       '<span style="margin-left:auto;display:flex;gap:8px">'+
         (eigen?'<button class="btn ghost sm" style="color:#e5484d;border-color:#f3b8ba" onclick="lidVerwijder()">Score verwijderen</button>':'')+
         '<button class="btn sm" onclick="lidOpslaan()">'+(eigen?"Score bijwerken":"Score opslaan")+'</button></span>'+
@@ -294,12 +294,12 @@ async function lidOpslaan(){
   const st=blk.score_type||"text";
   const msg=document.getElementById("lid-msg");msg.textContent="";
   const val=id=>{const el=document.getElementById(id);return el?el.value:"";};
-  const rec={block_id:blk.id,workout_id:LID.blog.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status:"completed",rx:LID.rx,is_public:LID.openbaar,note:(val("lid-note")||"").trim()||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null,score_value:null};
+  const rec={block_id:blk.id,workout_id:LID.blog.id,athlete_id:ME.user.id,company_id:ME.profile.company_id,status:"completed",rx:LID.rx,is_public:true,note:(val("lid-note")||"").trim()||null,score_text:null,time_seconds:null,load_kg:null,reps:null,rounds:null,score_value:null};
   const fout=lidLeesScore(st,"lid",rec);
   if(fout){msg.textContent=fout;msg.className="msg err";return;}
   const{error}=await db.from("results").upsert(rec,{onConflict:"block_id,athlete_id"});
   if(error){msg.textContent=error.message||"Opslaan mislukt. Probeer het opnieuw.";msg.className="msg err";return;}
-  toast(LID.openbaar?"Je score staat op het leaderboard 💪":"Score opgeslagen (privé)");
+  toast("Je score staat op het leaderboard 💪");
   await renderLid();
 }
 async function lidVerwijder(){

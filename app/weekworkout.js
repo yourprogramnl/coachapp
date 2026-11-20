@@ -60,7 +60,7 @@ function wwRender(){
       '<button class="btn ghost" onclick="wwKies()">Kies showdown'+(nc?' <b class="sdb-tel">'+nc+'</b>':'')+'</button></div>'+
     (iets?'<div style="margin:12px 0 14px"><input class="lid-in" id="ww-zoek" placeholder="'+(bouwer?"Zoek op naam, datum of beweging (bijv. sandbag)…":"Zoek op naam of datum (bijv. 15 juli)…")+'" style="width:100%;max-width:340px" oninput="wwZoek(this.value)" value="'+esc(WW.zoek)+'"></div>':'')+
     '<div id="ww-cards">'+(bouwer?wwBouwerHtml():wwCardsHtml())+'</div>'+
-    (WW.list.length&&!bouwer?'<div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Alleen scores die een lid op "openbaar" zet staan erop; privé-scores ziet alleen de eigen coach.</div>':'')+
+    (WW.list.length&&!bouwer?'<div class="sm muted" style="margin-top:16px">Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Elke score die een lid logt staat erop.</div>':'')+
   '</div>';
 }
 function wwView(v){
@@ -162,7 +162,7 @@ function wwCmp(st){
 }
 function wwBoardInner(id,hostId){
   const w=WW.list.find(x=>x.id===id)||(WW_VENSTER&&WW_VENSTER.id===id?WW_VENSTER:null),rows=WW.boards[id]||[];
-  if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen openbare scores. Zodra leden hun score loggen en op "openbaar" zetten, verschijnen ze hier.</span></div>';
+  if(!rows.length)return '<div class="card" style="padding:22px;text-align:center"><span class="muted">Nog geen scores. Zodra leden hun score loggen, verschijnen ze hier.</span></div>';
   if(!w)return "";
   const st=(wwMainBlock(w)||{}).score_type||"text";
   const cats=[["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]];
@@ -428,7 +428,7 @@ async function wwOpslaan(daarnaLive){
 async function wwVerwijder(id){
   const concept=wwIsConcept(wwVind(id));
   const n=(WW.boards[id]||[]).length;
-  if(!confirm(concept?"Dit concept verwijderen?":"Deze weekworkout verwijderen?"+(n?"\n\nAlle gelogde scores ("+n+" openbaar, plus eventuele privé-scores) gaan mee weg.":"\n\nEventueel gelogde scores gaan mee weg.")))return;
+  if(!confirm(concept?"Dit concept verwijderen?":"Deze weekworkout verwijderen?"+(n?"\n\nAlle gelogde scores ("+n+") gaan mee weg.":"\n\nEventueel gelogde scores gaan mee weg.")))return;
   const{error}=await db.from("workouts").delete().eq("id",id);
   if(error){toast(error.message||"Verwijderen mislukt");return;}
   delete WW.boards[id];delete WW.open[id];
