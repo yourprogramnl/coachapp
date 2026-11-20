@@ -1842,5 +1842,5 @@ i18nLaad({
 "Dit wachtwoord wordt te vaak gebruikt en is makkelijk te raden. Kies een ander wachtwoord, bijvoorbeeld drie losse woorden met een cijfer erbij.":"This password is used too often and is easy to guess. Choose another one, for example three separate words with a number.",
 "Je account is nog niet gekoppeld":"Your account isn't linked yet",
 "Geen Showdown-leden.":"No Showdown members.",
-"Gratis Showdown- en blog-leden, zonder 1-op-1 coaching":"Free Showdown and blog members, without 1-on-1 coaching"
+"Wie alleen de gratis Showdown doet":"Everyone who only does the free Showdown"
 });

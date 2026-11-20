@@ -2,9 +2,10 @@
 // Klanten, Coaches en Bedrijven, plus de uitnodigingsflow (invites).
 // ---------- KLANTEN-pagina (naar het ontwerp) ----------
 let KDATA=null,klantPeriode=30,klantZoek="",klantCoachFilter=null,klantCoachNaam="",klantArchief=false,klantShowdown=false;
-// Gratis Showdown- en blog-leden (geen 1-op-1): eigen tabblad Showdown, zodat de lijst met
-// 1-op-1 klanten kort blijft en de cijfers bovenaan alleen over die klanten gaan (Stefan, 20 nov 2026).
-const isShowdownLid=p=>!!p&&p.membership_type==="free_blog";
+// Wie alleen de gratis Showdown doet (geen 1-op-1 en geen betaald blogprogramma) staat onder een eigen
+// tabblad Showdown, zodat de lijst met klanten kort blijft en de cijfers bovenaan alleen over hen gaan
+// (Stefan, 20 nov 2026). Wie een betaald programma volgt (KDATA.betaaldBlog) blijft onder Actief.
+const isShowdownLid=p=>!!p&&p.membership_type==="free_blog"&&!(KDATA&&KDATA.betaaldBlog&&KDATA.betaaldBlog.has(p.id));
 // Tag-filter op de lijst + afstreep-lijstje voor het programmeren (verzoek
 // Stefan 22 juli): vink klanten af terwijl je ze programmeert; geldt zolang de
 // pagina open staat. Sinds 25 juli kun je op meerdere tags tegelijk filteren
@@ -37,7 +38,7 @@ function klantTab(a){klantArchief=a===true;klantShowdown=a==="showdown";if(typeo
 // een oude lading niets meer over het nieuwe scherm heen.
 let klantLaadNr=0;
 const klantenInBeeld=()=>coachSection==="clients"&&!document.querySelector(".client-layout")&&!!document.getElementById("cpage");
-const KDATA_LEEG=()=>({ws:[],done:new Set(),msgs:[],alleTags:[],tagsByClient:{},cons:[],lastConsult:{},pending:{}});
+const KDATA_LEEG=()=>({ws:[],done:new Set(),msgs:[],alleTags:[],tagsByClient:{},cons:[],lastConsult:{},pending:{},betaaldBlog:new Set()});
 async function fillKlanten(){
   const nr=++klantLaadNr;
   const ids=klantScope().map(p=>p.id);
@@ -52,7 +53,9 @@ async function fillKlanten(){
   // Mag deze coach bij collega's meekijken? Dan komt er een tabblad Meekijken bij (app/meekijken.js).
   if(myRole()==="coach"&&typeof kijkLaad==="function")kijkLaad().then(()=>{if(klantenInBeeld()&&kijkTabAan())klantenRender();});
   const leeg=Promise.resolve({data:[]});
-  const[tq,wq,mq,pq,cq,iq]=await Promise.all([
+  // Blog-leden: volgen ze een betaald programma? (bepaalt Actief of het tabblad Showdown)
+  const blogIds=klantScope().filter(p=>p.membership_type==="free_blog").map(p=>p.id);
+  const[tq,wq,mq,pq,cq,iq,bq]=await Promise.all([
     ME.profile.company_id?db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name"):leeg,
     // Resultaten meteen mee-ophalen bij de workouts, en geen lange lijst workout-id's in de link.
     // In stukken en met alle bladzijden (19 nov 2026): een beheerder met alle klanten kreeg maar de
@@ -65,6 +68,7 @@ async function fillKlanten(){
     // Wachtwoordlinks (bron 'wachtwoordlink', zie klantWachtwoordlink) tellen niet mee:
     // dat account is al actief, de klant is alleen zijn wachtwoord kwijt.
     ids.length?db.from("invites").select("profile_id,expires_at").is("accepted_at",null).not("profile_id","is",null).or("bron.is.null,bron.neq.wachtwoordlink").in("profile_id",ids):leeg,
+    blogIds.length?inStukken(blogIds,s=>db.from("blog_program_members").select("athlete_id,blog_program_id,blog_programs(price_cents)").in("athlete_id",s).order("athlete_id").order("blog_program_id")):leeg,
   ]);
   let ws=[],rs=[];
   if(wq.error&&ids.length){
@@ -80,8 +84,9 @@ async function fillKlanten(){
   const tagsByClient={};ptags.forEach(pt=>{(tagsByClient[pt.profile_id]=tagsByClient[pt.profile_id]||[]).push(pt.tag_id);});
   const lastConsult={};cons.forEach(c=>{if(c.consult_date&&(!lastConsult[c.athlete_id]||c.consult_date>lastConsult[c.athlete_id]))lastConsult[c.athlete_id]=c.consult_date;});
   const pending={};openInv.forEach(i=>{pending[i.profile_id]=i.expires_at;});
-  const kdata={ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient,cons,lastConsult,pending};
-  const vingerafdruk=JSON.stringify([ws,rs,msgs,alleTags,ptags,cons,openInv]);
+  const betaald=((bq&&bq.data)||[]).filter(m=>m.blog_programs&&Number(m.blog_programs.price_cents)>0).map(m=>m.athlete_id).sort();
+  const kdata={betaaldBlog:new Set(betaald),ws:ws.filter(w=>!/^rest ?day$/i.test((w.title||"").trim())),done:new Set(rs.filter(r=>r.status==="completed").map(r=>r.workout_id)),msgs,alleTags,tagsByClient,cons,lastConsult,pending};
+  const vingerafdruk=JSON.stringify([ws,rs,msgs,alleTags,ptags,cons,openInv,betaald]);
   versZet(sleutel,{kdata,vingerafdruk});
   if(nr!==klantLaadNr)return; // er is intussen opnieuw geladen
   // Staat precies dezelfde data al op het scherm? Dan niets overtekenen.
@@ -171,7 +176,7 @@ function klantenRender(){
     klantTagBanner()+
     klantGeenDagMelding()+
     '<div class="ctabs"><button class="'+(klantArchief||klantShowdown||kijkOpenTab?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button>'+
-      (showdown.length?'<button class="'+(klantShowdown&&!kijkOpenTab?'on':'')+'" onclick="klantTab(\'showdown\')" title="Gratis Showdown- en blog-leden, zonder 1-op-1 coaching">Showdown <span style="font-weight:600;color:#8a919c">'+showdown.length+'</span></button>':'')+
+      (showdown.length?'<button class="'+(klantShowdown&&!kijkOpenTab?'on':'')+'" onclick="klantTab(\'showdown\')" title="Wie alleen de gratis Showdown doet">Showdown <span style="font-weight:600;color:#8a919c">'+showdown.length+'</span></button>':'')+
       '<button class="'+(klantArchief&&!kijkOpenTab?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button>'+(typeof kijkTabHtml==="function"?kijkTabHtml():'')+'</div>'+
     (kijkOpenTab?kijkLijstHtml():
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
