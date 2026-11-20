@@ -74,7 +74,10 @@ function lvbBordHtml(){
       '<div class="field"><label>Link van het bord (open deze op de tv)</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="lvb-link" readonly value="'+esc(link)+'" style="flex:1;min-width:220px" onclick="this.select()">'+
         '<button class="btn" onclick="lvbKopieer()">Kopieer link</button><button class="btn ghost" onclick="window.open(\''+esc(link)+'\',\'_blank\')">Open bord</button></div>'+
         '<div class="sm muted" style="margin-top:5px">Wie deze link heeft ziet het bord zonder in te loggen. Op de tv: open de link in Chrome en kies Casten, of open hem in de browser van de tv.</div></div>'+
-      '<label class="lvb-vink"><input type="checkbox" '+(b.volledige_namen?"checked":"")+' onchange="lvbVeld(\'volledige_namen\',this.checked)"> Hele achternaam tonen op het bord (uit = voornaam en eerste letter)</label></div>'+
+      '<div class="lvb-oprij" style="max-width:560px;margin:4px 0 3px"><span>Namen op het bord</span><div class="seg">'+
+        '<button class="'+(b.volledige_namen?"":"on")+'" onclick="lvbNamen(false)">Alleen voornaam</button>'+
+        '<button class="'+(b.volledige_namen?"on":"")+'" onclick="lvbNamen(true)">Voornaam en achternaam</button></div></div>'+
+      '<div class="sm muted">Bij alleen de voornaam krijgen twee mensen met dezelfde voornaam vanzelf hun achternaam erbij.</div></div>'+
     '<div class="card" style="padding:18px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
         '<h2 style="font-size:16px">Onderdelen <span class="cpill teal">'+ond.length+'</span></h2><div class="seg">'+seg+'</div></div>'+
       (rijen||'<div class="cempty" style="padding:18px 0">Nog geen onderdelen. Voeg hieronder een tekst toe (bijvoorbeeld de warming-up) of een workout met leaderboard.</div>')+
@@ -110,6 +113,8 @@ async function lvbKopieer(){
   catch(e){const el=document.getElementById("lvb-link");if(el){el.focus();el.select();}toast("Kopieer de link met Ctrl+C");}
 }
 function lvbWeergave(w){lvbBewaar({weergave:w});}
+// Namen op het bord: alleen de voornaam, of voornaam en achternaam (live_borden.volledige_namen).
+function lvbNamen(heel){lvbBewaar({volledige_namen:!!heel});}
 // Opmaak van het bord (20 nov 2026, wens Stefan): wie het bord bedient moet het zonder uitleg
 // snappen, dus alleen instelbaar wat niet vanzelf kan. De scores deelt het bord zelf in (vier
 // vaste vakken, zo groot mogelijk, bladeren als het niet past). Hier staan de standaarden voor
