@@ -12,7 +12,7 @@ async function fillBlog(){
   const[rp,rm]=await Promise.all([
     db.from("blog_programs").select("*").eq("company_id",ME.profile.company_id).order("name"),
     // Meerdere programma's per lid (22 juli): koppelingen staan in blog_program_members
-    db.from("blog_program_members").select("athlete_id,blog_program_id").eq("company_id",ME.profile.company_id)
+    db.from("blog_program_members").select("athlete_id,blog_program_id,lid:profiles!blog_program_members_athlete_id_fkey(role,coach_id)").eq("company_id",ME.profile.company_id)
   ]);
   BLOG.list=rp.data||[];
   // Een coach ziet alleen blogs die aan hem zijn toegewezen (coach_ids leeg =
@@ -20,7 +20,9 @@ async function fillBlog(){
   // wisselmenu op het klant-scherm.
   if(myRole()==="coach")BLOG.list=BLOG.list.filter(p=>!p.coach_ids||!p.coach_ids.length||p.coach_ids.includes(ME.user.id));
   kalBlogs=BLOG.list; // wisselmenu op het klant-scherm meteen bijwerken
-  BLOG.counts={};(rm.data||[]).forEach(m=>{BLOG.counts[m.blog_program_id]=(BLOG.counts[m.blog_program_id]||0)+1;});
+  // De teller telt dezelfde mensen als het tabblad Klanten en Leden koppelen (lid, of iemand
+  // met een coach). Gekoppelde beheerdersaccounts tellen niet mee: die staan ook niet in de lijst.
+  BLOG.counts={};(rm.data||[]).forEach(m=>{if(!m.lid||(m.lid.role!=="lid"&&!m.lid.coach_id))return;BLOG.counts[m.blog_program_id]=(BLOG.counts[m.blog_program_id]||0)+1;});
   ensureBlogModals();
   if(BLOG.cur){const v=BLOG.list.find(p=>p.id===BLOG.cur.id);if(v)BLOG.cur=v;else BLOG.cur=null;}
   // Vanuit het wisselmenu op het klant-scherm: direct door naar dit programma.
