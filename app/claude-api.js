@@ -17,13 +17,15 @@
 //     ongewijzigde kopie van de weekworkout zelf worden geplaatst (plaatsShowdown),
 //     de tekst ervan is nooit te wijzigen. Een nieuwe Showdown kan alleen als concept in de
 //     bouwer worden gezet (maakShowdownConcept, 20 nov 2026); live zetten doet de coach zelf;
-//   - er is geen commando om goed te keuren, te publiceren of iets te versturen.
+//   - goedkeuren kan sinds 2.15 alleen met keurGoed / keurWeekGoed, met de volledige naam van de atleet
+//     als slot (besluit Stefan, 20 nov 2026: "Ja, met extra slot"); verder is er geen commando om iets
+//     zichtbaar te maken, en geen enkel commando om iets te versturen.
 // Dit verkleint de kans op fouten; het is geen slot. De echte grens blijft RLS.
 //
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.14 (lezen en concepten schrijven)";
+  const VERSIE="2.15 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -460,7 +462,37 @@ const ClaudeApi=(()=>{
   function ververs(atleetId){
     try{if(typeof calClient!=="undefined"&&calClient===atleetId&&document.getElementById("calwrap")&&!document.getElementById("exrows")&&typeof renderMonth==="function")renderMonth();}catch(e){}
   }
-  const GOEDKEUREN="Dit zijn concepten: de atleet ziet ze niet. De coach keurt ze zelf goed in de app.";
+  const GOEDKEUREN="Dit zijn concepten: de atleet ziet ze niet. De coach keurt ze goed in de app, of vraagt jou er uitdrukkelijk om (ClaudeApi.keurGoed of keurWeekGoed).";
+  // Slot bij goedkeuren en verwijderen: de aanroeper moet de naam letterlijk meegeven.
+  const naamGelijk=(a,b)=>!leeg(a)&&String(a).replace(/\s+/g," ").trim().toLowerCase()===String(b||"").replace(/\s+/g," ").trim().toLowerCase();
+  function keurSlot(opties,p){
+    if(!isObject(opties)||leeg(opties.atleet))return "Er is niets goedgekeurd. Goedkeuren doe je alleen als de coach er in dit gesprek uitdrukkelijk om vraagt. Geef dan als slot de volledige naam van de atleet mee: {atleet:\""+naam(p)+"\"}.";
+    if(!naamGelijk(opties.atleet,naam(p)))return "Er is niets goedgekeurd: de naam \""+String(opties.atleet).slice(0,80)+"\" is niet de atleet van dit concept ("+naam(p)+"). Controleer of je de juiste atleet hebt.";
+    return null;
+  }
+  const NU_ZICHTBAAR="De atleet ziet dit nu in de app. Meld de coach precies wat je hebt goedgekeurd.";
+  // Scores op een leaderboard-workout: op het bord zelf en op de blokken die eraan hangen.
+  async function bordStand(id){
+    const{data:gek,error:ge}=await db.from("blocks").select("id,workout_id,kind,scaled_versie").eq("source_blog_workout_id",id).neq("workout_id",id).limit(1000);
+    if(ge)throw new Error(ge.message);
+    const{count:c1,error:e1}=await db.from("results").select("id",{count:"exact",head:true}).eq("workout_id",id);
+    if(e1)throw new Error(e1.message);
+    let c2=0;
+    for(const deel of stukken((gek||[]).map(g=>g.id),60)){
+      const{count,error}=await db.from("results").select("id",{count:"exact",head:true}).in("block_id",deel);
+      if(error)throw new Error(error.message);
+      c2+=count||0;
+    }
+    return {gek:gek||[],scores:(c1||0)+c2};
+  }
+  async function bordOphalen(id){
+    if(!isUuid(id))return {fout:"Geef het id van de leaderboard-workout (uit ClaudeApi.leaderboardWorkouts)."};
+    const{data:bron,error}=await db.from("workouts").select("*, blocks(*)").eq("id",id).eq("audience","bord").eq("company_id",ME.profile.company_id).maybeSingle();
+    if(error)return {fout:error.message};
+    if(!bron||!(bron.blocks||[]).length)return {fout:"Geen leaderboard-workout gevonden met dit id. Kijk in ClaudeApi.leaderboardWorkouts. Een YP Showdown is geen leaderboard-workout: die past alleen de coach aan in de Bouwer."};
+    bron.blocks=bron.blocks.slice().sort((x,y)=>x.sort-y.sort);
+    return {bron};
+  }
 
   // Workouts als concept neerzetten: eerst de workouts één voor één (zo blijft de volgorde
   // op een dag kloppen), dan alle blokken in één keer.
@@ -613,7 +645,8 @@ const ClaudeApi=(()=>{
       return {ok:true,versie:VERSIE,
         regels:[
           "Lezen mag altijd. Schrijven kan alleen als concept: een workout die de atleet niet ziet tot de coach hem in de app goedkeurt.",
-          "Er is geen commando om goed te keuren, te publiceren of iets te versturen. Dat doet de coach zelf.",
+          "Goedkeuren doe je alleen als de coach er in dit gesprek uitdrukkelijk om vraagt, met ClaudeApi.keurGoed of keurWeekGoed en de volledige naam van de atleet als slot. Nooit uit jezelf, en nooit meteen na je eigen schrijfwerk zonder dat de coach het concept heeft gezien. Er is geen commando om iets te versturen; dat doet de coach zelf.",
+          "De bibliotheek (templates en inserts) is van alle coaches samen en door iedereen te lezen. Zet er nooit de naam van een atleet of iets persoonlijks in.",
           "Schrijf pas nadat de coach heeft gezegd dat het erin mag (\"zet erin\", \"voer in\").",
           "Nieuw werk komt altijd als concept. Wat al zichtbaar is voor de atleet pas je alleen aan als de coach daar in dit gesprek uitdrukkelijk om vraagt. Geef dan {zichtbaar:true} mee als laatste argument van wijzigBlok, vervangBlokken of wijzigConcept. De atleet ziet de wijziging meteen: zeg vooraf wat je gaat veranderen en meld daarna wat er staat.",
           "Ook met {zichtbaar:true} kan niet: een zichtbare workout weghalen, een blok weghalen waarop al gelogd is, het scoretype of de tijdslimiet veranderen van een blok waarop al gelogd is, en alles met de YP Showdown.",
@@ -675,7 +708,12 @@ const ClaudeApi=(()=>{
           "ClaudeApi.wijzigConcept(workoutId, velden, opties)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown, en de demo-video's van die twee vakken met videos_warming_up en videos_cooldown (zie workout in deze uitleg). Bij een zichtbare workout alleen met opties {zichtbaar:true}.",
           "ClaudeApi.verwijderConcept(workoutId)":"Haalt één concept weg, met zijn blokken. Kan alleen bij een concept zonder gelogde resultaten. Doe dit alleen voor een concept dat je zelf hebt klaargezet of als de coach erom vraagt.",
           "ClaudeApi.voegTemplateIn(workoutId, templateId, opties)":"Zet een template uit de bibliotheek in één keer in een workout, precies zoals de knop in de app dat doet: tekst, kleur en de demo-video's van de template gaan mee, en een template met meerdere liften wordt een superset. Een warming-up- of cooldown-template komt in dat vak te staan (achter wat er al staat); elke andere template komt als laatste blok. opties (optioneel): {plek:\"blok\"} om een warming-up-template toch als blok te zetten, {plek:\"warming_up\"} of {plek:\"cooldown\"} om het vak te kiezen, {zichtbaar:true} voor een workout die al zichtbaar is. Verplaatsen doe je daarna met vervangBlokken.",
-          "ClaudeApi.videosToevoegen(blokId, videos)":"Zet demo-video's bij één blok, ook als de workout al zichtbaar is. videos = \"aanvullen\" (standaard: de herkende bewegingen die nog geen video hebben) of een lijst id's uit videoZoek. Er komt alleen iets bij; wat er staat blijft staan. Werkt niet op de YP Showdown.",
+          "ClaudeApi.videosToevoegen(blokId, videos)":"Zet demo-video's bij één blok, ook als de workout al zichtbaar is. videos = \"aanvullen\" (standaard: de herkende bewegingen die nog geen video hebben) of een lijst id's uit videoZoek. Er komt alleen iets bij; wat er staat blijft staan. Werkt niet op de YP Showdown, wel op een blok van een leaderboard-workout.",
+          "ClaudeApi.keurGoed(workoutId, opties)":"Keurt één concept goed: de atleet ziet de workout daarna meteen. Alleen als de coach er in dit gesprek uitdrukkelijk om vraagt. opties is verplicht: {atleet:\"Voornaam Achternaam\"}, de volledige naam van de atleet van dit concept, als slot tegen een vergissing. Een leeg concept wordt geweigerd.",
+          "ClaudeApi.keurWeekGoed(atleetId, datum, opties)":"Keurt alle concepten van deze atleet in de week van datum goed (maandag t/m zondag). Zelfde voorwaarde en hetzelfde slot: {atleet:\"Voornaam Achternaam\"}. Lege concepten worden overgeslagen en gemeld. Lees de week eerst met ClaudeApi.week, zodat je weet wat je goedkeurt.",
+          "ClaudeApi.wijzigLeaderboardWorkout(leaderboardWorkoutId, velden)":"Past de naam of de tekst van een leaderboard-workout aan: velden = {naam, tekst}, alleen wat verandert. Kan alleen zolang er nog geen enkele score op staat. De blokken bij atleten die eraan hangen krijgen dezelfde naam en tekst; een geschaalde versie van een atleet blijft zoals hij is. Bij atleten waar de workout al zichtbaar is, zien ze de nieuwe tekst meteen. Scoretype en tijdslimiet veranderen kan hier niet.",
+          "ClaudeApi.verwijderLeaderboardWorkout(leaderboardWorkoutId, opties)":"Verwijdert een leaderboard-workout, alleen als de coach erom vraagt. opties is verplicht: {naam:\"...\"}, de exacte naam als slot. Kan alleen zolang er geen scores op staan. Hangt hij nog aan blokken bij atleten, dan gebeurt er niets tenzij je ook {toch:true} meegeeft: die blokken worden dan gewone blokken zonder leaderboard, de tekst blijft staan.",
+          "ClaudeApi.maakInsert(insert, opties)":"Zet een los blok in de bibliotheek, zodat het bij Invoegen staat. insert = {naam, tekst, soort (\"warmup\", \"cooldown\" of \"other\", standaard other), kleur (bij other, standaard yellow), videos (weglaten = de app kiest uit de tekst, \"geen\", of een lijst id's)}. Of {blokId, soort, kleur}: dan komen naam, tekst en video's van dat blok. Bestaat de naam al, dan gebeurt er niets (bewust dubbel: opties {toch:true}). Wijzigen of weghalen doet de coach in de app. Geen namen van atleten in een insert.",
           "ClaudeApi.videosToevoegenWeek(atleetId, datum)":"Hetzelfde voor alle blokken van één week van een atleet, met de herkende bewegingen. Geeft per blok terug wat erbij is gekomen."
         },
         blok:{
@@ -1740,6 +1778,159 @@ const ClaudeApi=(()=>{
         status:statusNaam(c.w),let_op:zb?[ZICHTBAAR]:null,workout:terug[0]});
     }),
 
+    // ---------- Goedkeuren (2.15) ----------
+    // Het enige dat een concept zichtbaar maakt. Besluit Stefan (20 nov 2026): mag, als de coach er in het
+    // gesprek om vraagt, met de volledige naam van de atleet als slot. Alleen 1-op-1 concepten.
+    keurGoed:veilig(async(workoutId,opties)=>{
+      const c=await conceptOphalen(workoutId,true);if(c.fout)return fout(c.fout);
+      if(c.w.status!=="draft")return fout("Deze workout is al zichtbaar voor de atleet; er valt niets goed te keuren.");
+      const sf=keurSlot(opties,c.p);if(sf)return fout(sf);
+      if(!c.w.blocks.length&&!isRust(c.w.title))return fout("Er is niets goedgekeurd: dit concept is leeg (geen blokken).");
+      const{data,error}=await db.from("workouts").update({status:"published"}).eq("id",c.w.id).eq("status","draft").select("id");
+      if(error)return fout(error.message);
+      if(!(data||[]).length)return fout("Er is niets goedgekeurd: de status van deze workout is intussen veranderd. Lees hem opnieuw met ClaudeApi.week.");
+      const terug=await leesTerug([c.w.id]);
+      ververs(c.p.id);
+      return schoon({ok:true,atleet:{id:c.p.id,naam:naam(c.p)},goedgekeurd:[{id:c.w.id,datum:c.w.workout_date,dag:dagVan(c.w.workout_date),titel:c.w.title||"",blokken:c.w.blocks.length}],
+        status:"gepubliceerd",let_op:[NU_ZICHTBAAR],workout:terug[0]});
+    }),
+
+    keurWeekGoed:veilig(async(atleetId,datum,opties)=>{
+      const a=await atleetOphalen(atleetId);if(a.fout)return fout(a.fout);
+      if(!isDatum(datum))return fout("datum moet JJJJ-MM-DD zijn: een dag in de week die je goedkeurt.");
+      const sf=keurSlot(opties,a.p);if(sf)return fout(sf);
+      const maandag=maandagVan(datum);
+      const{data:ws,error}=await db.from("workouts").select("id,workout_date,title,status,audience,day_sort,created_at, blocks(id)").eq("client_id",a.p.id).eq("audience","client").eq("status","draft")
+        .gte("workout_date",maandag).lte("workout_date",plus(maandag,6)).order("workout_date").order("created_at");
+      if(error)return fout(error.message);
+      if(!(ws||[]).length)return fout("Er staan geen concepten bij "+naam(a.p)+" in de week van "+maandag+".");
+      const rij=w=>({id:w.id,datum:w.workout_date,dag:dagVan(w.workout_date),titel:w.title||"",blokken:(w.blocks||[]).length});
+      const leegW=ws.filter(w=>!(w.blocks||[]).length&&!isRust(w.title)),goed=ws.filter(w=>!leegW.includes(w));
+      if(!goed.length)return fout("Er is niets goedgekeurd: alle concepten in de week van "+maandag+" zijn leeg.");
+      const{data,error:ue}=await db.from("workouts").update({status:"published"}).in("id",goed.map(w=>w.id)).eq("status","draft").eq("client_id",a.p.id).select("id");
+      if(ue)return fout(ue.message);
+      const gelukt=new Set((data||[]).map(r=>r.id));
+      ververs(a.p.id);
+      return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},week_van:maandag,aantal_goedgekeurd:gelukt.size,
+        goedgekeurd:goed.filter(w=>gelukt.has(w.id)).map(rij),
+        niet_gelukt:goed.filter(w=>!gelukt.has(w.id)).map(rij),
+        overgeslagen_leeg:leegW.map(rij),
+        let_op:[NU_ZICHTBAAR]});
+    }),
+
+    // ---------- Leaderboard-workout aanpassen of verwijderen (2.15) ----------
+    // Alleen zolang er geen enkele score op staat: daarna zou een andere tekst de scores iets anders
+    // laten betekenen. De YP Showdown valt hier nooit onder.
+    wijzigLeaderboardWorkout:veilig(async(id,velden)=>{
+      const o=await bordOphalen(id);if(o.fout)return fout(o.fout);
+      if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef wat verandert: {naam:\"...\"} en of {tekst:\"...\"}.");
+      const onbekend=Object.keys(velden).filter(k=>k!=="naam"&&k!=="tekst");
+      if(onbekend.length)return fout("Onbekend veld: "+onbekend.join(", ")+". Toegestaan: naam, tekst. Scoretype en tijdslimiet veranderen kan hier niet.");
+      if(o.bron.blocks.length!==1)return fout("Deze leaderboard-workout heeft meer dan één blok; die past de coach zelf aan.");
+      const b=o.bron.blocks[0],fouten=[],veld=b.kind==="conditioning"?"notes":"prescription";
+      const nNaam="naam" in velden?tekstVeld(velden,"naam",200,"leaderboard-workout",fouten):(b.exercise||o.bron.title);
+      const nTekst="tekst" in velden?tekstVeld(velden,"tekst",MAX_TEKST,"leaderboard-workout",fouten):b[veld];
+      if("naam" in velden&&!nNaam)fouten.push("naam mag niet leeg zijn.");
+      if("tekst" in velden&&!nTekst)fouten.push("tekst mag niet leeg zijn.");
+      if(fouten.length)return {ok:false,fout:"Er is niets gewijzigd. Los dit eerst op.",fouten};
+      const st=await bordStand(o.bron.id);
+      if(st.scores>0)return fout("Er is niets gewijzigd. Op deze leaderboard-workout "+(st.scores===1?"staat al 1 score":"staan al "+st.scores+" scores")+"; een andere tekst zou die iets anders laten betekenen. Laat dit aan de coach.");
+      const upd={exercise:nNaam};upd[veld]=nTekst;
+      const{data:bu,error:be}=await db.from("blocks").update(upd).eq("id",b.id).select("id");
+      if(be)return fout(be.message);
+      if(!(bu||[]).length)return fout("Er is niets gewijzigd: je mag deze leaderboard-workout niet aanpassen.");
+      if(nNaam!==o.bron.title){const{error:we}=await db.from("workouts").update({title:nNaam}).eq("id",o.bron.id).eq("audience","bord");if(we)return fout("De tekst is aangepast, maar de naam van de workout niet: "+we.message);}
+      // De blokken bij atleten: zelfde naam en tekst, behalve een geschaalde versie.
+      const mee=st.gek.filter(g=>!g.scaled_versie),geschaald=st.gek.length-mee.length;
+      let bij=0;
+      for(const deel of stukken(mee.map(g=>g.id),60)){
+        const{data,error}=await db.from("blocks").update(upd).in("id",deel).eq("source_blog_workout_id",o.bron.id).select("id");
+        if(error)return fout("De leaderboard-workout is aangepast, maar niet alle blokken bij atleten: "+error.message);
+        bij+=(data||[]).length;
+      }
+      return schoon({ok:true,leaderboard_workout:{id:o.bron.id,naam:nNaam,tekst:nTekst},blokken_bij_atleten_bijgewerkt:bij,
+        geschaalde_versies_overgeslagen:geschaald||null,
+        let_op:[bij<mee.length?(mee.length-bij)+" blok(ken) bij atleten konden niet worden bijgewerkt (van een andere coach). Meld dit aan de coach.":"",
+          bij?"Bij atleten waar deze workout al zichtbaar is, zien ze de nieuwe tekst meteen.":"",
+          geschaald?"Een geschaalde versie houdt zijn eigen tekst; kijk of die nog klopt.":""].filter(Boolean)});
+    }),
+
+    verwijderLeaderboardWorkout:veilig(async(id,opties)=>{
+      opties=isObject(opties)?opties:{};
+      const o=await bordOphalen(id);if(o.fout)return fout(o.fout);
+      if(!naamGelijk(opties.naam,o.bron.title))return fout("Er is niets verwijderd. Verwijderen doe je alleen als de coach erom vraagt. Geef dan als slot de exacte naam mee: {naam:\""+(o.bron.title||"")+"\"}.");
+      const st=await bordStand(o.bron.id);
+      if(st.scores>0)return fout("Er is niets verwijderd. Op deze leaderboard-workout "+(st.scores===1?"staat 1 score":"staan "+st.scores+" scores")+"; verwijderen zou die wissen. Laat dit aan de coach.");
+      if(st.gek.length&&opties.toch!==true)return fout("Er is niets verwijderd. Deze leaderboard-workout hangt nog aan "+st.gek.length+" blok(ken) bij atleten. Met {toch:true} worden dat gewone blokken zonder leaderboard; de tekst blijft staan.");
+      let los=0;
+      for(const deel of stukken(st.gek.map(g=>g.id),60)){
+        const{data,error}=await db.from("blocks").update({source_blog_workout_id:null,scaled_versie:false}).in("id",deel).eq("source_blog_workout_id",o.bron.id).select("id");
+        if(error)return fout("Er is niets verwijderd: "+error.message);
+        los+=(data||[]).length;
+      }
+      if(los<st.gek.length)return fout("Er is niets verwijderd: "+(st.gek.length-los)+" blok(ken) bij atleten van een andere coach konden niet worden losgemaakt"+(los?" ("+los+" zijn wel losgemaakt en zijn nu gewone blokken)":"")+". Laat dit aan de coach.");
+      const{data:weg,error:de}=await db.from("workouts").delete().eq("id",o.bron.id).eq("audience","bord").select("id");
+      if(de)return fout(de.message);
+      if(!(weg||[]).length)return fout("Er is niets verwijderd: je mag deze leaderboard-workout niet verwijderen. Laat dit aan de coach.");
+      BORD_IDS.delete(o.bron.id);
+      return schoon({ok:true,verwijderd:"\""+(o.bron.title||"")+"\" (leaderboard-workout)",losgemaakte_blokken:los||null,
+        let_op:los?["De "+los+" blokken bij atleten staan er nog, als gewone blokken zonder leaderboard."]:null});
+    }),
+
+    // ---------- Een insert in de bibliotheek zetten (2.15) ----------
+    // Dezelfde rij als "Opslaan + in bibliotheek" in de app (blkBiebBewaar). De bibliotheek is van
+    // alle coaches samen en door iedereen te lezen: er is geen commando om te wijzigen of weg te halen.
+    maakInsert:veilig(async(invoer,opties)=>{
+      opties=isObject(opties)?opties:{};
+      if(!isObject(invoer))return fout("Geef één object: {naam, tekst, soort, kleur, videos} of {blokId, soort, kleur}.");
+      const mag=["naam","tekst","soort","kleur","videos","blokId"];
+      const onbekend=Object.keys(invoer).filter(k=>!mag.includes(k));
+      if(onbekend.length)return fout("Onbekend veld: "+onbekend.join(", ")+". Toegestaan: "+mag.join(", ")+".");
+      const fouten=[];
+      let bronNaam=null,bronTekst=null,bronMedia=null;
+      if(!leeg(invoer.blokId)){
+        if(!isUuid(invoer.blokId))return fout("blokId moet het id van een blok zijn (uit ClaudeApi.week).");
+        const{data:b,error}=await db.from("blocks").select("*").eq("id",invoer.blokId).maybeSingle();
+        if(error)return fout(error.message);
+        if(!b)return fout("Geen blok gevonden met dit id, of je mag het niet zien.");
+        const{data:w,error:we}=await db.from("workouts").select("id,client_id,audience,source_blog_workout_id").eq("id",b.workout_id).maybeSingle();
+        if(we)return fout(we.message);
+        if(!w||w.audience!=="client"||!w.client_id)return fout("Dit blok hoort niet bij een 1-op-1 workout.");
+        if(w.source_blog_workout_id||b.source_blog_workout_id)return fout("Een blok van de YP Showdown of van een leaderboard-workout bewaar je niet als insert.");
+        const a=await atleetOphalen(w.client_id);if(a.fout)return fout(a.fout);
+        bronNaam=b.exercise;bronTekst=b.kind==="conditioning"?b.notes:[b.prescription,b.notes].filter(Boolean).join("\n\n");
+        bronMedia=(Array.isArray(b.media)?b.media:[]).filter(m=>m&&m.youtube_id).map(m=>({youtube_id:m.youtube_id,titel:m.titel||"Video",oefening_id:m.oefening_id||undefined}));
+      }
+      const nNaam=tekstVeld(invoer,"naam",200,"insert",fouten)||(bronNaam?String(bronNaam).trim():null);
+      const nTekst=tekstVeld(invoer,"tekst",MAX_TEKST,"insert",fouten)||(bronTekst?String(bronTekst).trim():null);
+      if(!nNaam)fouten.push("naam ontbreekt.");
+      if(!nTekst)fouten.push("tekst ontbreekt.");
+      const soort=leeg(invoer.soort)?"other":invoer.soort;
+      if(!["warmup","cooldown","other"].includes(soort))fouten.push("soort moet warmup, cooldown of other zijn.");
+      const kleur=leeg(invoer.kleur)?"yellow":invoer.kleur;
+      if(!kleurenLijst().includes(kleur))fouten.push("onbekende kleur \""+kleur+"\". Kies uit: "+kleurenLijst().join(", ")+".");
+      let vk=bronMedia?"houden":"auto";
+      if(!leeg(invoer.videos)){
+        if(invoer.videos!=="auto"&&invoer.videos!=="geen"&&!Array.isArray(invoer.videos))fouten.push("videos moet \"auto\", \"geen\" of een lijst id's uit ClaudeApi.videoZoek zijn.");
+        else{const v=videosLees(invoer.videos,"insert",fouten,true);if(v!==undefined)vk=v;}
+      }
+      if(fouten.length)return {ok:false,fout:"Er is niets bewaard. Los dit eerst op.",fouten};
+      const{data:al,error:ae}=await db.from("templates").select("id,naam").ilike("naam",nNaam.replace(/[%_\\]/g,"")).limit(20);
+      if(ae)return fout(ae.message);
+      const zelfde=(al||[]).filter(t=>naamGelijk(t.naam,nNaam));
+      if(zelfde.length&&opties.toch!==true)return fout("Er is niets bewaard: in de bibliotheek staat al \""+zelfde[0].naam+"\" (id "+zelfde[0].id+"). Kies een andere naam, of geef {toch:true} mee als de coach bewust een tweede wil.");
+      const indexOk=(vk==="geen"||vk==="houden")?false:await videosKlaar();
+      const media=vk==="houden"?bronMedia:mediaKies(vk,{naam:nNaam,tekst:nTekst},undefined,true,"insert, videos",fouten,indexOk);
+      if(fouten.length)return {ok:false,fout:"Er is niets bewaard. Los dit eerst op.",fouten};
+      const schoneMedia=(Array.isArray(media)?media:[]).filter(m=>m&&m.youtube_id).map(m=>schoon({youtube_id:m.youtube_id,titel:m.titel||"Video",oefening_id:m.oefening_id}));
+      const{data:nw,error}=await db.from("templates").insert({naam:nNaam,instructies:nTekst,type:soort,kleur:soort==="other"?kleur:"yellow",media:schoneMedia,onderdelen:null,tags:[],coach:(ME.profile&&ME.profile.first_name)||""}).select("id").single();
+      if(error||!nw)return fout("Er is niets bewaard: "+((error&&error.message)||"onbekende fout"));
+      try{if(typeof LIB!=="undefined"){LIB.geladen=false;if(typeof libLaad==="function")libLaad();}}catch(e){}
+      return schoon({ok:true,insert:schoon({id:nw.id,naam:nNaam,soort,kleur:soort==="other"?kleur:null,tekst:nTekst,demo_videos:titels(schoneMedia)}),
+        let_op:["Staat nu in de bibliotheek en bij Invoegen, voor alle coaches. Wijzigen of weghalen doet de coach in de app.",
+          vk==="auto"&&!indexOk?"De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen.":""].filter(Boolean)});
+    }),
+
     // ---------- Demo-video's toevoegen, ook bij een zichtbare workout ----------
     // De enige plek waar iets verandert dat de atleet meteen ziet. Daarom smal gehouden:
     // er wordt alleen het veld media van een blok bijgewerkt, en er komt alleen iets bij.
@@ -1753,7 +1944,8 @@ const ClaudeApi=(()=>{
       const{data:w,error:we}=await db.from("workouts").select("id,client_id,audience,status,workout_date,title,source_blog_workout_id").eq("id",b.workout_id).maybeSingle();
       if(we)return fout(we.message);
       if(!w||w.audience!=="client"||!w.client_id)return fout("Dit blok hoort niet bij een 1-op-1 workout. Weekworkouts, blog- en groepsprogramma's verander je hier nooit.");
-      if(w.source_blog_workout_id||b.source_blog_workout_id)return fout("Dit is de YP Showdown. Daar verander je niets aan, ook geen video's.");
+      // Een blok van een leaderboard-workout mag wel video's krijgen (wens Michel, 20 nov 2026); de Showdown niet.
+      if(w.source_blog_workout_id||(b.source_blog_workout_id&&!isBord(b.source_blog_workout_id)))return fout("Dit is de YP Showdown. Daar verander je niets aan, ook geen video's.");
       const a=await atleetOphalen(w.client_id);if(a.fout)return fout(a.fout);
       if(!(await videosKlaar()))return fout("De oefeningenbibliotheek is nog niet geladen. Probeer het over een paar seconden opnieuw.");
       const fouten=[];
