@@ -1171,3 +1171,8 @@ i18nLaad({
   "Dit is je eigen gesprek. Op ongelezen zetten kan daar alleen in de app": "This is your own conversation. Marking it as unread is only possible in the app",
   "Dit lid heeft zelf nog geen bericht gestuurd, dus er valt niets op ongelezen te zetten": "This member has not sent a message yet, so there is nothing to mark as unread",
 });
+// Berichten: filter Mijn klanten voor eigenaar en beheerder (20 nov 2026)
+i18nLaad({
+  "Mijn klanten": "My clients",
+  "Kies van wie je de gesprekken wilt zien; je keuze wordt onthouden": "Choose whose conversations you want to see; your choice is remembered",
+});

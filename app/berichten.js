@@ -40,6 +40,7 @@ async function fillBerichten(){
   // Per lid alle gevolgde blogprogramma's (sinds 22 juli meerdere mogelijk)
   BER.progVan={};(bm.data||[]).forEach(m=>{(BER.progVan[m.athlete_id]=BER.progVan[m.athlete_id]||[]).push(m.blog_program_id);});
   if(BER.cur&&!String(BER.cur).startsWith("g:")&&!BER.clients.some(c=>c.id===BER.cur))BER.cur=null;
+  berCoachFStart();
   berRender();
   berRealtime();
 }
@@ -67,11 +68,14 @@ function berNaam(id){
 function berRender(){
   const cp=document.getElementById("cpage");if(!cp)return;
   BER.pop=null;
-  const filterCoaches=BER.coaches.filter(c=>c.role!=="platform_admin");
-  const filter=myRole()!=="coach"&&filterCoaches.length?
-    '<select class="lid-in" style="padding:8px 10px" onchange="berCoachF(this.value)">'+
+  // Filter op coach (eigenaar en beheerder zien alle gesprekken): alle coaches, alleen
+  // mijn eigen klanten, of de klanten van één andere coach.
+  const kz=myRole()!=="coach"?berCoachFKeuzes():null;
+  const filter=kz&&(kz.mij||kz.rest.length)?
+    '<select class="lid-in" id="ber-coachf" style="padding:8px 10px" title="Kies van wie je de gesprekken wilt zien; je keuze wordt onthouden" onchange="berCoachF(this.value)">'+
       '<option value="">Alle coaches</option>'+
-      filterCoaches.map(c=>'<option value="'+c.id+'"'+(BER.coachF===c.id?" selected":"")+'>'+naamVan(c)+'</option>').join("")+
+      (kz.mij?'<option value="'+ME.user.id+'"'+(BER.coachF===ME.user.id?" selected":"")+'>Mijn klanten</option>':'')+
+      kz.rest.map(c=>'<option value="'+c.id+'"'+(BER.coachF===c.id?" selected":"")+'>'+naamVan(c)+'</option>').join("")+
     '</select>':'';
   cp.innerHTML='<div class="hrow"><h1>Berichten</h1>'+filter+'<span style="margin-left:auto;display:flex;gap:8px">'+
       (inBerVenster()?'':'<button class="btn ghost sm" onclick="openBerVenster()" title="Berichten in een apart venster openen, handig op een tweede scherm">↗ Los venster</button>')+
@@ -96,7 +100,30 @@ function berLijstZet(){
   const f=document.getElementById("ber-filter");if(f)f.innerHTML=berFilterHtml();
   const h=document.getElementById("ber-lijst");if(h)h.innerHTML=berLijstHtml();
 }
-function berCoachF(v){BER.coachF=v;berLijstZet();}
+// De keuzes van het coachfilter: ikzelf (als ik klanten heb) en elke andere coach
+// met klanten in de lijst, welke rol die ook heeft.
+function berCoachFKeuzes(){
+  const metKlant=new Set(BER.clients.map(c=>c.coach_id).filter(Boolean));
+  return {mij:metKlant.has(ME.user.id),rest:BER.coaches.filter(c=>c.id!==ME.user.id&&metKlant.has(c.id))};
+}
+const berCoachFSleutel=()=>"yp_ber_coachf_"+ME.user.id;
+// Eén keer per paginabezoek: de onthouden keuze terugzetten. Nog nooit gekozen en
+// staan de meldingen van andere coaches uit (Instellingen > Notificaties), dan
+// begint de lijst op Mijn klanten: zo iemand wil alleen de eigen klanten volgen.
+function berCoachFStart(){
+  if(BER.coachFGeladen||myRole()==="coach")return;
+  BER.coachFGeladen=true;
+  const kz=berCoachFKeuzes();
+  let v=null;try{v=localStorage.getItem(berCoachFSleutel());}catch(e){}
+  if(v==="alle")BER.coachF="";
+  else if(v&&(v===ME.user.id?kz.mij:kz.rest.some(c=>c.id===v)))BER.coachF=v;
+  else if(v==null&&kz.mij&&typeof coachDemp==="function"&&coachDemp().alle)BER.coachF=ME.user.id;
+}
+function berCoachF(v){
+  BER.coachF=v;
+  try{localStorage.setItem(berCoachFSleutel(),v||"alle");}catch(e){}
+  berMenuWeg();berLijstZet();
+}
 function berZoek(v){BER.zoekRuw=v||"";BER.zoek=(v||"").toLowerCase().trim();berMenuWeg();berLijstZet();}
 function berFilter(v){BER.filter=v;berMenuWeg();berLijstZet();}
 function berLijstVernieuw(){
