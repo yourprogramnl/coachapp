@@ -171,7 +171,13 @@ Deno.serve(async (req) => {
     if (overstap.email) vorm.set("customer_email", overstap.email.trim().toLowerCase());
     // Nu niets afschrijven; de eerste afschrijving is op deze dag. Stripe legt bij het afrekenen
     // alleen de betaalmethode vast (met iDEAL: 0,01 euro die meteen wordt teruggestort).
-    if (eerste) vorm.set("subscription_data[trial_end]", String(Math.floor(eerste.getTime() / 1000)));
+    if (eerste) {
+      vorm.set("subscription_data[trial_end]", String(Math.floor(eerste.getTime() / 1000)));
+      // Stripe noemt dit op de afrekenpagina een proefperiode ("9 dagen gratis"). Deze regel
+      // boven de knop zegt wat het voor de overstapper is (getest in de sandbox, 20 nov 2026).
+      const dag = eerste.toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: TZ });
+      vorm.set("custom_text[submit][message]", "Je stapt over naar onze eigen app. Tot " + dag + " betaal je bij ons niets, daarna gaat je abonnement gewoon door.");
+    }
   }
 
   const r = await fetch("https://api.stripe.com/v1/checkout/sessions", {
