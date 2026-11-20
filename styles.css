@@ -1747,8 +1747,8 @@ body.biebvenster #cpage{max-width:none;margin:0;padding:0}
 /* Tekstblok in de bouwer en op de kalenderkaart (20 nov 2026) */
 .lbl-badge.lbl-info,.ib2 .exhead .lbl-badge.lbl-info{color:#8a919c;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .lbl-badge.lbl-info::after,.ib2 .exhead .lbl-badge.lbl-info::after{content:""}
-.exrow.inforow{background:#f7f8fa;border-style:dashed}
-.ib2 .exrow.inforow{border-top:1px dashed #dfe3e8;border-bottom:1px dashed #dfe3e8}
+.exrow.inforow{background:#fafbfc;border:1px dashed #cfd5dc}
+.ib2 .exrow.inforow{border:1px dashed #cfd5dc;border-radius:9px;margin:4px 0}
 .cblk.k-info .n{font-weight:700}
 
 /* Losse blokken slepen op de kalenderkaarten (app/blok-slepen.js, 18 nov 2026) */
