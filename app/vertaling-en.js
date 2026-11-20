@@ -1835,5 +1835,8 @@ i18nLaad({
 "Maak een keuze":"Make a choice",
 "Zo sta je met je naam in de juiste lijst op het leaderboard.":"This puts you on the leaderboard under your name, in the right list.",
 "Vul je voornaam en achternaam in.":"Enter your first and last name.",
-"Kies bij geslacht een van de opties.":"Choose one of the options for gender."
+"Kies bij geslacht een van de opties.":"Choose one of the options for gender.",
+"Nog één vraag":"One more question",
+"Het leaderboard heeft een lijst voor mannen en een voor vrouwen. In welke lijst hoor jij?":"The leaderboard has a list for men and one for women. Which list are you in?",
+"Sla over":"Skip"
 });

@@ -112,6 +112,9 @@ async function submitAuth(){
         if(inErr)throw inErr;
         localStorage.removeItem("invite_token");
         document.getElementById("go").disabled=false;
+        // Weten we nog niet of dit lid man of vrouw is, dan vragen we het hier één keer
+        // (het leaderboard heeft per geslacht een lijst). Daarna het gewone eindscherm.
+        if((inviteRol||"lid")==="lid"&&await geslachtOntbreekt()){toonGeslachtVraag();return;}
         toonAccountKlaar(true);
         return;
       }
@@ -166,6 +169,31 @@ function toonAccountKlaar(ingelogd){
       :'<div class="muted" style="font-size:13px;margin-bottom:16px;line-height:1.5">We hebben je een mail gestuurd om je e-mailadres te bevestigen. Klik op de link in die mail en log daarna in.</div>'+
        '<button class="btn" style="width:100%" onclick="accountTerug()">Naar inloggen</button>')+
     '</div>';
+}
+async function geslachtOntbreekt(){
+  try{
+    const{data:{user}}=await db.auth.getUser();if(!user)return false;
+    const{data}=await db.from("profiles").select("gender").eq("id",user.id).maybeSingle();
+    return !!data&&!data.gender;
+  }catch(e){return false;}
+}
+function toonGeslachtVraag(){
+  const kaart=document.querySelector("#login .card");if(!kaart)return;
+  if(!kaart.dataset.orig)kaart.dataset.orig=kaart.innerHTML;
+  const knop=(w,t)=>'<button class="btn" style="width:100%;margin-bottom:8px" onclick="kiesGeslacht(\''+w+'\')">'+t+'</button>';
+  kaart.innerHTML='<div style="text-align:center;padding:8px 0">'+
+    '<h3 style="margin:0 0 8px">Nog één vraag</h3>'+
+    '<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.55">Het leaderboard heeft een lijst voor mannen en een voor vrouwen. In welke lijst hoor jij?</div>'+
+    knop("man","Man")+knop("vrouw","Vrouw")+knop("anders","Anders")+
+    '<button class="lnk" style="margin-top:6px" onclick="toonAccountKlaar(true)">Sla over</button>'+
+    '</div>';
+}
+async function kiesGeslacht(w){
+  try{
+    const{data:{user}}=await db.auth.getUser();
+    if(user)await db.from("profiles").update({gender:w}).eq("id",user.id);
+  }catch(e){}
+  toonAccountKlaar(true);
 }
 async function accountDoorgaan(){
   const kaart=document.querySelector("#login .card");
