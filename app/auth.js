@@ -27,8 +27,12 @@ let inviteRol="";
 // klant hoeft alleen nog een wachtwoord te kiezen (invite-account Edge Function).
 let inviteAccountBestaat=false;
 let mode="in";
+// Aanmeldlink van een blogprogramma: bij Account maken vragen we ook naam en geslacht, zodat een
+// nieuw lid met zijn naam in de juiste lijst op het leaderboard staat (20 nov 2026).
+let blogJoinActief=false;
 function setMode(m){
   mode=m;
+  const nv=document.getElementById("naam-velden");if(nv)nv.style.display=(m==="up"&&blogJoinActief)?"":"none";
   document.getElementById("tab-in").classList.toggle("on",m==="in");
   document.getElementById("tab-up").classList.toggle("on",m==="up");
   document.getElementById("go").textContent=m==="in"?"Inloggen":(inviteAccountBestaat?"Account activeren":"Account aanmaken");
@@ -70,6 +74,7 @@ async function initBlogJoin(token){
     const bp=(data||[])[0];
     if(!bp||!bp.open){setMsg("Deze aanmeldlink is niet (meer) geldig. Vraag de coach om een nieuwe link.","err");return;}
     localStorage.setItem("blog_token",token);
+    blogJoinActief=true;
     setMode("up");inviteRol="lid";
     const w=document.getElementById("inv-welkom");
     if(w){w.style.display="";w.textContent="Je meldt je aan voor "+bp.name+(bp.company_name?" van "+bp.company_name:"")+". Maak een account aan (of log in als je er al een hebt); daarna staat het programma voor je klaar in de app.";}
@@ -83,6 +88,11 @@ async function submitAuth(){
     const fout=pwProbleem(pw);
     if(fout){setMsg(fout,"err");return;}
     if(pw!==pw2){setMsg("De wachtwoorden zijn niet gelijk.","err");return;}
+    if(blogJoinActief){
+      const vn=document.getElementById("reg-voornaam").value.trim(),an=document.getElementById("reg-achternaam").value.trim();
+      if(!vn||!an){setMsg("Vul je voornaam en achternaam in.","err");return;}
+      if(!document.getElementById("reg-geslacht").value){setMsg("Kies bij geslacht een van de opties.","err");return;}
+    }
   }
   document.getElementById("go").disabled=true;
   try{
@@ -119,6 +129,10 @@ async function submitAuth(){
         try{await db.rpc("redeem_invite",{p_token:tok});localStorage.removeItem("invite_token");}catch(e){}
       }
       if(data&&data.session&&!tok&&btok){
+        // Naam en geslacht eerst: de welkomstmail en het leaderboard gebruiken ze meteen.
+        if(blogJoinActief&&data.user){
+          try{await db.from("profiles").update({first_name:document.getElementById("reg-voornaam").value.trim(),last_name:document.getElementById("reg-achternaam").value.trim(),gender:document.getElementById("reg-geslacht").value}).eq("id",data.user.id);}catch(e){}
+        }
         try{await db.rpc("redeem_blog_join",{p_token:btok});localStorage.removeItem("blog_token");}catch(e){}
       }
       document.getElementById("go").disabled=false;
