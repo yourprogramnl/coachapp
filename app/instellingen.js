@@ -11,11 +11,14 @@ const INST_TABS=[
   ["consult","Consultatielink","i-link"],
   ["notificaties","Notificaties","i-chat"],
   ["partners","Partners","i-fist"],
+  ["rechten","Rechten coaches","i-eye"], // alleen beheerders (app/meekijken.js)
 ];
+// Rechten coaches staat er alleen voor eigenaar en platform_admin.
+const instTabs=()=>INST_TABS.filter(t=>t[0]!=="rechten"||myRole()==="eigenaar"||myRole()==="platform_admin");
 function fillInstellingen(){
   const cp=document.getElementById("cpage");if(!cp)return;
   cp.innerHTML='<h1>Instellingen</h1><div class="instwrap">'+
-    '<div class="panel instnav">'+INST_TABS.map(t=>'<button class="'+(instTab===t[0]?"on":"")+'" onclick="instGa(\''+t[0]+'\')"><svg class="i sm-i"><use href="#'+t[2]+'"/></svg> '+t[1]+'</button>').join("")+'</div>'+
+    '<div class="panel instnav">'+instTabs().map(t=>'<button class="'+(instTab===t[0]?"on":"")+'" onclick="instGa(\''+t[0]+'\')"><svg class="i sm-i"><use href="#'+t[2]+'"/></svg> '+t[1]+'</button>').join("")+'</div>'+
     '<div class="panel instpaneel" id="inst-paneel"></div></div>';
   instPaneel();
 }
@@ -142,6 +145,8 @@ async function instPaneel(){
         kaart("loom","#565add","Korte videoboodschappen opnemen en delen met je klanten, bijvoorbeeld voor techniek-feedback.","Binnenkort")+
       '</div>'+
       '<div class="sm muted" style="margin-top:16px">Ideeën voor een partner die hier zou moeten staan? Zet het op de lijst, dan bouwen we de koppeling in.</div>';
+  }else if(instTab==="rechten"){
+    await rcPaneel(host); // wie mag bij welke coach meekijken (app/meekijken.js)
   }else{
     host.innerHTML='<div class="csoon">Deze pagina bestaat niet (meer).</div>';
   }

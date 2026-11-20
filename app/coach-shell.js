@@ -116,6 +116,7 @@ function parseHash(){
     return{type:"section",section:"help"};
   }
   if(p[0]==="companies"&&p[1])return{type:"section",section:"companies"}; // fillCompanies leest het id uit de link
+  if(p[0]==="meekijken"&&p[1])return{type:"kijk",id:p[1]}; // meekijken bij de klant van een andere coach (app/meekijken.js)
   if(p[0]==="bieb")return{type:"bieb"}; // de bibliotheek in een los venster (app/bieb-venster.js)
   if(p[0]==="weekcheck")return{type:"weekcheck",id:p[1]||null}; // de Weekcheck in een los venster (app/weekcheck.js)
   if(p[0]==="berichtenvenster")return{type:"bervenster",id:p[1]?decodeURIComponent(p[1]):null}; // Berichten in een los venster (app/berichten.js)
@@ -141,6 +142,7 @@ async function routeHash(){
   if(r.type==="bieb"){renderBiebVenster();return;}
   if(r.type==="weekcheck"){await ensureClients();renderWeekcheckVenster(r.id);return;}
   if(r.type==="bervenster"){renderBerVenster(r.id);return;}
+  if(r.type==="kijk"){kijkOpen(r.id);return;}
   // Het hoofdvenster luistert naar de losse vensters ("open deze klant"), ook na
   // een herlaad en zonder dat er al een klant open stond.
   if(typeof biebKanaal==="function")biebKanaal();

@@ -28,7 +28,7 @@ function klantAfReset(){klantAf.clear();klantenRender();}
 function klantScope(){return klantCoachFilter?coachClients.filter(p=>p.coach_id===klantCoachFilter):coachClients;}
 // De klanten in het actieve tabblad (Actief of Archief).
 function klantLijst(){return klantScope().filter(p=>!!p.archived===klantArchief);}
-function klantTab(a){klantArchief=a;klantenRender();}
+function klantTab(a){klantArchief=a;if(typeof klantKijk!=="undefined")klantKijk=false;klantenRender();}
 // Laadvolgnummer: ben je al doorgeklikt voordat de data binnen is, dan tekent
 // een oude lading niets meer over het nieuwe scherm heen.
 let klantLaadNr=0;
@@ -45,6 +45,8 @@ async function fillKlanten(){
   const oud=versPak(sleutel,60000);
   KDATA=oud?oud.kdata:Object.assign(KDATA_LEEG(),{laden:true});
   klantenRender();
+  // Mag deze coach bij collega's meekijken? Dan komt er een tabblad Meekijken bij (app/meekijken.js).
+  if(myRole()==="coach"&&typeof kijkLaad==="function")kijkLaad().then(()=>{if(klantenInBeeld()&&kijkTabAan())klantenRender();});
   const leeg=Promise.resolve({data:[]});
   const[tq,wq,mq,pq,cq,iq]=await Promise.all([
     ME.profile.company_id?db.from("tags").select("*").eq("company_id",ME.profile.company_id).order("name"):leeg,
@@ -137,7 +139,7 @@ function klantRijen(){
       '<button class="kebab" onclick="event.stopPropagation();openKlantMenu(event,\''+p.id+'\','+(p.archived?'true':'false')+')">⋮</button></div>';
   }).join("");
 }
-function klantZoekF(v){klantZoek=v;const h=document.getElementById("klantrows");if(h)h.innerHTML=klantRijen()||'<div class="trow"><span class="muted">Geen klanten gevonden.</span></div>';}
+function klantZoekF(v){klantZoek=v;const h=document.getElementById("klantrows");if(h)h.innerHTML=((typeof kijkTabOpen==="function"&&kijkTabOpen())?kijkRijen():klantRijen())||'<div class="trow"><span class="muted">Geen klanten gevonden.</span></div>';}
 function klantenRender(){
   const cp=document.getElementById("cpage");if(!cp||!KDATA)return;
   const scope=klantScope(),actief=scope.filter(p=>!p.archived),archief=scope.filter(p=>p.archived);
@@ -149,6 +151,8 @@ function klantenRender(){
   const consIds=new Set((KDATA.cons||[]).filter(c=>(c.consult_date||"")>=consFrom).map(c=>c.athlete_id));
   const crTot=actief.length?Math.round(actief.filter(p=>consIds.has(p.id)).length/actief.length*100):null;
   const L=!!KDATA.laden; // cijfers nog onderweg: puntjes tonen
+  // Tabblad Meekijken (klanten van andere coaches, alleen het programma): app/meekijken.js
+  const kijkOpenTab=typeof kijkTabOpen==="function"&&kijkTabOpen();
   const banner=klantCoachFilter?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><a onclick="coachGo(\'coaches\')" style="color:var(--accent);cursor:pointer;font-weight:700">‹ Alle coaches</a><span class="muted">Klanten van <b style="color:var(--txt)">'+esc(klantCoachNaam)+'</b></span></div>':'';
   cp.innerHTML=banner+'<div class="statbar2">'+
     '<div><div class="n">'+actief.length+'</div><div class="l">Actieve klanten</div></div>'+
@@ -161,9 +165,10 @@ function klantenRender(){
       '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn" onclick="openInvModal(\'lid\')">+ Klant toevoegen</button><button class="btn ghost" onclick="openTagBeheer()">Tags beheren</button><button class="btn ghost" onclick="exportKlanten()">Exporteren</button></div></div>'+
     klantTagBanner()+
     klantGeenDagMelding()+
-    '<div class="ctabs"><button class="'+(klantArchief?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button></div>'+
+    '<div class="ctabs"><button class="'+(klantArchief||kijkOpenTab?'':'on')+'" onclick="klantTab(false)">Actief <span style="font-weight:600;color:#8a919c">'+actief.length+'</span></button><button class="'+(klantArchief&&!kijkOpenTab?'on':'')+'" onclick="klantTab(true)">Archief <span style="font-weight:600;color:#8a919c">'+archief.length+'</span></button>'+(typeof kijkTabHtml==="function"?kijkTabHtml():'')+'</div>'+
+    (kijkOpenTab?kijkLijstHtml():
     '<div class="card"><div class="thead"><div style="flex:2.2">Naam</div><div style="flex:1.2">Workout</div><div style="flex:1">Compliance</div><div style="flex:1.6">Tags</div><div style="width:30px"></div></div>'+
-    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>';
+    '<div id="klantrows">'+(klantRijen()||'<div class="trow"><span class="muted">'+(klantArchief?'Geen gearchiveerde klanten.':'Nog geen klanten gekoppeld.')+'</span></div>')+'</div></div>');
 }
 // ---------- CSV-export met kolomkeuze (zoals CoachRx) ----------
 // [sleutel, kop, waarde-functie(p, ctx)]. Alleen kolommen die we echt kunnen vullen.

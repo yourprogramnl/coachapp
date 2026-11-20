@@ -1272,3 +1272,39 @@ i18nLaad({
   "Aanpassen voor één klant: Scaled gaat vanzelf aan": "Adjusting for one client: Scaled turns on by itself",
   "Open de Showdown in de kalender van de klant en pas de tekst aan, bijvoorbeeld ring rows in plaats van toes to bar. {n} het vinkje Scaled-versie gaat vanzelf aan: deze klant staat onder Scaled op het leaderboard en hoeft zelf niets te kiezen. Zet je de tekst terug, dan gaat het vinkje weer uit. Klopt het een keer niet, bijvoorbeeld omdat je alleen het Scaled-deel van de tekst hebt weggehaald, dan zet je het vinkje zelf uit. {n} dit is de tekst die alleen deze klant ziet; de Showdown zelf en wat andere klanten zien veranderen niet. {n} met Leaderboard open je het bord, met de workout erboven.": "Open the Showdown in the client's calendar and change the text, for example ring rows instead of toes to bar. {n} the Scaled version box ticks itself: this client appears under Scaled on the leaderboard and does not have to choose anything. If you put the text back, the tick goes off again. If it is ever wrong, for example because you only removed the Scaled part of the text, untick it yourself. {n} this is the text only this client sees; the Showdown itself and what other clients see do not change. {n} Leaderboard opens the board, with the workout above it."
 });
+// Rechten coaches en meekijken (20 nov 2026)
+i18nLaad({
+  "Rechten coaches": "Coach permissions",
+  "Kies per coach bij welke collega's hij mag meekijken. Meekijken is alleen lezen: de coach ziet de gepubliceerde workouts in de kalender van die klanten. Scores, berichten, reacties, metingen, notities en klantgegevens blijven bij de eigen coach, en aanpassen kan niet. Een vinkje werkt meteen.": "Choose per coach which colleagues' clients they may view. Viewing is read-only: the coach sees the published workouts in those clients' calendars. Scores, messages, comments, measurements, notes and client details stay with the client's own coach, and nothing can be edited. A tick takes effect right away.",
+  "Mag meekijken bij de klanten van": "May view the clients of",
+  "Kijkt nergens mee": "Views no other coach",
+  "Kijkt mee bij {n} coach": "Views {n} coach",
+  "Kijkt mee bij {n} coaches": "Views {n} coaches",
+  "geen klanten": "no clients",
+  "Beheerders zien altijd alles": "Admins always see everything",
+  "Er zijn nog geen andere coaches met klanten.": "There are no other coaches with clients yet.",
+  "Er zijn nog geen coaches. Voeg er een toe op de pagina Coaches.": "There are no coaches yet. Add one on the Coaches page.",
+  "Deze pagina is alleen voor beheerders.": "This page is for admins only.",
+  "De rechten konden niet laden. Ververs de pagina of probeer het opnieuw.": "The permissions could not be loaded. Refresh the page or try again.",
+  "Meekijken bij de klanten van een andere coach regel je bij": "Viewing another coach's clients is set up under",
+  "Instellingen, Rechten coaches": "Settings, Coach permissions",
+  "Meekijken": "View only",
+  "Alleen kijken": "View only",
+  "Bij deze klanten mag je meekijken met het programma van hun coach. Je ziet de gepubliceerde workouts. Scores, berichten en notities blijven bij de eigen coach, en aanpassen kan niet.": "You may view the program their coach wrote for these clients. You see the published workouts. Scores, messages and notes stay with their own coach, and nothing can be edited.",
+  "‹ Klanten": "‹ Clients",
+  "Klant van": "Client of",
+  "Andere klant kiezen": "Pick another client",
+  "Je kijkt mee met het programma van deze klant. Scores, berichten en notities blijven bij de eigen coach, en aanpassen kan hier niet.": "You are viewing this client's program. Scores, messages and notes stay with their own coach, and nothing can be edited here.",
+  "In deze periode staan geen gepubliceerde workouts.": "There are no published workouts in this period.",
+  "Je mag bij deze klant niet meer meekijken.": "You may no longer view this client.",
+  "Bij deze klant mag je niet meekijken": "You may not view this client",
+  "Het programma kon niet laden. Ververs de pagina of probeer het opnieuw.": "The program could not be loaded. Refresh the page or try again.",
+  "Demo-video afspelen": "Play demo video",
+});
+// Help: Rechten coaches en meekijken (20 nov 2026)
+i18nLaad({
+  "Meekijken bij de klanten van een andere coach": "Viewing another coach's clients",
+  "Bij Instellingen, Rechten coaches kies je per coach bij welke collega's hij mag meekijken. Een vinkje werkt meteen en je haalt het net zo makkelijk weer weg. Meekijken is alleen lezen: de coach ziet de gepubliceerde workouts in de kalender van die klanten, met de demo-video's erbij. Scores, berichten, reacties, metingen, notities en klantgegevens blijven bij de eigen coach, en aanpassen kan niet. Concepten ziet de meekijker ook niet. Beheerders zien altijd alles en staan daarom niet in de lijst. De database dwingt dit af, dus het werkt ook niet via een omweg.": "Under Settings, Coach permissions you choose per coach which colleagues' clients they may view. A tick takes effect right away and you can remove it just as easily. Viewing is read-only: the coach sees the published workouts in those clients' calendars, including the demo videos. Scores, messages, comments, measurements, notes and client details stay with the client's own coach, and nothing can be edited. Drafts are hidden from the viewer too. Admins always see everything, so they are not in the list. The database enforces this, so there is no way around it.",
+  "Meekijken bij een collega": "Viewing a colleague's clients",
+  "Heeft een beheerder je laten meekijken bij een andere coach, dan staat er op de Klanten-pagina een tabblad Meekijken naast Actief en Archief. Klik op een klant en je ziet de kalender met het programma dat zijn coach heeft gepubliceerd, per week of per maand. Met het lijstje rechtsboven wissel je van klant. Je ziet alleen het programma: geen scores, berichten of notities, en je kunt niets aanpassen. Deze klanten tellen niet mee in je eigen cijfers en je krijgt er geen meldingen van.": "If an admin lets you view another coach's clients, the Clients page gets a View only tab next to Active and Archive. Click a client and you see the calendar with the program their coach has published, per week or per month. Use the list in the top right to switch clients. You only see the program: no scores, messages or notes, and you cannot edit anything. These clients do not count towards your own numbers and you get no notifications about them.",
+});
