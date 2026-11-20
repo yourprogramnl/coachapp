@@ -2000,3 +2000,12 @@ body.bervenster .chatklant{max-height:none}
 .sdp-waar{flex:1 1 0;color:#8a919c;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sdp-waar+.sdp-dag{margin-left:0}
 .sdstrip-auto{font-weight:700;color:#8a5a00;background:#fde9bf;border-radius:999px;padding:2px 9px;white-space:nowrap}
+/* De workout boven de scores in het leaderboard-venster (20 nov 2026) */
+.wwbord-wo{background:#eeebfd;border:1px solid #dcd6fb;border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.wwbord-wotekst{font-size:12.5px;line-height:1.5;overflow-wrap:anywhere}
+.wwbord-wo.dicht .wwbord-wotekst{max-height:15em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent);mask-image:linear-gradient(#000 60%,transparent)}
+.wwbord-wovoet{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.wwbord-wovoet:empty{display:none}
+.wwbord-wovoet .cpill.purple{background:#fff}
+.wwbord-womeer{margin-left:auto;background:none;border:none;color:#5b4bd1;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;padding:0}
+.wwbord-womeer:hover{text-decoration:underline}

@@ -1250,6 +1250,7 @@ i18nLaad({
   "Deze YP Showdown staat nog niet live. Zet hem eerst live met Kies showdown.": "This YP Showdown is not live yet. Put it live first with Pick showdown.",
   "Deze YP Showdown heeft nog geen tekst.": "This YP Showdown has no text yet.",
   "Dit account is niet aan een bedrijf gekoppeld.": "This account is not linked to a company.",
+  "Hele workout tonen": "Show the whole workout",
   "tekst aangepast": "text changed",
   "Tekst aangepast: deze klant staat nu onder Scaled op het leaderboard. Klopt dat niet, haal dan het vinkje Scaled-versie weg.": "Text changed: this client now appears under Scaled on the leaderboard. If that is not right, untick Scaled version.",
   "Aan = de score van deze klant staat onder Scaled op het gedeelde leaderboard; de klant hoeft zelf niets te kiezen. Bij de YP Showdown gaat het vinkje vanzelf aan zodra je de tekst voor deze klant aanpast, bijvoorbeeld ring rows in plaats van pull-ups. Klopt dat een keer niet, dan zet je het zelf aan of uit.": "On = this client's score appears under Scaled on the shared leaderboard; the client does not have to choose anything. For the YP Showdown the box ticks itself as soon as you change the text for this client, for example ring rows instead of pull-ups. If that is ever wrong, tick or untick it yourself."

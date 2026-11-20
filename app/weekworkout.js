@@ -206,7 +206,9 @@ async function wwBordVenster(id){
   }
   WW_VENSTER=w;
   const bord=w.audience==="bord";
-  document.getElementById("wwbord-titel").textContent=bord?(w.title||"Leaderboard-workout"):(w.title||SHOWDOWN)+" · "+datumNL(w.workout_date);
+  // De datum alleen erachter als die niet al in de naam staat ("YP showdown 9 oktober 2026").
+  document.getElementById("wwbord-titel").textContent=bord?(w.title||"Leaderboard-workout"):(w.title||SHOWDOWN)+(wwDatumUitNaam(w.title)===w.workout_date?"":" · "+datumNL(w.workout_date));
+  document.getElementById("wwbord-workout").innerHTML=wwBordWorkoutHtml(w);
   document.getElementById("wwbord-hint").textContent=bord?"Gedeeld leaderboard van de klanten bij wie deze workout in de kalender staat. Een klant met het vinkje Scaled-versie staat onder Scaled.":"Eén gedeeld leaderboard voor 1-op-1 klanten én gratis blog-leden. Een klant met het vinkje Scaled-versie staat onder Scaled.";
   const body=document.getElementById("wwbord-body");
   body.innerHTML='<div class="cempty">Leaderboard laden…</div>';
@@ -215,7 +217,22 @@ async function wwBordVenster(id){
   if(!WW_VENSTER||WW_VENSTER.id!==id)return; // intussen gesloten of een ander bord geopend
   body.innerHTML=wwBoardInner(id,"wwbord-body");
 }
-function wwBordVensterDicht(){document.getElementById("wwbordmodal").classList.remove("show");document.getElementById("wwbord-body").innerHTML="";WW_VENSTER=null;}
+function wwBordVensterDicht(){document.getElementById("wwbordmodal").classList.remove("show");document.getElementById("wwbord-body").innerHTML="";document.getElementById("wwbord-workout").innerHTML="";WW_VENSTER=null;}
+// De workout zelf boven de scores (20 nov 2026, wens Stefan): zo ziet de coach waar de scores
+// bij horen. Een lange tekst (de Showdown heeft RX, Scaled en de standaarden) staat ingeklapt.
+function wwBordWorkoutHtml(w){
+  const blk=wwMainBlock(w),tekst=String(wwTekst(w)||"").trim();if(!tekst)return "";
+  const soort=blk?((WW_SCORES.find(s=>s[0]===blk.score_type)||[])[1]||""):"";
+  const cap=blk&&blk.score_type==="time"&&blk.timecap_seconds?secNaarTijd(blk.timecap_seconds):"";
+  const lang=tekst.split("\n").length>11||tekst.length>520;
+  return '<div class="wwbord-wo'+(lang?' dicht':'')+'" id="wwbord-wo"><div class="wwbord-wotekst">'+esc(tekst).replace(/\n/g,"<br>")+'</div>'+
+    '<div class="wwbord-wovoet">'+(soort?'<span class="cpill purple">'+esc(soort)+'</span>':'')+(cap?'<span class="cpill gray">timecap '+esc(cap)+'</span>':'')+
+    (lang?'<button class="wwbord-womeer" onclick="wwBordWoToggle(this)">Hele workout tonen</button>':'')+'</div></div>';
+}
+function wwBordWoToggle(knop){
+  const el=document.getElementById("wwbord-wo");if(!el)return;
+  knop.textContent=el.classList.toggle("dicht")?"Hele workout tonen":"Inklappen";
+}
 // Eén regel op een leaderboard (Showdown én blogprogramma's). De score staat vooraan;
 // de notitie van de sporter is dicht tot je op de naam klikt (verzoek Stefan 22 okt:
 // "scores wil ik zien, wat ze typen is alleen handig als ik het wil uitklappen").
@@ -530,6 +547,7 @@ function ensureWwModals(){
     '<div class="lmodal" id="wwbordmodal" style="z-index:396"><div class="box" style="width:680px;max-width:96vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0" id="wwbord-titel">Leaderboard</h3><span onclick="wwBordVensterDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
       '<div class="sm muted" id="wwbord-hint" style="margin-bottom:8px"></div>'+
+      '<div id="wwbord-workout"></div>'+
       '<div id="wwbord-body"></div></div></div>'+
     '<div class="lmodal" id="wwcommodal" style="z-index:398"><div class="box" style="width:480px;max-width:94vw">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0" id="wwcom-titel">Reacties</h3><span onclick="wwComDicht()" style="cursor:pointer;color:#8a919c;font-size:22px;line-height:1">×</span></div>'+
