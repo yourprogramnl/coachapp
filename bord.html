@@ -10,12 +10,15 @@
   trainingsdag. Open link met een geheime code (?c=...), zonder inloggen. Haalt elke twee
   seconden de stand op via de functie live_bord_stand: het onderdeel dat de coach nu toont
   en de scores daarbij. Het logo staat vast bovenaan, zodat het op elke foto staat.
-  De scores staan als vaste, compacte regels in kolommen (naar het voorbeeld van de tv van
-  SugarWOD): mannen en vrouwen elk in een eigen kolom, Rx en daaronder Scaled. Zijn er meer
-  scores dan er passen, dan bladert het bord vanzelf door naar de volgende regels.
-  Aanpassen kan ook op het scherm zelf: beweeg de muis (of tik), klik op "Bord instellen" en
-  onderaan opent een paneel met dezelfde instellingen. Die werken meteen en gelden alleen voor
-  dit scherm (browsergeheugen). Knop, paneel en muisaanwijzer verdwijnen vanzelf weer.
+
+  Uitgangspunt (Stefan, 20 nov): wie het bedient moet het zonder uitleg snappen, dus wat
+  vanzelf kan gaat vanzelf.
+  - De scores deelt het bord zelf in: zo groot mogelijk, mannen en vrouwen apart, Rx boven
+    Scaled. Passen ze niet meer leesbaar op één scherm, dan bladert het bord vanzelf door.
+  - Instellen kan alleen wat niet vanzelf kan: de lettergrootte en plek van de workout-tekst
+    en de verdeling van het scherm. Beweeg de muis (of tik) en linksonder komt een klein
+    balkje, naar het voorbeeld van de tv van SugarWOD. Het werkt meteen, geldt alleen voor dit
+    scherm (browsergeheugen) en verdwijnt vanzelf, net als de muisaanwijzer.
   Bediening en klaarzetten: app/live-bord.js in de coach-app.
 -->
 <style>
@@ -32,16 +35,15 @@ header img{height:8.5vh;min-height:44px;max-width:80vw;object-fit:contain;displa
 #live.weg{color:var(--rood)}
 #klok{position:absolute;right:3vw;top:50%;transform:translateY(-50%);font-size:clamp(16px,3.6vh,44px);font-variant-numeric:tabular-nums;color:var(--zacht)}
 main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
-main.split{grid-template-columns:minmax(0,42fr) minmax(0,58fr)}
 .vak{min-height:0;min-width:0;padding:2.2vh 2.4vw;display:flex;flex-direction:column}
 main.split .vak+.vak{border-left:1px solid var(--lijn)}
 .label{color:var(--goud);font-size:clamp(12px,1.9vh,22px);letter-spacing:.04em;margin-bottom:.8vh;flex:none}
 .label.midden{text-align:center}
 .titel{font-size:clamp(20px,4.2vh,54px);font-weight:700;line-height:1.15;margin:0 0 1.4vh;flex:none}
-.tekst{flex:1;min-height:0;overflow:hidden;white-space:pre-wrap;line-height:1.45;color:#dcdce0}
+.tekst{flex:1;min-height:0;overflow:hidden;line-height:1.22;color:#dcdce0}
+.tekst .wit{height:.5em}
 .cap{flex:none;margin-top:1.2vh;color:var(--zacht);font-size:clamp(12px,2vh,24px)}
-.scores{flex:1;min-height:0;overflow:hidden;display:grid;column-gap:1.4em;align-content:start;justify-content:start}
-.scores.midden{justify-content:center}
+.scores{flex:1;min-height:0;overflow:hidden;display:grid;column-gap:1.4em;align-content:start;justify-content:center}
 .kol{min-width:0}
 .regel{height:var(--lh);display:flex;align-items:center}
 .regel.groep{align-items:flex-end;padding-bottom:.3em;color:var(--goud);font-size:.8em;letter-spacing:.04em;justify-content:center;white-space:nowrap}
@@ -49,6 +51,8 @@ main.split .vak+.vak{border-left:1px solid var(--lijn)}
 .regel.groep i{font-style:normal;color:var(--zacht);margin-left:.5em}
 .rij{flex:1;min-width:0;height:calc(var(--lh) - .3em);display:flex;align-items:center;gap:.6em;background:var(--vlak);border:1px solid transparent;border-radius:.4em;padding:0 .7em}
 .rij.nieuw{border-color:var(--goud);background:#22201a}
+.rij.leeg{background:none;border:1px dashed #3d3d43}
+.rij.leeg .nr{color:#77777d}
 .rij .nr{color:var(--goud);width:1.6em;flex:none;text-align:right;font-variant-numeric:tabular-nums}
 .rij .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rij .sc{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
@@ -57,26 +61,17 @@ main.split .vak+.vak{border-left:1px solid var(--lijn)}
 .blz b{width:.7em;height:.7em;border-radius:50%;background:#3a3a3f;display:inline-block}
 .blz b.aan{background:var(--goud)}
 .leeg{color:var(--zacht);text-align:center;margin:auto;font-size:clamp(15px,2.8vh,34px);line-height:1.5;padding:0 6vw}
-.alleen .titel,.alleen .label{text-align:center}
-.alleen .tekst{text-align:center}
+.midden .titel,.midden>.label,.midden .tekst,.midden .cap{text-align:center}
 footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:var(--zacht);font-size:clamp(11px,1.7vh,20px)}
-#tandwiel{position:fixed;right:16px;bottom:16px;z-index:6;background:rgba(23,23,26,.96);color:var(--tekst);border:1px solid var(--goud);border-radius:9px;padding:10px 16px;font-size:15px;cursor:pointer;font-family:inherit}
-#tandwiel.uit{display:none}
-#balk{position:fixed;left:0;right:0;bottom:0;z-index:7;background:rgba(18,18,21,.98);border-top:2px solid var(--goud);padding:14px 22px 12px;color:var(--tekst);font-size:15px}
+#balk{position:fixed;left:14px;bottom:14px;z-index:7;display:flex;align-items:center;gap:6px;background:rgba(18,18,21,.97);border:1px solid #3a3a3f;border-radius:10px;padding:7px 9px;font-size:14px;color:var(--zacht)}
 #balk.uit{display:none}
-#balk .blokken{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 30px;max-width:1560px;margin:0 auto}
-#balk h3{margin:0 0 9px;font-size:13px;letter-spacing:.06em;color:var(--goud);font-weight:600;border-bottom:1px solid var(--lijn);padding-bottom:6px}
-#balk .r{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;white-space:nowrap}
-#balk .r>span{color:#c9c9cf}
-#balk .k{display:flex;align-items:center;gap:6px}
-#balk .k b{min-width:3.4em;text-align:center}
-#balk button{background:#26262b;color:var(--tekst);border:1px solid #3a3a3f;border-radius:7px;min-width:36px;height:36px;padding:0 11px;font-size:15px;cursor:pointer;font-family:inherit}
+#balk span{margin:0 2px 0 8px}
+#balk span:first-child{margin-left:2px}
+#balk button{background:#26262b;color:var(--tekst);border:1px solid #3a3a3f;border-radius:7px;min-width:38px;height:36px;padding:0 10px;font-size:15px;cursor:pointer;font-family:inherit}
 #balk button:hover{border-color:var(--goud)}
 #balk button.aan{background:var(--goud);color:#111;border-color:var(--goud)}
-#balk button:disabled{opacity:.4;cursor:default;border-color:#3a3a3f}
-#balk .voet{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:6px;flex-wrap:wrap;color:var(--zacht);font-size:13px}
-#balk .voet span{margin-right:8px}
-@media (max-width:1150px){#balk .blokken{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#balk button.klein{font-size:12px}
+#balk button.groot{font-size:19px}
 @media (max-width:820px),(orientation:portrait){
   body{overflow:auto}
   #bord{height:auto;min-height:100vh;padding:0 !important}
@@ -85,7 +80,7 @@ footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:
   .tekst,.scores{overflow:visible;flex:none}
   .regel.groep{justify-content:flex-start}
   #klok{display:none}
-  #balk,#tandwiel{display:none}
+  #balk{display:none}
 }
 </style>
 </head>
@@ -99,13 +94,12 @@ footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:
   <main id="main"><div class="leeg">Bord laden…</div></main>
   <footer>Log je score in de YourProgram-app &middot; yourprogram.nl</footer>
 </div>
-<button id="tandwiel" class="uit" type="button">Bord instellen</button>
 <div id="balk" class="uit"></div>
 <script>
 const SUPABASE_URL="https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
 const SUPABASE_KEY="sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
 const CODE=new URLSearchParams(location.search).get("c")||"";
-const ELKE_MS=2000,NIEUW_MS=25000;
+const ELKE_MS=2000,NIEUW_MS=25000,WISSEL_MS=12000;
 const MAANDVOL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pad=n=>String(n).padStart(2,"0");
@@ -143,20 +137,25 @@ function datumNL(iso){
   const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");if(!m)return "";
   return Number(m[3])+" "+MAANDVOL[Number(m[2])-1]+" "+m[1];
 }
-// De opmaak die de coach per bord instelt (kolommen, regels, links of midden, verdeling, rand).
+// De opmaak: wat de coach in de coach-app instelt, met daaroverheen wat op dit scherm zelf is
+// ingesteld. Alleen de workout-tekst (grootte, links of midden), de verdeling van het scherm
+// en de rand zijn instelbaar; de scores deelt het bord zelf in.
 // Dezelfde standaardwaarden als lvbOpmaak() in app/live-bord.js.
 const LOKAAL_SLEUTEL="lvb_opmaak_"+CODE;
 let lokaal={};
 try{const v=JSON.parse(localStorage.getItem(LOKAAL_SLEUTEL)||"{}");if(v&&typeof v==="object")lokaal=v;}catch(e){lokaal={};}
 function lokaalBewaar(){try{localStorage.setItem(LOKAAL_SLEUTEL,JSON.stringify(lokaal));}catch(e){}}
 function opmaakVan(s){
-  const o=Object.assign({},(s&&s.opmaak)||{},lokaal),pct=v=>{v=Number(v);return v>=40&&v<=160?v/100:1;};
-  const heel=(v,min,max,std)=>{v=Math.round(Number(v));return v>=min&&v<=max?v:std;};
-  return {kolommen:heel(o.kolommen,1,4,2),regels:heel(o.regels,5,20,10),wissel:heel(o.wissel,5,60,15),
-    workout:pct(o.workout),scoresPlek:o.scoresPlek==="links"?"links":"midden",workoutPlek:o.workoutPlek==="midden"?"midden":"links",
-    verdeling:(o.verdeling==="smal"||o.verdeling==="half")?o.verdeling:"normaal",rand:Math.max(0,Math.min(8,Number(o.rand)||0))};
+  const o=Object.assign({},(s&&s.opmaak)||{},lokaal),w=Number(o.workout);
+  return {workout:w>=40&&w<=200?Math.round(w/10)*10:100,
+    workoutPlek:(o.workoutPlek==="links"||o.workoutPlek==="midden")?o.workoutPlek:"",
+    verdeling:["70","60","50"].includes(String(o.verdeling))?String(o.verdeling):"70",
+    rand:Math.max(0,Math.min(8,Number(o.rand)||0))};
 }
-const VERDELING={smal:"minmax(0,33fr) minmax(0,67fr)",normaal:"minmax(0,42fr) minmax(0,58fr)",half:"minmax(0,1fr) minmax(0,1fr)"};
+const VERDELING={"70":"minmax(0,7fr) minmax(0,3fr)","60":"minmax(0,6fr) minmax(0,4fr)","50":"minmax(0,1fr) minmax(0,1fr)"};
+// Links of midden: wat gekozen is, en anders links naast de scores en in het midden als de tekst alleen staat.
+const plekVan=(om,alleen)=>om.workoutPlek||(alleen?"midden":"links");
+const staatAlleen=s=>!!(s&&s.onderdeel)&&(s.onderdeel.soort!=="workout"||s.weergave==="workout");
 
 // Welke scores zijn nieuw sinds dit onderdeel op het bord kwam? Die krijgen even een gouden rand,
 // en het bord bladert naar de bladzijde waar de nieuwe score staat.
@@ -174,17 +173,20 @@ function merkNieuw(s){
     }
   });
 }
-// De scores als regels per stroom: mannen, vrouwen en (zonder man/vrouw) overig. Binnen een
-// stroom eerst Rx en daaronder Scaled. Elke stroom krijgt zijn eigen kolom(men).
-function stromenVan(s){
+// De scores als regels per stroom: mannen en vrouwen, elk met Rx en daaronder Scaled. Die vier
+// vakken staan er altijd (wens Stefan); een vak met minder dan `vul` scores krijgt lege regels
+// 1, 2, 3 zodat je ziet waar de scores komen. Scores zonder man/vrouw krijgen een eigen stroom
+// "Overig", alleen als ze er zijn. Elke stroom krijgt zijn eigen kolom(men).
+function stromenVan(s,vul){
   const o=s.onderdeel,st=(o&&o.score_type)||"text",rows=s.scores||[];
   const soort=r=>(r.gender==="man"||r.gender==="vrouw")?r.gender:"overig";
-  const metGeslacht=rows.some(r=>soort(r)!=="overig");
-  return [["man","Mannen"],["vrouw","Vrouwen"],["overig",metGeslacht?"Overig":""]].map(cat=>{
-    const regels=[];
+  return [["man","Mannen"],["vrouw","Vrouwen"],["overig","Overig"]].map(cat=>{
+    const regels=[],vast=cat[0]!=="overig";
     ["rx","scaled"].forEach(rx=>{
-      rows.filter(r=>soort(r)===cat[0]&&(r.rx==="scaled"?"scaled":"rx")===rx).sort(vergelijk(st))
-        .forEach((r,i)=>regels.push({r,rang:i+1,groep:cat[0]+rx,naam:cat[1],rx}));
+      const g=rows.filter(r=>soort(r)===cat[0]&&(r.rx==="scaled"?"scaled":"rx")===rx).sort(vergelijk(st));
+      if(!g.length&&!vast)return;
+      g.forEach((r,i)=>regels.push({r,rang:i+1,groep:cat[0]+rx,naam:cat[1],rx}));
+      for(let i=g.length+1;i<=(vast?vul:0);i++)regels.push({leeg:true,rang:i,groep:cat[0]+rx,naam:cat[1],rx});
     });
     return regels;
   }).filter(x=>x.length);
@@ -215,24 +217,49 @@ function bladzijden(perStroom,K){
   }
   return uit;
 }
+// De indeling kiest het bord zelf: de grootste letter waarbij alle scores op één scherm passen
+// (met zo min mogelijk kolommen). Wordt de letter daarvoor te klein om van een afstand te
+// lezen, dan blijft hij op de kleinste leesbare maat en bladert het bord door. Is er te
+// weinig breedte om mannen en vrouwen naast elkaar te zetten, dan staan ze onder elkaar.
+// Eerst met drie regels per vak (ook de lege); past dat niet, dan met één lege regel in een
+// vak zonder scores. Bij bladeren staan mannen en vrouwen elk op een eigen bladzijde.
+const REGEL=1.9; // regelhoogte in letters
+function indeling(s,W,H){
+  const vh=window.innerHeight,fMax=Math.round(vh*0.036),fMin=Math.max(14,Math.round(vh*0.022));
+  const ruim=stromenVan(s,3),krap=stromenVan(s,1);
+  const probeer=(stromen,f,bladeren)=>{
+    const R=Math.max(3,Math.floor(H/(f*REGEL))),kMax=Math.max(1,Math.min(4,Math.floor((W+1.4*f)/(17.4*f))));
+    let beste=null;
+    for(let K=1;K<=kMax;K++){
+      const samen=[[].concat(...stromen)];
+      const sets=K<stromen.length?(bladeren?[stromen,samen]:[samen,stromen]):[stromen];
+      for(const str of sets){
+        const pags=bladzijden(str.map(x=>kolommenVan(x,R)),K);
+        if(!beste||pags.length<beste.pags.length)beste={K,f,pags};
+        if(pags.length<=1)return beste;
+      }
+    }
+    return beste;
+  };
+  for(const stromen of [ruim,krap]){
+    for(let f=fMax;f>=fMin;f--){const b=probeer(stromen,f,false);if(b.pags.length<=1)return b;}
+  }
+  return probeer(krap,fMin,true);
+}
 function vulScores(){
   const sc=document.getElementById("scores"),blz=document.getElementById("blz");
   if(!sc||!stand)return;
-  const s=stand,st=(s.onderdeel&&s.onderdeel.score_type)||"text",om=opmaakVan(s),nu=Date.now(),smal=smalScherm();
-  const K=smal?1:om.kolommen,R=smal?100000:om.regels;
-  let lh,f,breed;
-  if(smal){lh=42;f=16;breed="minmax(0,1fr)";}
-  else{
-    const W=sc.clientWidth,H=sc.clientHeight;
-    lh=H/R;
-    // Letter: de helft van de regelhoogte, maar een kolom moet minstens zo'n 15 letters breed blijven.
-    f=Math.max(9,Math.min(lh*0.5,W/K/16));
-    breed=Math.floor(Math.min((W-(K-1)*1.4*f)/K,26*f))+"px";
+  const s=stand,st=(s.onderdeel&&s.onderdeel.score_type)||"text",nu=Date.now();
+  let pags,f,lh,breed;
+  if(smalScherm()){
+    // Telefoon of staand scherm: alles onder elkaar, scrollen mag.
+    pags=bladzijden([kolommenVan([].concat(...stromenVan(s,1)),100000)],1);f=16;lh=42;breed="minmax(0,1fr)";
+  }else{
+    const W=sc.clientWidth,H=sc.clientHeight,keuze=indeling(s,W,H);
+    pags=keuze.pags;f=keuze.f;lh=f*REGEL;
+    breed="repeat("+keuze.K+","+Math.floor(Math.min((W-(keuze.K-1)*1.4*f)/keuze.K,26*f))+"px)";
   }
-  sc.style.fontSize=f+"px";sc.style.setProperty("--lh",lh+"px");
-  sc.style.gridTemplateColumns="repeat("+K+","+breed+")";
-  sc.classList.toggle("midden",om.scoresPlek==="midden");
-  const pags=bladzijden(stromenVan(s).map(x=>kolommenVan(x,R)),K);
+  sc.style.fontSize=f+"px";sc.style.setProperty("--lh",lh+"px");sc.style.gridTemplateColumns=breed;
   aantalPag=pags.length||1;
   if(springNaar){
     const i=pags.findIndex(p=>p.some(k=>k.some(x=>x.r&&x.r.id===springNaar)));
@@ -242,24 +269,35 @@ function vulScores(){
   if(pagina>=aantalPag)pagina=0;
   sc.innerHTML=(pags[pagina]||[]).map(k=>'<div class="kol">'+k.map(x=>{
     if(x.kop)return '<div class="regel groep"><div>'+esc(x.naam?x.naam+" / ":"")+(x.rx==="rx"?'Rx':'<span>Scaled</span>')+(x.vervolg?'<i>vervolg</i>':'')+'</div></div>';
+    if(x.leeg)return '<div class="regel"><div class="rij leeg"><span class="nr">'+x.rang+'</span></div></div>';
     const r=x.r,nieuw=(nieuwTot[r.id]||0)>nu;
     return '<div class="regel"><div class="rij'+(nieuw?' nieuw':'')+'"><span class="nr">'+x.rang+'</span><span class="nm">'+esc(r.naam||"Naamloos")+
       (nieuw?'<span class="nw">nieuw</span>':'')+'</span><span class="sc">'+esc(scoreTxt(r,st))+'</span></div></div>';
   }).join("")+'</div>').join("");
   if(blz)blz.innerHTML=aantalPag>1?Array.from({length:aantalPag},(x,i)=>'<b'+(i===pagina?' class="aan"':'')+'></b>').join("")+'<span>'+(pagina+1)+' van '+aantalPag+(pauze?' · gepauzeerd':'')+'</span>':"";
 }
-// Meer scores dan er passen: elke paar seconden (instelbaar) door naar de volgende bladzijde.
+// Meer scores dan er passen: om de paar seconden door naar de volgende bladzijde.
 setInterval(()=>{
   if(!stand||aantalPag<2||pauze)return;
-  if(Date.now()-laatsteWissel<opmaakVan(stand).wissel*1000)return;
+  if(Date.now()-laatsteWissel<WISSEL_MS)return;
   pagina=(pagina+1)%aantalPag;laatsteWissel=Date.now();vulScores();
 },500);
 
+// Workout-tekst: elke regel apart, een lege regel wordt een kleine tussenruimte. Zo groeit de
+// ruimte tussen de regels niet mee als de letters groter worden.
+function tekstHtml(t){
+  let uit="",wit=false;
+  String(t||"").replace(/\r/g,"").split("\n").forEach(regel=>{
+    if(regel.trim()){uit+='<div>'+esc(regel)+'</div>';wit=false;}
+    else if(uit&&!wit){uit+='<div class="wit"></div>';wit=true;}
+  });
+  return uit;
+}
 function workoutHtml(s,midden){
   const o=s.onderdeel;
   const cap=o.soort==="workout"&&o.score_type==="time"&&o.timecap?'<div class="cap">Tijdslimiet '+Math.floor(o.timecap/60)+":"+pad(o.timecap%60)+'</div>':'';
-  return '<div class="vak'+(midden?' alleen':'')+'"><div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div>'+
-    '<h1 class="titel">'+esc(o.titel||"")+'</h1><div class="tekst" id="tekst">'+esc(o.tekst||"")+'</div>'+cap+'</div>';
+  return '<div class="vak'+(midden?' midden':'')+'"><div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div>'+
+    '<h1 class="titel">'+esc(o.titel||"")+'</h1><div class="tekst" id="tekst">'+tekstHtml(o.tekst)+'</div>'+cap+'</div>';
 }
 function teken(){
   const main=document.getElementById("main"),s=stand;
@@ -270,29 +308,29 @@ function teken(){
   document.title=(s.titel||"Live bord")+" · YourProgram";
   const o=s.onderdeel;
   if(!o){main.className="";main.innerHTML='<div class="leeg">Het bord staat klaar. Het eerste onderdeel verschijnt hier zo.</div>';return;}
-  const om=opmaakVan(s),n=(s.scores||[]).length,mid=om.scoresPlek==="midden"?" midden":"";
-  const scoresVak=kop=>'<div class="vak'+(kop?' alleen':'')+'">'+(kop?'<div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div><h1 class="titel">'+esc(o.titel||"")+'</h1>':'')+
-    '<div class="label'+mid+'">Scores'+(n?' · '+n+' binnen':'')+'</div>'+
-    (n?'<div class="scores" id="scores"></div><div class="blz" id="blz"></div>':'<div class="leeg">Nog geen scores. Log je score in de app, dan staat hij hier meteen.</div>')+'</div>';
+  const om=opmaakVan(s),n=(s.scores||[]).length,alleen=staatAlleen(s),midden=plekVan(om,alleen)==="midden";
+  const scoresVak=kop=>'<div class="vak'+(kop?' midden':'')+'">'+(kop?'<div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div><h1 class="titel">'+esc(o.titel||"")+'</h1>':'')+
+    '<div class="label midden">Scores'+(n?' · '+n+' binnen':'')+'</div>'+
+    '<div class="scores" id="scores"></div><div class="blz" id="blz"></div></div>';
   document.getElementById("bord").style.padding=om.rand?(om.rand+"vh "+om.rand+"vw"):"";
   main.style.gridTemplateColumns="";
-  if(o.soort!=="workout"||s.weergave==="workout"){main.className="";main.innerHTML=workoutHtml(s,true);}
+  if(alleen){main.className="";main.innerHTML=workoutHtml(s,midden);}
   else if(s.weergave==="scores"){main.className="";main.innerHTML=scoresVak(true);}
-  else{main.className="split";main.style.gridTemplateColumns=VERDELING[om.verdeling];main.innerHTML=workoutHtml(s,om.workoutPlek==="midden")+scoresVak(false);}
+  else{main.className="split";main.style.gridTemplateColumns=VERDELING[om.verdeling];main.innerHTML=workoutHtml(s,midden)+scoresVak(false);}
   pasAan();
 }
-// Workout-tekst: letters zo groot mogelijk, maar alles moet in beeld passen (een tv scrolt niet).
+// Workout-tekst: letters zo groot als ingesteld, maar alles moet in beeld passen (een tv scrolt niet).
 function pas(el,max,min){
   if(!el)return;
   let f=max,n=0;el.style.fontSize=f+"px";
-  while(f>min&&n++<80&&(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1)){f=Math.max(min,f*0.95);el.style.fontSize=f+"px";}
+  while(f>min&&n++<120&&(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1)){f=Math.max(min,f*0.96);el.style.fontSize=f+"px";}
 }
 function pasAan(){
   const t=document.getElementById("tekst");
   if(smalScherm()){if(t)t.style.fontSize="17px";}
   else{
     const om=opmaakVan(stand),h=window.innerHeight*(1-om.rand/50),alleen=!document.getElementById("main").classList.contains("split");
-    pas(t,Math.round(h*(alleen?0.06:0.043)*om.workout),12);
+    pas(t,Math.round(h*(alleen?0.06:0.046)*om.workout/100),12);
   }
   vulScores();
 }
@@ -324,70 +362,40 @@ tikKlok();setInterval(tikKlok,10000);
 async function wakker(){try{if(navigator.wakeLock&&document.visibilityState==="visible")await navigator.wakeLock.request("screen");}catch(e){}}
 document.addEventListener("visibilitychange",wakker);wakker();
 
-// Instellen op het scherm zelf (20 nov 2026, wens Stefan, zoals de tv van SugarWOD). Er mag
-// niets blijven staan waar atleten naar kijken: bij een muisbeweging of tik komt alleen een
-// klein knopje "Bord instellen" (drie seconden). Een klik daarop opent het paneel; dat sluit
-// vanzelf na tien seconden zonder klik of beweging in het paneel, of met Sluiten. Ook de
-// muisaanwijzer verdwijnt na drie seconden stilstand. Een wijziging werkt meteen, zonder omweg
-// via de database, en wordt op dit scherm onthouden. "Standaard" gaat terug naar wat de coach
-// in de coach-app heeft ingesteld.
-const STAP={kolommen:[1,4,1],regels:[5,20,1],wissel:[5,60,5],workout:[40,160,10],rand:[0,8,1]};
-const KNOP_MS=3000,PANEEL_MS=10000;
-const balk=document.getElementById("balk"),tandwiel=document.getElementById("tandwiel");
-let balkKlok=null,knopKlok=null,muisKlok=null,balkIsOpen=false;
-function nuWaarde(veld){const om=opmaakVan(stand);return veld==="workout"?Math.round(om.workout*100):om[veld];}
+// Het balkje linksonder (naar de tv van SugarWOD): letters kleiner en groter, links of midden,
+// de verdeling van het scherm en volledig scherm. Het komt bij een muisbeweging of tik en is
+// drie seconden later weer weg, net als de muisaanwijzer, zodat er niets blijft staan waar
+// atleten naar kijken. Een klik werkt meteen en wordt op dit scherm onthouden.
+const balk=document.getElementById("balk"),WEG_MS=3000;
+let balkKlok=null,muisKlok=null;
 function opnieuw(){if(stand)teken();else balkTeken();balkToon();}
-function balkStap(veld,d){const g=STAP[veld];lokaal[veld]=Math.max(g[0],Math.min(g[1],nuWaarde(veld)+d*g[2]));lokaalBewaar();opnieuw();}
+function balkLetter(d){lokaal.workout=Math.max(40,Math.min(200,opmaakVan(stand).workout+d*10));lokaalBewaar();opnieuw();}
 function balkZet(veld,waarde){lokaal[veld]=waarde;lokaalBewaar();opnieuw();}
-function balkTerug(){lokaal={};try{localStorage.removeItem(LOKAAL_SLEUTEL);}catch(e){}opnieuw();}
-function balkBlad(d){if(aantalPag<2)return;pagina=(pagina+d+aantalPag)%aantalPag;laatsteWissel=Date.now();vulScores();balkToon();}
-function balkPauze(){pauze=!pauze;laatsteWissel=Date.now();balkTeken();vulScores();balkToon();}
+function balkBlad(d){if(aantalPag<2)return;pagina=(pagina+d+aantalPag)%aantalPag;laatsteWissel=Date.now();vulScores();}
+function balkPauze(){pauze=!pauze;laatsteWissel=Date.now();vulScores();}
 function volKlik(){try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen();}catch(e){}}
 function balkTeken(){
-  const om=opmaakVan(stand);
-  const stap=(veld,tekst)=>'<div class="k"><button onclick="balkStap(\''+veld+'\',-1)" title="Minder">−</button><b>'+tekst+'</b><button onclick="balkStap(\''+veld+'\',1)" title="Meer">+</button></div>';
-  const keuze=(veld,opties)=>'<div class="k">'+opties.map(x=>'<button class="'+(om[veld]===x[0]?"aan":"")+'" onclick="balkZet(\''+veld+'\',\''+x[0]+'\')">'+x[1]+'</button>').join("")+'</div>';
-  const rij=(naam,inhoud)=>'<div class="r"><span>'+naam+'</span>'+inhoud+'</div>';
-  const blok=(kop,inhoud)=>'<div><h3>'+kop+'</h3>'+inhoud+'</div>';
-  const plek=[["links","Links"],["midden","Midden"]];
-  balk.innerHTML='<div class="blokken">'+
-    blok("Scores",rij("Aantal kolommen",stap("kolommen",om.kolommen))+rij("Regels per kolom",stap("regels",om.regels))+rij("Plek op het scherm",keuze("scoresPlek",plek)))+
-    blok("Workout-tekst",rij("Lettergrootte",stap("workout",Math.round(om.workout*100)+"%"))+rij("Plek op het scherm",keuze("workoutPlek",plek)))+
-    blok("Scherm",rij("Ruimte voor de workout",keuze("verdeling",[["smal","Smal"],["normaal","Normaal"],["half","Helft"]]))+rij("Rand om het bord",stap("rand",om.rand?String(om.rand):"geen")))+
-    blok("Bladeren door de scores",rij("Bladzijde",'<div class="k"><button onclick="balkBlad(-1)"'+(aantalPag<2?' disabled':'')+'>‹ Vorige</button>'+
-        '<button onclick="balkBlad(1)"'+(aantalPag<2?' disabled':'')+'>Volgende ›</button></div>')+
-      rij("Vanzelf doorbladeren",'<div class="k"><button class="'+(pauze?"":"aan")+'" onclick="if(pauze)balkPauze()">Aan</button><button class="'+(pauze?"aan":"")+'" onclick="if(!pauze)balkPauze()">Pauze</button></div>')+
-      rij("Wisselen na",stap("wissel",om.wissel+" sec")))+
-    '</div><div class="voet"><span>Geldt alleen voor dit scherm. Sluit vanzelf na tien seconden.</span>'+
-      '<button onclick="balkTerug()"'+(Object.keys(lokaal).length?'':' disabled')+' title="Terug naar de instelling uit de coach-app">Terug naar standaard</button>'+
-      (document.documentElement.requestFullscreen?'<button onclick="volKlik()">'+(document.fullscreenElement?"Volledig scherm uit":"Volledig scherm")+'</button>':'')+
-      '<button onclick="balkDicht()">Sluiten</button></div>';
+  const om=opmaakVan(stand),alleen=staatAlleen(stand),plek=plekVan(om,alleen),split=!!(stand&&stand.onderdeel)&&!alleen&&stand.weergave!=="scores";
+  const keuze=(veld,nu,opties)=>opties.map(x=>'<button class="'+(nu===x[0]?"aan":"")+'" onclick="balkZet(\''+veld+'\',\''+x[0]+'\')" title="'+x[2]+'">'+x[1]+'</button>').join("");
+  balk.innerHTML='<span>Letters</span><button class="klein" onclick="balkLetter(-1)" title="Workout-tekst kleiner">A</button><button class="groot" onclick="balkLetter(1)" title="Workout-tekst groter">A</button>'+
+    '<span>Tekst</span>'+keuze("workoutPlek",plek,[["links","Links","Workout-tekst links"],["midden","Midden","Workout-tekst in het midden"]])+
+    (split?'<span>Workout / scores</span>'+keuze("verdeling",om.verdeling,[["70","70 / 30","Workout 70 procent van het scherm, scores 30"],["60","60 / 40","Workout 60 procent, scores 40"],["50","50 / 50","Workout en scores even breed"]]):'')+
+    (document.documentElement.requestFullscreen?'<span></span><button onclick="volKlik()">'+(document.fullscreenElement?"Volledig scherm uit":"Volledig scherm")+'</button>':'');
 }
-// Het paneel open houden zolang er in geklikt of bewogen wordt; daarna sluit het vanzelf.
-function balkToon(){if(!balkIsOpen)return;clearTimeout(balkKlok);balkKlok=setTimeout(balkDicht,PANEEL_MS);}
-function balkOpen(){balkIsOpen=true;balkTeken();balk.classList.remove("uit");tandwiel.classList.add("uit");clearTimeout(knopKlok);balkToon();}
-function balkDicht(){balkIsOpen=false;clearTimeout(balkKlok);balk.classList.add("uit");muisToon();}
-function knopToon(){
-  if(balkIsOpen)return;
-  tandwiel.classList.remove("uit");clearTimeout(knopKlok);knopKlok=setTimeout(()=>tandwiel.classList.add("uit"),KNOP_MS);
+function balkToon(){
+  balk.classList.remove("uit");document.documentElement.style.cursor="";
+  clearTimeout(balkKlok);balkKlok=setTimeout(()=>{balk.classList.add("uit");},WEG_MS);
+  clearTimeout(muisKlok);muisKlok=setTimeout(()=>{document.documentElement.style.cursor="none";},WEG_MS);
 }
-function muisToon(){
-  document.documentElement.style.cursor="";clearTimeout(muisKlok);
-  muisKlok=setTimeout(()=>{if(!balkIsOpen)document.documentElement.style.cursor="none";},KNOP_MS);
-}
-document.addEventListener("mousemove",()=>{muisToon();knopToon();},{passive:true});
-document.addEventListener("touchstart",knopToon,{passive:true});
-tandwiel.addEventListener("click",balkOpen);
-balk.addEventListener("mousemove",balkToon,{passive:true});
-balk.addEventListener("click",balkToon);
+document.addEventListener("mousemove",balkToon,{passive:true});
+document.addEventListener("touchstart",balkToon,{passive:true});
 document.addEventListener("fullscreenchange",balkTeken);
-// Toetsen: pijltjes bladeren, spatie pauzeert, Escape sluit het paneel.
+// Toetsen voor wie ze kent: pijltjes bladeren door de scores, spatie pauzeert het bladeren.
 document.addEventListener("keydown",e=>{
   if(e.key==="ArrowRight")balkBlad(1);else if(e.key==="ArrowLeft")balkBlad(-1);
   else if(e.key===" "){e.preventDefault();balkPauze();}
-  else if(e.key==="Escape")balkDicht();
 });
-balkTeken();knopToon();muisToon();
+balkTeken();balkToon();
 
 if(!CODE){document.getElementById("main").innerHTML='<div class="leeg">Deze link is niet compleet. Kopieer de link van het bord opnieuw uit de coach-app.</div>';}
 else haal();

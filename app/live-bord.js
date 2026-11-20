@@ -110,49 +110,46 @@ async function lvbKopieer(){
   catch(e){const el=document.getElementById("lvb-link");if(el){el.focus();el.select();}toast("Kopieer de link met Ctrl+C");}
 }
 function lvbWeergave(w){lvbBewaar({weergave:w});}
-// Opmaak van het bord (20 nov 2026, wens Stefan na de eerste test op de tv, naar het voorbeeld
-// van de tv van SugarWOD): de scores staan als vaste regels in kolommen. De coach kiest het
-// aantal kolommen en het aantal regels per kolom (minder regels = grotere letters), of de
-// scores links of in het midden staan en na hoeveel seconden het bord doorbladert als niet
-// alles past. Daarnaast de grootte en plek van de workout-tekst, de verdeling van het scherm
-// en een rand. Staat in live_borden.opmaak; bord.html past het binnen twee seconden toe.
-// Dezelfde standaardwaarden als opmaakVan() in bord.html.
-const LVB_STAP={kolommen:[1,4,1],regels:[5,20,1],wissel:[5,60,5],workout:[40,160,10],rand:[0,8,1]};
+// Opmaak van het bord (20 nov 2026, wens Stefan): wie het bord bedient moet het zonder uitleg
+// snappen, dus alleen instelbaar wat niet vanzelf kan. De scores deelt het bord zelf in (vier
+// vaste vakken, zo groot mogelijk, bladeren als het niet past). Hier staan de standaarden voor
+// elk scherm: de lettergrootte en plek van de workout-tekst, de verdeling van het scherm en
+// een rand voor een tv die de randen afsnijdt. Op het bord zelf zit hetzelfde in een klein
+// balkje (muis bewegen); wat daar gekozen is geldt alleen voor dat scherm.
+// Staat in live_borden.opmaak. Dezelfde standaardwaarden als opmaakVan() in bord.html.
+const LVB_STAP={workout:[40,200,10],rand:[0,8,1]};
 function lvbOpmaak(){
-  const o=(LVB.cur&&LVB.cur.opmaak)||{},pct=v=>{v=Number(v);return v>=40&&v<=160?Math.round(v/10)*10:100;};
-  const heel=(v,min,max,std)=>{v=Math.round(Number(v));return v>=min&&v<=max?v:std;};
-  return {kolommen:heel(o.kolommen,1,4,2),regels:heel(o.regels,5,20,10),wissel:heel(o.wissel,5,60,15),
-    workout:pct(o.workout),scoresPlek:o.scoresPlek==="links"?"links":"midden",workoutPlek:o.workoutPlek==="midden"?"midden":"links",
-    verdeling:(o.verdeling==="smal"||o.verdeling==="half")?o.verdeling:"normaal",rand:Math.max(0,Math.min(8,Math.round(Number(o.rand)||0)))};
+  const o=(LVB.cur&&LVB.cur.opmaak)||{},w=Number(o.workout);
+  return {workout:w>=40&&w<=200?Math.round(w/10)*10:100,
+    workoutPlek:(o.workoutPlek==="links"||o.workoutPlek==="midden")?o.workoutPlek:"",
+    verdeling:["70","60","50"].includes(String(o.verdeling))?String(o.verdeling):"70",
+    rand:Math.max(0,Math.min(8,Math.round(Number(o.rand)||0)))};
 }
 function lvbOpmaakHtml(){
   const o=lvbOpmaak();
   const stap=(veld,tekst)=>'<div class="lvb-stap"><button class="btn ghost sm" title="Minder" onclick="lvbOpmaakStap(\''+veld+'\',-1)">−</button><b>'+tekst+'</b><button class="btn ghost sm" title="Meer" onclick="lvbOpmaakStap(\''+veld+'\',1)">+</button></div>';
   const seg=(veld,opties)=>'<div class="seg">'+opties.map(x=>'<button class="'+(o[veld]===x[0]?"on":"")+'" onclick="lvbOpmaakZet(\''+veld+'\',\''+x[0]+'\')">'+x[1]+'</button>').join("")+'</div>';
   const rij=(naam,inhoud)=>'<div class="lvb-oprij"><span>'+naam+'</span>'+inhoud+'</div>';
-  return '<h2 style="font-size:16px">Opmaak van het bord</h2><div class="sm muted" style="margin:3px 0 12px">Dit is de standaard voor elk scherm; een wijziging staat na een paar seconden op het bord. Sneller gaat het op het bord zelf: beweeg daar de muis, klik rechtsonder op Bord instellen en je krijgt dezelfde knoppen. Wat je daar instelt geldt alleen voor dat scherm.</div>'+
+  return '<h2 style="font-size:16px">Opmaak van het bord</h2><div class="sm muted" style="margin:3px 0 12px">De scores deelt het bord zelf in. Dit hoef je alleen aan te passen als de tekst te groot of te klein staat. Het kan ook op het bord zelf: beweeg daar de muis, dan komt linksonder een balkje. Dat werkt meteen.</div>'+
     '<div class="lvb-opgrid">'+
-      rij("Kolommen met scores",stap("kolommen",String(o.kolommen)))+
-      rij("Regels per kolom",stap("regels",String(o.regels)))+
-      rij("Scores staan",seg("scoresPlek",[["links","Links"],["midden","In het midden"]]))+
-      rij("Doorbladeren na",stap("wissel",o.wissel+" sec"))+
-      rij("Grootte workout-tekst",stap("workout",o.workout+"%"))+
+      rij("Letters van de workout",stap("workout",o.workout+"%"))+
       rij("Workout-tekst staat",seg("workoutPlek",[["links","Links"],["midden","In het midden"]]))+
-      rij("Verdeling van het scherm",seg("verdeling",[["smal","Workout smal"],["normaal","Normaal"],["half","Half om half"]]))+
+      rij("Workout / scores",seg("verdeling",[["70","70 / 30"],["60","60 / 40"],["50","50 / 50"]]))+
       rij("Rand om het bord",stap("rand",o.rand===0?"geen":String(o.rand)))+
-    '</div><div class="sm muted" style="margin-top:8px">Minder regels per kolom maakt de scores groter, meer regels kleiner. Mannen en vrouwen staan elk in een eigen kolom, met Rx boven en Scaled eronder. '+
-    'Passen niet alle scores, dan bladert het bord vanzelf door. Snijdt de tv de randen af? Zet dan de rand hoger. '+
+    '</div><div class="sm muted" style="margin-top:8px">Snijdt de tv de randen af? Zet dan de rand hoger. '+
     '<button class="lvb-link" onclick="lvbOpmaakTerug()">Terug naar standaard</button></div>';
 }
 function lvbOpmaakBewaar(o){
   lvbBewaar({opmaak:o},true).then(ok=>{const h=document.getElementById("lvb-opmaak");if(ok&&h)h.innerHTML=lvbOpmaakHtml();});
 }
-function lvbOpmaakZet(veld,waarde){const o=lvbOpmaak();o[veld]=waarde;lvbOpmaakBewaar(o);}
+// Alleen bewaren wat echt gekozen is, zodat de rest de standaard van het bord blijft volgen.
+function lvbOpmaakRuw(){const o=(LVB.cur&&LVB.cur.opmaak)||{},uit={};["workout","workoutPlek","verdeling","rand"].forEach(k=>{if(o[k]!=null&&o[k]!=="")uit[k]=o[k];});return uit;}
+function lvbOpmaakZet(veld,waarde){const o=lvbOpmaakRuw();o[veld]=waarde;lvbOpmaakBewaar(o);}
 function lvbOpmaakStap(veld,d){
-  const o=lvbOpmaak(),g=LVB_STAP[veld];if(!g)return;
-  const nieuw=Math.max(g[0],Math.min(g[1],o[veld]+d*g[2]));
-  if(nieuw===o[veld]){toast(d>0?"Meer kan niet":"Minder kan niet");return;}
-  o[veld]=nieuw;lvbOpmaakBewaar(o);
+  const g=LVB_STAP[veld];if(!g)return;
+  const nu=lvbOpmaak()[veld],nieuw=Math.max(g[0],Math.min(g[1],nu+d*g[2]));
+  if(nieuw===nu){toast(d>0?"Meer kan niet":"Minder kan niet");return;}
+  const o=lvbOpmaakRuw();o[veld]=nieuw;lvbOpmaakBewaar(o);
 }
 function lvbOpmaakTerug(){lvbOpmaakBewaar({});}
 function lvbToon(i){LVB.rows=null;LVB.rowsVoor=null;lvbBewaar({actief:i});}
