@@ -408,7 +408,7 @@ function wcAllesHtml(r){
     const wos=D.workouts.filter(w=>w.client_id===id&&w.workout_date===ds);
     if(!wos.length)continue;
     const inhoud=wos.map(w=>{
-      const blokken=(w.blocks||[]).slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
+      const blokken=(w.blocks||[]).filter(b=>b.kind!=="info").sort((a,b)=>(a.sort||0)-(b.sort||0));
       if(!blokken.length)return '<div class="wc-wo"><b>'+(/^rest ?day$/i.test((w.title||"").trim())?"Rustdag":esc(w.title||"Workout"))+'</b></div>';
       const ef=D.effort.find(e=>e.workout_id===w.id&&e.athlete_id===id);
       const efTxt=ef&&(ef.rpe!=null||ef.minutes)?' <span class="wc-eff">'+(ef.rpe!=null?"inspanning "+ef.rpe+"/10":"")+(ef.rpe!=null&&ef.minutes?" · ":"")+(ef.minutes?ef.minutes+" min":"")+'</span>':'';
@@ -418,7 +418,7 @@ function wcAllesHtml(r){
         const vids=D.media.filter(m=>m.block_id===b.id&&m.athlete_id===id);
         const padLijst=vids.map(v=>v.storage_path).join("|");
         const stand=!res?'<span class="wc-niet">niet gelogd</span>':(res.status==="missed"?'<span class="wc-mis">gemist</span>':(sc?'<span class="wc-score">'+wcMarkeer(sc)+'</span>':'<span class="wc-ok">gedaan</span>'));
-        return '<div class="wc-blok"><span class="wc-lbl">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</span>'+stand+
+        return '<div class="wc-blok"><span class="wc-lbl">'+(b.label?esc(b.label)+') ':'')+esc(b.exercise||"")+'</span>'+stand+
           vids.map(v=>'<span class="wc-vid" title="'+(isFotoUpload(v.storage_path)?"Foto":"Video")+' van het lid" onclick="vidSpeel(\''+esc(v.storage_path)+'\',\''+esc(padLijst)+'\')">'+(isFotoUpload(v.storage_path)?"foto":"▶ video")+'</span>').join("")+
           ((res&&(res.note||"").trim())?'<div class="wc-noot">“'+wcMarkeer(res.note.trim())+'”</div>':'')+'</div>';
       }).join("");

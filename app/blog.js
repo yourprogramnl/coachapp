@@ -510,7 +510,7 @@ function blogCard(w){
   if(isRest)return '<div class="mcard planned'+sel+'" onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span style="color:#27b376">Rustdag</span></div></div>';
   let inner="";
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+((w.warmup_oefening_id||(w.warmup_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
-  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
+  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+(b.label?esc(b.label)+') ':'')+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+((w.cooldown_oefening_id||(w.cooldown_media||[]).length)?' 🎥':'')+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard planned'+sel+'"'+bsKaartAttr("blog",w.id)+' onclick="event.stopPropagation();blogOpenBuilder(\''+w.workout_date+'\',\''+w.id+'\')">'+blogCardTools(w)+'<div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
@@ -647,7 +647,7 @@ async function blogHerlaad(){await blogLaadWeek();BLOG.editDay=null;BLOG.editWid
 async function blogSaveWorkout(){
   const g=id=>document.getElementById(id);
   const title=(g("w_title").value||"").trim();
-  const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
+  const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=o.kind==="info"?null:r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
   const wf={company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,audience:"blog",blog_program_id:BLOG.cur.id,workout_date:BLOG.editDay,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown"),warmup_media:gmStripLees("warmup"),cooldown_media:gmStripLees("cooldown")};
   const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
   try{

@@ -349,7 +349,7 @@ const blkIsRust=w=>/^rest ?day$/i.test((w.title||"").trim());
 // Volgende letter en volgorde achter de bestaande blokken van een workout.
 function blkVolgende(blokken){
   blokken=blokken||[];
-  return {label:String.fromCharCode(65+Math.min(blokken.length,25)),sort:blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1};
+  return {label:String.fromCharCode(65+Math.min(blokken.filter(b=>b.kind!=="info").length,25)),sort:blokken.reduce((m,b)=>Math.max(m,b.sort||0),0)+1};
 }
 // Staat de bouwer open op de plek waar dit blok heen moet? Dan gaat het blok
 // daarin (en mee met het opslaan van die sessie), niet rechtstreeks de database in.

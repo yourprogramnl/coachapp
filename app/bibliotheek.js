@@ -822,7 +822,7 @@ async function progPickInsert(week,day){
 // leaderboard-workout (source_blog_workout_id) gaat mee, zodat een klant die de template krijgt op
 // hetzelfde leaderboard komt.
 function progBlokRijen(pwid,blokken){
-  return (blokken||[]).map((b,i)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind||"exercise",label:b.label||String.fromCharCode(65+Math.min(i,25)),linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort||i+1,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
+  return (blokken||[]).map((b,i)=>({program_workout_id:pwid,company_id:ME.profile.company_id,kind:b.kind||"exercise",label:b.kind==="info"?null:(b.label||String.fromCharCode(65+Math.min(i,25))),linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort||i+1,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
 }
 // Eén workout met blokken in het programma zetten; true = gelukt.
 async function progZetWorkout(week,day,velden,blokken){
@@ -864,7 +864,7 @@ function progCard(w){
   if(w.coach_notes)inner+='<div class="cblk k-grijs"><div class="n">Instructies</div><div class="pr pe-kort" title="Klik op de kaart om alles te lezen">'+esc(w.coach_notes)+'</div></div>';
   const vids=m=>(m&&m.length)?' <span class="muted" style="font-weight:500" title="'+m.length+' video\'s">🎥 '+m.length+'</span>':'';
   if(w.warmup)inner+='<div class="cblk k-grijs"><div class="n">Warmup'+vids(w.warmup_media)+'</div><div class="pr">'+esc(w.warmup)+'</div></div>';
-  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+esc(b.label||"")+') '+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
+  blocks.forEach(b=>{const kleur=b.color?" k-"+esc(b.color):"";const lk=b.linked?" linked2":"";inner+='<div class="cblk'+kleur+lk+'"'+bsBlokAttr(b.id)+'><div class="n">'+(b.label?esc(b.label)+') ':'')+esc(b.exercise||"")+'</div>'+(composePresc(b)?'<div class="pr">'+esc(composePresc(b))+'</div>':'')+'</div>';});
   if(w.cooldown)inner+='<div class="cblk k-grijs"><div class="n">Cooldown'+vids(w.cooldown_media)+'</div><div class="pr">'+esc(w.cooldown)+'</div></div>';
   return '<div class="mcard planned"'+bsKaartAttr("prog",w.id)+' onclick="event.stopPropagation();progOpenBuilder('+w.week+','+w.day+',\''+w.id+'\')"><div class="msc"><span class="wtitle">'+esc(w.title||"Workout")+'</span></div>'+inner+'</div>';
 }
@@ -890,7 +890,7 @@ function progBuilderHtml(w){
   return '<div class="sec">'+(typeof avbOogHtml==="function"?avbOogHtml():"")+'<input id="w_title" class="row-title" placeholder="Titel (bijv. Kracht)" value="'+esc(w.title||"")+'"><textarea id="w_notes" rows="1" placeholder="Notities van de coach">'+esc(w.coach_notes||"")+'</textarea><textarea id="w_warmup" rows="1" placeholder="Warming-up toevoegen…">'+esc(w.warmup||"")+'</textarea>'+
       '<div class="demolink" title="Zet een warm-up-template in dit vak" onclick="openInsVoorVak(\'warmup\')">📋 Warm-up-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("warmup"):"")+'</div>'+
     '<div id="exrows">'+rows+'</div>'+
-    (typeof blokKnopHtml==="function"?blokKnopHtml():"")+'<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button>'+(typeof blokKlembordSoort==="function"&&blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
+    (typeof blokKnopHtml==="function"?blokKnopHtml():"")+'<div class="addbtns"><button onclick="addExBtn()">+ Oefening</button><button onclick="addCondBtn()">+ Conditioning</button><button onclick="addInfoBtn()" title="Uitleg of een warming-up als eigen blok: geen letter en geen score">+ Tekstblok</button>'+(typeof blokKlembordSoort==="function"&&blokKlembordSoort()==="blok"?'<button class="plakblok" title="Plak het gekopieerde blok onderaan deze workout" onclick="blokPlak()">+ Plak blok</button>':'')+'<button class="iconly" title="Dupliceer laatste blok" onclick="dupLast()">⧉</button></div>'+
     '<div class="sec"><textarea id="w_cooldown" rows="1" placeholder="Cooldown toevoegen…">'+esc(w.cooldown||"")+'</textarea>'+
       '<div class="demolink" title="Zet een cooldown-template in dit vak" onclick="openInsVoorVak(\'cooldown\')">📋 Cooldown-template invoegen</div>'+(typeof cwKopieerHtml==="function"?cwKopieerHtml("cooldown"):"")+'</div>'+
     '<div class="foot"><button class="save" onclick="progSaveWorkout()">Opslaan</button><button class="cancel" onclick="progCloseBuilder()">Annuleren</button>'+(w.id?'<button class="cancel" style="color:#e5484d;border-color:#f3b8ba" onclick="progDeleteWorkout(\''+w.id+'\')">Verwijderen</button>':'')+'</div>';
@@ -903,7 +903,7 @@ async function progSaveWorkout(){
   if(!progMagOfMeld())return;
   const g=id=>document.getElementById(id);
   const title=(g("w_title").value||"").trim();
-  const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
+  const rows=[...document.querySelectorAll("#exrows .exrow")].map((r,i)=>{const o=rowToObj(r);o.label=o.kind==="info"?null:r.querySelector(".lbl-badge").textContent;o.sort=i+1;return o;}).filter(b=>b.exercise);
   const wf={program_id:PROG.id,company_id:ME.profile.company_id,week:progEditDay.week,day:progEditDay.day,title:title||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null};
   if(g("w_notes"))wf.coach_notes=g("w_notes").value.trim()||null;
   // Warming-up of cooldown leeggemaakt? Dan horen de video's er ook niet meer bij.

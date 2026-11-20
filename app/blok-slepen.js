@@ -134,7 +134,9 @@ function bsNummer(lijst){
   const uit=[];let gi=-1,groep=[];
   const sluit=()=>{if(!groep.length)return;const L=String.fromCharCode(65+Math.min(gi,25));groep.forEach((r,p)=>{r.label=groep.length>1?L+(p+1):L;});groep=[];};
   lijst.forEach((b,i)=>{
-    const linked=i>0&&!!b.linked;
+    // Een tekstblok heeft geen letter en hoort nooit bij een superset (ook het blok erna niet).
+    if(b.kind==="info"){sluit();uit.push({id:b.id,sort:i+1,linked:false,label:null});return;}
+    const linked=i>0&&!!b.linked&&lijst[i-1].kind!=="info";
     if(!linked){sluit();gi++;}
     const r={id:b.id,sort:i+1,linked,label:""};
     groep.push(r);uit.push(r);

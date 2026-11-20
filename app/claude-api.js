@@ -22,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.10 (lezen en concepten schrijven)";
+  const VERSIE="2.11 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -109,6 +109,9 @@ const ClaudeApi=(()=>{
   // Wat ClaudeApi.week teruggeeft kan, aangepast, zo weer in een schrijf-commando.
   function blokUit(b){
     const cond=b.kind==="conditioning";
+    // Tekstblok: uitleg of warming-up als eigen blok. Geen letter, geen score, niets te loggen.
+    if(b.kind==="info")return schoon({id:b.id,soort:"tekst",naam:b.exercise,omschrijving:b.prescription||b.notes,kleur:b.color,
+      demo_videos:titels(b.media),demo_video_ids:videoIds(b.media)});
     return schoon({id:b.id,letter:b.label,soort:cond?"conditioning":"oefening",naam:b.exercise,
       voorschrift:cond?null:b.prescription,omschrijving:cond?b.notes:null,coachingtips:cond?null:b.notes,
       scoretype:b.score_type,kleur:b.color,tijdslimiet_sec:b.timecap_seconds,
@@ -162,10 +165,21 @@ const ClaudeApi=(()=>{
     // Een Showdown-blok lezen we niet als invoer: de aanroeper beslist wat ermee gebeurt.
     if(b.uit_weekworkout||b.leaderboard_workout)return {id:leeg(b.id)?null:b.id,showdown:true};
     const soort=leeg(b.soort)?"oefening":b.soort;
-    if(soort!=="oefening"&&soort!=="conditioning")fouten.push(waar+": soort moet oefening of conditioning zijn.");
+    if(soort!=="oefening"&&soort!=="conditioning"&&soort!=="tekst")fouten.push(waar+": soort moet oefening, conditioning of tekst zijn.");
     const cond=soort==="conditioning";
     const exercise=tekstVeld(b,"naam",200,waar,fouten);
     if(!exercise)fouten.push(waar+": naam ontbreekt.");
+    if(soort==="tekst"){
+      // Een tekstblok heeft alleen een titel, tekst, kleur en video's.
+      const teveel=["voorschrift","coachingtips","tijdslimiet_sec","kaarttitel"].filter(k=>!leeg(b[k]));
+      if(teveel.length)fouten.push(waar+": een tekstblok heeft alleen naam, omschrijving, kleur en videos (niet "+teveel.join(", ")+"). Zet de tekst in omschrijving.");
+      if(!leeg(b.scoretype)&&b.scoretype!=="none")fouten.push(waar+": een tekstblok heeft geen score. Laat scoretype weg.");
+      if(b.superset_met_vorige===true)fouten.push(waar+": een tekstblok kan niet in een superset.");
+      const kleurT=leeg(b.kleur)?null:b.kleur;
+      if(kleurT&&!kleurenLijst().includes(kleurT))fouten.push(waar+": onbekende kleur \""+kleurT+"\". Kies uit: "+kleurenLijst().join(", ")+".");
+      return {id:leeg(b.id)?null:b.id,raak:true,kind:"info",exercise,prescription:tekstVeld(b,"omschrijving",MAX_TEKST,waar,fouten),notes:null,
+        score_type:"none",timecap_seconds:null,color:kleurT,linked:false,group_title:null,videos:videosLees(b.videos,waar,fouten,true)};
+    }
     if(cond&&(!leeg(b.voorschrift)||!leeg(b.coachingtips)))fouten.push(waar+": een conditioning-blok heeft alleen naam en omschrijving. Zet de tekst in omschrijving.");
     if(!cond&&!leeg(b.omschrijving))fouten.push(waar+": een oefening heeft voorschrift en coachingtips, geen omschrijving.");
     const prescription=cond?null:tekstVeld(b,"voorschrift",MAX_TEKST,waar,fouten);
@@ -222,9 +236,13 @@ const ClaudeApi=(()=>{
 
   // ---------- Letters (A, B1, B2, C) en volgorde, zoals de bouwer ze zet ----------
   function letters(blokken){
-    if(blokken.length)blokken[0].linked=false;
+    // Een tekstblok heeft geen letter en hoort nooit bij een superset; het blok erna niet bij het tekstblok.
+    blokken.forEach((b,i)=>{if(i===0||b.kind==="info"||blokken[i-1].kind==="info")b.linked=false;});
     const groepen=[];
-    blokken.forEach((b,i)=>{if(i>0&&b.linked)groepen[groepen.length-1].push(b);else groepen.push([b]);});
+    blokken.forEach((b,i)=>{
+      if(b.kind==="info"){b.label=null;return;}
+      if(i>0&&b.linked)groepen[groepen.length-1].push(b);else groepen.push([b]);
+    });
     groepen.forEach((g,gi)=>{const L=String.fromCharCode(65+Math.min(gi,25));g.forEach((b,pos)=>{b.label=g.length>1?L+(pos+1):L;});});
     blokken.forEach((b,i)=>{b.sort=i+1;});
     return blokken;
@@ -357,6 +375,8 @@ const ClaudeApi=(()=>{
         if(os&&os.geen_lift)schema=Object.assign(schema||{},{geen_lift:true});
       }
     }
+    // Een tekstblok krijgt nooit een lift: geen_lift houdt de koppeling op naam in de database tegen.
+    if(n.kind==="info")schema={geen_lift:true};
     rij.lift_scheme=schema;
     return rij;
   }
@@ -583,6 +603,7 @@ const ClaudeApi=(()=>{
           "Een leaderboard aanzetten (ClaudeApi.leaderboardAan) maakt scores van atleten zichtbaar voor elkaar. Doe dat alleen als de coach er uitdrukkelijk om vraagt.",
           "Een Template week of dag kan een YP Showdown of leaderboard-workout bevatten (uit_weekworkout of leaderboard_workout bij het blok in templateWeek). kopieerTemplate zet dat blok bij de atleet met zijn gedeelde leaderboard, precies zoals het in de template staat.",
           "Templates (Template week en Template dag) zijn van het hele bedrijf en hebben geen conceptstatus: wat je schrijft staat er meteen voor alle coaches. Maak of overschrijf een template alleen als de coach erom vraagt, zeg vooraf welke template en welke week, en overschrijf (met {overschrijf:true}) alleen dagen die je eerst met templateWeek hebt gelezen. Een atleet ziet een template niet; pas met kopieerTemplate komt er een concept bij een atleet. Een YP Showdown of leaderboard-workout zet je niet zelf in een template.",
+          "Uitleg bij een week of dag, en een warming-up die je als eigen onderdeel wilt tonen, zet je in een tekstblok (soort:\"tekst\"), niet in een oefening met scoretype none. Zo krijgt het echte werk de letters A, B, C. De vakken warming_up en cooldown van de workout bestaan ook nog; gebruik wat de coach gewend is.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
           "Begin elke sessie met ClaudeApi.ik() en controleer dat de juiste coach is ingelogd. Staat er verouderd:true, dan is er een nieuwere versie live: voer location.reload() uit en begin opnieuw. Naar hetzelfde adres navigeren herlaadt de pagina niet.",
           "Zoek een atleet altijd eerst op met ClaudeApi.atleten(...) en gebruik daarna zijn id. Elk antwoord noemt de atleet bij naam: controleer die naam.",
@@ -632,11 +653,11 @@ const ClaudeApi=(()=>{
           "ClaudeApi.videosToevoegenWeek(atleetId, datum)":"Hetzelfde voor alle blokken van één week van een atleet, met de herkende bewegingen. Geeft per blok terug wat erbij is gekomen."
         },
         blok:{
-          soort:"oefening (standaard) of conditioning.",
+          soort:"oefening (standaard), conditioning of tekst. Een tekstblok (soort:\"tekst\") is uitleg of een warming-up als eigen blok: alleen naam (de titel), omschrijving (de tekst), kleur en videos. Het heeft geen letter en geen score, de atleet hoeft er niets bij in te vullen en het telt niet mee als onderdeel. Het kan op elke plek in de workout staan en zo vaak als nodig, maar niet in een superset.",
           naam:"Verplicht. De naam van de oefening of van het onderdeel.",
           voorschrift:"Alleen bij een oefening. Zoals in de uitleg: \"8 reps @30X1; rest 2-3 min. x 4 sets.\" of \"5 x 3 @ 75%\".",
           coachingtips:"Alleen bij een oefening. Losse aanwijzingen onder het voorschrift.",
-          omschrijving:"Alleen bij conditioning. De hele tekst van het onderdeel.",
+          omschrijving:"Bij conditioning en bij een tekstblok. De hele tekst van het onderdeel.",
           scoretype:"Wat de atleet invult. Standaard text. Zie scoretypes.",
           kleur:"Zie kleuren. Leeg mag.",
           tijdslimiet_sec:"Alleen bij scoretype time.",

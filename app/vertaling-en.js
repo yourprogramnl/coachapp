@@ -1826,3 +1826,10 @@ i18nLaad({
 "Dit lid heeft hier al iets gelogd, deze workout kan niet meer op concept":"This member already logged something here, this workout can no longer become a draft",
 "Op deze workouts is al gelogd, die kunnen niet op concept":"These workouts already have logs and cannot become drafts"
 });
+i18nLaad({
+"+ Tekstblok":"+ Text block",
+"Uitleg of een warming-up als eigen blok: geen letter en geen score":"An explanation or warm-up as its own block: no letter and no score",
+"Titel (bijv. Warming-up of Uitleg)":"Title (e.g. Warm-up or Explanation)",
+"Tekst voor de sporter":"Text for the athlete",
+"Tekstblok: geen letter en geen score. Sleep dit blok naar een andere workout op de kalender":"Text block: no letter and no score. Drag this block to another workout on the calendar"
+});
