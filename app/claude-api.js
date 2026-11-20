@@ -13,7 +13,9 @@
 //   - een workout die al zichtbaar is wordt alleen gewijzigd als de aanroeper {zichtbaar:true}
 //     meegeeft (de coach vroeg er uitdrukkelijk om; besluit Stefan, 19 nov 2026). Weghalen van
 //     een zichtbare workout kan nooit, en een blok waarop al gelogd is blijft staan;
-//   - blog- en groepsprogramma's blijven dicht; de YP Showdown kan alleen als
+//   - in een blogprogramma kan sinds 2.16 alleen een concept worden geschreven en gewijzigd (de
+//     database verbergt een concept voor de volgers); wat daar zichtbaar is blijft dicht, en goedkeuren
+//     doet de coach zelf in de Blog-sectie. Groepsprogramma's blijven dicht; de YP Showdown kan alleen als
 //     ongewijzigde kopie van de weekworkout zelf worden geplaatst (plaatsShowdown),
 //     de tekst ervan is nooit te wijzigen. Een nieuwe Showdown kan alleen als concept in de
 //     bouwer worden gezet (maakShowdownConcept, 20 nov 2026); live zetten doet de coach zelf;
@@ -25,7 +27,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.15 (lezen en concepten schrijven)";
+  const VERSIE="2.16 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -421,12 +423,20 @@ const ClaudeApi=(()=>{
   const normUitRij=b=>({id:b.id,raak:false,kind:b.kind,exercise:b.exercise,prescription:b.prescription,notes:b.notes,linked:!!b.linked,media:b.media||null});
 
   // ---------- Alleen concepten zijn te wijzigen ----------
-  async function conceptOphalen(wid,magZichtbaar){
+  // magBlog: alleen de bewerk-commando's (wijzigBlok, vervangBlokken, wijzigConcept, verwijderConcept,
+  // voegTemplateIn) laten een concept in een blogprogramma toe. Zichtbaar werk in een blogprogramma nooit.
+  async function conceptOphalen(wid,magZichtbaar,magBlog){
     if(!isUuid(wid))return {fout:"Geef het id van de workout (uit ClaudeApi.week of het antwoord van een schrijf-commando)."};
     const{data:w,error}=await db.from("workouts").select("*, blocks(*)").eq("id",wid).maybeSingle();
     if(error)return {fout:error.message};
     if(!w)return {fout:"Geen workout gevonden met dit id, of je mag hem niet zien."};
-    if(w.audience!=="client"||!w.client_id)return {fout:"Dit is geen 1-op-1 workout. Weekworkouts, blog- en groepsprogramma's verander je hier nooit."};
+    if(magBlog&&w.audience==="blog"&&w.blog_program_id){
+      if(w.status!=="draft")return {fout:"Deze workout in een blogprogramma is al zichtbaar voor de volgers. Die past alleen de coach zelf aan, in de Blog-sectie. Jij wijzigt daar alleen concepten."};
+      const o=await blogOphalen(w.blog_program_id,true);if(o.fout)return {fout:o.fout};
+      w.blocks=(w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort);
+      return {w,p:{id:o.bp.id,first_name:"Blogprogramma",last_name:o.bp.name},blog:o.bp};
+    }
+    if(w.audience!=="client"||!w.client_id)return {fout:"Dit is geen 1-op-1 workout. Weekworkouts en groepsprogramma's verander je hier nooit; in een blogprogramma alleen een concept, met wijzigBlok, vervangBlokken, wijzigConcept of verwijderConcept."};
     if(w.status!=="draft"&&!magZichtbaar)return {fout:"Deze workout is al zichtbaar voor de atleet. Vraagt de coach er uitdrukkelijk om, geef dan {zichtbaar:true} mee als laatste argument; de atleet ziet de wijziging dan meteen. Een zichtbare workout weghalen kan niet."};
     if(w.source_blog_workout_id)return {fout:"Deze workout is een kopie van de weekworkout (YP Showdown). Die past alleen de coach zelf aan."};
     const a=await atleetOphalen(w.client_id);if(a.fout)return {fout:a.fout};
@@ -634,6 +644,120 @@ const ClaudeApi=(()=>{
   }
   const kopieVideosFout=o=>(!leeg(o.videos)&&!["houden","aanvullen","auto"].includes(o.videos))?"opties.videos moet \"houden\", \"aanvullen\" of \"auto\" zijn.":null;
 
+  // ---------- Doel van een schrijf-commando: een atleet of een blogprogramma (2.16) ----------
+  const BLOG_UITLEG="Dit zijn concepten: de volgers van het programma zien ze niet. De coach keurt ze zelf goed in de app, in de Blog-sectie (Goedkeuren of Concepten goedkeuren). Daar is geen commando voor.";
+  const doelAtleet=pr=>({veld:"client_id",id:pr.id,filter:q=>q.eq("client_id",pr.id),neerzet:pr,rij:r=>r,kop:{atleet:{id:pr.id,naam:naam(pr)}},
+    uitleg:GOEDKEUREN,wat:"1-op-1 workouts",plaats:"plaatsShowdown",ververs:()=>ververs(pr.id)});
+  const blogVers=id=>{try{if(typeof BLOG!=="undefined"&&BLOG&&BLOG.cur&&BLOG.cur.id===id&&!BLOG.editDay&&typeof blogHerlaad==="function"&&document.querySelector(".bloglay"))blogHerlaad();}catch(e){}};
+  const doelBlog=bp=>({veld:"blog_program_id",id:bp.id,filter:q=>q.eq("blog_program_id",bp.id),neerzet:{id:null},
+    rij:r=>({workout:Object.assign({},r.workout,{audience:"blog",blog_program_id:bp.id}),blokken:r.blokken}),kop:{programma:{id:bp.id,naam:bp.name}},
+    uitleg:BLOG_UITLEG,wat:"workouts in dit programma",plaats:"plaatsBlogShowdown",ververs:()=>blogVers(bp.id)});
+  // Een blogprogramma van het eigen bedrijf. schrijven=true weigert het programma waar de Showdown vanzelf in komt.
+  async function blogOphalen(id,schrijven){
+    if(!isUuid(id))return {fout:"Geef het id van het blogprogramma (uit ClaudeApi.blogProgrammas), geen naam."};
+    const{data:bp,error}=await db.from("blog_programs").select("id,name,company_id,hidden,showdown_auto,price_cents").eq("id",id).maybeSingle();
+    if(error)return {fout:error.message};
+    if(!bp||bp.hidden||bp.company_id!==ME.profile.company_id)return {fout:"Geen blogprogramma gevonden met dit id. Kijk in ClaudeApi.blogProgrammas."};
+    if(schrijven&&bp.showdown_auto)return {fout:"In \""+bp.name+"\" komt de YP Showdown vanzelf te staan zodra de coach hem live zet. Daar schrijf je niets in."};
+    return {bp};
+  }
+  async function schrijfIn(doel,workouts,opties){
+      opties=isObject(opties)?opties:{};
+      if(isObject(workouts))workouts=[workouts];
+      if(!Array.isArray(workouts)||!workouts.length)return fout("Geef een lijst workouts. Zie het voorbeeld in ClaudeApi.hulp().");
+      if(workouts.length>MAX_WORKOUTS)return fout("Maximaal "+MAX_WORKOUTS+" workouts per keer. Schrijf per week.");
+      const fouten=[];
+      const gelezen=workouts.map((w,i)=>workoutLees(w,"workout "+(i+1)+(isObject(w)&&isDatum(w.datum)?" ("+w.datum+")":""),fouten,opties)).filter(Boolean);
+      if(!leeg(opties.videos)&&opties.videos!=="geen"&&opties.videos!=="auto")fouten.push("opties.videos moet \"auto\" of \"geen\" zijn.");
+      if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
+      const indexOk=await videosKlaar();
+      const meldingen=[];
+      // Wat staat er al op die dagen?
+      const datums=[...new Set(gelezen.map(w=>w.datum))];
+      const bestaand=await haalIn("workouts","id,workout_date,title,status","workout_date",datums,doel.filter);
+      const dubbel=gelezen.filter(w=>bestaand.some(b=>b.workout_date===w.datum&&b.status==="draft"&&(b.title||"")===(w.title||"")));
+      if(dubbel.length&&opties.toch!==true)return {ok:false,fout:"Er is niets geschreven. Er staat al een concept met dezelfde titel op: "+dubbel.map(w=>w.datum+" (\""+w.title+"\")").join(", ")+". Kijk met ClaudeApi.week of dit al gelukt was. Wil je er bewust een naast, geef dan {toch:true} mee."};
+      datums.forEach(d=>{const er=bestaand.filter(b=>b.workout_date===d&&b.status!=="draft");if(er.length)meldingen.push("Op "+d+" staat al een zichtbare workout ("+er.map(b=>"\""+(b.title||"zonder titel")+"\"").join(", ")+"). Het concept komt ernaast.");});
+      const standaard=opties.videos==="geen"?"geen":undefined;
+      const rijen=gelezen.map((w,i)=>{
+        const waar="workout "+(i+1)+" ("+w.datum+")";
+        const wk=w.videos===undefined?standaard:w.videos;
+        letters(w.blokken);
+        w.blokken.forEach((n,j)=>{n.media=mediaKies(n.videos===undefined?standaard:n.videos,blokBron(n),undefined,true,waar+", blok "+(j+1),fouten,indexOk);});
+        return {workout:{workout_date:w.datum,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+            warmup_media:w.warmup?mediaKies(w.videosWu===undefined?wk:w.videosWu,w.warmup,undefined,true,waar+", videos_warming_up",fouten,indexOk):null,
+            cooldown_media:w.cooldown?mediaKies(w.videosCd===undefined?wk:w.videosCd,w.cooldown,undefined,true,waar+", videos_cooldown",fouten,indexOk):null},
+          blokken:w.blokken.map(n=>blokRij(n,null))};
+      });
+      if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
+      if(!indexOk&&standaard!=="geen")meldingen.push("De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen. Zet ze later met wijzigBlok(blokId,{videos:\"auto\"}).");
+      const ids=await conceptenNeerzetten(doel.neerzet,rijen.map(doel.rij));
+      const terug=await leesTerug(ids);
+      doel.ververs();
+      return schoon(Object.assign({ok:true},doel.kop,{geschreven:ids.length,status:"concept",uitleg:doel.uitleg,let_op:meldingen,workouts:terug}));
+  }
+  async function kopieerIn(doel,vanDatum,naarDatum,opties){
+      opties=isObject(opties)?opties:{};
+      if(!isDatum(vanDatum)||!isDatum(naarDatum))return fout("vanDatum en naarDatum moeten JJJJ-MM-DD zijn: een dag in de bronweek en een dag in de doelweek.");
+      const van=maandagVan(vanDatum),naar=maandagVan(naarDatum),dagen=dagenTussenIso(van,naar);
+      if(!dagen)return fout("vanDatum en naarDatum liggen in dezelfde week.");
+      const fouten=[];datumMag(plus(naar,6),opties,"doelweek",fouten);
+      if(fouten.length)return fout(fouten.join(" "));
+      const{data:bron,error}=await db.from("workouts").select("*, blocks(*)").eq(doel.veld,doel.id).gte("workout_date",van).lte("workout_date",plus(van,6))
+        .order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
+      if(error)return fout(error.message);
+      if(!(bron||[]).length)return fout("In de week van "+van+" staan geen "+doel.wat+" om te kopiëren.");
+      const{data:doelWeek,error:de}=await db.from("workouts").select("id,workout_date,title,status").eq(doel.veld,doel.id).gte("workout_date",naar).lte("workout_date",plus(naar,6));
+      if(de)return fout(de.message);
+      const concepten=(doelWeek||[]).filter(w=>w.status==="draft"),zichtbaar=(doelWeek||[]).filter(w=>w.status!=="draft");
+      if(concepten.length&&opties.toch!==true)return fout("Er is niets gekopieerd. In de week van "+naar+" staan al "+concepten.length+" concepten. Kijk met ClaudeApi.week of het kopiëren al gelukt was. Wil je er bewust een kopie naast, geef dan {toch:true} mee.");
+      const vf=kopieVideosFout(opties);if(vf)return fout(vf);
+      const meldingen=[],overgeslagen=[],rijen=[];
+      if(zichtbaar.length)meldingen.push("In de week van "+naar+" staan al "+zichtbaar.length+" zichtbare workouts. De kopie komt ernaast.");
+      // De Showdown uit de bronweek gaat nooit mee: dat is de workout van díé week. Met
+      // {showdown:true} komt op dezelfde plek de Showdown van de doelweek, als die er al is.
+      const isSd=id=>!!id&&!isBord(id);
+      const heeftSd=bron.some(w=>isSd(w.source_blog_workout_id)||(w.blocks||[]).some(b=>isSd(b.source_blog_workout_id)));
+      let sd=null,sdGeplaatst=0;
+      if(heeftSd&&opties.showdown===true){
+        const lijst=await showdownVanWeek(naar);
+        if(lijst.length===1)sd=lijst[0];
+        else meldingen.push(lijst.length?"In de week van "+naar+" staan "+lijst.length+" weekworkouts. De Showdown is niet meegenomen; plaats de juiste met "+doel.plaats+".":"De YP Showdown voor de week van "+naar+" staat nog niet in de app. Plaats hem later met "+doel.plaats+".");
+      }
+      bron.forEach(w=>{
+        if(w.source_blog_workout_id){
+          if(sd){rijen.push({workout:{workout_date:plus(w.workout_date,dagen),title:sd.title||"YP Showdown"},blokken:letters(showdownRijen(sd))});sdGeplaatst++;}
+          else overgeslagen.push(w.workout_date+": \""+(w.title||"")+"\" (weekworkout)");
+          return;
+        }
+        const alle=(w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort);
+        const blokken=[];let sdHier=false,anders=false;
+        alle.forEach(b=>{
+          if(!b.source_blog_workout_id){blokken.push(kopieBlok(b));return;}
+          // Leaderboard-workout: gaat mee met zijn koppeling (en met de geschaalde versie van deze atleet).
+          if(isBord(b.source_blog_workout_id)){blokken.push(Object.assign(kopieBlok(b),{source_blog_workout_id:b.source_blog_workout_id,scaled_versie:!!b.scaled_versie}));return;}
+          anders=true;
+          if(sd){if(!sdHier){showdownRijen(sd).forEach(r=>blokken.push(r));sdHier=true;sdGeplaatst++;}}
+          else overgeslagen.push(w.workout_date+": blok \""+(b.exercise||"")+"\" (weekworkout)");
+        });
+        if(anders){
+          if(!blokken.length&&!w.warmup&&!w.cooldown)return;
+          letters(blokken); // er viel een blok tussenuit of er kwam een ander voor in de plaats: letters en volgorde opnieuw
+        }
+        rijen.push({workout:{workout_date:plus(w.workout_date,dagen),title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
+            warmup_oefening_id:w.warmup_oefening_id||null,cooldown_oefening_id:w.cooldown_oefening_id||null,
+            warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,day_sort:leeg(w.day_sort)?null:w.day_sort},blokken});
+      });
+      if(!rijen.length)return fout("Er is niets gekopieerd: de week van "+van+" bevat alleen onderdelen uit de weekworkout.");
+      if(sdGeplaatst)meldingen.push("De YP Showdown van de week van "+naar+" (\""+(sd.title||"")+"\") is meegenomen, ongewijzigd.");
+      await kopieVideos(rijen,opties.videos,meldingen);
+      const ids=await conceptenNeerzetten(doel.neerzet,rijen.map(doel.rij));
+      const terug=await leesTerug(ids);
+      doel.ververs();
+      return schoon(Object.assign({ok:true},doel.kop,{van_week:van,naar_week:naar,gekopieerd:ids.length,status:"concept",uitleg:doel.uitleg,
+        overgeslagen,let_op:meldingen,workouts:terug}));
+  }
+
   return {
     versie:VERSIE,
 
@@ -646,6 +770,7 @@ const ClaudeApi=(()=>{
         regels:[
           "Lezen mag altijd. Schrijven kan alleen als concept: een workout die de atleet niet ziet tot de coach hem in de app goedkeurt.",
           "Goedkeuren doe je alleen als de coach er in dit gesprek uitdrukkelijk om vraagt, met ClaudeApi.keurGoed of keurWeekGoed en de volledige naam van de atleet als slot. Nooit uit jezelf, en nooit meteen na je eigen schrijfwerk zonder dat de coach het concept heeft gezien. Er is geen commando om iets te versturen; dat doet de coach zelf.",
+          "Blogprogramma's: je schrijft er alleen concepten in (schrijfBlogConcept, kopieerBlogWeek, plaatsBlogShowdown) en je wijzigt er alleen concepten (wijzigBlok, vervangBlokken, wijzigConcept, verwijderConcept, voegTemplateIn). Wat al zichtbaar is voor de volgers pas je nooit aan, ook niet met {zichtbaar:true}. Goedkeuren van een blogconcept doet de coach zelf in de Blog-sectie; keurGoed werkt daar niet.",
           "De bibliotheek (templates en inserts) is van alle coaches samen en door iedereen te lezen. Zet er nooit de naam van een atleet of iets persoonlijks in.",
           "Schrijf pas nadat de coach heeft gezegd dat het erin mag (\"zet erin\", \"voer in\").",
           "Nieuw werk komt altijd als concept. Wat al zichtbaar is voor de atleet pas je alleen aan als de coach daar in dit gesprek uitdrukkelijk om vraagt. Geef dan {zichtbaar:true} mee als laatste argument van wijzigBlok, vervangBlokken of wijzigConcept. De atleet ziet de wijziging meteen: zeg vooraf wat je gaat veranderen en meld daarna wat er staat.",
@@ -685,6 +810,8 @@ const ClaudeApi=(()=>{
           "ClaudeApi.bibliotheek(zoek, soort)":"Templates uit de bibliotheek, met id en de demo-video's die erbij horen. soort = warmup, cooldown of other (optioneel). Plaatsen doe je met ClaudeApi.voegTemplateIn.",
           "ClaudeApi.videoZoek(zoek)":"Oefeningen met een demo-video, met id. Gebruik die id's in videos:[...] als de automatische keuze niet klopt.",
           "ClaudeApi.showdowns(zoek, opties)":"Alle YP Showdowns, nieuwste eerst, met datum, scoretype, tijdslimiet, het aantal gelogde scores dat de coach mag zien en de volledige tekst. Concepten uit de bouwer staan erbij met status concept. zoek = woord dat in de naam of de tekst moet staan, bijvoorbeeld \"sandbag\" (optioneel): aantal_live tegenover totaal_live zegt dan hoe vaak het al voorkwam. opties (optioneel): {vanaf:\"JJJJ-MM-DD\", tot:\"JJJJ-MM-DD\"} voor een periode, {tekst:false} voor alleen het overzicht, {concepten:false} zonder concepten. Alleen lezen.",
+          "ClaudeApi.blogProgrammas()":"De blogprogramma's van het bedrijf (bijvoorbeeld The Next Step, YP The next GEN program, YP Hyrox), met id, de laatste dag waarop iets staat en het aantal concepten. Het id heb je nodig voor de andere blog-commando's.",
+          "ClaudeApi.blogWeek(programmaId, datum, weken)":"De week van een blogprogramma (maandag t/m zondag) waarin datum valt, zoals week() bij een atleet: per workout de status (concept of gepubliceerd) en de blokken. weken = 1 t/m 8 (standaard 1). Resultaten van volgers staan er niet bij.",
           "ClaudeApi.leaderboardWorkouts(zoek, opties)":"De leaderboard-workouts van het bedrijf, nieuwste eerst, met id, scoretype, tijdslimiet, het aantal gelogde scores dat de coach mag zien en de tekst. zoek = woord in de naam of de tekst (optioneel). opties: {tekst:false} voor alleen het overzicht.",
           "ClaudeApi.templates(zoek)":"De Template weken en Template dagen van het bedrijf (de Template builder staat hier ook in), met id, aantal weken en dagen.",
           "ClaudeApi.templateWeek(templateId, week, weken)":"Zonder week: een overzicht van de hele template (per week en dag de titel en de namen van de blokken). Met week: de volledige tekst van die week, in dezelfde vorm als week(). weken = hoeveel weken vanaf die week (1 t/m 4). Dag 1 is maandag."
@@ -697,6 +824,9 @@ const ClaudeApi=(()=>{
           "ClaudeApi.schrijfTemplateWeek(templateId, week, dagen, opties)":"Zet dagen in één week van een template. dagen = lijst in de vorm van template_voorbeeld: per dag (1 = maandag) een lijst workouts, elk zoals een workout in schrijfConcept maar zonder datum. Dagen die je niet noemt blijven staan. Staat er op een dag al iets, dan gebeurt er niets, tenzij je {overschrijf:true} meegeeft: die dagen worden dan vervangen (een dag met workouts:[] wordt leeg). Wat templateWeek teruggeeft kun je zo weer meegeven. week mag een bestaande week zijn of de eerstvolgende nieuwe.",
           "ClaudeApi.wijzigTemplate(templateId, velden)":"Past de naam of de omschrijving van een template aan: {naam:\"...\"} en/of {omschrijving:\"...\"}.",
           "ClaudeApi.verwijderTemplate(templateId, opties)":"Verwijdert een hele template met alle weken. Kan niet worden teruggedraaid. Alleen op uitdrukkelijk verzoek van de coach, met ter controle de exacte naam: {naam:\"...\"}. Een template die aan een klant is toegewezen kun je niet verwijderen.",
+          "ClaudeApi.schrijfBlogConcept(programmaId, workouts, opties)":"Zet workouts als concept in een blogprogramma. Zelfde invoer en opties als schrijfConcept. De volgers zien een concept niet; de coach keurt het goed in de Blog-sectie.",
+          "ClaudeApi.kopieerBlogWeek(programmaId, vanDatum, naarDatum, opties)":"Kopieert alle workouts van een blogprogramma uit de week van vanDatum naar de week van naarDatum, op dezelfde weekdagen, als concept. Zelfde opties als kopieerWeek: {showdown:true} zet de YP Showdown van de doelweek op de plek waar hij in de bronweek stond, {videos:\"aanvullen\"} of {videos:\"auto\"} voor de demo-video's. Staan er in de doelweek al concepten, dan gebeurt er niets (bewust ernaast: {toch:true}).",
+          "ClaudeApi.plaatsBlogShowdown(programmaId, datum, opties)":"Zet de YP Showdown van de week van datum als concept in een blogprogramma, op datum. De tekst komt letterlijk uit de weekworkout. Staat hij die week al in het programma, dan gebeurt er niets (bewust nog een keer: {toch:true}).",
           "ClaudeApi.maakShowdownConcept(showdown, opties)":"Zet een nieuwe YP Showdown als concept in de Bouwer, alleen als de coach erom vraagt. showdown = {datum:\"JJJJ-MM-DD\" (de vrijdag van die week), tekst (de RX version, een streep en de Scaled version, net als de andere Showdowns; kijk met ClaudeApi.showdowns hoe ze eruitzien), scoretype (verplicht: het leaderboard rangschikt erop), tijdslimiet_sec (alleen bij time), bij_tijdslimiet (\"reps\" of \"rounds_reps\": wat iemand logt die de limiet niet haalt; standaard reps), naam (weglaten = \"YP showdown 27 november 2026\", met de datum erin), videos (weglaten = geen, \"auto\" = de app kiest uit de tekst, of een lijst id's uit ClaudeApi.videoZoek)}. Het blijft een concept: leden zien het niet en het staat bij geen enkele atleet. De coach zet het zelf live in de Bouwer met Kies showdown; dan komt het leaderboard er vanzelf bij en werkt ClaudeApi.plaatsShowdown. Staat er voor die week al een Showdown of een concept, dan gebeurt er niets (bewust een tweede: opties {toch:true}; een andere dag dan vrijdag: opties {andereDag:true}). Een concept of een live Showdown wijzigen of weghalen kan niet: dat doet de coach in de Bouwer. Lees het antwoord dus na en meld de coach wat er staat.",
           "ClaudeApi.plaatsShowdown(atleetId, datum, opties)":"Zet de YP Showdown van de week van datum als concept bij de atleet, op datum. De tekst komt letterlijk uit de weekworkout; je kunt hem niet meegeven of wijzigen. Staat de Showdown van die week nog niet in de app, dan krijg je een melding en gebeurt er niets. Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
           "ClaudeApi.plaatsLeaderboardWorkout(atleetId, leaderboardWorkoutId, datum, opties)":"Zet een bestaande leaderboard-workout als concept bij de atleet, op datum. De tekst komt letterlijk uit de leaderboard-workout. Staat hij die week al bij de atleet, dan gebeurt er niets (met {toch:true} toch). Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
@@ -986,102 +1116,12 @@ const ClaudeApi=(()=>{
     // ---------- Schrijven: altijd als concept ----------
     schrijfConcept:veilig(async(atleetId,workouts,opties)=>{
       const a=await atleetOphalen(atleetId);if(a.fout)return fout(a.fout);
-      opties=isObject(opties)?opties:{};
-      if(isObject(workouts))workouts=[workouts];
-      if(!Array.isArray(workouts)||!workouts.length)return fout("Geef een lijst workouts. Zie het voorbeeld in ClaudeApi.hulp().");
-      if(workouts.length>MAX_WORKOUTS)return fout("Maximaal "+MAX_WORKOUTS+" workouts per keer. Schrijf per week.");
-      const fouten=[];
-      const gelezen=workouts.map((w,i)=>workoutLees(w,"workout "+(i+1)+(isObject(w)&&isDatum(w.datum)?" ("+w.datum+")":""),fouten,opties)).filter(Boolean);
-      if(!leeg(opties.videos)&&opties.videos!=="geen"&&opties.videos!=="auto")fouten.push("opties.videos moet \"auto\" of \"geen\" zijn.");
-      if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
-      const indexOk=await videosKlaar();
-      const meldingen=[];
-      // Wat staat er al op die dagen?
-      const datums=[...new Set(gelezen.map(w=>w.datum))];
-      const bestaand=await haalIn("workouts","id,workout_date,title,status","workout_date",datums,q=>q.eq("client_id",a.p.id));
-      const dubbel=gelezen.filter(w=>bestaand.some(b=>b.workout_date===w.datum&&b.status==="draft"&&(b.title||"")===(w.title||"")));
-      if(dubbel.length&&opties.toch!==true)return {ok:false,fout:"Er is niets geschreven. Er staat al een concept met dezelfde titel op: "+dubbel.map(w=>w.datum+" (\""+w.title+"\")").join(", ")+". Kijk met ClaudeApi.week of dit al gelukt was. Wil je er bewust een naast, geef dan {toch:true} mee."};
-      datums.forEach(d=>{const er=bestaand.filter(b=>b.workout_date===d&&b.status!=="draft");if(er.length)meldingen.push("Op "+d+" staat al een zichtbare workout ("+er.map(b=>"\""+(b.title||"zonder titel")+"\"").join(", ")+"). Het concept komt ernaast.");});
-      const standaard=opties.videos==="geen"?"geen":undefined;
-      const rijen=gelezen.map((w,i)=>{
-        const waar="workout "+(i+1)+" ("+w.datum+")";
-        const wk=w.videos===undefined?standaard:w.videos;
-        letters(w.blokken);
-        w.blokken.forEach((n,j)=>{n.media=mediaKies(n.videos===undefined?standaard:n.videos,blokBron(n),undefined,true,waar+", blok "+(j+1),fouten,indexOk);});
-        return {workout:{workout_date:w.datum,title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
-            warmup_media:w.warmup?mediaKies(w.videosWu===undefined?wk:w.videosWu,w.warmup,undefined,true,waar+", videos_warming_up",fouten,indexOk):null,
-            cooldown_media:w.cooldown?mediaKies(w.videosCd===undefined?wk:w.videosCd,w.cooldown,undefined,true,waar+", videos_cooldown",fouten,indexOk):null},
-          blokken:w.blokken.map(n=>blokRij(n,null))};
-      });
-      if(fouten.length)return {ok:false,fout:"Er is niets geschreven. Los dit eerst op.",fouten};
-      if(!indexOk&&standaard!=="geen")meldingen.push("De oefeningenbibliotheek was niet geladen: er zijn geen demo-video's gekozen. Zet ze later met wijzigBlok(blokId,{videos:\"auto\"}).");
-      const ids=await conceptenNeerzetten(a.p,rijen);
-      const terug=await leesTerug(ids);
-      ververs(a.p.id);
-      return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},geschreven:ids.length,status:"concept",uitleg:GOEDKEUREN,let_op:meldingen,workouts:terug});
+      return schrijfIn(doelAtleet(a.p),workouts,opties);
     }),
 
     kopieerWeek:veilig(async(atleetId,vanDatum,naarDatum,opties)=>{
       const a=await atleetOphalen(atleetId);if(a.fout)return fout(a.fout);
-      opties=isObject(opties)?opties:{};
-      if(!isDatum(vanDatum)||!isDatum(naarDatum))return fout("vanDatum en naarDatum moeten JJJJ-MM-DD zijn: een dag in de bronweek en een dag in de doelweek.");
-      const van=maandagVan(vanDatum),naar=maandagVan(naarDatum),dagen=dagenTussenIso(van,naar);
-      if(!dagen)return fout("vanDatum en naarDatum liggen in dezelfde week.");
-      const fouten=[];datumMag(plus(naar,6),opties,"doelweek",fouten);
-      if(fouten.length)return fout(fouten.join(" "));
-      const{data:bron,error}=await db.from("workouts").select("*, blocks(*)").eq("client_id",a.p.id).gte("workout_date",van).lte("workout_date",plus(van,6))
-        .order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
-      if(error)return fout(error.message);
-      if(!(bron||[]).length)return fout("In de week van "+van+" staan geen 1-op-1 workouts om te kopiëren.");
-      const{data:doel,error:de}=await db.from("workouts").select("id,workout_date,title,status").eq("client_id",a.p.id).gte("workout_date",naar).lte("workout_date",plus(naar,6));
-      if(de)return fout(de.message);
-      const concepten=(doel||[]).filter(w=>w.status==="draft"),zichtbaar=(doel||[]).filter(w=>w.status!=="draft");
-      if(concepten.length&&opties.toch!==true)return fout("Er is niets gekopieerd. In de week van "+naar+" staan al "+concepten.length+" concepten. Kijk met ClaudeApi.week of het kopiëren al gelukt was. Wil je er bewust een kopie naast, geef dan {toch:true} mee.");
-      const vf=kopieVideosFout(opties);if(vf)return fout(vf);
-      const meldingen=[],overgeslagen=[],rijen=[];
-      if(zichtbaar.length)meldingen.push("In de week van "+naar+" staan al "+zichtbaar.length+" zichtbare workouts. De kopie komt ernaast.");
-      // De Showdown uit de bronweek gaat nooit mee: dat is de workout van díé week. Met
-      // {showdown:true} komt op dezelfde plek de Showdown van de doelweek, als die er al is.
-      const isSd=id=>!!id&&!isBord(id);
-      const heeftSd=bron.some(w=>isSd(w.source_blog_workout_id)||(w.blocks||[]).some(b=>isSd(b.source_blog_workout_id)));
-      let sd=null,sdGeplaatst=0;
-      if(heeftSd&&opties.showdown===true){
-        const lijst=await showdownVanWeek(naar);
-        if(lijst.length===1)sd=lijst[0];
-        else meldingen.push(lijst.length?"In de week van "+naar+" staan "+lijst.length+" weekworkouts. De Showdown is niet meegenomen; plaats de juiste met plaatsShowdown.":"De YP Showdown voor de week van "+naar+" staat nog niet in de app. Plaats hem later met plaatsShowdown.");
-      }
-      bron.forEach(w=>{
-        if(w.source_blog_workout_id){
-          if(sd){rijen.push({workout:{workout_date:plus(w.workout_date,dagen),title:sd.title||"YP Showdown"},blokken:letters(showdownRijen(sd))});sdGeplaatst++;}
-          else overgeslagen.push(w.workout_date+": \""+(w.title||"")+"\" (weekworkout)");
-          return;
-        }
-        const alle=(w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort);
-        const blokken=[];let sdHier=false,anders=false;
-        alle.forEach(b=>{
-          if(!b.source_blog_workout_id){blokken.push(kopieBlok(b));return;}
-          // Leaderboard-workout: gaat mee met zijn koppeling (en met de geschaalde versie van deze atleet).
-          if(isBord(b.source_blog_workout_id)){blokken.push(Object.assign(kopieBlok(b),{source_blog_workout_id:b.source_blog_workout_id,scaled_versie:!!b.scaled_versie}));return;}
-          anders=true;
-          if(sd){if(!sdHier){showdownRijen(sd).forEach(r=>blokken.push(r));sdHier=true;sdGeplaatst++;}}
-          else overgeslagen.push(w.workout_date+": blok \""+(b.exercise||"")+"\" (weekworkout)");
-        });
-        if(anders){
-          if(!blokken.length&&!w.warmup&&!w.cooldown)return;
-          letters(blokken); // er viel een blok tussenuit of er kwam een ander voor in de plaats: letters en volgorde opnieuw
-        }
-        rijen.push({workout:{workout_date:plus(w.workout_date,dagen),title:w.title,coach_notes:w.coach_notes,warmup:w.warmup,cooldown:w.cooldown,
-            warmup_oefening_id:w.warmup_oefening_id||null,cooldown_oefening_id:w.cooldown_oefening_id||null,
-            warmup_media:w.warmup_media||null,cooldown_media:w.cooldown_media||null,day_sort:leeg(w.day_sort)?null:w.day_sort},blokken});
-      });
-      if(!rijen.length)return fout("Er is niets gekopieerd: de week van "+van+" bevat alleen onderdelen uit de weekworkout.");
-      if(sdGeplaatst)meldingen.push("De YP Showdown van de week van "+naar+" (\""+(sd.title||"")+"\") is meegenomen, ongewijzigd.");
-      await kopieVideos(rijen,opties.videos,meldingen);
-      const ids=await conceptenNeerzetten(a.p,rijen);
-      const terug=await leesTerug(ids);
-      ververs(a.p.id);
-      return schoon({ok:true,atleet:{id:a.p.id,naam:naam(a.p)},van_week:van,naar_week:naar,gekopieerd:ids.length,status:"concept",uitleg:GOEDKEUREN,
-        overgeslagen,let_op:meldingen,workouts:terug});
+      return kopieerIn(doelAtleet(a.p),vanDatum,naarDatum,opties);
     }),
 
     wijzigBlok:veilig(async(blokId,velden,opties)=>{
@@ -1094,7 +1134,7 @@ const ClaudeApi=(()=>{
       const{data:b0,error}=await db.from("blocks").select("id,workout_id").eq("id",blokId).maybeSingle();
       if(error)return fout(error.message);
       if(!b0)return fout("Geen blok gevonden met dit id, of je mag het niet zien.");
-      const c=await conceptOphalen(b0.workout_id,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
+      const c=await conceptOphalen(b0.workout_id,opties.zichtbaar===true,true);if(c.fout)return fout(c.fout);
       const oud=c.w.blocks.find(b=>b.id===blokId);
       if(oud.source_blog_workout_id)return fout(isBord(oud.source_blog_workout_id)
         ?"Dit blok hoort bij een leaderboard-workout. De tekst pas je alleen aan als geschaalde versie voor deze atleet, met ClaudeApi.schaalBlok. Verplaatsen of weghalen kan met vervangBlokken."
@@ -1127,7 +1167,7 @@ const ClaudeApi=(()=>{
 
     vervangBlokken:veilig(async(workoutId,blokken,opties)=>{
       opties=isObject(opties)?opties:{};
-      const c=await conceptOphalen(workoutId,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
+      const c=await conceptOphalen(workoutId,opties.zichtbaar===true,true);if(c.fout)return fout(c.fout);
       if(!Array.isArray(blokken))return fout("Geef de volledige lijst blokken zoals hij moet worden. Een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg.");
       const fouten=[];
       let normen=blokkenLees(blokken,"\""+(c.w.title||"workout")+"\"",fouten);
@@ -1178,7 +1218,7 @@ const ClaudeApi=(()=>{
 
     wijzigConcept:veilig(async(workoutId,velden,opties)=>{
       opties=isObject(opties)?opties:{};
-      const c=await conceptOphalen(workoutId,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
+      const c=await conceptOphalen(workoutId,opties.zichtbaar===true,true);if(c.fout)return fout(c.fout);
       if(!isObject(velden)||!Object.keys(velden).length)return fout("Geef de velden die veranderen: datum, titel, notitie_coach, warming_up, cooldown, videos_warming_up, videos_cooldown.");
       const mag=["datum","titel","notitie_coach","warming_up","cooldown","videos","videos_warming_up","videos_cooldown"];
       const onbekend=Object.keys(velden).filter(k=>!mag.includes(k));
@@ -1218,7 +1258,7 @@ const ClaudeApi=(()=>{
     }),
 
     verwijderConcept:veilig(async(workoutId)=>{
-      const c=await conceptOphalen(workoutId);if(c.fout)return fout(c.fout);
+      const c=await conceptOphalen(workoutId,false,true);if(c.fout)return fout(c.fout);
       if(await heeftLogs(c.w.id))return fout("Er is niets verwijderd. Op deze workout zijn al resultaten gelogd. Laat dit aan de coach.");
       const{data,error}=await db.from("workouts").delete().eq("id",c.w.id).eq("status","draft").select("id");
       if(error)return fout(error.message);
@@ -1438,6 +1478,76 @@ const ClaudeApi=(()=>{
     }),
 
     // ---------- YP Showdown plaatsen ----------
+    // ---------- Blogprogramma's (2.16): lezen, en schrijven als concept ----------
+    blogProgrammas:veilig(async()=>{
+      const{data,error}=await db.from("blog_programs").select("id,name,price_cents,showdown_auto,hidden,sort").eq("company_id",ME.profile.company_id).eq("hidden",false).order("sort").order("name");
+      if(error)return fout(error.message);
+      const uit=[];
+      for(const bp of (data||[])){
+        const{data:l,error:le}=await db.from("workouts").select("workout_date").eq("blog_program_id",bp.id).order("workout_date",{ascending:false}).limit(1);
+        if(le)return fout(le.message);
+        const{count,error:ce}=await db.from("workouts").select("id",{count:"exact",head:true}).eq("blog_program_id",bp.id).eq("status","draft");
+        if(ce)return fout(ce.message);
+        uit.push(schoon({id:bp.id,naam:bp.name,betaald:Number(bp.price_cents)>0?true:null,showdown_vanzelf:bp.showdown_auto?true:null,
+          laatste_dag:l&&l[0]?l[0].workout_date:null,concepten:count||null}));
+      }
+      return {ok:true,aantal:uit.length,programmas:uit,
+        uitleg:"In een blogprogramma schrijf je alleen concepten; de coach keurt ze goed in de Blog-sectie. In een programma met showdown_vanzelf komt de YP Showdown vanzelf en schrijf je niets."};
+    }),
+
+    blogWeek:veilig(async(programmaId,datum,weken)=>{
+      const o=await blogOphalen(programmaId);if(o.fout)return fout(o.fout);
+      if(leeg(datum))datum=iso(new Date());
+      if(!isDatum(datum))return fout("datum moet JJJJ-MM-DD zijn, bijvoorbeeld 2026-11-23.");
+      weken=leeg(weken)?1:Number(weken);
+      if(!Number.isInteger(weken)||weken<1||weken>8)return fout("weken moet een heel getal van 1 t/m 8 zijn.");
+      const laatsteMaandag=maandagVan(datum),van=plus(laatsteMaandag,-7*(weken-1)),tot=plus(laatsteMaandag,6);
+      const{data:ws,error}=await db.from("workouts").select("*, blocks(*)").eq("blog_program_id",o.bp.id).gte("workout_date",van).lte("workout_date",tot)
+        .order("workout_date").order("day_sort",{nullsFirst:false}).order("created_at");
+      if(error)return fout(error.message);
+      const perWeek={};
+      for(let i=0;i<weken;i++){const m=plus(van,7*i);perWeek[m]={maandag:m,zondag:plus(m,6),workouts:[]};}
+      (ws||[]).forEach(w=>{const wk=perWeek[maandagVan(w.workout_date)];if(wk)wk.workouts.push(workoutUit(w,null,null));});
+      const nConcept=(ws||[]).filter(w=>w.status==="draft").length;
+      return schoon({ok:true,programma:{id:o.bp.id,naam:o.bp.name},periode:{van,tot,weken},concepten:nConcept||null,
+        let_op:[o.bp.showdown_auto?"In dit programma komt de YP Showdown vanzelf; je schrijft er niets in.":"",
+          "Wat hier gepubliceerd is, zien de volgers en pas je niet aan. Concepten wel."].filter(Boolean),
+        weken:Object.keys(perWeek).sort().map(k=>perWeek[k])});
+    }),
+
+    schrijfBlogConcept:veilig(async(programmaId,workouts,opties)=>{
+      const o=await blogOphalen(programmaId,true);if(o.fout)return fout(o.fout);
+      return schrijfIn(doelBlog(o.bp),workouts,opties);
+    }),
+
+    kopieerBlogWeek:veilig(async(programmaId,vanDatum,naarDatum,opties)=>{
+      const o=await blogOphalen(programmaId,true);if(o.fout)return fout(o.fout);
+      return kopieerIn(doelBlog(o.bp),vanDatum,naarDatum,opties);
+    }),
+
+    plaatsBlogShowdown:veilig(async(programmaId,datum,opties)=>{
+      const o=await blogOphalen(programmaId,true);if(o.fout)return fout(o.fout);
+      opties=isObject(opties)?opties:{};
+      if(!isDatum(datum))return fout("datum moet JJJJ-MM-DD zijn: de dag waarop de Showdown in het programma komt.");
+      const fouten=[];datumMag(datum,opties,"datum",fouten);
+      if(fouten.length)return fout(fouten.join(" "));
+      const maandag=maandagVan(datum);
+      const lijst=await showdownVanWeek(maandag);
+      if(!lijst.length)return fout("De YP Showdown voor de week van "+maandag+" staat nog niet in de app. Plaats hem zodra hij er is.");
+      if(lijst.length>1)return fout("In de week van "+maandag+" staan "+lijst.length+" weekworkouts ("+lijst.map(w=>w.workout_date+" \""+(w.title||"")+"\"").join(", ")+"). Laat de coach de juiste zelf plaatsen.");
+      const sd=lijst[0];
+      const{data:week,error}=await db.from("workouts").select("id,workout_date,title,status,source_blog_workout_id, blocks(id,source_blog_workout_id)").eq("blog_program_id",o.bp.id).gte("workout_date",maandag).lte("workout_date",plus(maandag,6));
+      if(error)return fout(error.message);
+      const al=(week||[]).filter(w=>w.source_blog_workout_id===sd.id||(w.blocks||[]).some(b=>b.source_blog_workout_id===sd.id));
+      if(al.length&&opties.toch!==true)return fout("Er is niets geplaatst. Deze Showdown staat al in \""+o.bp.name+"\" op "+al.map(w=>w.workout_date+" ("+(w.status==="draft"?"concept":"zichtbaar")+")").join(", ")+".");
+      const doel=doelBlog(o.bp);
+      const ids=await conceptenNeerzetten(doel.neerzet,[{workout:{workout_date:datum,title:sd.title||"YP Showdown"},blokken:letters(showdownRijen(sd))}].map(doel.rij));
+      const terug=await leesTerug(ids);
+      doel.ververs();
+      return schoon(Object.assign({ok:true},doel.kop,{geplaatst:"\""+(sd.title||"YP Showdown")+"\"",status:"concept",uitleg:BLOG_UITLEG,
+        let_op:["De tekst komt letterlijk uit de weekworkout; je kunt hem niet wijzigen."],workout:terug[0]}));
+    }),
+
     // ---------- Een YP Showdown als concept in de bouwer zetten (20 nov 2026, verzoek Michel) ----------
     // Zoals de insert in Strivee: één keer maken, daarna bij iedereen invoegen. Het wordt altijd
     // een concept (audience 'blog_concept'): leden zien het nergens. Live zetten doet de coach
@@ -1736,7 +1846,7 @@ const ClaudeApi=(()=>{
     // ---------- Een template uit de bibliotheek in één keer plaatsen ----------
     voegTemplateIn:veilig(async(workoutId,templateId,opties)=>{
       opties=isObject(opties)?opties:{};
-      const c=await conceptOphalen(workoutId,opties.zichtbaar===true);if(c.fout)return fout(c.fout);
+      const c=await conceptOphalen(workoutId,opties.zichtbaar===true,true);if(c.fout)return fout(c.fout);
       const tid=Number(templateId);
       if(!Number.isInteger(tid)||tid<1)return fout("Geef het id van de template (een getal uit ClaudeApi.bibliotheek).");
       const{data:t,error}=await db.from("templates").select("id,naam,instructies,type,kleur,media,onderdelen").eq("id",tid).maybeSingle();
