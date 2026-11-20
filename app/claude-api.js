@@ -247,19 +247,23 @@ const ClaudeApi=(()=>{
     try{
       const uit=[];
       const in_=(a,b)=>b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ");
-      const lees=(tekst,naamHits)=>{
-        const gevonden=[];
+      // Staat a ook nog los in de regel, buiten de preciezere namen? "power clean + hang power
+      // clean" zijn twee bewegingen; in "dumbbell seal row" staat "seal row" niet los.
+      const los=(a,preciezer,norm)=>{let r=" "+norm+" ";preciezer.forEach(b=>{r=r.split(" "+b.term+" ").join(" | ");});return r.includes(" "+a.term+" ");};
+      const valtWeg=(a,hits,norm)=>{const p=hits.filter(b=>b!==a&&in_(a,b));return p.length>0&&!los(a,p,norm);};
+      const lees=(tekst,naam)=>{
+        const alle=[];
         String(tekst||"").split(/\n/).map(r=>r.trim()).filter(Boolean).forEach(regel=>{
-          const hits=gmHerkenRegel(regel,new Set()).filter(h=>h.o&&h.o.youtube_id);
-          hits.filter(a=>!hits.some(b=>b!==a&&in_(a,b))&&!(naamHits||[]).some(b=>in_(a,b))).forEach(h=>{
-            gevonden.push(h);
+          const hits=gmHerkenRegel(regel,new Set()).filter(h=>h.o&&h.o.youtube_id),norm=gmNorm(regel);
+          hits.forEach(h=>alle.push(h));
+          hits.filter(a=>!valtWeg(a,hits,norm)&&!(naam&&valtWeg(a,naam.hits,naam.norm))).forEach(h=>{
             if(uit.some(m=>m.oefening_id===h.o.id||m.youtube_id===h.o.youtube_id))return;
             uit.push({youtube_id:h.o.youtube_id,titel:h.o.naam,oefening_id:h.o.id,term:h.term});
           });
         });
-        return gevonden;
+        return alle;
       };
-      if(bron&&typeof bron==="object")lees(bron.tekst,lees(bron.naam));
+      if(bron&&typeof bron==="object")lees(bron.tekst,{hits:lees(bron.naam),norm:gmNorm(bron.naam||"")});
       else lees(bron);
       return uit.slice(0,MAX_VIDEOS);
     }catch(e){return [];}
