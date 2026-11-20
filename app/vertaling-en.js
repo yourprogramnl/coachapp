@@ -1839,5 +1839,6 @@ i18nLaad({
 "Nog één vraag":"One more question",
 "Het leaderboard heeft een lijst voor mannen en een voor vrouwen. In welke lijst hoor jij?":"The leaderboard has a list for men and one for women. Which list are you in?",
 "Sla over":"Skip",
-"Dit wachtwoord wordt te vaak gebruikt en is makkelijk te raden. Kies een ander wachtwoord, bijvoorbeeld drie losse woorden met een cijfer erbij.":"This password is used too often and is easy to guess. Choose another one, for example three separate words with a number."
+"Dit wachtwoord wordt te vaak gebruikt en is makkelijk te raden. Kies een ander wachtwoord, bijvoorbeeld drie losse woorden met een cijfer erbij.":"This password is used too often and is easy to guess. Choose another one, for example three separate words with a number.",
+"Je account is nog niet gekoppeld":"Your account isn't linked yet"
 });
