@@ -130,7 +130,7 @@ function lvbOpmaakHtml(){
   const stap=(veld,tekst)=>'<div class="lvb-stap"><button class="btn ghost sm" title="Minder" onclick="lvbOpmaakStap(\''+veld+'\',-1)">−</button><b>'+tekst+'</b><button class="btn ghost sm" title="Meer" onclick="lvbOpmaakStap(\''+veld+'\',1)">+</button></div>';
   const seg=(veld,opties)=>'<div class="seg">'+opties.map(x=>'<button class="'+(o[veld]===x[0]?"on":"")+'" onclick="lvbOpmaakZet(\''+veld+'\',\''+x[0]+'\')">'+x[1]+'</button>').join("")+'</div>';
   const rij=(naam,inhoud)=>'<div class="lvb-oprij"><span>'+naam+'</span>'+inhoud+'</div>';
-  return '<h2 style="font-size:16px">Opmaak van het bord</h2><div class="sm muted" style="margin:3px 0 12px">Stel het bord af op je tv. Een wijziging staat binnen twee seconden op het bord.</div>'+
+  return '<h2 style="font-size:16px">Opmaak van het bord</h2><div class="sm muted" style="margin:3px 0 12px">Dit is de standaard voor elk scherm; een wijziging staat na een paar seconden op het bord. Sneller gaat het op het bord zelf: beweeg daar de muis en onderaan komt een balk met dezelfde knoppen. Wat je daar instelt geldt alleen voor dat scherm.</div>'+
     '<div class="lvb-opgrid">'+
       rij("Kolommen met scores",stap("kolommen",String(o.kolommen)))+
       rij("Regels per kolom",stap("regels",String(o.regels)))+
