@@ -22,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.12 (lezen en concepten schrijven)";
+  const VERSIE="2.13 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -393,7 +393,7 @@ const ClaudeApi=(()=>{
       if(Object.keys(anders).length){const{error}=await db.from("blocks").update(anders).eq("id",n.id);if(error)throw new Error(error.message);}
     }
     const nieuw=normen.filter(n=>!n.id).map(n=>Object.assign({workout_id:w.id},blokRij(n,null)));
-    if(nieuw.length){const{error}=await db.from("blocks").insert(nieuw);if(error)throw new Error(error.message);}
+    if(nieuw.length){const{error}=await db.from("blocks").insert(nieuw,{defaultToNull:false});if(error)throw new Error(error.message);}
     return {verwijderd:weg.length,nieuw:nieuw.length};
   }
   const normUitRij=b=>({id:b.id,raak:false,kind:b.kind,exercise:b.exercise,prescription:b.prescription,notes:b.notes,linked:!!b.linked,media:b.media||null});
@@ -454,9 +454,12 @@ const ClaudeApi=(()=>{
         if(data.status!=="draft")throw new Error("De workout kwam niet als concept in de database.");
       }
       const blokken=[];
-      rijen.forEach((r,i)=>r.blokken.forEach(b=>blokken.push(Object.assign({workout_id:ids[i]},b))));
+      // Elke rij krijgt zelf scaled_versie mee. Bij een insert van meer rijen tegelijk vult de database
+      // een veld dat bij een rij ontbreekt met leeg in plaats van met de standaardwaarde, en leeg mag hier niet
+      // (fout van 20 nov 2026: kopieerWeek met een leaderboard-blok tussen gewone blokken).
+      rijen.forEach((r,i)=>r.blokken.forEach(b=>blokken.push(Object.assign({workout_id:ids[i]},b,{scaled_versie:!!b.scaled_versie}))));
       for(const deel of stukken(blokken,200)){
-        const{error}=await db.from("blocks").insert(deel);
+        const{error}=await db.from("blocks").insert(deel,{defaultToNull:false});
         if(error)throw new Error(error.message);
       }
     }catch(e){
@@ -1293,7 +1296,7 @@ const ClaudeApi=(()=>{
           if(error)throw new Error(rlsFout(error.message));
           nieuw.push(data.id);
           for(const deel of stukken(r.blokken.map(b=>Object.assign({program_workout_id:data.id,company_id:ME.profile.company_id},b)),200)){
-            const{error:be}=await db.from("program_blocks").insert(deel);
+            const{error:be}=await db.from("program_blocks").insert(deel,{defaultToNull:false});
             if(be)throw new Error(rlsFout(be.message));
           }
         }
@@ -1394,7 +1397,7 @@ const ClaudeApi=(()=>{
         if(maandagVan(c.w.workout_date)!==maandag)return fout("Dit concept staat in een andere week dan de datum.");
         const g=groepen(c.w.blocks),max=c.w.blocks.reduce((m,b)=>Math.max(m,b.sort||0),0);
         const nieuw=rijen.map((r,i)=>Object.assign({workout_id:c.w.id,label:String.fromCharCode(65+Math.min(g+i,25)),sort:max+1+i},r));
-        const{error:be}=await db.from("blocks").insert(nieuw);
+        const{error:be}=await db.from("blocks").insert(nieuw,{defaultToNull:false});
         if(be)return fout(be.message);
         wid=c.w.id;
       }else{
@@ -1453,7 +1456,7 @@ const ClaudeApi=(()=>{
         if(maandagVan(c.w.workout_date)!==maandag)return fout("Dit concept staat in een andere week dan de datum.");
         const g=groepen(c.w.blocks),max=c.w.blocks.reduce((m,b)=>Math.max(m,b.sort||0),0);
         const nieuw=rijen.map((r,i)=>Object.assign({workout_id:c.w.id,label:String.fromCharCode(65+Math.min(g+i,25)),sort:max+1+i},r));
-        const{error:be}=await db.from("blocks").insert(nieuw);
+        const{error:be}=await db.from("blocks").insert(nieuw,{defaultToNull:false});
         if(be)return fout(be.message);
         wid=c.w.id;
       }else{
@@ -1608,7 +1611,7 @@ const ClaudeApi=(()=>{
         const rijen=nieuw.map((b,i)=>({workout_id:c.w.id,kind:b.kind||"exercise",label:nieuw.length>1?L+(i+1):L,sort:max+1+i,linked:i>0&&!!b.linked,
           exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:null,cap_score_type:"reps",
           oefening_id:null,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null,source_blog_workout_id:null}));
-        const{error:be}=await db.from("blocks").insert(rijen);
+        const{error:be}=await db.from("blocks").insert(rijen,{defaultToNull:false});
         if(be)return fout(be.message);
       }else{
         const veld=plek==="warming_up"?"warmup":"cooldown",mveld=veld+"_media";
