@@ -335,8 +335,9 @@ function sdStrip(b){
   // Nog geen leaderboard: een bescheiden knop om het aan te zetten (niet op een blok in een superset).
   if(!bron)return b.linked?"":'<div class="sdstrip sdstrip-uit" onclick="event.stopPropagation()"><button class="bordaan" title="Zet een gedeeld leaderboard aan op dit blok. Deze klant en iedereen bij wie je deze workout daarna zet zien elkaars score." onclick="bordAan(this);return false">Leaderboard aan</button></div>';
   return '<div class="sdstrip" data-bron="'+esc(bron)+'" onclick="event.stopPropagation()"><span class="sdstrip-naam">'+esc(sdStripNaam(bron))+'</span>'+
-    (bordIs(bron)&&b.source_blog_workout_id?'<button class="borduit" title="Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan." onclick="bordUit(this);return false">Leaderboard uit</button>':'')+
+    (b.source_blog_workout_id?'<button class="borduit" title="Haalt dit blok bij deze klant van het leaderboard. Scores die al op het bord staan blijven staan." onclick="bordUit(this);return false">Leaderboard uit</button>':'')+
     '<label class="sdstrip-sc" title="Zet dit aan als je de workout voor deze klant hebt aangepast, bijvoorbeeld ring rows in plaats van pull-ups. De score staat dan onder Scaled op het gedeelde leaderboard."><input type="checkbox" class="f-scaled"'+(b.scaled_versie?' checked':'')+' onchange="sdScaled(this)"> Scaled-versie</label>'+
+    (b.source_blog_workout_id?'<button class="btn ghost sm bordmeer" title="Staat dit blok ook al bij andere klanten? Zet het leaderboard daar in één keer aan. Scores die al zijn ingevuld blijven staan en komen op het bord." onclick="bordAnderen(this);return false">Ook bij andere klanten</button>':'')+
     '<button class="btn ghost sm" onclick="wwBordVenster(\''+esc(bron)+'\');return false">Leaderboard</button></div>';
 }
 function sdScaled(cb){const r=cb.closest(".exrow");if(!r)return;r.dataset.scaled=cb.checked?"1":"0";bouwerDirty=true;}
@@ -352,6 +353,16 @@ async function bordAan(btn){
   const tekst=o.kind==="conditioning"?o.notes:o.prescription;
   if(!tekst){toast("Vul eerst de workout in; die tekst hoort bij het leaderboard");return;}
   if(o.score_type==="none"){toast("Kies eerst wat de sporter invult (tijd, rondes + reps…). Zonder score is er geen leaderboard.");return;}
+  // Bestaat er al een leaderboard met deze naam (een collega-klant, of de Showdown van deze week)?
+  // Dan hoort dit blok daarbij; anders krijgt elke klant een eigen bord met één naam erop.
+  const best=await bordBestaand(o);
+  if(best&&confirm("Er is al een leaderboard met deze naam: \""+best.title+"\""+(best.audience==="blog"?" (de "+SHOWDOWN+"; ook blog-leden zien dat bord)":"")+".\n\nOK = dit blok komt op dat leaderboard.\nAnnuleren = een apart, nieuw leaderboard maken.")){
+    if(best.audience==="bord"){BORD.ids.add(best.id);bordLaad(true);}
+    bordZetOpRij(r,best.id);
+    toast("Dit blok hangt nu aan het bestaande leaderboard. Sla de workout op.");
+    bordAnderen(r.querySelector(".bordmeer"),true);
+    return;
+  }
   if(!confirm("Leaderboard aanzetten voor \""+o.exercise+"\"?\n\nDeze klant en iedereen bij wie je deze workout daarna zet delen één leaderboard. Een sporter staat er standaard op en kan dat in de app zelf uitzetten."))return;
   btn.disabled=true;
   const{data:nw,error}=await db.from("workouts").insert({company_id:ME.profile.company_id,coach_id:ME.user.id,client_id:null,workout_date:todayStr(),title:o.exercise,audience:"bord"}).select("id,title,workout_date,created_at,audience").single();
@@ -361,16 +372,132 @@ async function bordAan(btn){
   if(be){await db.from("workouts").delete().eq("id",nw.id);btn.disabled=false;toast(be.message||"Leaderboard aanzetten mislukt");return;}
   if(!BORD.lijst)BORD.lijst=[];
   BORD.lijst.unshift(Object.assign({},nw,{blocks:[blok]}));BORD.ids.add(nw.id);
-  r.dataset.srcww=nw.id;
-  const strip=r.querySelector(".sdstrip");
-  if(strip)strip.outerHTML=sdStrip({source_blog_workout_id:nw.id,scaled_versie:false});
-  bouwerDirty=true;
+  bordZetOpRij(r,nw.id);
   toast("Leaderboard staat aan. Sla de workout op; zet hem bij andere klanten via kopiëren of het bibliotheek-venster.");
+  // Staat ditzelfde blok al bij andere klanten? Dan meteen aanbieden om het daar ook aan te zetten.
+  bordAnderen(r.querySelector(".bordmeer"),true);
+}
+// ---------- Leaderboard alsnog bij andere klanten aanzetten (20 nov 2026) ----------
+// De workout stond al bij een groep klanten voordat iemand aan het leaderboard dacht (de
+// Amsterdam-simulatie). Vanaf het balkje van een blok met leaderboard zoekt de coach hetzelfde
+// blok bij andere klanten (zelfde naam, week ervoor tot week erna) en zet het daar in één keer
+// aan. De database-functie bord_koppel_blokken hangt de blokken aan het bord en zet scores die
+// al ingevuld waren er als kopie op; de score op het eigen blok van de klant blijft zoals hij is.
+const bordNorm=s=>String(s||"").replace(/\r/g,"").replace(/[ \t ]+/g," ").replace(/ *\n */g,"\n").trim().toLowerCase();
+const bordBlokTekst=b=>bordNorm(b.kind==="conditioning"?b.notes:b.prescription);
+const bordDag=ds=>{const d=new Date(ds+"T12:00:00");return ["zo","ma","di","wo","do","vr","za"][d.getDay()]+" "+d.getDate()+" "+MAANDKORT[d.getMonth()];};
+const bordKlanten=n=>n===1?"1 klant":n+" klanten";
+let BORDMEER=null;
+// Het blok in de bouwer aan een leaderboard hangen. bordnieuw onthoudt dat dit in deze sessie
+// gebeurde: na het opslaan gaat een score die de klant al had ingevuld alsnog naar het bord.
+function bordZetOpRij(r,bronId){
+  r.dataset.srcww=bronId;r.dataset.bordnieuw="1";
+  const strip=r.querySelector(".sdstrip");
+  if(strip)strip.outerHTML=sdStrip({source_blog_workout_id:bronId,scaled_versie:r.dataset.scaled==="1"});
+  bouwerDirty=true;
+}
+async function bordScoresBij(lijst){
+  for(const x of lijst||[]){try{await db.rpc("bord_koppel_blokken",{p_bron:x.bron,p_blokken:[x.id]});}catch(e){}}
+}
+// Een leaderboard-workout of Showdown van de laatste twee weken met precies deze naam en hetzelfde scoretype.
+async function bordBestaand(o){
+  try{
+    const sinds=ymdPlus(todayStr(),-14);
+    const{data}=await db.from("workouts").select("id,title,workout_date,created_at,audience,blog_program_id, blocks(id,score_type,sort)").eq("company_id",ME.profile.company_id).in("audience",["bord","blog"]).is("blog_program_id",null).eq("title",o.exercise).order("created_at",{ascending:false}).limit(10);
+    return (data||[]).find(w=>{
+      const b=(w.blocks||[]).slice().sort((x,y)=>x.sort-y.sort)[0];
+      if(!b||(b.score_type||"text")!==(o.score_type||"text"))return false;
+      return (w.audience==="blog"?(w.workout_date||""):String(w.created_at||"").slice(0,10))>=sinds;
+    })||null;
+  }catch(e){return null;}
+}
+async function bordZoekAnderen(o,bron){
+  const dag=editDay||curDay||todayStr();
+  const{data,error}=await alleRijen(()=>db.from("blocks").select("id,exercise,prescription,notes,kind,score_type,linked,lift_id,sort,source_blog_workout_id,workout_id, workouts!inner(id,client_id,workout_date,audience,status,company_id,source_blog_workout_id)").eq("exercise",o.exercise).eq("workouts.audience","client").eq("workouts.company_id",ME.profile.company_id).gte("workouts.workout_date",ymdPlus(dag,-7)).lte("workouts.workout_date",ymdPlus(dag,7)).order("id"));
+  if(error)return{error};
+  const rijen=(data||[]).filter(b=>b.workouts&&b.workouts.client_id&&b.workouts.client_id!==calClient);
+  const al=new Set(rijen.filter(b=>b.source_blog_workout_id===bron||b.workouts.source_blog_workout_id===bron).map(b=>b.workouts.client_id));
+  const los=rijen.filter(b=>!b.source_blog_workout_id&&!b.workouts.source_blog_workout_id&&!b.lift_id&&!al.has(b.workouts.client_id))
+    .sort((a,b)=>a.workouts.workout_date<b.workouts.workout_date?-1:a.workouts.workout_date>b.workouts.workout_date?1:0);
+  const namen={};(coachClients||[]).forEach(p=>{namen[p.id]=((p.first_name||"")+" "+(p.last_name||"")).trim();});
+  const mis=[...new Set(los.map(b=>b.workouts.client_id))].filter(id=>!namen[id]);
+  if(mis.length){const u=await inStukken(mis,s=>db.from("profiles").select("id,first_name,last_name").in("id",s).order("id"));(u.data||[]).forEach(p=>{namen[p.id]=((p.first_name||"")+" "+(p.last_name||"")).trim();});}
+  const eigen=bordBlokTekst(o),gezien=new Set();
+  const kand=los.map(b=>{
+    const cid=b.workouts.client_id;
+    const reden=gezien.has(cid)?"tweede blok van deze klant":b.linked?"zit in een superset":(b.score_type||"text")!==(o.score_type||"text")?"ander scoretype":null;
+    gezien.add(cid);
+    return{id:b.id,naam:namen[cid]||"Klant",datum:b.workouts.workout_date,concept:b.workouts.status==="draft",zelfde:bordBlokTekst(b)===eigen,reden};
+  }).sort((a,b)=>a.naam.localeCompare(b.naam)||(a.datum<b.datum?-1:1));
+  return{kand,al:al.size};
+}
+function ensureBordMeerModal(){
+  if(document.getElementById("bordmeermodal"))return;
+  const wrap=document.createElement("div");
+  wrap.innerHTML='<div class="lmodal" id="bordmeermodal" style="z-index:430"><div class="box" style="width:560px;max-width:94vw">'+
+    '<h3 style="margin-bottom:6px">Leaderboard bij andere klanten</h3>'+
+    '<div class="sm muted" id="bordmeer-hint"></div>'+
+    '<div class="bordmeer-lijst" id="bordmeer-body"></div>'+
+    '<div class="sm muted" id="bordmeer-tel" style="margin-bottom:10px"></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" id="bordmeer-ok" onclick="bordMeerDoe()">Leaderboard aanzetten</button><button class="btn ghost" id="bordmeer-dicht" onclick="bordMeerDicht()">Annuleren</button>'+
+    '<a href="#" id="bordmeer-alles" style="margin-left:auto;font-size:12px;font-weight:700" onclick="bordMeerAlles();return false">Alles aan of uit</a></div>'+
+    '<div class="msg" id="bordmeer-msg" style="min-height:0"></div></div></div>';
+  document.body.appendChild(wrap.firstChild);
+}
+// stil = automatisch geopend na "Leaderboard aan": alleen een venster als er echt iemand gevonden is.
+async function bordAnderen(btn,stil){
+  const r=btn&&btn.closest(".exrow");if(!r)return;
+  const o=rowToObj(r),bron=o.source_blog_workout_id;if(!bron||!o.exercise)return;
+  const uit=await bordZoekAnderen(o,bron);
+  if(uit.error){if(!stil)toast(uit.error.message||"Zoeken bij andere klanten mislukt");return;}
+  if(!uit.kand.length){
+    if(!stil)toast(uit.al?"Bij "+bordKlanten(uit.al)+" staat dit leaderboard al aan. Verder staat dit blok bij niemand in de week ervoor of erna.":"Dit blok staat bij geen andere klant in de week ervoor of erna. Er wordt gezocht op precies dezelfde naam.",6000);
+    return;
+  }
+  ensureBordMeerModal();
+  BORDMEER={bron,kand:uit.kand};
+  const g=id=>document.getElementById(id);
+  g("bordmeer-hint").textContent="Dit blok staat ook bij deze klanten in de kalender, in de week ervoor tot de week erna. Vink aan wie op hetzelfde leaderboard komt. Een score die al is ingevuld blijft staan en komt meteen op het bord."+
+    (uit.al?" Bij "+bordKlanten(uit.al)+" staat het al aan.":"")+(bordIs(bron)?"":" Dit is het leaderboard van de "+SHOWDOWN+": ook blog-leden zien deze scores.")+(bouwerDirty?" Sla daarna ook deze workout zelf op.":"");
+  g("bordmeer-body").innerHTML=uit.kand.map((c,i)=>'<label class="bordmeer-rij'+(c.reden?' uit':'')+'"><input type="checkbox" data-i="'+i+'"'+(c.reden?' disabled':(c.zelfde?' checked':''))+' onchange="bordMeerTel()">'+
+    '<span class="bordmeer-naam">'+esc(c.naam)+'</span>'+(c.concept?'<span class="cpill gray">concept</span>':'')+(c.reden?'<span class="cpill gray">'+esc(c.reden)+'</span>':(c.zelfde?'':'<span class="cpill gray">aangepaste tekst</span>'))+
+    '<span class="bordmeer-dag">'+esc(bordDag(c.datum))+'</span></label>').join("");
+  g("bordmeer-msg").textContent="";g("bordmeer-msg").className="msg";
+  g("bordmeer-ok").style.display="";g("bordmeer-ok").disabled=false;g("bordmeer-alles").style.display="";g("bordmeer-dicht").textContent="Annuleren";
+  bordMeerTel();
+  g("bordmeermodal").classList.add("show");
+}
+function bordMeerTel(){
+  const n=document.querySelectorAll("#bordmeer-body input:checked").length;
+  document.getElementById("bordmeer-tel").textContent=bordKlanten(n)+" aangevinkt";
+}
+function bordMeerAlles(){
+  const vakjes=[...document.querySelectorAll("#bordmeer-body input:not(:disabled)")];
+  const aan=vakjes.some(c=>!c.checked);vakjes.forEach(c=>{c.checked=aan;});bordMeerTel();
+}
+function bordMeerDicht(){const m=document.getElementById("bordmeermodal");if(m)m.classList.remove("show");BORDMEER=null;}
+async function bordMeerDoe(){
+  const m=BORDMEER;if(!m)return;
+  const g=id=>document.getElementById(id);
+  const ids=[...document.querySelectorAll("#bordmeer-body input:checked")].map(c=>m.kand[+c.dataset.i].id);
+  if(!ids.length){g("bordmeer-msg").textContent="Vink minstens één klant aan.";g("bordmeer-msg").className="msg err";return;}
+  g("bordmeer-ok").disabled=true;
+  const{data,error}=await db.rpc("bord_koppel_blokken",{p_bron:m.bron,p_blokken:ids});
+  g("bordmeer-ok").disabled=false;
+  if(error||!data||data.fout){g("bordmeer-msg").textContent=(error&&error.message)||(data&&data.fout)||"Leaderboard aanzetten mislukt";g("bordmeer-msg").className="msg err";return;}
+  const tekst="Leaderboard staat aan bij "+bordKlanten(data.gekoppeld||0)+"."+(data.scores_op_bord_gezet?" Al ingevulde scores op het bord gezet: "+data.scores_op_bord_gezet+".":"");
+  const over=data.overgeslagen||[],geen=data.geen_rechten_of_niet_gevonden||0;
+  if(!over.length&&!geen){bordMeerDicht();toast(tekst,6000);return;}
+  // Niet alles gelukt: laat per klant zien waarom, in plaats van het stil te laten.
+  g("bordmeer-body").innerHTML='<div style="padding:10px 12px;font-size:13px"><b>'+esc(tekst)+'</b><div style="margin-top:8px;font-weight:700">Niet gelukt:</div>'+
+    over.map(x=>{const c=m.kand.find(y=>y.id===x.blok);return '<div>'+esc((c?c.naam:"Blok")+": "+x.reden)+'</div>';}).join("")+
+    (geen?'<div>'+esc(bordKlanten(geen)+": deze workout is van een andere coach, die kun je niet wijzigen")+'</div>':'')+'</div>';
+  g("bordmeer-tel").textContent="";g("bordmeer-ok").style.display="none";g("bordmeer-alles").style.display="none";g("bordmeer-dicht").textContent="Sluiten";
 }
 function bordUit(btn){
   const r=btn.closest(".exrow");if(!r)return;
   if(!confirm("Leaderboard uitzetten voor dit blok bij deze klant?\n\nScores die al op het bord staan blijven staan."))return;
-  r.dataset.srcww="";r.dataset.scaled="0";
+  r.dataset.srcww="";r.dataset.scaled="0";delete r.dataset.bordnieuw;
   const strip=r.querySelector(".sdstrip");
   if(strip)strip.outerHTML=sdStrip({linked:r.dataset.linked==="1"});
   bouwerDirty=true;
@@ -2128,12 +2255,15 @@ async function saveWorkout(){
   const wm=g("wmsg");
   if(!title){wm.textContent="Geef de workout een titel.";wm.className="msg err";return;}
   g("saveW").disabled=true;
+  // Blokken waar in deze sessie een leaderboard op is gezet: een score die de klant al had gaat na het opslaan naar het bord.
+  const bordNieuw=[...document.querySelectorAll("#exrows .exrow")].filter(r=>r.dataset.bordnieuw==="1"&&r.dataset.bid&&r.dataset.srcww).map(r=>({id:r.dataset.bid,bron:r.dataset.srcww}));
   const wf={title,coach_notes:g("w_notes").value.trim()||null,warmup:g("w_warmup").value.trim()||null,cooldown:g("w_cooldown").value.trim()||null,warmup_oefening_id:cwLees("warmup"),cooldown_oefening_id:cwLees("cooldown"),warmup_media:gmStripLees("warmup"),cooldown_media:gmStripLees("cooldown")};
   const mkBlocks=wid=>rows.map(b=>({workout_id:wid,kind:b.kind,label:b.label,linked:!!b.linked,exercise:b.exercise,prescription:b.prescription||null,notes:b.notes||null,sort:b.sort,color:b.color||null,score_type:b.score_type||"text",timecap_seconds:b.timecap_seconds||null,cap_score_type:b.cap_score_type||"reps",oefening_id:b.oefening_id||null,source_blog_workout_id:b.source_blog_workout_id||null,scaled_versie:!!b.scaled_versie,media:b.media||null,lift_id:b.lift_id||null,lift_scheme:b.lift_scheme||null,group_title:b.group_title||null}));
   try{
     if(editWid){
       const{error:ue}=await db.from("workouts").update(wf).eq("id",editWid);if(ue)throw ue;
       await syncBlocks(editWid,rows); // bestaande blokken bijwerken: gelogde scores blijven staan
+      await bordScoresBij(bordNieuw);
     }else{
       // Vangnet voor de "null value in column workout_date"-fout (PDF pilot-coach,
       // 30 juli): de bouwer kan nog op het scherm staan terwijl de dag intussen

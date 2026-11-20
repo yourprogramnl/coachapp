@@ -22,7 +22,7 @@
 // Elk commando geeft {ok:true, ...} of {ok:false, fout:"..."} terug en gooit geen
 // fouten, zodat Claude altijd een leesbaar antwoord krijgt. Begin met ClaudeApi.hulp().
 const ClaudeApi=(()=>{
-  const VERSIE="2.10 (lezen en concepten schrijven)";
+  const VERSIE="2.11 (lezen en concepten schrijven)";
   const DAGKORT=["zo","ma","di","wo","do","vr","za"];
   const STAF=["coach","eigenaar","platform_admin"];
   const MAX_WORKOUTS=14,MAX_BLOKKEN=30,MAX_TEKST=6000,MAX_VIDEOS=12,MAX_DAGEN_VOORUIT=120;
@@ -581,6 +581,7 @@ const ClaudeApi=(()=>{
           "Onderdelen met leaderboard_workout zijn een leaderboard-workout: een 1-op-1 workout met een gedeeld leaderboard voor de atleten die hem in hun kalender hebben. De tekst schrijf je niet zelf over: plaatsen gaat met ClaudeApi.plaatsLeaderboardWorkout, dat de tekst uit de leaderboard-workout haalt. Een week kopiëren neemt zo'n blok wel mee, met zijn koppeling.",
           "Een geschaalde versie voor één atleet (bijvoorbeeld ring rows in plaats van pull-ups) maak je met ClaudeApi.schaalBlok, bij een leaderboard-workout en bij een ingevoegde YP Showdown. Alleen het blok van die atleet verandert; hij staat dan onder Scaled op het gedeelde leaderboard. Doe dit alleen als de coach erom vraagt en zeg vooraf wat je aanpast.",
           "Een leaderboard aanzetten (ClaudeApi.leaderboardAan) maakt scores van atleten zichtbaar voor elkaar. Doe dat alleen als de coach er uitdrukkelijk om vraagt.",
+          "Staat dezelfde workout al bij meer atleten en moet er achteraf een leaderboard op, zet het dan bij één atleet aan met leaderboardAan en hang de blokken van de anderen eraan met ClaudeApi.koppelLeaderboard. Gebruik leaderboardAan niet per atleet: dan krijgt elke atleet een eigen bord met één naam. Losse kopieën van de YP Showdown hang je op dezelfde manier aan de Showdown van die week.",
           "Een Template week of dag kan een YP Showdown of leaderboard-workout bevatten (uit_weekworkout of leaderboard_workout bij het blok in templateWeek). kopieerTemplate zet dat blok bij de atleet met zijn gedeelde leaderboard, precies zoals het in de template staat.",
           "Templates (Template week en Template dag) zijn van het hele bedrijf en hebben geen conceptstatus: wat je schrijft staat er meteen voor alle coaches. Maak of overschrijf een template alleen als de coach erom vraagt, zeg vooraf welke template en welke week, en overschrijf (met {overschrijf:true}) alleen dagen die je eerst met templateWeek hebt gelezen. Een atleet ziet een template niet; pas met kopieerTemplate komt er een concept bij een atleet. Een YP Showdown of leaderboard-workout zet je niet zelf in een template.",
           "Je ziet alleen wat de ingelogde coach mag zien.",
@@ -623,6 +624,7 @@ const ClaudeApi=(()=>{
           "ClaudeApi.plaatsLeaderboardWorkout(atleetId, leaderboardWorkoutId, datum, opties)":"Zet een bestaande leaderboard-workout als concept bij de atleet, op datum. De tekst komt letterlijk uit de leaderboard-workout. Staat hij die week al bij de atleet, dan gebeurt er niets (met {toch:true} toch). Met {workoutId:\"...\"} komt hij als laatste blok in een bestaand concept van die atleet in dezelfde week.",
           "ClaudeApi.schaalBlok(blokId, tekst, opties)":"Maakt van een ingevoegde YP Showdown of leaderboard-workout een geschaalde versie voor deze ene atleet: het blok krijgt de tekst die je meegeeft en het vinkje Scaled-versie, zodat de atleet onder Scaled op het gedeelde leaderboard staat. De workout zelf verandert niet. Met {terug:true} (tekst mag dan leeg) komt de oorspronkelijke tekst terug en gaat het vinkje uit. Bij een zichtbare workout alleen met {zichtbaar:true}.",
           "ClaudeApi.leaderboardAan(blokId, opties)":"Zet een gedeeld leaderboard aan op een gewoon blok: er komt een leaderboard-workout met de naam en de tekst van het blok, en het blok wordt eraan gekoppeld. Kan niet op een blok in een superset, een blok met een lift of een blok zonder scoretype. Bij een zichtbare workout alleen met {zichtbaar:true}. Het antwoord geeft het id waarmee je hem bij andere atleten plaatst.",
+          "ClaudeApi.koppelLeaderboard(leaderboardId, blokIds, opties)":"Zet een leaderboard alsnog aan op blokken die al bij atleten in de kalender staan. leaderboardId = het id van een leaderboard-workout (leaderboard_workout bij een blok, of uit leaderboardWorkouts) of van de YP Showdown van die week (uit showdowns). blokIds = lijst met de id's van de blokken, één per atleet (uit week). De tekst van de blokken verandert niet. Een score die al was ingevuld blijft staan en komt meteen op het bord. Blokken met een ander scoretype dan het leaderboard worden geweigerd. Bij zichtbare workouts alleen met {zichtbaar:true}. Het antwoord zegt per blok of het gelukt is en zo niet waarom.",
           "ClaudeApi.wijzigBlok(blokId, velden, opties)":"Past één blok aan (bij een zichtbare workout alleen met opties {zichtbaar:true}). Geef alleen de velden die veranderen, bijvoorbeeld {voorschrift:\"6 reps @30X1; rest 2-3 min. x 4 sets.\"}. Verandert de naam of de tekst, dan worden de demo-video's opnieuw gekozen (videos:\"houden\" laat ze staan).",
           "ClaudeApi.vervangBlokken(workoutId, blokken, opties)":"Zet de hele blokkenlijst in één keer (bij een zichtbare workout alleen met opties {zichtbaar:true}): een blok met id wordt bijgewerkt, zonder id is nieuw, wat ontbreekt gaat weg. Zo voeg je een blok toe, haal je er een weg of verander je de volgorde.",
           "ClaudeApi.wijzigConcept(workoutId, velden, opties)":"Past de workout zelf aan: datum, titel, notitie_coach, warming_up, cooldown, en de demo-video's van die twee vakken met videos_warming_up en videos_cooldown (zie workout in deze uitleg). Bij een zichtbare workout alleen met opties {zichtbaar:true}.",
@@ -1475,6 +1477,57 @@ const ClaudeApi=(()=>{
         let_op:[terugzetten?"De oorspronkelijke tekst staat terug; de atleet staat weer onder zijn eigen keuze Rx of Scaled."
           :"Alleen de versie van deze atleet is aangepast. De workout zelf en wat andere atleten zien veranderen niet. Deze atleet staat op het gedeelde leaderboard onder Scaled.",
           c.w.status!=="draft"?ZICHTBAAR:null].filter(Boolean),workout:terug[0]});
+    }),
+
+    // Leaderboard alsnog aanzetten op blokken die al bij atleten in de kalender staan (20 nov 2026):
+    // bestaande blokken aan een bestaande leaderboard-workout of aan de YP Showdown hangen. De
+    // database-functie bord_koppel_blokken doet het werk; een score die al was ingevuld blijft op
+    // het eigen blok staan en komt als kopie op het bord.
+    koppelLeaderboard:veilig(async(bronId,blokIds,opties)=>{
+      opties=isObject(opties)?opties:{};
+      if(!isUuid(bronId))return fout("Geef het id van de leaderboard-workout (leaderboard_workout bij een blok, of uit ClaudeApi.leaderboardWorkouts) of van de YP Showdown (uit ClaudeApi.showdowns).");
+      if(!Array.isArray(blokIds)||!blokIds.length||!blokIds.every(isUuid))return fout("Geef een lijst met blok-id's (uit ClaudeApi.week).");
+      blokIds=[...new Set(blokIds)];
+      if(blokIds.length>200)return fout("Maximaal 200 blokken per keer.");
+      const{data:bron,error:be}=await db.from("workouts").select("id,title,audience,blog_program_id,workout_date, blocks(id,score_type,sort)").eq("id",bronId).maybeSingle();
+      if(be)return fout(be.message);
+      if(!bron||!(bron.audience==="bord"||(bron.audience==="blog"&&!bron.blog_program_id)))return fout("Geen leaderboard-workout of YP Showdown gevonden met dit id.");
+      const bb=(bron.blocks||[]).slice().sort((x,y)=>x.sort-y.sort)[0];
+      if(!bb)return fout("Deze leaderboard-workout heeft geen blok.");
+      let rijen=[];const wo={};
+      for(const s of stukken(blokIds,50)){
+        const{data,error}=await db.from("blocks").select("id,exercise,score_type,workout_id").in("id",s);
+        if(error)return fout(error.message);
+        rijen=rijen.concat(data||[]);
+      }
+      for(const s of stukken([...new Set(rijen.map(b=>b.workout_id))],50)){
+        const{data,error}=await db.from("workouts").select("id,client_id,workout_date,status,audience").in("id",s);
+        if(error)return fout(error.message);
+        (data||[]).forEach(w=>{wo[w.id]=w;});
+      }
+      rijen=rijen.filter(b=>wo[b.workout_id]);rijen.forEach(b=>{b.workouts=wo[b.workout_id];});
+      const cids=[...new Set(rijen.map(b=>b.workouts.client_id).filter(Boolean))],namen={};
+      for(const s of stukken(cids,50)){
+        const{data}=await db.from("profiles").select("id,first_name,last_name").in("id",s);
+        (data||[]).forEach(p=>{namen[p.id]=naam(p);});
+      }
+      const wie=id=>{const b=rijen.find(x=>x.id===id);return b?{blok:id,atleet:namen[b.workouts.client_id]||null,datum:b.workouts.workout_date}:{blok:id};};
+      const anders=rijen.filter(b=>(b.score_type||"text")!==(bb.score_type||"text"));
+      if(anders.length)return Object.assign(fout("Het leaderboard heeft scoretype "+(bb.score_type||"text")+", maar "+anders.length+" van deze blokken niet. Zet het scoretype eerst gelijk met wijzigBlok of laat die blokken weg; er is niets gekoppeld."),{blokken:anders.map(b=>Object.assign(wie(b.id),{scoretype:b.score_type||"text"}))});
+      const zichtbaar=rijen.filter(b=>b.workouts.status!=="draft");
+      if(zichtbaar.length&&opties.zichtbaar!==true)return fout(zichtbaar.length+" van deze blokken staan in een workout die de atleet al ziet. Vraagt de coach er uitdrukkelijk om, geef dan {zichtbaar:true} mee als laatste argument; er is niets gekoppeld.");
+      const{data,error:re}=await db.rpc("bord_koppel_blokken",{p_bron:bronId,p_blokken:blokIds});
+      if(re)return fout(re.message);
+      if(!data||data.fout)return fout((data&&data.fout)||"Koppelen mislukt.");
+      cids.forEach(ververs);
+      return schoon({ok:true,leaderboard:{id:bron.id,naam:bron.title,soort:bron.audience==="bord"?"leaderboard_workout":"yp_showdown"},
+        gekoppeld:data.gekoppeld||0,scores_op_bord_gezet:data.scores_op_bord_gezet||0,
+        atleten:(data.blokken||[]).map(wie),
+        overgeslagen:(data.overgeslagen||[]).map(x=>Object.assign(wie(x.blok),{reden:x.reden})),
+        niet_gevonden_of_niet_van_jou:data.geen_rechten_of_niet_gevonden||null,
+        let_op:["Deze atleten zien elkaars score op dit leaderboard. Een score die al was ingevuld staat er meteen op; een atleet kan dat in de app zelf uitzetten.",
+          bron.audience==="blog"?"Dit is het leaderboard van de YP Showdown: ook de blog-leden zien deze scores.":null,
+          "Heeft een atleet een aangepaste versie, zet dan met schaalBlok het vinkje Scaled-versie, anders staat hij standaard onder Rx."].filter(Boolean)});
     }),
 
     // Leaderboard aanzetten op een gewoon blok (zoals de knop "Leaderboard aan" in de app): maakt

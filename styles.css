@@ -1965,3 +1965,13 @@ body.bervenster .chatklant{max-height:none}
 .ib2.prog-ib .sdstrip.sdstrip-uit{background:none;border:none;padding:0;margin:0 0 2px;justify-content:flex-end}
 .ib2.prog-ib .sdstrip .sdstrip-sc{display:none}
 
+
+/* Leaderboard alsnog bij andere klanten aanzetten (20 nov 2026) */
+.ib2.prog-ib .sdstrip .bordmeer{display:none}
+.bordmeer-lijst{max-height:46vh;overflow:auto;border:1px solid #e6e8ec;border-radius:10px;margin:10px 0}
+.bordmeer-rij{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f0f1f3;font-size:13px;cursor:pointer}
+.bordmeer-rij:last-child{border-bottom:none}
+.bordmeer-rij.uit{opacity:.55;cursor:default}
+.bordmeer-rij input{width:16px;height:16px;margin:0;flex:none;accent-color:#8b7cf6}
+.bordmeer-naam{font-weight:700}
+.bordmeer-dag{color:#8a919c;margin-left:auto;white-space:nowrap}
