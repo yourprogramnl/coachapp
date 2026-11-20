@@ -104,7 +104,10 @@ const SUPABASE_URL="https://ujuvbxqgnxkyjcmcrqpw.supabase.co";
 const SUPABASE_KEY="sb_publishable_e_959eiOehMLgZzfZDFiuQ_2UVK-z_c";
 const CAST=location.pathname.replace(/\/+$/,"")==="/cast"; // op de Chromecast: de code komt van de telefoon
 let CODE=new URLSearchParams(location.search).get("c")||"";
-const ELKE_MS=2000,NIEUW_MS=25000,WISSEL_MS=12000;
+// ELKE_MS: zo vaak kijkt het bord of er iets veranderd is. Was 2 seconden; na de test met de
+// Chromecast (20 nov 2026, Stefan: een paar seconden vertraging) een halve seconde. Eén aanvraag
+// duurt ongeveer 80 ms en is klein. Lukt het ophalen niet, dan rustiger aan (FOUT_MS).
+const ELKE_MS=500,FOUT_MS=2000,NIEUW_MS=25000,WISSEL_MS=12000;
 const MAANDVOL=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pad=n=>String(n).padStart(2,"0");
@@ -372,7 +375,7 @@ async function haal(){
   }catch(e){
     fouten++;
     if(fouten>=3){const l=document.getElementById("live");l.className="weg";l.innerHTML="&#9679; geen verbinding";}
-  }finally{clearTimeout(klok);setTimeout(haal,ELKE_MS);}
+  }finally{clearTimeout(klok);setTimeout(haal,fouten?FOUT_MS:ELKE_MS);}
 }
 function tikKlok(){const d=new Date();document.getElementById("klok").textContent=pad(d.getHours())+":"+pad(d.getMinutes());}
 tikKlok();setInterval(tikKlok,10000);
