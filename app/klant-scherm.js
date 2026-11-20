@@ -1066,7 +1066,9 @@ function gelogdInject(){
 function inlineBuilderHtml(w){
   w=w||{};let blocks=(w.blocks||[]).slice().sort((a,b)=>a.sort-b.sort);
   // Hele kopie van de weekworkout (koppeling op de workout): het eerste blok is het leaderboard-blok.
-  if(w.source_blog_workout_id&&blocks.length&&!blocks[0].source_blog_workout_id)blocks=[Object.assign({},blocks[0],{ww_bron:w.source_blog_workout_id})].concat(blocks.slice(1));
+  // Het eerste echte blok: een tekstblok mag ervoor staan.
+  const wwI=blocks.findIndex(b=>b.kind!=="info");
+  if(w.source_blog_workout_id&&wwI>=0&&!blocks[wwI].source_blog_workout_id)blocks=blocks.map((b,i)=>i===wwI?Object.assign({},b,{ww_bron:w.source_blog_workout_id}):b);
   let rows=blocks.length?blocks.map(rijHtml).join(""):exRow({});
   // Reacties- en scores-knoppen in de voet (feedbackronde 4, 29 sep): de kaart
   // met die knoppen is verborgen zolang de bouwer open staat, en de coach wil
