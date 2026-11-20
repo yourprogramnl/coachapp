@@ -68,7 +68,8 @@ function rechtenRender(){
     '<div class="field" style="margin-bottom:4px"><label>Programma\'s die deze coach mag aanpassen</label>'+
       (isBeheerder?'<div class="sm muted" style="margin-bottom:6px">Een beheerder mag alle programma\'s aanpassen, dus hier valt niks te kiezen.</div>'
                   :'<div style="display:flex;gap:8px;margin-bottom:6px"><button type="button" class="btn ghost sm" onclick="rechtenAlle(true)">Alles aanvinken</button><button type="button" class="btn ghost sm" onclick="rechtenAlle(false)">Alles uitzetten</button></div>')+
-      '<div style="max-height:280px;overflow:auto">'+rijen+'</div></div>';
+      '<div style="max-height:280px;overflow:auto">'+rijen+'</div></div>'+
+    '<div class="sm muted" style="margin-top:12px">Meekijken bij de klanten van een andere coach regel je bij <a style="color:var(--accent);cursor:pointer;font-weight:700" onclick="rechtenSluit();instTab=\'rechten\';coachGo(\'settings\')">Instellingen, Rechten coaches</a>.</div>';
 }
 function rechtenBeheerderWissel(aan){
   if(!RECHTEN)return;

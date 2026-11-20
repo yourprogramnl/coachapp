@@ -2010,3 +2010,30 @@ body.bervenster .chatklant{max-height:none}
 .wwbord-wovoet .cpill.purple{background:#fff}
 .wwbord-womeer{margin-left:auto;background:none;border:none;color:#5b4bd1;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;padding:0}
 .wwbord-womeer:hover{text-decoration:underline}
+/* ---------- Rechten coaches en meekijken (app/meekijken.js, 20 nov 2026) ---------- */
+.kijkpil{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#5b6470;background:#eef1f4;border:1px solid #dfe3e8;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.kijkpil .i{width:12px;height:12px}
+.kijkkop{padding:9px 18px;font-size:12px;color:#5b6470;background:#f8f9fa;border-bottom:1px solid #f0f1f3}
+.kijkkop b{color:#1d2129}
+.kijkscherm{background:#fff;min-height:calc(100vh - 52px)}
+.kijkscherm .mcard{cursor:default}
+.kijkscherm .mcard .msc{padding-right:2px}
+.kijkwie{display:flex;align-items:center;gap:10px;margin-left:auto}
+.kijksel{border:1px solid transparent;background:none;font-family:inherit;font-size:13.5px;font-weight:800;color:#1d2129;border-radius:7px;padding:2px 4px;max-width:240px;cursor:pointer}
+.kijksel:hover,.kijksel:focus{border-color:#dfe3e8;background:#f6f7f8;outline:none}
+.kijkinfo{flex-basis:100%;font-size:12px;color:#5b6470;background:#f6f7f8;border-radius:8px;padding:7px 12px}
+.kijkleeg{padding:14px 18px;font-size:13px;color:#5b6470;background:#fbfbfc;border-bottom:1px solid #e7e9ec}
+.kijkvids{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.kijkvid{font-size:10px;font-weight:700;color:#2a7fa8;background:rgba(255,255,255,.75);border:1px solid rgba(42,127,168,.25);border-radius:999px;padding:1px 7px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kijkvid:hover{background:#fff;border-color:#2a9fce}
+.rckaart{background:#fff;border:1px solid #e7e9ec;border-radius:12px;padding:14px 16px;margin-bottom:12px;max-width:760px}
+.rckop{display:flex;align-items:center;gap:11px}
+.rctel{font-size:11px;font-weight:700;color:#5b6470;background:#eef1f4;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.rclabel{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#8a919c;margin:14px 0 6px}
+.rcrij{display:flex;flex-direction:column}
+.rcvink{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid #f0f1f3;cursor:pointer;font-size:13px}
+.rcvink:first-child{border-top:none}
+.rcvink input{width:auto;margin:0;flex:none}
+.rcvink .rcnaam{font-weight:600}
+.rcvink .rcaantal{margin-left:auto;font-size:12px;color:#8a919c}
+.rcbeheer{max-width:760px;margin-top:16px;padding:12px 16px;border:1px dashed #d5d9df;border-radius:12px;font-size:13px}
