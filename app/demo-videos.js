@@ -38,7 +38,7 @@ function gmNorm(s){
   s=s.split(" ").map(w=>GM_AFKO[w]||w).join(" ");
   s=s.split(" ").map(w=>{
     if(/(ches|shes|xes)$/.test(w)&&w.length>4)return w.slice(0,-2);
-    if(w.length>=3&&w.endsWith("s")&&!w.endsWith("ss"))return w.slice(0,-1);
+    if(w.length>=3&&w.endsWith("s")&&!w.endsWith("ss")&&w!=="dus")return w.slice(0,-1);
     return w;
   }).join(" ");
   return s.replace(/\s+/g," ").trim();
