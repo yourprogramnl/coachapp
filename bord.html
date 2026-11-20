@@ -144,6 +144,18 @@ const LOKAAL_SLEUTEL="lvb_opmaak_"+CODE;
 let lokaal={};
 try{const v=JSON.parse(localStorage.getItem(LOKAAL_SLEUTEL)||"{}");if(v&&typeof v==="object")lokaal=v;}catch(e){lokaal={};}
 function lokaalBewaar(){try{localStorage.setItem(LOKAAL_SLEUTEL,JSON.stringify(lokaal));}catch(e){}}
+// Verandert de coach de opmaak via de afstandsbediening in de app of op de website, dan wint
+// dat van wat eerder op dit scherm zelf was ingesteld: de eigen instelling van het scherm
+// wordt gewist. Zo doet de afstandsbediening altijd wat de coach verwacht. De laatst geziene
+// opmaak van de coach staat in het browsergeheugen, zodat verversen niets wist.
+const SERVER_SLEUTEL="lvb_server_"+CODE;
+function serverOpmaak(s){
+  try{
+    const nu=JSON.stringify(s.opmaak||{}),vorig=localStorage.getItem(SERVER_SLEUTEL);
+    if(vorig!==null&&vorig!==nu){lokaal={};localStorage.removeItem(LOKAAL_SLEUTEL);}
+    if(vorig!==nu)localStorage.setItem(SERVER_SLEUTEL,nu);
+  }catch(e){}
+}
 function opmaakVan(s){
   const o=Object.assign({},(s&&s.opmaak)||{},lokaal),w=Number(o.workout);
   return {workout:w>=40&&w<=200?Math.round(w/10)*10:100,
@@ -344,7 +356,7 @@ async function haal(){
     if(!r.ok)throw new Error("http "+r.status);
     const s=await r.json();
     fouten=0;document.getElementById("live").className="";document.getElementById("live").innerHTML="&#9679; live";
-    if(s)merkNieuw(s);
+    if(s){serverOpmaak(s);merkNieuw(s);}
     // Alleen opnieuw tekenen als er iets veranderd is, of als een gouden rand moet verlopen.
     const nu=Date.now(),actief=Object.keys(nieuwTot).filter(id=>nieuwTot[id]>nu).sort().join(",");
     const sleutel=JSON.stringify(s)+"#"+actief;
