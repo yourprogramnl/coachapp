@@ -1835,5 +1835,6 @@ i18nLaad({
 "Maak een keuze":"Make a choice",
 "Zo sta je met je naam in de juiste lijst op het leaderboard.":"This puts you on the leaderboard under your name, in the right list.",
 "Vul je voornaam en achternaam in.":"Enter your first and last name.",
-"Kies bij geslacht een van de opties.":"Choose one of the options for gender."
+"Kies bij geslacht een van de opties.":"Choose one of the options for gender.",
+"Je account is nog niet gekoppeld":"Your account isn't linked yet"
 });
