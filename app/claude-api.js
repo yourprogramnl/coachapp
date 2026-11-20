@@ -238,26 +238,29 @@ const ClaudeApi=(()=>{
   // Per regel herkennen, en binnen een regel wint de meest specifieke naam: bij
   // "Barbell Strict Press" niet ook nog de video van "Strict Press" erbij. Daarna
   // elke oefening en elke video hooguit één keer.
-  // bron = losse tekst (warming-up, cooldown) of een blok {naam, tekst, naamAlleen}.
-  // Bij een blok gaat de naam voor. Bij een oefening is de naam de oefening: is die
-  // herkend, dan komt er niets meer uit het voorschrift bij (daar staat hooguit een
-  // verwijzing in, zoals "70% van je back squat"). Bij conditioning staan de bewegingen
-  // in de omschrijving: eerst de naam, daarna de tekst.
+  // bron = losse tekst (warming-up, cooldown) of een blok {naam, tekst}.
+  // Bij een blok gaat de naam voor: zijn video's staan vooraan, en wat de naam al preciezer
+  // zegt komt niet nog eens uit de tekst (naam "Kipping Handstand Push-Up", tekst
+  // "3 Handstand Push-Ups": geen losse Push-Up-video erbij). De rest van de tekst telt wel
+  // mee, want een warming-up of een complex staat vaak als gewoon blok in het programma.
   function mediaAuto(bron){
     try{
       const uit=[];
-      const lees=tekst=>String(tekst||"").split(/\n/).map(r=>r.trim()).filter(Boolean).forEach(regel=>{
-        const hits=gmHerkenRegel(regel,new Set()).filter(h=>h.o&&h.o.youtube_id);
-        const in_=(a,b)=>b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ");
-        hits.filter(a=>!hits.some(b=>b!==a&&in_(a,b))).forEach(h=>{
-          if(uit.some(m=>m.oefening_id===h.o.id||m.youtube_id===h.o.youtube_id))return;
-          uit.push({youtube_id:h.o.youtube_id,titel:h.o.naam,oefening_id:h.o.id,term:h.term});
+      const in_=(a,b)=>b.term.length>a.term.length&&(" "+b.term+" ").includes(" "+a.term+" ");
+      const lees=(tekst,naamHits)=>{
+        const gevonden=[];
+        String(tekst||"").split(/\n/).map(r=>r.trim()).filter(Boolean).forEach(regel=>{
+          const hits=gmHerkenRegel(regel,new Set()).filter(h=>h.o&&h.o.youtube_id);
+          hits.filter(a=>!hits.some(b=>b!==a&&in_(a,b))&&!(naamHits||[]).some(b=>in_(a,b))).forEach(h=>{
+            gevonden.push(h);
+            if(uit.some(m=>m.oefening_id===h.o.id||m.youtube_id===h.o.youtube_id))return;
+            uit.push({youtube_id:h.o.youtube_id,titel:h.o.naam,oefening_id:h.o.id,term:h.term});
+          });
         });
-      });
-      if(bron&&typeof bron==="object"){
-        lees(bron.naam);
-        if(!(bron.naamAlleen&&uit.length))lees(bron.tekst);
-      }else lees(bron);
+        return gevonden;
+      };
+      if(bron&&typeof bron==="object")lees(bron.tekst,lees(bron.naam));
+      else lees(bron);
       return uit.slice(0,MAX_VIDEOS);
     }catch(e){return [];}
   }
@@ -328,7 +331,7 @@ const ClaudeApi=(()=>{
   }
   const blokTekst=n=>[n.exercise,n.kind==="conditioning"?n.notes:n.prescription].filter(Boolean).join("\n");
   // Voor het kiezen van demo-video's: naam en tekst apart, zodat de naam voor kan gaan.
-  const blokBron=n=>({naam:n.exercise,tekst:n.kind==="conditioning"?n.notes:n.prescription,naamAlleen:n.kind!=="conditioning"});
+  const blokBron=n=>({naam:n.exercise,tekst:n.kind==="conditioning"?n.notes:n.prescription});
 
   // ---------- Van gecontroleerde invoer naar databaserij ----------
   function blokRij(n,oud){
@@ -544,7 +547,7 @@ const ClaudeApi=(()=>{
           "De chat lees je met ClaudeApi.berichten. Je kunt geen berichten versturen en niets als gelezen markeren; dat doet de coach zelf.",
           "Elk schrijf-commando geeft terug wat er nu staat, in dezelfde vorm als ClaudeApi.week. Lees dat na, vooral demo_videos: de herkenning zit er soms naast.",
           "Demo-video's: een nieuw blok krijgt ze vanzelf, een gekopieerd blok houdt de video's die het had. Mist er een, gebruik dan videos:\"aanvullen\" (laat staan wat er staat en voegt herkende oefeningen toe). Staat er bij een blok videos_uitgezet, dan hebben coaches die video eerder bewust weggehaald: kies hem alleen als de coach het vraagt, met videos:[id] uit videoZoek. Bestaat er voor een beweging geen video in de bibliotheek (bijvoorbeeld Echo Bike), dan kan er ook niets gekozen worden: meld dat aan de coach.",
-          "Hoe de app zelf kiest: de naam van het blok gaat voor. Bij een oefening telt alleen de naam als die herkend wordt; uit het voorschrift komt er dan niets bij (zet een tweede beweging dus in een eigen blok, of geef videos:[...] mee). Wordt de naam niet herkend, dan kijkt de app in het voorschrift. Bij conditioning komt eerst de naam en daarna elke beweging uit de omschrijving. Per blok, warming-up of cooldown passen er hooguit "+MAX_VIDEOS+" video's.",
+          "Hoe de app zelf kiest: de naam van het blok gaat voor, die video's staan vooraan. Daarna komt elke beweging die in het voorschrift of de omschrijving staat, behalve wat de naam al preciezer zegt. Een beweging die je alleen noemt als verwijzing (\"zelfde gewicht als de back squat\") krijgt dus ook een video: lees demo_videos na en geef in dat geval videos:[...] mee. Per blok, warming-up of cooldown passen er hooguit "+MAX_VIDEOS+" video's.",
           "Een tweede sessie op dezelfde dag is een tweede workout met dezelfde datum en een eigen titel, bijvoorbeeld \"Sessie 2 (optioneel)\". De volgorde in de lijst van schrijfConcept is de volgorde op de dag. Een vinkje optioneel of prio bestaat nog niet: zet het in de titel.",
           "Staat er ok:false, dan is er niets geschreven, tenzij de fout zelf iets anders zegt.",
           "Een groot antwoord (vier weken van een atleet die veel traint is al snel 75 kB) kan in je browsergereedschap afgekapt worden. Bewaar het dan in een variabele (window.w = await ClaudeApi.week(...)) en lees het per week of per dag uit, of vraag één week per keer op."
