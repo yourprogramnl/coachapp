@@ -24,6 +24,9 @@
   op de telefoon zet hem daar neer en stuurt over het kanaal urn:x-cast:nl.yourprogram.bord het
   bericht {type:'bord', code}. Daarna leest de pagina het bord zoals altijd en mag de telefoon
   weg; bedienen gaat via de database (afstandsbediening in de app of de website).
+  Wisselbalkje (21 nov 2026, wens Michel): bladert het bord door de scores (mannen en vrouwen
+  om de beurt), dan loopt helemaal onderaan een gouden balkje leeg. Is het leeg, dan wisselt
+  het bord. Zo zie je aankomen wanneer de andere groep in beeld komt.
   Bediening en klaarzetten: app/live-bord.js in de coach-app.
 -->
 <style>
@@ -67,7 +70,10 @@ main.split .vak+.vak{border-left:1px solid var(--lijn)}
 .blz b.aan{background:var(--goud)}
 .leeg{color:var(--zacht);text-align:center;margin:auto;font-size:clamp(15px,2.8vh,34px);line-height:1.5;padding:0 6vw}
 .midden .titel,.midden>.label,.midden .tekst,.midden .cap{text-align:center}
-footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:var(--zacht);font-size:clamp(11px,1.7vh,20px)}
+footer{position:relative;text-align:center;padding:1vh 3vw 1.7vh;border-top:1px solid var(--lijn);color:var(--zacht);font-size:clamp(11px,1.7vh,20px)}
+#wissel{position:absolute;left:0;right:0;bottom:0;height:.8vh;min-height:5px;background:var(--lijn);overflow:hidden;display:none}
+#wissel.aan{display:block}
+#wissel i{display:block;height:100%;background:var(--goud);transform-origin:left center;transition:transform .25s linear}
 #balk{position:fixed;left:14px;bottom:14px;z-index:7;display:flex;align-items:center;gap:6px;background:rgba(18,18,21,.97);border:1px solid #3a3a3f;border-radius:10px;padding:7px 9px;font-size:14px;color:var(--zacht)}
 #balk.uit,body.cast #balk{display:none}
 #balk span{margin:0 2px 0 8px}
@@ -96,7 +102,7 @@ footer{text-align:center;padding:1vh 3vw;border-top:1px solid var(--lijn);color:
     <div id="klok"></div>
   </header>
   <main id="main"><div class="leeg">Bord laden…</div></main>
-  <footer>Log je score in de YourProgram-app &middot; yourprogram.nl</footer>
+  <footer>Log je score in de YourProgram-app &middot; yourprogram.nl<div id="wissel"><i></i></div></footer>
 </div>
 <div id="balk" class="uit"></div>
 <script>
@@ -268,7 +274,7 @@ function indeling(s,W,H){
 }
 function vulScores(){
   const sc=document.getElementById("scores"),blz=document.getElementById("blz");
-  if(!sc||!stand)return;
+  if(!sc||!stand){wisselTeken();return;}
   const s=stand,st=(s.onderdeel&&s.onderdeel.score_type)||"text",nu=Date.now();
   let pags,f,lh,breed;
   if(smalScherm()){
@@ -295,13 +301,29 @@ function vulScores(){
       (nieuw?'<span class="nw">nieuw</span>':'')+'</span><span class="sc">'+esc(scoreTxt(r,st))+'</span></div></div>';
   }).join("")+'</div>').join("");
   if(blz)blz.innerHTML=aantalPag>1?Array.from({length:aantalPag},(x,i)=>'<b'+(i===pagina?' class="aan"':'')+'></b>').join("")+'<span>'+(pagina+1)+' van '+aantalPag+(pauze?' · gepauzeerd':'')+'</span>':"";
+  wisselTeken();
+}
+// Het balkje helemaal onderaan: vol na een wissel, leeg op het moment dat het bord doorbladert.
+// Alleen als er echt gebladerd wordt (meer dan één bladzijde, niet gepauzeerd). De lengte komt
+// vier keer per seconde uit dezelfde klok als het bladeren (laatsteWissel) en schuift er
+// vloeiend naartoe. Zo loopt het balkje altijd gelijk met de wissel, ook op een trage tv of
+// Chromecast die beeldjes overslaat (een losse animatie van 12 seconden kan dan achterlopen).
+const WISSEL_TIK=250;
+function wisselTeken(){
+  const el=document.getElementById("wissel");if(!el)return;
+  const toon=!!stand&&!!document.getElementById("scores")&&aantalPag>1&&!pauze&&!smalScherm();
+  el.classList.toggle("aan",toon);
+  if(!toon)return;
+  const rest=Math.max(0,Math.min(1,1-(Date.now()+WISSEL_TIK-laatsteWissel)/WISSEL_MS));
+  el.firstElementChild.style.transform="scaleX("+rest.toFixed(4)+")";
 }
 // Meer scores dan er passen: om de paar seconden door naar de volgende bladzijde.
 setInterval(()=>{
+  wisselTeken();
   if(!stand||aantalPag<2||pauze)return;
   if(Date.now()-laatsteWissel<WISSEL_MS)return;
   pagina=(pagina+1)%aantalPag;laatsteWissel=Date.now();vulScores();
-},500);
+},WISSEL_TIK);
 
 // Workout-tekst: elke regel apart, een lege regel wordt een kleine tussenruimte. Zo groeit de
 // ruimte tussen de regels niet mee als de letters groter worden.
@@ -322,12 +344,12 @@ function workoutHtml(s,midden){
 function teken(){
   const main=document.getElementById("main"),s=stand;
   balkTeken();
-  if(!s){main.className="";main.innerHTML='<div class="leeg">Dit bord bestaat niet (meer). Controleer de link.</div>';return;}
+  if(!s){main.className="";main.innerHTML='<div class="leeg">Dit bord bestaat niet (meer). Controleer de link.</div>';wisselTeken();return;}
   document.getElementById("kop-titel").textContent=s.titel||"Live bord";
   document.getElementById("kop-datum").textContent=s.datum?"· "+datumNL(s.datum)+" ·":"·";
   document.title=(s.titel||"Live bord")+" · YourProgram";
   const o=s.onderdeel;
-  if(!o){main.className="";main.innerHTML='<div class="leeg">Het bord staat klaar. Het eerste onderdeel verschijnt hier zo.</div>';return;}
+  if(!o){main.className="";main.innerHTML='<div class="leeg">Het bord staat klaar. Het eerste onderdeel verschijnt hier zo.</div>';wisselTeken();return;}
   const om=opmaakVan(s),n=(s.scores||[]).length,alleen=staatAlleen(s),midden=plekVan(om,alleen)==="midden";
   const scoresVak=kop=>'<div class="vak'+(kop?' midden':'')+'">'+(kop?'<div class="label">Onderdeel '+s.nr+' van '+s.aantal+'</div><h1 class="titel">'+esc(o.titel||"")+'</h1>':'')+
     '<div class="label midden">Scores'+(n?' · '+n+' binnen':'')+'</div>'+
